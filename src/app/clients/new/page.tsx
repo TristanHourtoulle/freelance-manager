@@ -20,7 +20,8 @@ export default function NewClientPage() {
       throw new Error(body.error?.message ?? "Failed to create client")
     }
 
-    router.push("/clients")
+    const created = await res.json()
+    router.push(`/clients/${created.id}/edit`)
   }
 
   return (

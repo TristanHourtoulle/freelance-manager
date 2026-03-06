@@ -16,5 +16,14 @@ export const updateTaskOverrideSchema = z.object({
   rateOverride: z.number().min(0).nullable().optional(),
 })
 
+export const upsertTaskOverrideSchema = z.object({
+  clientId: z.string().min(1),
+  toInvoice: z.boolean().optional(),
+  invoiced: z.boolean().optional(),
+  invoicedAt: z.coerce.date().optional(),
+  rateOverride: z.number().min(0).nullable().optional(),
+})
+
 export type CreateTaskOverrideInput = z.infer<typeof createTaskOverrideSchema>
 export type UpdateTaskOverrideInput = z.infer<typeof updateTaskOverrideSchema>
+export type UpsertTaskOverrideInput = z.infer<typeof upsertTaskOverrideSchema>
