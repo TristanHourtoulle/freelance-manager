@@ -74,6 +74,12 @@ export function ClientCard({ client, onDelete }: ClientCardProps) {
                 : ""}
           </span>
         )}
+        {client.linearMappings && client.linearMappings.length > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+            {client.linearMappings.length} Linear project
+            {client.linearMappings.length > 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       <div className="mt-4 flex justify-end gap-2">

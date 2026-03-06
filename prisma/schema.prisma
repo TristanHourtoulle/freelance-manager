@@ -118,12 +118,11 @@ model LinearMapping {
   client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   // At least one of linearTeamId or linearProjectId is required (enforced at application layer via Zod)
   linearTeamId    String?
-  linearProjectId String?
+  linearProjectId String?  @unique // One Linear project maps to exactly one client
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@unique([clientId, linearTeamId])
-  @@unique([clientId, linearProjectId])
   @@map("linear_mappings")
 }
 

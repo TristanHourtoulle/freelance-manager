@@ -41,6 +41,7 @@ export async function GET(request: Request) {
         skip,
         take: filters.limit,
         orderBy: { createdAt: "desc" },
+        include: { linearMappings: true },
       }),
       prisma.client.count({ where }),
     ])
