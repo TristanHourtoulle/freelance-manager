@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
+import { AddMappingForm } from "@/components/clients/linear-mappings-section/add-mapping-form"
+import { LinearMappingsList } from "@/components/clients/linear-mappings-section/linear-mappings-list"
 
 import type { LinearMappingDTO } from "@/components/clients/types"
 
@@ -42,11 +43,13 @@ export function LinearMappingsSection({
     let cancelled = false
     async function load() {
       const res = await fetch(`/api/clients/${clientId}/linear-mappings`)
-      if (!cancelled && res.ok) {
-        const data = await res.json()
-        setMappings(data)
+      if (cancelled) return
+      if (res.ok) {
+        setMappings(await res.json())
+      } else {
+        setError("Failed to load mappings")
       }
-      if (!cancelled) setIsLoadingMappings(false)
+      setIsLoadingMappings(false)
     }
     load()
     return () => {
@@ -58,11 +61,13 @@ export function LinearMappingsSection({
     let cancelled = false
     async function load() {
       const res = await fetch("/api/linear/teams")
-      if (!cancelled && res.ok) {
-        const data = await res.json()
-        setTeams(data)
+      if (cancelled) return
+      if (res.ok) {
+        setTeams(await res.json())
+      } else {
+        setError("Failed to load Linear teams")
       }
-      if (!cancelled) setIsLoadingTeams(false)
+      setIsLoadingTeams(false)
     }
     load()
     return () => {
@@ -84,11 +89,13 @@ export function LinearMappingsSection({
       setSelectedProjectId("")
 
       const res = await fetch(`/api/linear/projects?teamId=${selectedTeamId}`)
-      if (!cancelled && res.ok) {
-        const data = await res.json()
-        setProjects(data)
+      if (cancelled) return
+      if (res.ok) {
+        setProjects(await res.json())
+      } else {
+        setError("Failed to load projects")
       }
-      if (!cancelled) setIsLoadingProjects(false)
+      setIsLoadingProjects(false)
     }
     load()
     return () => {
@@ -96,7 +103,7 @@ export function LinearMappingsSection({
     }
   }, [selectedTeamId])
 
-  async function handleAdd() {
+  const handleAdd = useCallback(async () => {
     if (!selectedTeamId && !selectedProjectId) return
 
     setIsSaving(true)
@@ -126,31 +133,42 @@ export function LinearMappingsSection({
     }
 
     setIsSaving(false)
-  }
+  }, [clientId, selectedTeamId, selectedProjectId])
 
-  async function handleDelete(mappingId: string) {
-    const res = await fetch(
-      `/api/clients/${clientId}/linear-mappings/${mappingId}`,
-      { method: "DELETE" },
-    )
+  const handleDelete = useCallback(
+    async (mappingId: string) => {
+      setError("")
 
-    if (res.ok) {
-      setMappings((prev) => prev.filter((m) => m.id !== mappingId))
-    }
-  }
+      const res = await fetch(
+        `/api/clients/${clientId}/linear-mappings/${mappingId}`,
+        { method: "DELETE" },
+      )
 
-  const teamLookup = new Map(teams.map((t) => [t.id, t.name]))
-  const projectLookup = new Map(projects.map((p) => [p.id, p.name]))
-
-  const allProjectNames = new Map<string, string>()
-  for (const p of projects) {
-    allProjectNames.set(p.id, p.name)
-  }
-
-  const mappedProjectIds = new Set(
-    mappings.map((m) => m.linearProjectId).filter(Boolean),
+      if (res.ok) {
+        setMappings((prev) => prev.filter((m) => m.id !== mappingId))
+      } else {
+        setError("Failed to remove mapping")
+      }
+    },
+    [clientId],
   )
-  const availableProjects = projects.filter((p) => !mappedProjectIds.has(p.id))
+
+  const teamLookup = useMemo(
+    () => new Map(teams.map((t) => [t.id, t.name])),
+    [teams],
+  )
+
+  const projectLookup = useMemo(
+    () => new Map(projects.map((p) => [p.id, p.name])),
+    [projects],
+  )
+
+  const availableProjects = useMemo(() => {
+    const mappedProjectIds = new Set(
+      mappings.map((m) => m.linearProjectId).filter(Boolean),
+    )
+    return projects.filter((p) => !mappedProjectIds.has(p.id))
+  }, [mappings, projects])
 
   if (isLoadingMappings || isLoadingTeams) {
     return (
@@ -168,93 +186,28 @@ export function LinearMappingsSection({
         Linear Mappings
       </h2>
 
-      {mappings.length > 0 && (
-        <div className="mb-4 space-y-2">
-          {mappings.map((mapping) => (
-            <div
-              key={mapping.id}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700"
-            >
-              <div className="text-sm">
-                {mapping.linearTeamId && (
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    {teamLookup.get(mapping.linearTeamId) ??
-                      mapping.linearTeamId}
-                  </span>
-                )}
-                {mapping.linearTeamId && mapping.linearProjectId && (
-                  <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">
-                    /
-                  </span>
-                )}
-                {mapping.linearProjectId && (
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {projectLookup.get(mapping.linearProjectId) ??
-                      allProjectNames.get(mapping.linearProjectId) ??
-                      mapping.linearProjectId}
-                  </span>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                onClick={() => handleDelete(mapping.id)}
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
+      <LinearMappingsList
+        mappings={mappings}
+        teamLookup={teamLookup}
+        projectLookup={projectLookup}
+        onDelete={handleDelete}
+      />
+
+      {error && (
+        <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
 
-      {mappings.length === 0 && (
-        <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
-          No Linear projects mapped to this client yet.
-        </p>
-      )}
-
-      <div className="space-y-3 rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
-        <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Add a mapping
-        </p>
-
-        <Select
-          label="Team"
-          placeholder="Select a team"
-          value={selectedTeamId}
-          onChange={(e) => setSelectedTeamId(e.target.value)}
-          options={teams.map((t) => ({ value: t.id, label: t.name }))}
-        />
-
-        {selectedTeamId && (
-          <Select
-            label="Project"
-            placeholder={
-              isLoadingProjects ? "Loading projects..." : "Select a project"
-            }
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            disabled={isLoadingProjects}
-            options={availableProjects.map((p) => ({
-              value: p.id,
-              label: p.name,
-            }))}
-          />
-        )}
-
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
-
-        <Button
-          onClick={handleAdd}
-          isLoading={isSaving}
-          disabled={!selectedTeamId && !selectedProjectId}
-          variant="secondary"
-        >
-          Add Mapping
-        </Button>
-      </div>
+      <AddMappingForm
+        teams={teams}
+        selectedTeamId={selectedTeamId}
+        onTeamChange={setSelectedTeamId}
+        selectedProjectId={selectedProjectId}
+        onProjectChange={setSelectedProjectId}
+        availableProjects={availableProjects}
+        isLoadingProjects={isLoadingProjects}
+        isSaving={isSaving}
+        onAdd={handleAdd}
+      />
     </div>
   )
 }
