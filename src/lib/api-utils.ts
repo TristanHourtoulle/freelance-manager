@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { z } from "zod/v4"
 
-import type { Client } from "@/generated/prisma/client"
+import type { Client, LinearMapping } from "@/generated/prisma/client"
 
 interface AuthenticatedUser {
   id: string
@@ -59,7 +59,9 @@ export function isLinearError(error: unknown): boolean {
   )
 }
 
-export function serializeClient(client: Client) {
+export function serializeClient(
+  client: Client & { linearMappings?: LinearMapping[] },
+) {
   return {
     ...client,
     rate: Number(client.rate),

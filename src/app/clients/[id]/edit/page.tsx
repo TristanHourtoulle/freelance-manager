@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ClientForm } from "@/components/clients/client-form"
+import { LinearMappingsSection } from "@/components/clients/linear-mappings-section"
 
 import type { SerializedClient } from "@/components/clients/types"
 import type { CreateClientInput } from "@/lib/schemas/client"
@@ -85,6 +86,9 @@ export default function EditClientPage() {
           isEdit
           onSubmit={handleSubmit}
         />
+      </div>
+      <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <LinearMappingsSection clientId={id} />
       </div>
     </div>
   )

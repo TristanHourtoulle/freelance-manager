@@ -1,3 +1,12 @@
+export interface LinearMappingDTO {
+  id: string
+  clientId: string
+  linearTeamId: string | null
+  linearProjectId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface SerializedClient {
   id: string
   userId: string
@@ -11,6 +20,7 @@ export interface SerializedClient {
   archivedAt: string | null
   createdAt: string
   updatedAt: string
+  linearMappings?: LinearMappingDTO[]
 }
 
 export interface Pagination {
