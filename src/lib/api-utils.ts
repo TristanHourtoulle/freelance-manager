@@ -50,6 +50,15 @@ export function handleApiError(error: unknown): NextResponse {
   return apiError("SYS_INTERNAL_ERROR", "Internal server error", 500)
 }
 
+export function isLinearError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.constructor.name === "LinearError" ||
+      error.constructor.name === "LinearGraphQLError" ||
+      error.message.includes("Linear"))
+  )
+}
+
 export function serializeClient(client: Client) {
   return {
     ...client,
