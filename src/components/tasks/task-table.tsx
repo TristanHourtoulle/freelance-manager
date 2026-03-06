@@ -6,8 +6,8 @@ import type { EnrichedTask } from "./types"
 
 interface TaskTableProps {
   tasks: EnrichedTask[]
-  onToggleToInvoice: (linearIssueId: string, value: boolean) => void
-  onToggleInvoiced: (linearIssueId: string, value: boolean) => void
+  onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
+  onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
 }
 
 export function TaskTable({
@@ -28,9 +28,11 @@ export function TaskTable({
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-700">
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Bill
-            </th>
+            {onToggleToInvoice && (
+              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Bill
+              </th>
+            )}
             <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               ID
             </th>
@@ -46,9 +48,11 @@ export function TaskTable({
             <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               Amount
             </th>
-            <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              Invoiced
-            </th>
+            {onToggleInvoiced && (
+              <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Invoiced
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
