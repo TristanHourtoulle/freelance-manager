@@ -9,16 +9,10 @@ import { BillingGroupList } from "@/components/billing/billing-group-list"
 import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
+import { formatCurrency } from "@/lib/format"
 
 import type { ClientTaskGroup, ClientSummary } from "@/components/tasks/types"
 import type { BillingApiResponse } from "@/components/billing/types"
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount)
-}
 
 export default function BillingPage() {
   const searchParams = useSearchParams()
@@ -194,7 +188,7 @@ export default function BillingPage() {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleMarkInvoiced}
         title="Mark as invoiced"
-        description={`You are about to mark ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} across ${selectedClientCount} client${selectedClientCount !== 1 ? "s" : ""} as invoiced (${formatAmount(selectedTotal)}). This action can be undone from the Tasks page.`}
+        description={`You are about to mark ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} across ${selectedClientCount} client${selectedClientCount !== 1 ? "s" : ""} as invoiced (${formatCurrency(selectedTotal)}). This action can be undone from the Tasks page.`}
         confirmLabel="Mark as invoiced"
         isLoading={isMarking}
       />
