@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { TaskFilters } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
@@ -97,6 +99,9 @@ export default function TasksPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Tasks
         </h1>
+        <Link href="/billing">
+          <Button variant="secondary">To Invoice</Button>
+        </Link>
       </div>
 
       <TaskFilters clients={allClients} />
