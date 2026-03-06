@@ -29,6 +29,7 @@ export function LinearMappingsSection({
   const [mappings, setMappings] = useState<LinearMappingDTO[]>([])
   const [teams, setTeams] = useState<LinearTeam[]>([])
   const [projects, setProjects] = useState<LinearProject[]>([])
+  const [allProjects, setAllProjects] = useState<LinearProject[]>([])
 
   const [selectedTeamId, setSelectedTeamId] = useState("")
   const [selectedProjectId, setSelectedProjectId] = useState("")
@@ -60,12 +61,18 @@ export function LinearMappingsSection({
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const res = await fetch("/api/linear/teams")
+      const [teamsRes, projectsRes] = await Promise.all([
+        fetch("/api/linear/teams"),
+        fetch("/api/linear/projects"),
+      ])
       if (cancelled) return
-      if (res.ok) {
-        setTeams(await res.json())
+      if (teamsRes.ok) {
+        setTeams(await teamsRes.json())
       } else {
         setError("Failed to load Linear teams")
+      }
+      if (projectsRes.ok) {
+        setAllProjects(await projectsRes.json())
       }
       setIsLoadingTeams(false)
     }
@@ -113,7 +120,9 @@ export function LinearMappingsSection({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        linearTeamId: selectedTeamId || undefined,
+        linearTeamId: selectedProjectId
+          ? undefined
+          : selectedTeamId || undefined,
         linearProjectId: selectedProjectId || undefined,
       }),
     })
@@ -159,8 +168,8 @@ export function LinearMappingsSection({
   )
 
   const projectLookup = useMemo(
-    () => new Map(projects.map((p) => [p.id, p.name])),
-    [projects],
+    () => new Map(allProjects.map((p) => [p.id, p.name])),
+    [allProjects],
   )
 
   const availableProjects = useMemo(() => {
