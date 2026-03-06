@@ -19,13 +19,28 @@ async function main() {
     prisma.client.deleteMany(),
   ])
 
-  // Get or create a test user
-  let user = await prisma.user.findFirst()
+  // Get or create test users
+  let user = await prisma.user.findFirst({
+    where: { email: "test@freelancedash.dev" },
+  })
   if (!user) {
     user = await prisma.user.create({
       data: {
         name: "Test User",
-        email: "test@freelance-manager.dev",
+        email: "test@freelancedash.dev",
+        emailVerified: true,
+      },
+    })
+  }
+
+  let tristanUser = await prisma.user.findFirst({
+    where: { email: "tristan68420@gmail.com" },
+  })
+  if (!tristanUser) {
+    tristanUser = await prisma.user.create({
+      data: {
+        name: "Tristan Hourtoulle",
+        email: "tristan68420@gmail.com",
         emailVerified: true,
       },
     })
