@@ -17,6 +17,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  clients       Client[]
 
   @@map("users")
 }
@@ -63,4 +64,95 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@map("verifications")
+}
+
+// --- Business Domain ---
+
+enum BillingMode {
+  HOURLY
+  DAILY
+  FIXED
+  FREE
+}
+
+enum Category {
+  FREELANCE
+  STUDY
+  PERSONAL
+  SIDE_PROJECT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+}
+
+model Client {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  email       String?
+  company     String?
+  billingMode BillingMode  @default(HOURLY)
+  rate        Float        @default(0)
+  category    Category     @default(FREELANCE)
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  linearMappings LinearMapping[]
+  taskOverrides  TaskOverride[]
+  invoices       Invoice[]
+
+  @@index([userId])
+  @@index([category])
+  @@map("clients")
+}
+
+model LinearMapping {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  linearTeamId    String?
+  linearProjectId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([clientId, linearTeamId])
+  @@unique([clientId, linearProjectId])
+  @@map("linear_mappings")
+}
+
+model TaskOverride {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  linearIssueId String    @unique
+  toInvoice     Boolean   @default(false)
+  invoiced      Boolean   @default(false)
+  invoicedAt    DateTime?
+  rateOverride  Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([clientId])
+  @@map("task_overrides")
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  month       DateTime
+  totalAmount Float         @default(0)
+  status      InvoiceStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([clientId, month])
+  @@index([clientId])
+  @@map("invoices")
 }
