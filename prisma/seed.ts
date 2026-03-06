@@ -11,11 +11,13 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  // Clean existing data
-  await prisma.invoice.deleteMany()
-  await prisma.taskOverride.deleteMany()
-  await prisma.linearMapping.deleteMany()
-  await prisma.client.deleteMany()
+  // Clean existing data (order matters due to foreign keys)
+  await prisma.$transaction([
+    prisma.invoice.deleteMany(),
+    prisma.taskOverride.deleteMany(),
+    prisma.linearMapping.deleteMany(),
+    prisma.client.deleteMany(),
+  ])
 
   // Get or create a test user
   let user = await prisma.user.findFirst()

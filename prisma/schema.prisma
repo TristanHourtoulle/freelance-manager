@@ -96,7 +96,7 @@ model Client {
   email       String?
   company     String?
   billingMode BillingMode  @default(HOURLY)
-  rate        Float        @default(0)
+  rate        Decimal      @default(0) @db.Decimal(10, 2)
   category    Category     @default(FREELANCE)
   notes       String?
   archivedAt  DateTime?
@@ -116,6 +116,7 @@ model LinearMapping {
   id              String   @id @default(cuid())
   clientId        String
   client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // At least one of linearTeamId or linearProjectId is required (enforced at application layer via Zod)
   linearTeamId    String?
   linearProjectId String?
   createdAt       DateTime @default(now())
@@ -134,7 +135,7 @@ model TaskOverride {
   toInvoice     Boolean   @default(false)
   invoiced      Boolean   @default(false)
   invoicedAt    DateTime?
-  rateOverride  Float?
+  rateOverride  Decimal?  @db.Decimal(10, 2)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -147,7 +148,7 @@ model Invoice {
   clientId    String
   client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   month       DateTime
-  totalAmount Float         @default(0)
+  totalAmount Decimal       @default(0) @db.Decimal(10, 2)
   status      InvoiceStatus @default(DRAFT)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
