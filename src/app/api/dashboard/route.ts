@@ -1,122 +1,15 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
-import { fetchLinearIssues } from "@/lib/linear-service"
-import { calculateBilling } from "@/lib/billing"
 import { NextResponse } from "next/server"
+import {
+  getMonthKey,
+  buildMonthRange,
+  fetchIssueMapForClient,
+  computeGroupAmount,
+} from "@/lib/analytics-helpers"
 
-import type {
-  BillingMode,
-  TaskOverride,
-  Client,
-  LinearMapping,
-} from "@/generated/prisma/client"
-
-type OverrideWithClient = TaskOverride & {
-  client: Client & { linearMappings: LinearMapping[] }
-}
-
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-]
-
-function getMonthKey(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  return `${y}-${m}`
-}
-
-function getMonthLabel(key: string): string {
-  const month = parseInt(key.split("-")[1]!, 10)
-  return MONTH_LABELS[month - 1]!
-}
-
-function buildLast6Months(): Array<{
-  month: string
-  label: string
-  amount: number
-}> {
-  const now = new Date()
-  const result: Array<{ month: string; label: string; amount: number }> = []
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = getMonthKey(d)
-    result.push({ month: key, label: getMonthLabel(key), amount: 0 })
-  }
-
-  return result
-}
-
-async function fetchIssueMapForClient(
-  client: Client & { linearMappings: LinearMapping[] },
-): Promise<Map<string, { estimate: number | undefined }>> {
-  const issuePromises = client.linearMappings.map((mapping) =>
-    fetchLinearIssues({
-      teamId: mapping.linearTeamId ?? undefined,
-      projectId: mapping.linearProjectId ?? undefined,
-    }),
-  )
-
-  const issueResults = await Promise.allSettled(issuePromises)
-  const allIssues = issueResults.flatMap((r) =>
-    r.status === "fulfilled" ? r.value : [],
-  )
-
-  return new Map(allIssues.map((i) => [i.id, { estimate: i.estimate }]))
-}
-
-function computeGroupAmount(
-  overrides: OverrideWithClient[],
-  issueMap: Map<string, { estimate: number | undefined }>,
-  client: Client,
-): { amount: number; hours: number } {
-  const billingMode = client.billingMode as BillingMode
-  const rate = Number(client.rate)
-
-  let totalAmount = 0
-  let totalHours = 0
-
-  if (billingMode === "FIXED") {
-    totalAmount = overrides.length > 0 ? rate : 0
-  } else {
-    for (const override of overrides) {
-      const issue = issueMap.get(override.linearIssueId)
-      const estimate = issue?.estimate
-      const rateOverride = override.rateOverride
-        ? Number(override.rateOverride)
-        : null
-
-      const billing = calculateBilling({
-        billingMode,
-        rate,
-        estimate,
-        rateOverride,
-      })
-
-      totalAmount += billing.amount
-
-      if (estimate !== undefined) {
-        totalHours += estimate
-      }
-    }
-  }
-
-  return {
-    amount: Math.round(totalAmount * 100) / 100,
-    hours: totalHours,
-  }
-}
+import type { OverrideWithClient } from "@/lib/analytics-helpers"
+import type { Client, LinearMapping } from "@/generated/prisma/client"
 
 export async function GET(request: Request) {
   try {
@@ -220,7 +113,7 @@ export async function GET(request: Request) {
     }
 
     // 6-month chart: aggregate invoiced amounts by month
-    const revenueByMonth = buildLast6Months()
+    const revenueByMonth = buildMonthRange(sixMonthsAgo, now)
     const monthAmounts = new Map<string, number>()
     const chartByClientMonth = new Map<
       string,
