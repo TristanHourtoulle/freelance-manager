@@ -9,3 +9,5 @@ export const createLinearMappingSchema = z
   .refine((data) => data.linearTeamId || data.linearProjectId, {
     message: "At least one of linearTeamId or linearProjectId is required",
   })
+
+export type CreateLinearMappingInput = z.infer<typeof createLinearMappingSchema>
