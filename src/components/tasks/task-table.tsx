@@ -17,7 +17,7 @@ export function TaskTable({
 }: TaskTableProps) {
   if (tasks.length === 0) {
     return (
-      <p className="py-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="py-4 text-center text-sm text-text-secondary">
         No tasks found for this client.
       </p>
     )
@@ -27,29 +27,29 @@ export function TaskTable({
     <div className="overflow-x-auto">
       <table className="w-full text-left">
         <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-700">
+          <tr className="border-b border-border">
             {onToggleToInvoice && (
-              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Bill
               </th>
             )}
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
               ID
             </th>
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
               Title
             </th>
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
               Status
             </th>
-            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
               Estimate
             </th>
-            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
               Amount
             </th>
             {onToggleInvoiced && (
-              <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Invoiced
               </th>
             )}

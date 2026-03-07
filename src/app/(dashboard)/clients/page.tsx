@@ -90,9 +90,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Clients
-        </h1>
+        <h1>Clients</h1>
         <Link href="/clients/new">
           <Button>New Client</Button>
         </Link>
@@ -102,9 +100,7 @@ export default function ClientsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Loading clients...
-          </p>
+          <p className="text-sm text-text-secondary">Loading clients...</p>
         </div>
       ) : (
         <ClientList

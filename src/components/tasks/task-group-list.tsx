@@ -60,7 +60,7 @@ export function TaskGroupList({
         return (
           <div
             key={group.client.id}
-            className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-lg border border-border bg-surface"
           >
             <button
               onClick={() => toggleCollapse(group.client.id)}
@@ -68,7 +68,7 @@ export function TaskGroupList({
             >
               <div className="flex items-center gap-3">
                 <svg
-                  className={`h-4 w-4 text-zinc-400 transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                  className={`h-4 w-4 text-text-muted transition-transform ${isCollapsed ? "" : "rotate-90"}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -81,30 +81,30 @@ export function TaskGroupList({
                   />
                 </svg>
                 <div>
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                  <span className="text-sm font-semibold text-text-primary">
                     {group.client.name}
                   </span>
                   {group.client.company && (
-                    <span className="ml-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="ml-2 text-sm text-text-secondary">
                       {group.client.company}
                     </span>
                   )}
                 </div>
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
                   {BILLING_MODE_LABELS[group.client.billingMode] ??
                     group.client.billingMode}
                 </span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-text-secondary">
                   {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="text-sm font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+              <div className="text-sm font-semibold tabular-nums text-text-primary">
                 {formatAmount(group.totalBilling)}
               </div>
             </button>
 
             {!isCollapsed && (
-              <div className="border-t border-zinc-100 dark:border-zinc-800">
+              <div className="border-t border-border-light">
                 <TaskTable
                   tasks={group.tasks}
                   onToggleToInvoice={(issueId, value) =>

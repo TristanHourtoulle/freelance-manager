@@ -69,18 +69,16 @@ function NavContent({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
+      <div className="border-b border-border p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-white">
             {getInitials(userName)}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-50">
+            <p className="truncate text-sm font-medium text-text-primary">
               {userName}
             </p>
-            <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-              {userEmail}
-            </p>
+            <p className="truncate text-xs text-text-secondary">{userEmail}</p>
           </div>
         </div>
       </div>
@@ -94,8 +92,8 @@ function NavContent({
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+                  ? "bg-primary text-white"
+                  : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
               }`}
             >
               <item.icon className="h-5 w-5 shrink-0" />
@@ -105,10 +103,10 @@ function NavContent({
         })}
       </nav>
 
-      <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
+      <div className="border-t border-border p-3">
         <button
           onClick={handleLogout}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         >
           <ArrowRightStartOnRectangleIcon className="h-5 w-5 shrink-0" />
           Logout
@@ -127,7 +125,7 @@ export function SidebarNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-zinc-200 bg-white lg:block dark:border-zinc-800 dark:bg-zinc-950">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border bg-surface lg:block">
         <NavContent userName={userName} userEmail={userEmail} />
       </aside>
 
@@ -141,11 +139,11 @@ export function SidebarNav({
               if (e.key === "Escape") onClose()
             }}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-zinc-950">
+          <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-surface">
             <div className="flex items-center justify-end p-2">
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-muted"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>

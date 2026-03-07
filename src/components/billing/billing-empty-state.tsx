@@ -8,11 +8,11 @@ interface BillingEmptyStateProps {
 export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
   if (hasFilters) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 py-16 dark:border-zinc-700">
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
+        <p className="text-sm font-medium text-text-primary">
           No uninvoiced tasks match your filters
         </p>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-text-secondary">
           Try adjusting or clearing your filters.
         </p>
       </div>
@@ -20,11 +20,11 @@ export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 py-16 dark:border-zinc-700">
-      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
+      <p className="text-sm font-medium text-text-primary">
         Nothing to invoice
       </p>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-1 text-sm text-text-secondary">
         Mark tasks as billable from the Tasks page to see them here.
       </p>
       <Link href="/tasks" className="mt-4">

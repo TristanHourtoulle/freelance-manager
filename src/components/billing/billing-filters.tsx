@@ -56,33 +56,21 @@ export function BillingFilters({ clients }: BillingFiltersProps) {
         options={CATEGORY_OPTIONS}
       />
       <div className="space-y-2">
-        <label
-          htmlFor="dateFrom"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          From
-        </label>
+        <label htmlFor="dateFrom">From</label>
         <input
           type="date"
           id="dateFrom"
           value={searchParams.get("dateFrom") ?? ""}
           onChange={(e) => updateParam("dateFrom", e.target.value)}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
         />
       </div>
       <div className="space-y-2">
-        <label
-          htmlFor="dateTo"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          To
-        </label>
+        <label htmlFor="dateTo">To</label>
         <input
           type="date"
           id="dateTo"
           value={searchParams.get("dateTo") ?? ""}
           onChange={(e) => updateParam("dateTo", e.target.value)}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
         />
       </div>
     </div>

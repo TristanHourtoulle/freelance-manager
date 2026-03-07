@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button"
+import { TrashIcon } from "@heroicons/react/24/outline"
 
 import type { LinearMappingDTO } from "@/components/clients/types"
 
@@ -17,7 +17,7 @@ export function LinearMappingsList({
 }: LinearMappingsListProps) {
   if (mappings.length === 0) {
     return (
-      <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mb-4 text-sm text-text-secondary">
         No Linear projects mapped to this client yet.
       </p>
     )
@@ -28,31 +28,30 @@ export function LinearMappingsList({
       {mappings.map((mapping) => (
         <div
           key={mapping.id}
-          className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-700"
+          className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
         >
           <div className="text-sm">
             {mapping.linearTeamId && (
-              <span className="text-zinc-600 dark:text-zinc-400">
+              <span className="text-text-secondary">
                 {teamLookup.get(mapping.linearTeamId) ?? mapping.linearTeamId}
               </span>
             )}
             {mapping.linearTeamId && mapping.linearProjectId && (
-              <span className="mx-1.5 text-zinc-400 dark:text-zinc-600">/</span>
+              <span className="mx-1.5 text-text-muted">/</span>
             )}
             {mapping.linearProjectId && (
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              <span className="font-medium text-text-primary">
                 {projectLookup.get(mapping.linearProjectId) ??
                   mapping.linearProjectId}
               </span>
             )}
           </div>
-          <Button
-            variant="ghost"
-            className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+          <button
+            className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-red-50 hover:text-destructive-hover"
             onClick={() => onDelete(mapping.id)}
           >
-            Remove
-          </Button>
+            <TrashIcon className="h-4 w-4" />
+          </button>
         </div>
       ))}
     </div>

@@ -30,24 +30,23 @@ export function RevenueChart({ data }: RevenueChartProps) {
               tick={{ fontSize: 12 }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v: number) => `${v}€`}
+              tickFormatter={(v: number) => `${v}\u202F\u20AC`}
             />
             <Tooltip
               formatter={(value: number | undefined) => [
-                `${(value ?? 0).toLocaleString("fr-FR")} €`,
+                `${(value ?? 0).toLocaleString("fr-FR")} \u20AC`,
                 "Revenue",
               ]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e4e4e7",
+                border: "1px solid var(--color-border)",
                 fontSize: "14px",
               }}
             />
             <Bar
               dataKey="amount"
-              fill="#18181b"
+              fill="var(--color-primary)"
               radius={[4, 4, 0, 0]}
-              className="dark:fill-zinc-300"
             />
           </BarChart>
         </ResponsiveContainer>

@@ -13,14 +13,14 @@ import { Card } from "@/components/ui/card"
 import type { HoursByClient } from "@/components/analytics/types"
 
 const COLORS = [
-  "#18181b",
-  "#3f3f46",
-  "#71717a",
-  "#a1a1aa",
-  "#d4d4d8",
-  "#52525b",
-  "#27272a",
-  "#e4e4e7",
+  "#2563EB", // blue-600
+  "#3B82F6", // blue-500
+  "#60A5FA", // blue-400
+  "#93C5FD", // blue-300
+  "#BFDBFE", // blue-200
+  "#1D4ED8", // blue-700
+  "#1E40AF", // blue-800
+  "#DBEAFE", // blue-100
 ]
 
 interface TimeByClientChartProps {
@@ -44,11 +44,7 @@ export function TimeByClientChart({ data }: TimeByClientChartProps) {
               paddingAngle={2}
             >
               {data.map((_, i) => (
-                <Cell
-                  key={`cell-${i}`}
-                  fill={COLORS[i % COLORS.length]}
-                  className={i % 2 === 0 ? "" : "dark:opacity-80"}
-                />
+                <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip
@@ -58,7 +54,7 @@ export function TimeByClientChart({ data }: TimeByClientChartProps) {
               ]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e4e4e7",
+                border: "1px solid var(--color-border)",
                 fontSize: "14px",
               }}
             />
