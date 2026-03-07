@@ -8,6 +8,7 @@ import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
 
@@ -38,6 +39,7 @@ export default function ClientsPage() {
   const [isArchiving, setIsArchiving] = useState(false)
 
   const [refreshKey, setRefreshKey] = useState(0)
+  const { toast } = useToast()
 
   function handleViewChange(newView: "grid" | "list") {
     setView(newView)
@@ -93,8 +95,19 @@ export default function ClientsPage() {
     })
 
     if (res.ok) {
+      toast({
+        variant: "success",
+        title: isArchived ? "Client unarchived" : "Client archived",
+      })
       setArchiveTarget(null)
       refreshClients()
+    } else {
+      toast({
+        variant: "error",
+        title: isArchived
+          ? "Failed to unarchive client"
+          : "Failed to archive client",
+      })
     }
     setIsArchiving(false)
   }

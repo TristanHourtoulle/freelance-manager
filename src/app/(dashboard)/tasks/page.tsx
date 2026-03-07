@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { useToast } from "@/components/providers/toast-provider"
 
 import { calculateBilling } from "@/lib/billing"
 
@@ -27,8 +28,7 @@ export default function TasksPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
   const [isStale, setIsStale] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -104,12 +104,6 @@ export default function TasksPage() {
     [updateOverride],
   )
 
-  const showError = useCallback((message: string) => {
-    setErrorMessage(message)
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-    errorTimerRef.current = setTimeout(() => setErrorMessage(null), 3000)
-  }, [])
-
   const handleUpdateEstimate = useCallback(
     async (clientId: string, linearIssueId: string, estimate: number) => {
       setGroups((prev) =>
@@ -144,11 +138,11 @@ export default function TasksPage() {
       })
 
       if (!res.ok) {
-        showError("Failed to update estimate")
+        toast({ variant: "error", title: "Failed to update estimate" })
         setRefreshKey((k) => k + 1)
       }
     },
-    [showError],
+    [toast],
   )
 
   const handleUpdateRate = useCallback(
@@ -185,11 +179,11 @@ export default function TasksPage() {
       })
 
       if (!res.ok) {
-        showError("Failed to update rate")
+        toast({ variant: "error", title: "Failed to update rate" })
         setRefreshKey((k) => k + 1)
       }
     },
-    [showError],
+    [toast],
   )
 
   const allClients: ClientSummary[] = groups.map((g) => g.client)
@@ -210,16 +204,6 @@ export default function TasksPage() {
           </Link>
         </div>
       </div>
-
-      {errorMessage && (
-        <button
-          onClick={() => setErrorMessage(null)}
-          className="flex w-full items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {errorMessage}
-          <span className="text-xs text-red-400">Dismiss</span>
-        </button>
-      )}
 
       <TooltipHint storageKey="tasks-page">
         Your Linear tasks appear here grouped by client. Use the sync button to

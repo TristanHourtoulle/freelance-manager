@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { createClientSchema } from "@/lib/schemas/client"
-import { useState } from "react"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type { Resolver } from "react-hook-form"
 import type { CreateClientInput } from "@/lib/schemas/client"
@@ -38,7 +38,7 @@ export function ClientForm({
   onSubmit,
 }: ClientFormProps) {
   const router = useRouter()
-  const [apiError, setApiError] = useState("")
+  const { toast } = useToast()
 
   const {
     register,
@@ -59,13 +59,17 @@ export function ClientForm({
   })
 
   async function handleFormSubmit(data: CreateClientInput) {
-    setApiError("")
     try {
       await onSubmit(data)
+      toast({
+        variant: "success",
+        title: isEdit ? "Client updated" : "Client created",
+      })
     } catch (error) {
-      if (error instanceof Error) {
-        setApiError(error.message)
-      }
+      toast({
+        variant: "error",
+        title: error instanceof Error ? error.message : "Something went wrong",
+      })
     }
   }
 
@@ -136,8 +140,6 @@ export function ClientForm({
           <p className="text-sm text-destructive">{errors.notes.message}</p>
         )}
       </div>
-
-      {apiError && <p className="text-sm text-destructive">{apiError}</p>}
 
       <div className="flex justify-end gap-3">
         <Button
