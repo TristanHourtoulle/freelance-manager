@@ -33,21 +33,133 @@ export async function GET(request: Request) {
         : {}),
     }
 
+    const isComputedSort =
+      filters.sortBy === "revenue" || filters.sortBy === "lastActivity"
+
+    if (isComputedSort) {
+      const allClients = await prisma.client.findMany({
+        where,
+        select: { id: true },
+      })
+      const clientIds = allClients.map((c) => c.id)
+      const total = clientIds.length
+
+      const [revenueByClient, activityByClient] = await Promise.all([
+        prisma.invoice.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds } },
+          _sum: { totalAmount: true },
+        }),
+        prisma.taskOverride.groupBy({
+          by: ["clientId"],
+          where: { clientId: { in: clientIds } },
+          _max: { updatedAt: true },
+        }),
+      ])
+
+      const revenueMap = new Map(
+        revenueByClient.map((r) => [
+          r.clientId,
+          Number(r._sum.totalAmount ?? 0),
+        ]),
+      )
+      const activityMap = new Map(
+        activityByClient.map((a) => [a.clientId, a._max.updatedAt]),
+      )
+
+      const sortedIds = [...clientIds].sort((a, b) => {
+        if (filters.sortBy === "revenue") {
+          const diff = (revenueMap.get(a) ?? 0) - (revenueMap.get(b) ?? 0)
+          return filters.sortOrder === "desc" ? -diff : diff
+        }
+        const dateA = activityMap.get(a)?.getTime() ?? 0
+        const dateB = activityMap.get(b)?.getTime() ?? 0
+        const diff = dateA - dateB
+        return filters.sortOrder === "desc" ? -diff : diff
+      })
+
+      const skip = (filters.page - 1) * filters.limit
+      const pagedIds = sortedIds.slice(skip, skip + filters.limit)
+
+      const items = await prisma.client.findMany({
+        where: { id: { in: pagedIds } },
+        include: { linearMappings: true },
+      })
+
+      const orderedItems = pagedIds.map((id) => items.find((i) => i.id === id)!)
+
+      return NextResponse.json({
+        items: orderedItems.map((client) =>
+          serializeClient(client, {
+            totalRevenue: revenueMap.get(client.id),
+            lastActivityAt: activityMap.get(client.id) ?? null,
+          }),
+        ),
+        pagination: {
+          page: filters.page,
+          limit: filters.limit,
+          total,
+          totalPages: Math.ceil(total / filters.limit),
+        },
+      })
+    }
+
     const skip = (filters.page - 1) * filters.limit
+    const orderBy =
+      filters.sortBy === "name"
+        ? {
+            name:
+              filters.sortOrder === "asc"
+                ? ("asc" as const)
+                : ("desc" as const),
+          }
+        : {
+            createdAt:
+              filters.sortOrder === "asc"
+                ? ("asc" as const)
+                : ("desc" as const),
+          }
 
     const [items, total] = await Promise.all([
       prisma.client.findMany({
         where,
         skip,
         take: filters.limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: { linearMappings: true },
       }),
       prisma.client.count({ where }),
     ])
 
+    const clientIds = items.map((c) => c.id)
+
+    const [revenueByClient, activityByClient] = await Promise.all([
+      prisma.invoice.groupBy({
+        by: ["clientId"],
+        where: { clientId: { in: clientIds } },
+        _sum: { totalAmount: true },
+      }),
+      prisma.taskOverride.groupBy({
+        by: ["clientId"],
+        where: { clientId: { in: clientIds } },
+        _max: { updatedAt: true },
+      }),
+    ])
+
+    const revenueMap = new Map(
+      revenueByClient.map((r) => [r.clientId, Number(r._sum.totalAmount ?? 0)]),
+    )
+    const activityMap = new Map(
+      activityByClient.map((a) => [a.clientId, a._max.updatedAt]),
+    )
+
     return NextResponse.json({
-      items: items.map(serializeClient),
+      items: items.map((client) =>
+        serializeClient(client, {
+          totalRevenue: revenueMap.get(client.id),
+          lastActivityAt: activityMap.get(client.id) ?? null,
+        }),
+      ),
       pagination: {
         page: filters.page,
         limit: filters.limit,

@@ -61,9 +61,12 @@ export function isLinearError(error: unknown): boolean {
 
 export function serializeClient(
   client: Client & { linearMappings?: LinearMapping[] },
+  computed?: { totalRevenue?: number; lastActivityAt?: Date | null },
 ) {
   return {
     ...client,
     rate: Number(client.rate),
+    totalRevenue: computed?.totalRevenue ?? 0,
+    lastActivityAt: computed?.lastActivityAt?.toISOString() ?? null,
   }
 }

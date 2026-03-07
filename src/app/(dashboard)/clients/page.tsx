@@ -8,8 +8,15 @@ import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
+
+function getInitialView(): "grid" | "list" {
+  if (typeof window === "undefined") return "grid"
+  const stored = localStorage.getItem("clientListView")
+  return stored === "list" ? "list" : "grid"
+}
 
 export default function ClientsPage() {
   const router = useRouter()
@@ -24,6 +31,7 @@ export default function ClientsPage() {
     totalPages: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [view, setView] = useState<"grid" | "list">(getInitialView)
 
   const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(
     null,
@@ -31,6 +39,12 @@ export default function ClientsPage() {
   const [isArchiving, setIsArchiving] = useState(false)
 
   const [refreshKey, setRefreshKey] = useState(0)
+  const { toast } = useToast()
+
+  function handleViewChange(newView: "grid" | "list") {
+    setView(newView)
+    localStorage.setItem("clientListView", newView)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -81,8 +95,19 @@ export default function ClientsPage() {
     })
 
     if (res.ok) {
+      toast({
+        variant: "success",
+        title: isArchived ? "Client unarchived" : "Client archived",
+      })
       setArchiveTarget(null)
       refreshClients()
+    } else {
+      toast({
+        variant: "error",
+        title: isArchived
+          ? "Failed to unarchive client"
+          : "Failed to archive client",
+      })
     }
     setIsArchiving(false)
   }
@@ -107,7 +132,7 @@ export default function ClientsPage() {
         Linear project from the client edit page.
       </TooltipHint>
 
-      <ClientFilters />
+      <ClientFilters view={view} onViewChange={handleViewChange} />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -118,6 +143,7 @@ export default function ClientsPage() {
           clients={clients}
           pagination={pagination}
           hasFilters={hasFilters}
+          view={view}
           onArchive={handleArchiveClick}
           onPageChange={handlePageChange}
         />

@@ -3,8 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { CategoryFilter } from "@/components/ui/category-filter"
+import { ViewToggle } from "@/components/clients/view-toggle"
 
-export function ClientFilters() {
+const SORT_OPTIONS = [
+  { value: "createdAt:desc", label: "Newest first" },
+  { value: "createdAt:asc", label: "Oldest first" },
+  { value: "name:asc", label: "Name A-Z" },
+  { value: "name:desc", label: "Name Z-A" },
+  { value: "revenue:desc", label: "Revenue (high to low)" },
+  { value: "lastActivity:desc", label: "Recent activity first" },
+] as const
+
+interface ClientFiltersProps {
+  view: "grid" | "list"
+  onViewChange: (view: "grid" | "list") => void
+}
+
+export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -45,6 +60,19 @@ export function ClientFilters() {
     }
   }, [])
 
+  const currentSort = `${searchParams.get("sortBy") ?? "createdAt"}:${searchParams.get("sortOrder") ?? "desc"}`
+
+  function handleSortChange(combined: string) {
+    const parts = combined.split(":")
+    const sortBy = parts[0] ?? "createdAt"
+    const sortOrder = parts[1] ?? "desc"
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("sortBy", sortBy)
+    params.set("sortOrder", sortOrder)
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -58,17 +86,37 @@ export function ClientFilters() {
             placeholder="Search by name or company..."
           />
         </div>
-        <label className="flex cursor-pointer items-center gap-2 self-end pb-1 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={searchParams.get("archived") === "true"}
-            onChange={(e) =>
-              updateParams("archived", e.target.checked ? "true" : "")
-            }
-            className="rounded border-border"
-          />
-          Show archived
-        </label>
+        <div className="flex items-end gap-3 self-end">
+          <div className="space-y-2">
+            <label htmlFor="sort" className="text-sm text-text-secondary">
+              Sort
+            </label>
+            <select
+              id="sort"
+              value={currentSort}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <ViewToggle view={view} onViewChange={onViewChange} />
+          <label className="flex cursor-pointer items-center gap-2 pb-1 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              checked={searchParams.get("archived") === "true"}
+              onChange={(e) =>
+                updateParams("archived", e.target.checked ? "true" : "")
+              }
+              className="rounded border-border"
+            />
+            Show archived
+          </label>
+        </div>
       </div>
       <CategoryFilter />
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { AvailableHoursForm } from "@/components/settings/available-hours-form"
 import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { useToast } from "@/components/providers/toast-provider"
 
 interface Settings {
   availableHoursPerMonth: number
@@ -13,9 +14,7 @@ interface Settings {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">(
-    "idle",
-  )
+  const { toast } = useToast()
 
   useEffect(() => {
     async function load() {
@@ -32,7 +31,6 @@ export default function SettingsPage() {
   }, [])
 
   async function handleSaveHours(value: number) {
-    setSaveStatus("idle")
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -42,14 +40,13 @@ export default function SettingsPage() {
     if (res.ok) {
       const json: Settings = await res.json()
       setSettings(json)
-      setSaveStatus("saved")
+      toast({ variant: "success", title: "Settings saved" })
     } else {
-      setSaveStatus("error")
+      toast({ variant: "error", title: "Failed to save settings" })
     }
   }
 
   async function handleSaveTarget(value: number) {
-    setSaveStatus("idle")
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -59,9 +56,9 @@ export default function SettingsPage() {
     if (res.ok) {
       const json: Settings = await res.json()
       setSettings(json)
-      setSaveStatus("saved")
+      toast({ variant: "success", title: "Settings saved" })
     } else {
-      setSaveStatus("error")
+      toast({ variant: "error", title: "Failed to save settings" })
     }
   }
 
@@ -88,14 +85,6 @@ export default function SettingsPage() {
             defaultValue={settings.monthlyRevenueTarget}
             onSave={handleSaveTarget}
           />
-          {saveStatus === "saved" && (
-            <p className="text-sm text-green-600">Settings saved.</p>
-          )}
-          {saveStatus === "error" && (
-            <p className="text-sm text-destructive">
-              Failed to save settings. Please try again.
-            </p>
-          )}
         </>
       ) : (
         <p className="text-sm text-destructive">Failed to load settings.</p>

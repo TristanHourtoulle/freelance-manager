@@ -26,6 +26,12 @@ export const updateClientSchema = z.object({
   notes: z.string().max(2000).trim().optional(),
 })
 
+export const SortBySchema = z
+  .enum(["name", "revenue", "lastActivity", "createdAt"])
+  .default("createdAt")
+
+export const SortOrderSchema = z.enum(["asc", "desc"]).default("desc")
+
 export const clientFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
@@ -33,6 +39,8 @@ export const clientFilterSchema = z.object({
   billingMode: BillingModeSchema.optional(),
   archived: z.coerce.boolean().default(false),
   search: z.string().max(100).trim().optional(),
+  sortBy: SortBySchema,
+  sortOrder: SortOrderSchema,
 })
 
 export type CreateClientInput = z.infer<typeof createClientSchema>

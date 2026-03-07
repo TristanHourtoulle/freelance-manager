@@ -163,6 +163,147 @@ export function getLinearSyncStatus(): {
   return { lastSyncedAt, lastWebhookReceivedAt, isStale }
 }
 
+export interface LinearIssueDetailDTO extends LinearIssueDTO {
+  description: string | undefined
+  updatedAt: string
+  dueDate: string | undefined
+  projectName: string | undefined
+}
+
+interface RawIssueDetailResponse {
+  issue: {
+    id: string
+    identifier: string
+    title: string
+    description: string | null
+    estimate: number | null
+    completedAt: string | null
+    createdAt: string
+    updatedAt: string
+    dueDate: string | null
+    url: string
+    priority: number
+    priorityLabel: string
+    state: {
+      id: string
+      name: string
+      type: string
+      color: string
+    } | null
+    assignee: {
+      id: string
+      name: string
+      email: string | null
+    } | null
+    labels: {
+      nodes: Array<{
+        id: string
+        name: string
+        color: string
+      }>
+    }
+    project: { id: string; name: string } | null
+    team: { id: string } | null
+  }
+}
+
+export async function fetchLinearIssueById(
+  issueId: string,
+): Promise<LinearIssueDetailDTO> {
+  const query = `
+    query FetchIssue($id: String!) {
+      issue(id: $id) {
+        id
+        identifier
+        title
+        description
+        estimate
+        completedAt
+        createdAt
+        updatedAt
+        dueDate
+        url
+        priority
+        priorityLabel
+        state {
+          id
+          name
+          type
+          color
+        }
+        assignee {
+          id
+          name
+          email
+        }
+        labels {
+          nodes {
+            id
+            name
+            color
+          }
+        }
+        project {
+          id
+          name
+        }
+        team {
+          id
+        }
+      }
+    }
+  `
+
+  const response = await linearClient.client.rawRequest<
+    RawIssueDetailResponse,
+    { id: string }
+  >(query, { id: issueId })
+
+  if (!response.data) {
+    throw new Error("Linear API returned no data")
+  }
+
+  const node = response.data.issue
+
+  return {
+    id: node.id,
+    identifier: node.identifier,
+    title: node.title,
+    description: node.description ?? undefined,
+    estimate: node.estimate ?? undefined,
+    completedAt: node.completedAt ?? undefined,
+    createdAt: node.createdAt,
+    updatedAt: node.updatedAt,
+    dueDate: node.dueDate ?? undefined,
+    url: node.url,
+    priority: node.priority,
+    priorityLabel: node.priorityLabel,
+    status: node.state
+      ? {
+          id: node.state.id,
+          name: node.state.name,
+          type: node.state.type,
+          color: node.state.color,
+        }
+      : undefined,
+    assignee: node.assignee
+      ? {
+          id: node.assignee.id,
+          name: node.assignee.name,
+          email: node.assignee.email ?? undefined,
+        }
+      : undefined,
+    labels: node.labels.nodes.map((label) => ({
+      id: label.id,
+      name: label.name,
+      color: label.color,
+    })),
+    projectId: node.project?.id ?? undefined,
+    projectName: node.project?.name ?? undefined,
+    teamId: node.team?.id ?? undefined,
+  }
+}
+
 export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
   const cached = teamsCache.get("all")
   if (cached) return cached
