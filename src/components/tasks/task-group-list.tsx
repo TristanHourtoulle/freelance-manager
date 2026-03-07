@@ -22,6 +22,11 @@ interface TaskGroupListProps {
     linearIssueId: string,
     estimate: number,
   ) => void
+  onUpdateRate: (
+    clientId: string,
+    linearIssueId: string,
+    rate: number | null,
+  ) => void
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -43,6 +48,7 @@ export function TaskGroupList({
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
+  onUpdateRate,
 }: TaskGroupListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -113,6 +119,8 @@ export function TaskGroupList({
               <div className="border-t border-border-light">
                 <TaskTable
                   tasks={group.tasks}
+                  clientRate={group.client.rate}
+                  billingMode={group.client.billingMode}
                   onToggleToInvoice={(issueId, value) =>
                     onToggleToInvoice(group.client.id, issueId, value)
                   }
@@ -121,6 +129,9 @@ export function TaskGroupList({
                   }
                   onUpdateEstimate={(issueId, estimate) =>
                     onUpdateEstimate(group.client.id, issueId, estimate)
+                  }
+                  onUpdateRate={(issueId, rate) =>
+                    onUpdateRate(group.client.id, issueId, rate)
                   }
                 />
               </div>

@@ -150,6 +150,47 @@ export default function TasksPage() {
     [showError],
   )
 
+  const handleUpdateRate = useCallback(
+    async (clientId: string, linearIssueId: string, rate: number | null) => {
+      setGroups((prev) =>
+        prev.map((group) => {
+          if (group.client.id !== clientId) return group
+          const updatedTasks = group.tasks.map((task) => {
+            if (task.linearIssueId !== linearIssueId) return task
+            const billing = calculateBilling({
+              billingMode: group.client.billingMode as BillingMode,
+              rate: group.client.rate,
+              estimate: task.estimate,
+              rateOverride: rate,
+            })
+            return {
+              ...task,
+              rateOverride: rate,
+              billingAmount: billing.amount,
+              billingFormula: billing.formula,
+            }
+          })
+          const totalBilling = updatedTasks
+            .filter((t) => t.toInvoice)
+            .reduce((sum, t) => sum + t.billingAmount, 0)
+          return { ...group, tasks: updatedTasks, totalBilling }
+        }),
+      )
+
+      const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, rateOverride: rate }),
+      })
+
+      if (!res.ok) {
+        showError("Failed to update rate")
+        setRefreshKey((k) => k + 1)
+      }
+    },
+    [showError],
+  )
+
   const allClients: ClientSummary[] = groups.map((g) => g.client)
   const hasFilters = Boolean(
     searchParams.get("clientId") || searchParams.get("status"),
@@ -200,6 +241,7 @@ export default function TasksPage() {
           onToggleToInvoice={handleToggleToInvoice}
           onToggleInvoiced={handleToggleInvoiced}
           onUpdateEstimate={handleUpdateEstimate}
+          onUpdateRate={handleUpdateRate}
         />
       )}
     </div>
