@@ -1,5 +1,6 @@
 import { linearClient } from "@/lib/linear"
 import { TTLCache } from "@/lib/cache"
+import { env } from "@/lib/env"
 
 export interface LinearTeamDTO {
   id: string
@@ -58,13 +59,31 @@ export interface LinearIssueDTO {
   teamId: string | undefined
 }
 
-const TEAMS_TTL = 10 * 60 * 1000
-const PROJECTS_TTL = 5 * 60 * 1000
-const ISSUES_TTL = 2 * 60 * 1000
+const BASE_TTL_MS = (env.LINEAR_CACHE_TTL_SECONDS ?? 300) * 1000
+const TEAMS_TTL = BASE_TTL_MS * 2
+const PROJECTS_TTL = BASE_TTL_MS
+const ISSUES_TTL = Math.max(Math.round(BASE_TTL_MS * 0.4), 60_000)
 
 const teamsCache = new TTLCache<LinearTeamDTO[]>(TEAMS_TTL)
 const projectsCache = new TTLCache<LinearProjectDTO[]>(PROJECTS_TTL)
 const issuesCache = new TTLCache<LinearIssueDTO[]>(ISSUES_TTL)
+
+let lastSyncedAt: number | null = null
+
+export function clearLinearCaches(): void {
+  teamsCache.clear()
+  projectsCache.clear()
+  issuesCache.clear()
+}
+
+export function getLinearSyncStatus(): {
+  lastSyncedAt: number | null
+  isStale: boolean
+} {
+  const isStale =
+    lastSyncedAt === null || Date.now() - lastSyncedAt > BASE_TTL_MS
+  return { lastSyncedAt, isStale }
+}
 
 export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
   const cached = teamsCache.get("all")
@@ -82,6 +101,7 @@ export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
   }))
 
   teamsCache.set("all", result)
+  lastSyncedAt = Date.now()
   return result
 }
 
@@ -109,6 +129,7 @@ export async function fetchLinearProjects(
   }))
 
   projectsCache.set(cacheKey, result)
+  lastSyncedAt = Date.now()
   return result
 }
 
@@ -252,5 +273,6 @@ export async function fetchLinearIssues(filters: {
   }))
 
   issuesCache.set(cacheKey, result)
+  lastSyncedAt = Date.now()
   return result
 }

@@ -44,4 +44,6 @@ export interface ClientTaskGroup {
 
 export interface TasksApiResponse {
   groups: ClientTaskGroup[]
+  lastSyncedAt: number | null
+  isStale: boolean
 }

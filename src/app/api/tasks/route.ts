@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { taskFilterSchema } from "@/lib/schemas/task"
-import { fetchLinearIssues } from "@/lib/linear-service"
+import { fetchLinearIssues, getLinearSyncStatus } from "@/lib/linear-service"
 import { calculateBilling } from "@/lib/billing"
 import { NextResponse } from "next/server"
 
@@ -151,7 +151,7 @@ export async function GET(request: Request) {
 
     groups.sort((a, b) => b.taskCount - a.taskCount)
 
-    return NextResponse.json({ groups })
+    return NextResponse.json({ groups, ...getLinearSyncStatus() })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(

@@ -7,6 +7,7 @@ import {
   fetchIssueMapForClient,
   computeGroupAmount,
 } from "@/lib/analytics-helpers"
+import { getLinearSyncStatus } from "@/lib/linear-service"
 
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
 import type { Client, LinearMapping } from "@/generated/prisma/client"
@@ -153,6 +154,7 @@ export async function GET(request: Request) {
       monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
       billedHours,
       revenueByMonth,
+      ...getLinearSyncStatus(),
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
