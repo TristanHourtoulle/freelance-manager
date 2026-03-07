@@ -146,9 +146,14 @@ export default function BillingPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1>To Invoice</h1>
-        <Link href="/tasks">
-          <Button variant="secondary">View Tasks</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/billing/history">
+            <Button variant="secondary">History</Button>
+          </Link>
+          <Link href="/tasks">
+            <Button variant="secondary">View Tasks</Button>
+          </Link>
+        </div>
       </div>
 
       <BillingFilters clients={allClients} />
