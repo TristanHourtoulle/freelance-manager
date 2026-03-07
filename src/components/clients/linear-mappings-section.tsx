@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { AddMappingForm } from "@/components/clients/linear-mappings-section/add-mapping-form"
 import { LinearMappingsList } from "@/components/clients/linear-mappings-section/linear-mappings-list"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type { LinearMappingDTO } from "@/components/clients/types"
 
@@ -38,7 +39,7 @@ export function LinearMappingsSection({
   const [isLoadingTeams, setIsLoadingTeams] = useState(true)
   const [isLoadingProjects, setIsLoadingProjects] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState("")
+  const { toast } = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +49,7 @@ export function LinearMappingsSection({
       if (res.ok) {
         setMappings(await res.json())
       } else {
-        setError("Failed to load mappings")
+        toast({ variant: "error", title: "Failed to load mappings" })
       }
       setIsLoadingMappings(false)
     }
@@ -56,7 +57,7 @@ export function LinearMappingsSection({
     return () => {
       cancelled = true
     }
-  }, [clientId])
+  }, [clientId, toast])
 
   useEffect(() => {
     let cancelled = false
@@ -69,7 +70,7 @@ export function LinearMappingsSection({
       if (teamsRes.ok) {
         setTeams(await teamsRes.json())
       } else {
-        setError("Failed to load Linear teams")
+        toast({ variant: "error", title: "Failed to load Linear teams" })
       }
       if (projectsRes.ok) {
         setAllProjects(await projectsRes.json())
@@ -80,7 +81,7 @@ export function LinearMappingsSection({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     let cancelled = false
@@ -100,7 +101,7 @@ export function LinearMappingsSection({
       if (res.ok) {
         setProjects(await res.json())
       } else {
-        setError("Failed to load projects")
+        toast({ variant: "error", title: "Failed to load projects" })
       }
       setIsLoadingProjects(false)
     }
@@ -108,13 +109,12 @@ export function LinearMappingsSection({
     return () => {
       cancelled = true
     }
-  }, [selectedTeamId])
+  }, [selectedTeamId, toast])
 
   const handleAdd = useCallback(async () => {
     if (!selectedTeamId && !selectedProjectId) return
 
     setIsSaving(true)
-    setError("")
 
     const res = await fetch(`/api/clients/${clientId}/linear-mappings`, {
       method: "POST",
@@ -126,6 +126,7 @@ export function LinearMappingsSection({
     })
 
     if (res.ok) {
+      toast({ variant: "success", title: "Mapping added" })
       setSelectedTeamId("")
       setSelectedProjectId("")
       const mappingsRes = await fetch(
@@ -136,28 +137,30 @@ export function LinearMappingsSection({
       }
     } else {
       const body = await res.json()
-      setError(body.error?.message ?? "Failed to add mapping")
+      toast({
+        variant: "error",
+        title: body.error?.message ?? "Failed to add mapping",
+      })
     }
 
     setIsSaving(false)
-  }, [clientId, selectedTeamId, selectedProjectId])
+  }, [clientId, selectedTeamId, selectedProjectId, toast])
 
   const handleDelete = useCallback(
     async (mappingId: string) => {
-      setError("")
-
       const res = await fetch(
         `/api/clients/${clientId}/linear-mappings/${mappingId}`,
         { method: "DELETE" },
       )
 
       if (res.ok) {
+        toast({ variant: "success", title: "Mapping removed" })
         setMappings((prev) => prev.filter((m) => m.id !== mappingId))
       } else {
-        setError("Failed to remove mapping")
+        toast({ variant: "error", title: "Failed to remove mapping" })
       }
     },
-    [clientId],
+    [clientId, toast],
   )
 
   const teamLookup = useMemo(
@@ -195,8 +198,6 @@ export function LinearMappingsSection({
         projectLookup={projectLookup}
         onDelete={handleDelete}
       />
-
-      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       <AddMappingForm
         teams={teams}

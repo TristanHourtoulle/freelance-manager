@@ -10,6 +10,7 @@ import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { useToast } from "@/components/providers/toast-provider"
 import { formatCurrency } from "@/lib/format"
 
 import type { ClientTaskGroup, ClientSummary } from "@/components/tasks/types"
@@ -26,6 +27,7 @@ export default function BillingPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isMarking, setIsMarking] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     let cancelled = false
@@ -88,12 +90,18 @@ export default function BillingPage() {
       body: JSON.stringify({ linearIssueIds: [...selectedIds] }),
     })
     if (res.ok) {
+      toast({
+        variant: "success",
+        title: `${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} marked as invoiced`,
+      })
       setIsConfirmOpen(false)
       setSelectedIds(new Set())
       setRefreshKey((k) => k + 1)
+    } else {
+      toast({ variant: "error", title: "Failed to mark tasks as invoiced" })
     }
     setIsMarking(false)
-  }, [selectedIds])
+  }, [selectedIds, toast])
 
   const allClients: ClientSummary[] = useMemo(
     () => groups.map((g) => g.client),

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { ClientForm } from "@/components/clients/client-form"
 import { LinearMappingsSection } from "@/components/clients/linear-mappings-section"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type { SerializedClient } from "@/components/clients/types"
 import type { CreateClientInput } from "@/lib/schemas/client"
@@ -17,6 +18,7 @@ export default function EditClientPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
   const [isUnarchiving, setIsUnarchiving] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     async function fetchClient() {
@@ -54,6 +56,9 @@ export default function EditClientPage() {
     if (res.ok) {
       const updated = await res.json()
       setClient(updated)
+      toast({ variant: "success", title: "Client unarchived" })
+    } else {
+      toast({ variant: "error", title: "Failed to unarchive client" })
     }
     setIsUnarchiving(false)
   }
