@@ -3,31 +3,12 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  ChartBarIcon,
-  CheckCircleIcon,
-  Cog6ToothIcon,
-  DocumentTextIcon,
   ArrowRightStartOnRectangleIcon,
-  Squares2X2Icon,
-  UsersIcon,
+  MagnifyingGlassIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline"
 import { authClient } from "@/lib/auth-client"
-
-interface NavItem {
-  label: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: Squares2X2Icon },
-  { label: "Clients", href: "/clients", icon: UsersIcon },
-  { label: "Tasks", href: "/tasks", icon: CheckCircleIcon },
-  { label: "Billing", href: "/billing", icon: DocumentTextIcon },
-  { label: "Analytics", href: "/analytics", icon: ChartBarIcon },
-  { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
-]
+import { NAV_ITEMS } from "@/lib/navigation"
 
 interface SidebarNavProps {
   userName: string
@@ -81,6 +62,35 @@ function NavContent({
             <p className="truncate text-xs text-text-secondary">{userEmail}</p>
           </div>
         </div>
+      </div>
+
+      <div className="px-3 pt-3">
+        <button
+          onClick={() => {
+            document.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: "k",
+                metaKey: true,
+                bubbles: true,
+              }),
+            )
+          }}
+          className="flex w-full items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+        >
+          <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="flex items-center gap-1 rounded border border-border bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-text-secondary">
+            {typeof navigator !== "undefined" &&
+            navigator.platform?.includes("Mac") ? (
+              <>
+                <span className="text-lg">{"\u2318"}</span>
+                <span>K</span>
+              </>
+            ) : (
+              "Ctrl+K"
+            )}
+          </kbd>
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
