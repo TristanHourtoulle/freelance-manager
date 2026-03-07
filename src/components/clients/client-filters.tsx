@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Select } from "@/components/ui/select"
-
-const CATEGORY_OPTIONS = [
-  { value: "", label: "All categories" },
-  { value: "FREELANCE", label: "Freelance" },
-  { value: "STUDY", label: "Study" },
-  { value: "PERSONAL", label: "Personal" },
-  { value: "SIDE_PROJECT", label: "Side Project" },
-]
+import { CategoryFilter } from "@/components/ui/category-filter"
 
 export function ClientFilters() {
   const router = useRouter()
@@ -54,36 +46,31 @@ export function ClientFilters() {
   }, [])
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-      <div className="flex-1 space-y-2">
-        <label htmlFor="search">Search</label>
-        <input
-          id="search"
-          type="text"
-          value={searchValue}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Search by name or company..."
-        />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-2">
+          <label htmlFor="search">Search</label>
+          <input
+            id="search"
+            type="text"
+            value={searchValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Search by name or company..."
+          />
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 self-end pb-1 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            checked={searchParams.get("archived") === "true"}
+            onChange={(e) =>
+              updateParams("archived", e.target.checked ? "true" : "")
+            }
+            className="rounded border-border"
+          />
+          Show archived
+        </label>
       </div>
-      <div className="w-full sm:w-48">
-        <Select
-          label="Category"
-          options={CATEGORY_OPTIONS}
-          value={searchParams.get("category") ?? ""}
-          onChange={(e) => updateParams("category", e.target.value)}
-        />
-      </div>
-      <label className="flex cursor-pointer items-center gap-2 self-end pb-1 text-sm text-text-secondary">
-        <input
-          type="checkbox"
-          checked={searchParams.get("archived") === "true"}
-          onChange={(e) =>
-            updateParams("archived", e.target.checked ? "true" : "")
-          }
-          className="rounded border-border"
-        />
-        Show archived
-      </label>
+      <CategoryFilter />
     </div>
   )
 }

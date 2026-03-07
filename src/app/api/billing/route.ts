@@ -38,7 +38,7 @@ export async function GET(request: Request) {
           userId: userOrError.id,
           archivedAt: null,
           ...(filters.clientId ? { id: filters.clientId } : {}),
-          ...(filters.category ? { category: filters.category } : {}),
+          ...(filters.category ? { category: { in: filters.category } } : {}),
         },
         ...(filters.dateFrom || filters.dateTo
           ? {

@@ -1,12 +1,10 @@
 import { z } from "zod/v4"
 
+import { CategorySchema, categoryFilterField } from "./category-filter"
+
+export { CategorySchema }
+
 export const BillingModeSchema = z.enum(["HOURLY", "DAILY", "FIXED", "FREE"])
-export const CategorySchema = z.enum([
-  "FREELANCE",
-  "STUDY",
-  "PERSONAL",
-  "SIDE_PROJECT",
-])
 
 export const createClientSchema = z.object({
   name: z.string().min(1).max(100).trim(),
@@ -31,7 +29,7 @@ export const updateClientSchema = z.object({
 export const clientFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  category: CategorySchema.optional(),
+  category: categoryFilterField,
   billingMode: BillingModeSchema.optional(),
   archived: z.coerce.boolean().default(false),
   search: z.string().max(100).trim().optional(),
