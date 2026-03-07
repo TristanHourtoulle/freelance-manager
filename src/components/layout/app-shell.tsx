@@ -4,6 +4,7 @@ import { useCallback, useState } from "react"
 import { AppHeader } from "./app-header"
 import { SidebarNav } from "./sidebar-nav"
 import { CommandPalette } from "@/components/ui/command-palette"
+import { ToastProvider } from "@/components/providers/toast-provider"
 
 interface AppShellProps {
   userName: string
@@ -23,20 +24,22 @@ export function AppShell({ userName, userEmail, children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-surface-secondary">
-      <CommandPalette />
-      <SidebarNav
-        userName={userName}
-        userEmail={userEmail}
-        isOpen={isSidebarOpen}
-        onClose={handleClose}
-      />
-      <div className="lg:pl-64">
-        <AppHeader onMenuToggle={handleToggle} />
-        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          {children}
-        </main>
+    <ToastProvider>
+      <div className="min-h-screen bg-surface-secondary">
+        <CommandPalette />
+        <SidebarNav
+          userName={userName}
+          userEmail={userEmail}
+          isOpen={isSidebarOpen}
+          onClose={handleClose}
+        />
+        <div className="lg:pl-64">
+          <AppHeader onMenuToggle={handleToggle} />
+          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   )
 }
