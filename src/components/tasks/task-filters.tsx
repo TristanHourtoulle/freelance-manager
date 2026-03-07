@@ -3,6 +3,11 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Select } from "@/components/ui/select"
 import { CategoryFilter } from "@/components/ui/category-filter"
+import {
+  TASK_PRESETS,
+  TASK_PRESET_LABELS,
+  type TaskPreset,
+} from "@/lib/schemas/task"
 
 import type { ClientSummary } from "./types"
 
@@ -10,19 +15,13 @@ interface TaskFiltersProps {
   clients: ClientSummary[]
 }
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
-  { value: "backlog", label: "Backlog" },
-  { value: "unstarted", label: "Unstarted" },
-  { value: "started", label: "In Progress" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-]
-
 export function TaskFilters({ clients }: TaskFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  const currentPreset: TaskPreset =
+    (searchParams.get("preset") as TaskPreset) ?? "active"
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -32,6 +31,14 @@ export function TaskFilters({ clients }: TaskFiltersProps) {
       params.delete(key)
     }
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
+
+  function handlePresetChange(preset: TaskPreset) {
+    if (preset === "active") {
+      updateParam("preset", "")
+    } else {
+      updateParam("preset", preset)
+    }
   }
 
   const clientOptions = [
@@ -44,18 +51,28 @@ export function TaskFilters({ clients }: TaskFiltersProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        {TASK_PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => handlePresetChange(preset)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              currentPreset === preset
+                ? "bg-primary text-white"
+                : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
+            }`}
+          >
+            {TASK_PRESET_LABELS[preset]}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-3">
         <Select
           label="Client"
           value={searchParams.get("clientId") ?? ""}
           onChange={(e) => updateParam("clientId", e.target.value)}
           options={clientOptions}
-        />
-        <Select
-          label="Status"
-          value={searchParams.get("status") ?? ""}
-          onChange={(e) => updateParam("status", e.target.value)}
-          options={STATUS_OPTIONS}
         />
       </div>
       <CategoryFilter />
