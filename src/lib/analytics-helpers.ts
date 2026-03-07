@@ -78,7 +78,9 @@ export function buildMonthRange(
 
 export async function fetchIssueMapForClient(
   client: Client & { linearMappings: LinearMapping[] },
-): Promise<Map<string, { estimate: number | undefined }>> {
+): Promise<
+  Map<string, { estimate: number | undefined; projectId: string | undefined }>
+> {
   const issuePromises = client.linearMappings.map((mapping) =>
     fetchLinearIssues({
       teamId: mapping.linearTeamId ?? undefined,
@@ -91,7 +93,59 @@ export async function fetchIssueMapForClient(
     r.status === "fulfilled" ? r.value : [],
   )
 
-  return new Map(allIssues.map((i) => [i.id, { estimate: i.estimate }]))
+  return new Map(
+    allIssues.map((i) => [
+      i.id,
+      { estimate: i.estimate, projectId: i.projectId },
+    ]),
+  )
+}
+
+export function computeDateRange(
+  period: string,
+  fromParam: string | null,
+  toParam: string | null,
+): { from: Date; to: Date } {
+  const now = new Date()
+
+  switch (period) {
+    case "1m":
+      return {
+        from: new Date(now.getFullYear(), now.getMonth(), 1),
+        to: now,
+      }
+    case "6m":
+      return {
+        from: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+        to: now,
+      }
+    case "1y":
+      return {
+        from: new Date(now.getFullYear(), 0, 1),
+        to: now,
+      }
+    case "custom": {
+      const from = fromParam
+        ? new Date(fromParam)
+        : new Date(now.getFullYear(), now.getMonth() - 2, 1)
+      const to = toParam ? new Date(toParam) : now
+
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+        return {
+          from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
+          to: now,
+        }
+      }
+
+      return { from, to }
+    }
+    default:
+      // 3m
+      return {
+        from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
+        to: now,
+      }
+  }
 }
 
 export function computeGroupAmount(

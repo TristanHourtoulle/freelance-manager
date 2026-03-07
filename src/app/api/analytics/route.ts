@@ -6,57 +6,11 @@ import {
   buildMonthRange,
   fetchIssueMapForClient,
   computeGroupAmount,
+  computeDateRange,
 } from "@/lib/analytics-helpers"
 
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
 import type { Client, LinearMapping } from "@/generated/prisma/client"
-
-function computeDateRange(
-  period: string,
-  fromParam: string | null,
-  toParam: string | null,
-): { from: Date; to: Date } {
-  const now = new Date()
-
-  switch (period) {
-    case "1m":
-      return {
-        from: new Date(now.getFullYear(), now.getMonth(), 1),
-        to: now,
-      }
-    case "6m":
-      return {
-        from: new Date(now.getFullYear(), now.getMonth() - 5, 1),
-        to: now,
-      }
-    case "1y":
-      return {
-        from: new Date(now.getFullYear(), 0, 1),
-        to: now,
-      }
-    case "custom": {
-      const from = fromParam
-        ? new Date(fromParam)
-        : new Date(now.getFullYear(), now.getMonth() - 2, 1)
-      const to = toParam ? new Date(toParam) : now
-
-      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
-        return {
-          from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-          to: now,
-        }
-      }
-
-      return { from, to }
-    }
-    default:
-      // 3m
-      return {
-        from: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-        to: now,
-      }
-  }
-}
 
 export async function GET(request: Request) {
   try {

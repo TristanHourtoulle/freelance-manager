@@ -24,6 +24,19 @@ export interface RevenueByCategory {
   amount: number
 }
 
+export interface HoursByProject {
+  projectId: string
+  projectName: string
+  hours: number
+  amount: number
+}
+
+export interface ClientProjectsData {
+  clientId: string
+  clientName: string
+  projects: HoursByProject[]
+}
+
 export interface AnalyticsData {
   revenueByMonth: RevenueByMonth[]
   revenueByClient: RevenueByClient[]
