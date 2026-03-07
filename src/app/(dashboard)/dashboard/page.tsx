@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
@@ -46,25 +44,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Dashboard
-        </h1>
-        <div className="flex gap-2">
-          <Link href="/clients">
-            <Button variant="secondary">Clients</Button>
-          </Link>
-          <Link href="/tasks">
-            <Button variant="secondary">Tasks</Button>
-          </Link>
-          <Link href="/billing">
-            <Button variant="secondary">To Invoice</Button>
-          </Link>
-          <Link href="/analytics">
-            <Button variant="secondary">Analytics</Button>
-          </Link>
-        </div>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        Dashboard
+      </h1>
 
       {isLoading ? (
         <>
