@@ -6,8 +6,14 @@ import {
   ArchiveBoxArrowDownIcon,
 } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
+import { ActivityIndicator } from "@/components/clients/activity-indicator"
 
 import type { SerializedClient } from "@/components/clients/types"
+
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
 const CATEGORY_BADGES: Record<string, string> = {
   FREELANCE: "bg-blue-100 text-blue-800",
@@ -45,6 +51,10 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            <ActivityIndicator
+              lastActivityAt={client.lastActivityAt}
+              showLabel={false}
+            />
             <h3 className="truncate text-base font-semibold text-text-primary">
               {client.name}
             </h3>
@@ -84,6 +94,15 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
           <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
             {client.linearMappings.length} Linear project
             {client.linearMappings.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between text-sm">
+        <ActivityIndicator lastActivityAt={client.lastActivityAt} />
+        {client.totalRevenue > 0 && (
+          <span className="font-medium text-text-primary">
+            {currencyFormatter.format(client.totalRevenue)}
           </span>
         )}
       </div>
