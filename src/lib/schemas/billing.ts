@@ -1,10 +1,10 @@
 import { z } from "zod/v4"
 
-import { CategorySchema } from "./client"
+import { categoryFilterField } from "./category-filter"
 
 export const billingFilterSchema = z.object({
   clientId: z.string().optional(),
-  category: CategorySchema.optional(),
+  category: categoryFilterField,
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().default(1),

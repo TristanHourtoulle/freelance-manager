@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const where: Prisma.ClientWhereInput = {
       userId: userOrError.id,
       archivedAt: filters.archived ? { not: null } : null,
-      ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.category ? { category: { in: filters.category } } : {}),
       ...(filters.billingMode ? { billingMode: filters.billingMode } : {}),
       ...(filters.search
         ? {

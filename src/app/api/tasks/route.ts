@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         userId: userOrError.id,
         archivedAt: null,
         ...(filters.clientId ? { id: filters.clientId } : {}),
+        ...(filters.category ? { category: { in: filters.category } } : {}),
       },
       include: { linearMappings: true },
     })

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
+import { categoryFilterField } from "@/lib/schemas/category-filter"
 import { NextResponse } from "next/server"
 import {
   getMonthKey,
@@ -22,6 +23,8 @@ export async function GET(request: Request) {
     const period = url.searchParams.get("period") ?? "3m"
     const fromParam = url.searchParams.get("from")
     const toParam = url.searchParams.get("to")
+    const categoryRaw = url.searchParams.get("category") ?? undefined
+    const categoryFilter = categoryFilterField.parse(categoryRaw)
 
     const { from, to } = computeDateRange(period, fromParam, toParam)
 
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
         client: {
           userId: userOrError.id,
           archivedAt: null,
+          ...(categoryFilter ? { category: { in: categoryFilter } } : {}),
         },
       },
       include: {
