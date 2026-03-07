@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ClientForm } from "@/components/clients/client-form"
 import { LinearMappingsSection } from "@/components/clients/linear-mappings-section"
+import { Button } from "@/components/ui/button"
 
 import type { SerializedClient } from "@/components/clients/types"
 import type { CreateClientInput } from "@/lib/schemas/client"
@@ -15,6 +16,7 @@ export default function EditClientPage() {
   const [client, setClient] = useState<SerializedClient | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+  const [isUnarchiving, setIsUnarchiving] = useState(false)
 
   useEffect(() => {
     async function fetchClient() {
@@ -42,6 +44,18 @@ export default function EditClientPage() {
     }
 
     router.push("/clients")
+  }
+
+  async function handleUnarchive() {
+    setIsUnarchiving(true)
+    const res = await fetch(`/api/clients/${id}/unarchive`, {
+      method: "PATCH",
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setClient(updated)
+    }
+    setIsUnarchiving(false)
   }
 
   if (isLoading) {
@@ -78,6 +92,24 @@ export default function EditClientPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6">Edit Client</h1>
+
+      {client.archivedAt && (
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">
+            This client was archived on{" "}
+            {new Date(client.archivedAt).toLocaleDateString()}.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={handleUnarchive}
+            isLoading={isUnarchiving}
+            className="text-xs"
+          >
+            Unarchive
+          </Button>
+        </div>
+      )}
+
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <ClientForm
           defaultValues={defaultValues}

@@ -1,7 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { TrashIcon } from "@heroicons/react/24/outline"
+import {
+  ArchiveBoxIcon,
+  ArchiveBoxArrowDownIcon,
+} from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 
 import type { SerializedClient } from "@/components/clients/types"
@@ -29,12 +32,16 @@ const BILLING_LABELS: Record<string, string> = {
 
 interface ClientCardProps {
   client: SerializedClient
-  onDelete: (id: string) => void
+  onArchive: (id: string) => void
 }
 
-export function ClientCard({ client, onDelete }: ClientCardProps) {
+export function ClientCard({ client, onArchive }: ClientCardProps) {
+  const isArchived = Boolean(client.archivedAt)
+
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={`rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md${isArchived ? " opacity-60" : ""}`}
+    >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -46,6 +53,11 @@ export function ClientCard({ client, onDelete }: ClientCardProps) {
             >
               {CATEGORY_LABELS[client.category] ?? client.category}
             </span>
+            {isArchived && (
+              <span className="inline-flex shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                Archived
+              </span>
+            )}
           </div>
           {client.company && (
             <p className="mt-1 text-sm text-text-secondary">{client.company}</p>
@@ -83,10 +95,15 @@ export function ClientCard({ client, onDelete }: ClientCardProps) {
           </Button>
         </Link>
         <button
-          className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-red-50 hover:text-destructive-hover"
-          onClick={() => onDelete(client.id)}
+          className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary"
+          onClick={() => onArchive(client.id)}
+          title={isArchived ? "Unarchive client" : "Archive client"}
         >
-          <TrashIcon className="h-4 w-4" />
+          {isArchived ? (
+            <ArchiveBoxArrowDownIcon className="h-4 w-4" />
+          ) : (
+            <ArchiveBoxIcon className="h-4 w-4" />
+          )}
         </button>
       </div>
     </div>

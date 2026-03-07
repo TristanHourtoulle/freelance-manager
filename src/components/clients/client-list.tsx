@@ -10,7 +10,7 @@ interface ClientListProps {
   clients: SerializedClient[]
   pagination: Pagination
   hasFilters: boolean
-  onDelete: (id: string) => void
+  onArchive: (id: string) => void
   onPageChange: (page: number) => void
 }
 
@@ -18,7 +18,7 @@ export function ClientList({
   clients,
   pagination,
   hasFilters,
-  onDelete,
+  onArchive,
   onPageChange,
 }: ClientListProps) {
   if (clients.length === 0) {
@@ -29,7 +29,7 @@ export function ClientList({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {clients.map((client) => (
-          <ClientCard key={client.id} client={client} onDelete={onDelete} />
+          <ClientCard key={client.id} client={client} onArchive={onArchive} />
         ))}
       </div>
 

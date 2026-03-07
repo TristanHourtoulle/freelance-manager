@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
-import { DeleteClientModal } from "@/components/clients/delete-client-modal"
+import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
 
@@ -24,10 +24,10 @@ export default function ClientsPage() {
   })
   const [isLoading, setIsLoading] = useState(true)
 
-  const [deleteTarget, setDeleteTarget] = useState<SerializedClient | null>(
+  const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(
     null,
   )
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
 
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -63,28 +63,33 @@ export default function ClientsPage() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  function handleDeleteClick(id: string) {
+  function handleArchiveClick(id: string) {
     const client = clients.find((c) => c.id === id)
-    if (client) setDeleteTarget(client)
+    if (client) setArchiveTarget(client)
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteTarget) return
-    setIsDeleting(true)
+  async function handleArchiveConfirm() {
+    if (!archiveTarget) return
+    setIsArchiving(true)
 
-    const res = await fetch(`/api/clients/${deleteTarget.id}`, {
-      method: "DELETE",
+    const isArchived = Boolean(archiveTarget.archivedAt)
+    const endpoint = isArchived ? "unarchive" : "archive"
+
+    const res = await fetch(`/api/clients/${archiveTarget.id}/${endpoint}`, {
+      method: "PATCH",
     })
 
     if (res.ok) {
-      setDeleteTarget(null)
+      setArchiveTarget(null)
       refreshClients()
     }
-    setIsDeleting(false)
+    setIsArchiving(false)
   }
 
   const hasFilters = Boolean(
-    searchParams.get("search") || searchParams.get("category"),
+    searchParams.get("search") ||
+    searchParams.get("category") ||
+    searchParams.get("archived"),
   )
 
   return (
@@ -107,18 +112,19 @@ export default function ClientsPage() {
           clients={clients}
           pagination={pagination}
           hasFilters={hasFilters}
-          onDelete={handleDeleteClick}
+          onArchive={handleArchiveClick}
           onPageChange={handlePageChange}
         />
       )}
 
-      {deleteTarget && (
-        <DeleteClientModal
-          clientName={deleteTarget.name}
-          isOpen={Boolean(deleteTarget)}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDeleteConfirm}
-          isDeleting={isDeleting}
+      {archiveTarget && (
+        <ArchiveClientModal
+          clientName={archiveTarget.name}
+          isArchived={Boolean(archiveTarget.archivedAt)}
+          isOpen={Boolean(archiveTarget)}
+          onClose={() => setArchiveTarget(null)}
+          onConfirm={handleArchiveConfirm}
+          isLoading={isArchiving}
         />
       )}
     </div>
