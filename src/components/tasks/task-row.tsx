@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
+import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 
 import type { EnrichedTask } from "./types"
@@ -136,14 +137,12 @@ export function TaskRow({
         </td>
       )}
       <td className="px-3 py-2.5">
-        <a
-          href={task.url}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href={`/tasks/${task.linearIssueId}`}
           className="text-sm font-medium text-text-secondary hover:text-primary"
         >
           {task.identifier}
-        </a>
+        </Link>
       </td>
       <td className="max-w-xs truncate px-3 py-2.5 text-sm text-text-primary">
         {task.title}
