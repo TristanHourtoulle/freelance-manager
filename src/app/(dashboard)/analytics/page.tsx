@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { PeriodSelector } from "@/components/analytics/period-selector"
 import { RevenueByMonthChart } from "@/components/analytics/revenue-by-month-chart"
 import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-chart"
@@ -55,14 +53,9 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Analytics
-        </h1>
-        <Link href="/">
-          <Button variant="secondary">Dashboard</Button>
-        </Link>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        Analytics
+      </h1>
 
       <PeriodSelector />
 

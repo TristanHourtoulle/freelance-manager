@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { AppShell } from "@/components/layout/app-shell"
 
 export default async function DashboardLayout({
   children,
@@ -16,10 +17,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
-      </div>
-    </div>
+    <AppShell userName={session.user.name} userEmail={session.user.email}>
+      {children}
+    </AppShell>
   )
 }
