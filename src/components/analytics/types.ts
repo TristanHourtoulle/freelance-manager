@@ -18,8 +18,15 @@ export interface HoursByClient {
   hours: number
 }
 
+export interface RevenueByCategory {
+  category: string
+  label: string
+  amount: number
+}
+
 export interface AnalyticsData {
   revenueByMonth: RevenueByMonth[]
   revenueByClient: RevenueByClient[]
   hoursByClient: HoursByClient[]
+  revenueByCategory: RevenueByCategory[]
 }
