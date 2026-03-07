@@ -53,9 +53,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Analytics
-      </h1>
+      <h1>Analytics</h1>
 
       <PeriodSelector />
 

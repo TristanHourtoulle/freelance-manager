@@ -96,9 +96,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Tasks
-        </h1>
+        <h1>Tasks</h1>
         <Link href="/billing">
           <Button variant="secondary">To Invoice</Button>
         </Link>
@@ -108,9 +106,7 @@ export default function TasksPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Loading tasks...
-          </p>
+          <p className="text-sm text-text-secondary">Loading tasks...</p>
         </div>
       ) : groups.length === 0 ? (
         <TaskEmptyState hasFilters={hasFilters} />

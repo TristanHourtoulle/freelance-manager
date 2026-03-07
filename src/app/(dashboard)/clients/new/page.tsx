@@ -26,10 +26,8 @@ export default function NewClientPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        New Client
-      </h1>
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <h1 className="mb-6">New Client</h1>
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <ClientForm onSubmit={handleSubmit} />
       </div>
     </div>

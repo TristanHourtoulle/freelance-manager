@@ -145,9 +145,7 @@ export default function BillingPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          To Invoice
-        </h1>
+        <h1>To Invoice</h1>
         <Link href="/tasks">
           <Button variant="secondary">View Tasks</Button>
         </Link>
@@ -157,9 +155,7 @@ export default function BillingPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Loading billing data...
-          </p>
+          <p className="text-sm text-text-secondary">Loading billing data...</p>
         </div>
       ) : groups.length === 0 ? (
         <BillingEmptyState hasFilters={hasFilters} />

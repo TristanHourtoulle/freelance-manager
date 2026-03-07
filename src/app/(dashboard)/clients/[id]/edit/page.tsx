@@ -47,7 +47,7 @@ export default function EditClientPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading...</p>
+        <p className="text-sm text-text-secondary">Loading...</p>
       </div>
     )
   }
@@ -55,10 +55,10 @@ export default function EditClientPage() {
   if (error || !client) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+        <p className="text-sm font-medium text-text-primary">
           Client not found
         </p>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-text-secondary">
           The client you are looking for does not exist.
         </p>
       </div>
@@ -77,17 +77,15 @@ export default function EditClientPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Edit Client
-      </h1>
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <h1 className="mb-6">Edit Client</h1>
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <ClientForm
           defaultValues={defaultValues}
           isEdit
           onSubmit={handleSubmit}
         />
       </div>
-      <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mt-6 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <LinearMappingsSection clientId={id} />
       </div>
     </div>
