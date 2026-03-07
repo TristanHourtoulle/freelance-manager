@@ -1,11 +1,14 @@
 "use client"
 
+import { useState, useRef, useCallback } from "react"
+
 import type { EnrichedTask } from "./types"
 
 interface TaskRowProps {
   task: EnrichedTask
   onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
   onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
+  onUpdateEstimate?: (linearIssueId: string, estimate: number) => void
 }
 
 function formatEstimate(estimate: number | undefined): string {
@@ -24,7 +27,43 @@ export function TaskRow({
   task,
   onToggleToInvoice,
   onToggleInvoiced,
+  onUpdateEstimate,
 }: TaskRowProps) {
+  const [isEditingEstimate, setIsEditingEstimate] = useState(false)
+  const [editValue, setEditValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const startEditing = useCallback(() => {
+    if (!onUpdateEstimate) return
+    setEditValue(task.estimate !== undefined ? String(task.estimate) : "")
+    setIsEditingEstimate(true)
+    setTimeout(() => inputRef.current?.select(), 0)
+  }, [onUpdateEstimate, task.estimate])
+
+  const cancelEditing = useCallback(() => {
+    setIsEditingEstimate(false)
+  }, [])
+
+  const submitEstimate = useCallback(() => {
+    setIsEditingEstimate(false)
+    const parsed = parseInt(editValue, 10)
+    if (isNaN(parsed) || parsed < 0) return
+    if (parsed === task.estimate) return
+    onUpdateEstimate?.(task.linearIssueId, parsed)
+  }, [editValue, task.estimate, task.linearIssueId, onUpdateEstimate])
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault()
+        submitEstimate()
+      } else if (e.key === "Escape") {
+        cancelEditing()
+      }
+    },
+    [submitEstimate, cancelEditing],
+  )
+
   return (
     <tr className="border-b border-border-light last:border-0">
       {onToggleToInvoice && (
@@ -69,7 +108,31 @@ export function TaskRow({
         )}
       </td>
       <td className="px-3 py-2.5 text-right text-sm tabular-nums text-text-secondary">
-        {formatEstimate(task.estimate)}
+        {isEditingEstimate ? (
+          <input
+            ref={inputRef}
+            type="number"
+            min={0}
+            max={100}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={submitEstimate}
+            onKeyDown={handleKeyDown}
+            className="w-16 rounded border border-border-input bg-surface px-1.5 py-0.5 text-right text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : (
+          <button
+            onClick={startEditing}
+            disabled={!onUpdateEstimate}
+            className={
+              onUpdateEstimate
+                ? "cursor-pointer rounded px-1.5 py-0.5 hover:bg-surface-muted"
+                : ""
+            }
+          >
+            {formatEstimate(task.estimate)}
+          </button>
+        )}
       </td>
       <td
         className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-text-primary"
