@@ -159,9 +159,14 @@ export default function TasksPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1>Tasks</h1>
-        <Link href="/billing">
-          <Button variant="secondary">To Invoice</Button>
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/tasks/new">
+            <Button>New Task</Button>
+          </Link>
+          <Link href="/billing">
+            <Button variant="secondary">To Invoice</Button>
+          </Link>
+        </div>
       </div>
 
       {errorMessage && (
