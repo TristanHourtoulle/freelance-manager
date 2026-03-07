@@ -22,7 +22,7 @@ export function AppShell({ userName, userEmail, children }: AppShellProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-surface-secondary">
       <SidebarNav
         userName={userName}
         userEmail={userEmail}

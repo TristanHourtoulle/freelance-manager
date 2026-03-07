@@ -8,14 +8,14 @@ interface AppHeaderProps {
 
 export function AppHeader({ onMenuToggle }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-3 lg:hidden dark:border-zinc-800 dark:bg-zinc-950">
+    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-surface px-4 py-3 lg:hidden">
       <button
         onClick={onMenuToggle}
-        className="rounded-lg p-1.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-muted"
       >
         <Bars3Icon className="h-5 w-5" />
       </button>
-      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+      <span className="text-sm font-semibold text-text-primary">
         FreelanceDash
       </span>
     </header>
