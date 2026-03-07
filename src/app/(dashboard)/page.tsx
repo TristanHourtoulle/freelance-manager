@@ -60,6 +60,9 @@ export default function DashboardPage() {
           <Link href="/billing">
             <Button variant="secondary">To Invoice</Button>
           </Link>
+          <Link href="/analytics">
+            <Button variant="secondary">Analytics</Button>
+          </Link>
         </div>
       </div>
 
