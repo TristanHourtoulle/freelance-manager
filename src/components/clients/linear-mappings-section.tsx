@@ -120,9 +120,7 @@ export function LinearMappingsSection({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        linearTeamId: selectedProjectId
-          ? undefined
-          : selectedTeamId || undefined,
+        linearTeamId: selectedTeamId || undefined,
         linearProjectId: selectedProjectId || undefined,
       }),
     })
