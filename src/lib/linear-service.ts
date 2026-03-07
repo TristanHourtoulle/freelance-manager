@@ -83,6 +83,70 @@ export async function updateLinearIssueEstimate(
   issuesCache.clear()
 }
 
+export async function createLinearIssue(input: {
+  title: string
+  description?: string
+  estimate?: number
+  teamId: string
+  projectId: string
+}): Promise<LinearIssueDTO> {
+  const payload = await linearClient.createIssue({
+    teamId: input.teamId,
+    title: input.title,
+    description: input.description,
+    estimate: input.estimate,
+    projectId: input.projectId,
+  })
+
+  const issue = await payload.issue
+
+  if (!issue) {
+    throw new Error("Linear API returned no issue after creation")
+  }
+
+  const state = await issue.state
+  const assignee = await issue.assignee
+  const labels = await issue.labels()
+  const project = await issue.project
+  const team = await issue.team
+
+  issuesCache.clear()
+
+  return {
+    id: issue.id,
+    identifier: issue.identifier,
+    title: issue.title,
+    estimate: issue.estimate ?? undefined,
+    completedAt: issue.completedAt?.toISOString() ?? undefined,
+    createdAt: issue.createdAt.toISOString(),
+    url: issue.url,
+    priority: issue.priority,
+    priorityLabel: issue.priorityLabel,
+    status: state
+      ? {
+          id: state.id,
+          name: state.name,
+          type: state.type,
+          color: state.color,
+        }
+      : undefined,
+    assignee: assignee
+      ? {
+          id: assignee.id,
+          name: assignee.name,
+          email: assignee.email ?? undefined,
+        }
+      : undefined,
+    labels: labels.nodes.map((label) => ({
+      id: label.id,
+      name: label.name,
+      color: label.color,
+    })),
+    projectId: project?.id ?? undefined,
+    teamId: team?.id ?? undefined,
+  }
+}
+
 export function clearLinearCaches(): void {
   teamsCache.clear()
   projectsCache.clear()
