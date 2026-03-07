@@ -69,6 +69,11 @@ const projectsCache = new TTLCache<LinearProjectDTO[]>(PROJECTS_TTL)
 const issuesCache = new TTLCache<LinearIssueDTO[]>(ISSUES_TTL)
 
 let lastSyncedAt: number | null = null
+let lastWebhookReceivedAt: number | null = null
+
+export function setLastWebhookReceivedAt(timestamp: number): void {
+  lastWebhookReceivedAt = timestamp
+}
 
 export async function updateLinearIssueEstimate(
   issueId: string,
@@ -86,11 +91,12 @@ export function clearLinearCaches(): void {
 
 export function getLinearSyncStatus(): {
   lastSyncedAt: number | null
+  lastWebhookReceivedAt: number | null
   isStale: boolean
 } {
   const isStale =
     lastSyncedAt === null || Date.now() - lastSyncedAt > BASE_TTL_MS
-  return { lastSyncedAt, isStale }
+  return { lastSyncedAt, lastWebhookReceivedAt, isStale }
 }
 
 export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
