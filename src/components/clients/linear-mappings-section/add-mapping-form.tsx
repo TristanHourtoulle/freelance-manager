@@ -30,10 +30,8 @@ export function AddMappingForm({
   onAdd,
 }: AddMappingFormProps) {
   return (
-    <div className="space-y-3 rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700">
-      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Add a mapping
-      </p>
+    <div className="space-y-3 rounded-lg border border-dashed border-border-input p-4">
+      <p className="text-sm font-medium text-text-secondary">Add a mapping</p>
 
       <Select
         label="Team"

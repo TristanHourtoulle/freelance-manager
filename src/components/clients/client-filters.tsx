@@ -56,19 +56,13 @@ export function ClientFilters() {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex-1 space-y-2">
-        <label
-          htmlFor="search"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          Search
-        </label>
+        <label htmlFor="search">Search</label>
         <input
           id="search"
           type="text"
           value={searchValue}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search by name or company..."
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
         />
       </div>
       <div className="w-full sm:w-48">

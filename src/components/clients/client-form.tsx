@@ -125,29 +125,19 @@ export function ClientForm({
       </div>
 
       <div className="space-y-2">
-        <label
-          htmlFor="notes"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-        >
-          Notes
-        </label>
+        <label htmlFor="notes">Notes</label>
         <textarea
           id="notes"
           rows={3}
           placeholder="Additional notes..."
           {...register("notes")}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
         />
         {errors.notes?.message && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {errors.notes.message}
-          </p>
+          <p className="text-sm text-destructive">{errors.notes.message}</p>
         )}
       </div>
 
-      {apiError && (
-        <p className="text-sm text-red-600 dark:text-red-400">{apiError}</p>
-      )}
+      {apiError && <p className="text-sm text-destructive">{apiError}</p>}
 
       <div className="flex justify-end gap-3">
         <Button

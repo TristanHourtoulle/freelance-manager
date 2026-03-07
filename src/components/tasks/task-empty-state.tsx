@@ -8,11 +8,11 @@ interface TaskEmptyStateProps {
 export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
   if (hasFilters) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 py-16 dark:border-zinc-700">
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
+        <p className="text-sm font-medium text-text-primary">
           No tasks match your filters
         </p>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-text-secondary">
           Try adjusting or clearing your filters.
         </p>
       </div>
@@ -20,11 +20,11 @@ export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 py-16 dark:border-zinc-700">
-      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
+      <p className="text-sm font-medium text-text-primary">
         No Linear mappings configured
       </p>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-1 text-sm text-text-secondary">
         Set up Linear project mappings on your clients to see tasks here.
       </p>
       <Link href="/clients" className="mt-4">

@@ -35,7 +35,7 @@ export function ClientList({
 
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-text-secondary">
             {pagination.total} client{pagination.total !== 1 ? "s" : ""} total
           </p>
           <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export function ClientList({
             >
               Previous
             </Button>
-            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="text-sm text-text-secondary">
               {pagination.page} / {pagination.totalPages}
             </span>
             <Button

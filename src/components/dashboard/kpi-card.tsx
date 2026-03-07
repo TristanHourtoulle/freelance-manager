@@ -9,16 +9,12 @@ interface KpiCardProps {
 export function KpiCard({ title, value, subtitle }: KpiCardProps) {
   return (
     <Card>
-      <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-        {title}
-      </p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <p className="text-sm font-medium text-text-secondary">{title}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
         {value}
       </p>
       {subtitle && (
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {subtitle}
-        </p>
+        <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
       )}
     </Card>
   )

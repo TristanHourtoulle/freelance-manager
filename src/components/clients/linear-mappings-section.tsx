@@ -182,18 +182,14 @@ export function LinearMappingsSection({
   if (isLoadingMappings || isLoadingTeams) {
     return (
       <div className="py-4">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Loading Linear data...
-        </p>
+        <p className="text-sm text-text-secondary">Loading Linear data...</p>
       </div>
     )
   }
 
   return (
     <div>
-      <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        Linear Mappings
-      </h2>
+      <h2 className="mb-4">Linear Mappings</h2>
 
       <LinearMappingsList
         mappings={mappings}
@@ -202,9 +198,7 @@ export function LinearMappingsSection({
         onDelete={handleDelete}
       />
 
-      {error && (
-        <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       <AddMappingForm
         teams={teams}

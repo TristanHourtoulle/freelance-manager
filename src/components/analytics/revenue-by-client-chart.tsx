@@ -46,15 +46,14 @@ export function RevenueByClientChart({ data }: RevenueByClientChartProps) {
               ]}
               contentStyle={{
                 borderRadius: "8px",
-                border: "1px solid #e4e4e7",
+                border: "1px solid var(--color-border)",
                 fontSize: "14px",
               }}
             />
             <Bar
               dataKey="amount"
-              fill="#18181b"
+              fill="var(--color-primary)"
               radius={[0, 4, 4, 0]}
-              className="dark:fill-zinc-300"
             />
           </BarChart>
         </ResponsiveContainer>
