@@ -6,6 +6,7 @@ import { PeriodSelector } from "@/components/analytics/period-selector"
 import { RevenueByMonthChart } from "@/components/analytics/revenue-by-month-chart"
 import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-chart"
 import { TimeByClientChart } from "@/components/analytics/time-by-client-chart"
+import { TimeByProjectChart } from "@/components/analytics/time-by-project-chart"
 import { RevenueByCategoryChart } from "@/components/analytics/revenue-by-category-chart"
 import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
@@ -16,12 +17,17 @@ export default function AnalyticsPage() {
   const searchParams = useSearchParams()
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedClient, setSelectedClient] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
       setIsLoading(true)
+      setSelectedClient(null)
       const params = new URLSearchParams(searchParams.toString())
       if (!params.has("period")) {
         params.set("period", "3m")
@@ -71,7 +77,20 @@ export default function AnalyticsPage() {
             <RevenueByCategoryChart data={data.revenueByCategory} />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <TimeByClientChart data={data.hoursByClient} />
+            {selectedClient ? (
+              <TimeByProjectChart
+                clientId={selectedClient.id}
+                clientName={selectedClient.name}
+                period={searchParams.get("period") ?? "3m"}
+                searchParams={searchParams.toString()}
+                onBack={() => setSelectedClient(null)}
+              />
+            ) : (
+              <TimeByClientChart
+                data={data.hoursByClient}
+                onClientClick={(id, name) => setSelectedClient({ id, name })}
+              />
+            )}
           </div>
         </div>
       ) : null}

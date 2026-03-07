@@ -25,9 +25,13 @@ const COLORS = [
 
 interface TimeByClientChartProps {
   data: HoursByClient[]
+  onClientClick?: (clientId: string, clientName: string) => void
 }
 
-export function TimeByClientChart({ data }: TimeByClientChartProps) {
+export function TimeByClientChart({
+  data,
+  onClientClick,
+}: TimeByClientChartProps) {
   return (
     <Card title="Time by Client">
       <div className="h-64">
@@ -42,6 +46,17 @@ export function TimeByClientChart({ data }: TimeByClientChartProps) {
               innerRadius={50}
               outerRadius={90}
               paddingAngle={2}
+              style={onClientClick ? { cursor: "pointer" } : undefined}
+              onClick={
+                onClientClick
+                  ? (_: unknown, index: number) => {
+                      const entry = data[index]
+                      if (entry) {
+                        onClientClick(entry.clientId, entry.clientName)
+                      }
+                    }
+                  : undefined
+              }
             >
               {data.map((_, i) => (
                 <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
