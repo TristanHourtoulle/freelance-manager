@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Select } from "@/components/ui/select"
+import { CategoryFilter } from "@/components/ui/category-filter"
 
 import type { ClientSummary } from "./types"
 
@@ -42,19 +43,22 @@ export function TaskFilters({ clients }: TaskFiltersProps) {
   ]
 
   return (
-    <div className="flex flex-wrap gap-3">
-      <Select
-        label="Client"
-        value={searchParams.get("clientId") ?? ""}
-        onChange={(e) => updateParam("clientId", e.target.value)}
-        options={clientOptions}
-      />
-      <Select
-        label="Status"
-        value={searchParams.get("status") ?? ""}
-        onChange={(e) => updateParam("status", e.target.value)}
-        options={STATUS_OPTIONS}
-      />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-3">
+        <Select
+          label="Client"
+          value={searchParams.get("clientId") ?? ""}
+          onChange={(e) => updateParam("clientId", e.target.value)}
+          options={clientOptions}
+        />
+        <Select
+          label="Status"
+          value={searchParams.get("status") ?? ""}
+          onChange={(e) => updateParam("status", e.target.value)}
+          options={STATUS_OPTIONS}
+        />
+      </div>
+      <CategoryFilter />
     </div>
   )
 }

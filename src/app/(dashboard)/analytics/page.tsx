@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { CategoryFilter } from "@/components/ui/category-filter"
 import { PeriodSelector } from "@/components/analytics/period-selector"
 import { RevenueByMonthChart } from "@/components/analytics/revenue-by-month-chart"
 import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-chart"
@@ -65,7 +66,10 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <h1>Analytics</h1>
 
-      <PeriodSelector />
+      <div className="flex flex-col gap-4">
+        <PeriodSelector />
+        <CategoryFilter />
+      </div>
 
       {isLoading ? (
         <AnalyticsSkeleton />
