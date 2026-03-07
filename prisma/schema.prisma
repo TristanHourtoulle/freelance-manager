@@ -72,6 +72,7 @@ model UserSettings {
   userId                 String   @unique
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   availableHoursPerMonth Int      @default(140)
+  monthlyRevenueTarget   Decimal  @default(0) @db.Decimal(10, 2)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

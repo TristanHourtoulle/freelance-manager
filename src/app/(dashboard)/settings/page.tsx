@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { AvailableHoursForm } from "@/components/settings/available-hours-form"
+import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
 
 interface Settings {
   availableHoursPerMonth: number
+  monthlyRevenueTarget: number
 }
 
 export default function SettingsPage() {
@@ -28,12 +30,29 @@ export default function SettingsPage() {
     load()
   }, [])
 
-  async function handleSave(value: number) {
+  async function handleSaveHours(value: number) {
     setSaveStatus("idle")
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ availableHoursPerMonth: value }),
+    })
+
+    if (res.ok) {
+      const json: Settings = await res.json()
+      setSettings(json)
+      setSaveStatus("saved")
+    } else {
+      setSaveStatus("error")
+    }
+  }
+
+  async function handleSaveTarget(value: number) {
+    setSaveStatus("idle")
+    const res = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ monthlyRevenueTarget: value }),
     })
 
     if (res.ok) {
@@ -58,7 +77,11 @@ export default function SettingsPage() {
         <>
           <AvailableHoursForm
             defaultValue={settings.availableHoursPerMonth}
-            onSave={handleSave}
+            onSave={handleSaveHours}
+          />
+          <RevenueTargetForm
+            defaultValue={settings.monthlyRevenueTarget}
+            onSave={handleSaveTarget}
           />
           {saveStatus === "saved" && (
             <p className="text-sm text-green-600">Settings saved.</p>

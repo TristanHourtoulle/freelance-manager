@@ -16,6 +16,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       availableHoursPerMonth: settings.availableHoursPerMonth,
+      monthlyRevenueTarget: Number(settings.monthlyRevenueTarget),
     })
   } catch (error) {
     return handleApiError(error)
@@ -30,19 +31,26 @@ export async function PUT(request: Request) {
     const body: unknown = await request.json()
     const parsed = updateSettingsSchema.parse(body)
 
+    const updateData: Record<string, unknown> = {}
+    if (parsed.availableHoursPerMonth !== undefined) {
+      updateData.availableHoursPerMonth = parsed.availableHoursPerMonth
+    }
+    if (parsed.monthlyRevenueTarget !== undefined) {
+      updateData.monthlyRevenueTarget = parsed.monthlyRevenueTarget
+    }
+
     const settings = await prisma.userSettings.upsert({
       where: { userId: userOrError.id },
       create: {
         userId: userOrError.id,
-        availableHoursPerMonth: parsed.availableHoursPerMonth,
+        ...updateData,
       },
-      update: {
-        availableHoursPerMonth: parsed.availableHoursPerMonth,
-      },
+      update: updateData,
     })
 
     return NextResponse.json({
       availableHoursPerMonth: settings.availableHoursPerMonth,
+      monthlyRevenueTarget: Number(settings.monthlyRevenueTarget),
     })
   } catch (error) {
     return handleApiError(error)

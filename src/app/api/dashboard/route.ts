@@ -28,28 +28,33 @@ export async function GET(request: Request) {
       archivedAt: null,
     }
 
-    const [pipelineOverrides, invoicedOverrides] = await Promise.all([
-      prisma.taskOverride.findMany({
-        where: {
-          toInvoice: true,
-          invoiced: false,
-          client: baseClientWhere,
-        },
-        include: {
-          client: { include: { linearMappings: true } },
-        },
-      }),
-      prisma.taskOverride.findMany({
-        where: {
-          invoiced: true,
-          invoicedAt: { not: null, gte: sixMonthsAgo },
-          client: baseClientWhere,
-        },
-        include: {
-          client: { include: { linearMappings: true } },
-        },
-      }),
-    ])
+    const [pipelineOverrides, invoicedOverrides, userSettings] =
+      await Promise.all([
+        prisma.taskOverride.findMany({
+          where: {
+            toInvoice: true,
+            invoiced: false,
+            client: baseClientWhere,
+          },
+          include: {
+            client: { include: { linearMappings: true } },
+          },
+        }),
+        prisma.taskOverride.findMany({
+          where: {
+            invoiced: true,
+            invoicedAt: { not: null, gte: sixMonthsAgo },
+            client: baseClientWhere,
+          },
+          include: {
+            client: { include: { linearMappings: true } },
+          },
+        }),
+        prisma.userSettings.findUnique({
+          where: { userId: userOrError.id },
+          select: { monthlyRevenueTarget: true },
+        }),
+      ])
 
     // Collect all unique clients that need Linear issue fetching
     const clientMap = new Map<
@@ -153,6 +158,7 @@ export async function GET(request: Request) {
       pipeline: Math.round(pipeline * 100) / 100,
       monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
       billedHours,
+      monthlyRevenueTarget: Number(userSettings?.monthlyRevenueTarget ?? 0),
       revenueByMonth,
       ...getLinearSyncStatus(),
     })
