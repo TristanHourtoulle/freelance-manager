@@ -211,6 +211,57 @@ export async function fetchLinearProjects(
   return result
 }
 
+export interface LinearIssueSearchResult {
+  id: string
+  identifier: string
+  title: string
+  url: string
+}
+
+interface RawIssueSearchResponse {
+  issueSearch: {
+    nodes: Array<{
+      id: string
+      identifier: string
+      title: string
+      url: string
+    }>
+  }
+}
+
+export async function searchLinearIssues(
+  query: string,
+): Promise<LinearIssueSearchResult[]> {
+  const gql = `
+    query SearchIssues($query: String!) {
+      issueSearch(query: $query, first: 5) {
+        nodes {
+          id
+          identifier
+          title
+          url
+        }
+      }
+    }
+  `
+
+  const response = await linearClient.client.rawRequest<
+    RawIssueSearchResponse,
+    { query: string }
+  >(gql, { query })
+
+  if (!response.data) {
+    return []
+  }
+
+  return response.data.issueSearch.nodes.map((node) => ({
+    id: node.id,
+    identifier: node.identifier,
+    title: node.title,
+    url: node.url,
+  }))
+}
+
 interface RawIssueResponse {
   issues: {
     nodes: Array<{

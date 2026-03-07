@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react"
 import { AppHeader } from "./app-header"
 import { SidebarNav } from "./sidebar-nav"
+import { CommandPalette } from "@/components/ui/command-palette"
 
 interface AppShellProps {
   userName: string
@@ -23,6 +24,7 @@ export function AppShell({ userName, userEmail, children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-surface-secondary">
+      <CommandPalette />
       <SidebarNav
         userName={userName}
         userEmail={userEmail}
