@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
+import { TooltipHint } from "@/components/ui/tooltip-hint"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
 
@@ -100,6 +101,11 @@ export default function ClientsPage() {
           <Button>New Client</Button>
         </Link>
       </div>
+
+      <TooltipHint storageKey="clients-page">
+        Add your clients here. Set their billing mode and rate, then connect a
+        Linear project from the client edit page.
+      </TooltipHint>
 
       <ClientFilters />
 

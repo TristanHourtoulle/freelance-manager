@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { AvailableHoursForm } from "@/components/settings/available-hours-form"
 import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
+import { TooltipHint } from "@/components/ui/tooltip-hint"
 
 interface Settings {
   availableHoursPerMonth: number
@@ -67,6 +68,10 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1>Settings</h1>
+
+      <TooltipHint storageKey="settings-page">
+        Configure your working hours and revenue target for dashboard analytics.
+      </TooltipHint>
 
       {isLoading ? (
         <div className="animate-pulse rounded-lg border border-border bg-surface p-6">

@@ -8,6 +8,7 @@ import { TaskFilters } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
+import { TooltipHint } from "@/components/ui/tooltip-hint"
 
 import { calculateBilling } from "@/lib/billing"
 
@@ -219,6 +220,11 @@ export default function TasksPage() {
           <span className="text-xs text-red-400">Dismiss</span>
         </button>
       )}
+
+      <TooltipHint storageKey="tasks-page">
+        Your Linear tasks appear here grouped by client. Use the sync button to
+        refresh data from Linear.
+      </TooltipHint>
 
       <SyncStatusBar
         lastSyncedAt={lastSyncedAt}
