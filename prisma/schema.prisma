@@ -18,6 +18,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   clients       Client[]
+  settings      UserSettings?
 
   @@map("users")
 }
@@ -64,6 +65,17 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@map("verifications")
+}
+
+model UserSettings {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availableHoursPerMonth Int      @default(140)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("user_settings")
 }
 
 // --- Business Domain ---

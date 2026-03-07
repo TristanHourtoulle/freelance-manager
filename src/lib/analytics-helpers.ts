@@ -7,6 +7,7 @@ import type {
   Client,
   LinearMapping,
 } from "@/generated/prisma/client"
+import type { UtilizationMonth } from "@/components/analytics/types"
 
 export type OverrideWithClient = TaskOverride & {
   client: Client & { linearMappings: LinearMapping[] }
@@ -146,6 +147,27 @@ export function computeDateRange(
         to: now,
       }
   }
+}
+
+export function buildUtilizationByMonth(
+  monthRange: Array<{ month: string; label: string }>,
+  monthHours: Map<string, number>,
+  availableHoursPerMonth: number,
+): UtilizationMonth[] {
+  return monthRange.map(({ month, label }) => {
+    const billedHours = Math.round((monthHours.get(month) ?? 0) * 100) / 100
+    const rate =
+      availableHoursPerMonth > 0
+        ? Math.round((billedHours / availableHoursPerMonth) * 10000) / 100
+        : 0
+    return {
+      month,
+      label,
+      billedHours,
+      availableHours: availableHoursPerMonth,
+      rate,
+    }
+  })
 }
 
 export function computeGroupAmount(
