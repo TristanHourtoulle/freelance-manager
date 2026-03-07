@@ -38,6 +38,27 @@ export function getMonthLabel(key: string): string {
   return MONTH_LABELS[month - 1]!
 }
 
+const FULL_MONTH_LABELS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+]
+
+export function getFullMonthLabel(key: string): string {
+  const month = parseInt(key.split("-")[1]!, 10)
+  const year = key.split("-")[0]
+  return `${FULL_MONTH_LABELS[month - 1]} ${year}`
+}
+
 export function buildMonthRange(
   from: Date,
   to: Date,

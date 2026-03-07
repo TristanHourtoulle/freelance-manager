@@ -10,3 +10,16 @@ export interface BillingApiResponse {
     totalPages: number
   }
 }
+
+export interface HistoryMonthGroup {
+  month: string
+  label: string
+  clients: ClientTaskGroup[]
+  monthTotal: number
+  taskCount: number
+}
+
+export interface HistoryApiResponse {
+  months: HistoryMonthGroup[]
+  grandTotal: number
+}
