@@ -73,6 +73,17 @@ export function ClientFilters() {
           onChange={(e) => updateParams("category", e.target.value)}
         />
       </div>
+      <label className="flex cursor-pointer items-center gap-2 self-end pb-1 text-sm text-text-secondary">
+        <input
+          type="checkbox"
+          checked={searchParams.get("archived") === "true"}
+          onChange={(e) =>
+            updateParams("archived", e.target.checked ? "true" : "")
+          }
+          className="rounded border-border"
+        />
+        Show archived
+      </label>
     </div>
   )
 }
