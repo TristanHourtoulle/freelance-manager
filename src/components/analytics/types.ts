@@ -37,9 +37,26 @@ export interface ClientProjectsData {
   projects: HoursByProject[]
 }
 
+export interface UtilizationMonth {
+  month: string
+  label: string
+  billedHours: number
+  availableHours: number
+  rate: number
+}
+
+export interface Utilization {
+  availableHoursPerMonth: number
+  totalBilledHours: number
+  totalAvailableHours: number
+  rate: number
+  byMonth: UtilizationMonth[]
+}
+
 export interface AnalyticsData {
   revenueByMonth: RevenueByMonth[]
   revenueByClient: RevenueByClient[]
   hoursByClient: HoursByClient[]
   revenueByCategory: RevenueByCategory[]
+  utilization: Utilization
 }

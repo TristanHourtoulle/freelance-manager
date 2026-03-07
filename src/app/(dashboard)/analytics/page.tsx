@@ -8,6 +8,8 @@ import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-c
 import { TimeByClientChart } from "@/components/analytics/time-by-client-chart"
 import { TimeByProjectChart } from "@/components/analytics/time-by-project-chart"
 import { RevenueByCategoryChart } from "@/components/analytics/revenue-by-category-chart"
+import { UtilizationGauge } from "@/components/analytics/utilization-gauge"
+import { UtilizationTrendChart } from "@/components/analytics/utilization-trend-chart"
 import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
 
@@ -71,6 +73,10 @@ export default function AnalyticsPage() {
         <AnalyticsEmptyState />
       ) : data ? (
         <div className="space-y-6">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <UtilizationGauge utilization={data.utilization} />
+            <UtilizationTrendChart data={data.utilization.byMonth} />
+          </div>
           <RevenueByMonthChart data={data.revenueByMonth} />
           <div className="grid gap-4 lg:grid-cols-2">
             <RevenueByClientChart data={data.revenueByClient} />

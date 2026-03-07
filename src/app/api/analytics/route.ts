@@ -7,6 +7,7 @@ import {
   fetchIssueMapForClient,
   computeGroupAmount,
   computeDateRange,
+  buildUtilizationByMonth,
 } from "@/lib/analytics-helpers"
 
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
@@ -61,9 +62,16 @@ export async function GET(request: Request) {
     )
     await Promise.allSettled(fetchPromises)
 
+    // Fetch user settings for utilization calculation
+    const userSettings = await prisma.userSettings.findUnique({
+      where: { userId: userOrError.id },
+    })
+    const availableHoursPerMonth = userSettings?.availableHoursPerMonth ?? 140
+
     // Revenue by month
     const revenueByMonth = buildMonthRange(from, to)
     const monthAmounts = new Map<string, number>()
+    const monthHours = new Map<string, number>()
     const byClientMonth = new Map<string, Map<string, OverrideWithClient[]>>()
 
     for (const o of overrides) {
@@ -84,8 +92,13 @@ export async function GET(request: Request) {
       const issueMap = issueMapByClient.get(clientId) ?? new Map()
 
       for (const [monthKey, monthOverrides] of monthsMap) {
-        const { amount } = computeGroupAmount(monthOverrides, issueMap, client)
+        const { amount, hours } = computeGroupAmount(
+          monthOverrides,
+          issueMap,
+          client,
+        )
         monthAmounts.set(monthKey, (monthAmounts.get(monthKey) ?? 0) + amount)
+        monthHours.set(monthKey, (monthHours.get(monthKey) ?? 0) + hours)
       }
     }
 
@@ -163,11 +176,35 @@ export async function GET(request: Request) {
       .filter((entry) => entry.amount > 0)
       .sort((a, b) => b.amount - a.amount)
 
+    // Utilization
+    const utilizationByMonth = buildUtilizationByMonth(
+      revenueByMonth,
+      monthHours,
+      availableHoursPerMonth,
+    )
+    const totalBilledHours = utilizationByMonth.reduce(
+      (sum, m) => sum + m.billedHours,
+      0,
+    )
+    const totalAvailableHours =
+      utilizationByMonth.length * availableHoursPerMonth
+    const utilizationRate =
+      totalAvailableHours > 0
+        ? Math.round((totalBilledHours / totalAvailableHours) * 10000) / 100
+        : 0
+
     return NextResponse.json({
       revenueByMonth,
       revenueByClient,
       hoursByClient,
       revenueByCategory,
+      utilization: {
+        availableHoursPerMonth,
+        totalBilledHours: Math.round(totalBilledHours * 100) / 100,
+        totalAvailableHours,
+        rate: utilizationRate,
+        byMonth: utilizationByMonth,
+      },
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {

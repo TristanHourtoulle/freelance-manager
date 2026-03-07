@@ -5,6 +5,14 @@ export function AnalyticsSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-10 w-48" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card title="Utilization Rate">
+          <Skeleton className="h-32 w-full" />
+        </Card>
+        <Card title="Monthly Utilization">
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
       <Card title="Revenue by Month">
         <Skeleton className="h-64 w-full" />
       </Card>
