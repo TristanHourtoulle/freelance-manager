@@ -11,6 +11,12 @@ import { TooltipHint } from "@/components/ui/tooltip-hint"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
 
+function getInitialView(): "grid" | "list" {
+  if (typeof window === "undefined") return "grid"
+  const stored = localStorage.getItem("clientListView")
+  return stored === "list" ? "list" : "grid"
+}
+
 export default function ClientsPage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -24,6 +30,7 @@ export default function ClientsPage() {
     totalPages: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [view, setView] = useState<"grid" | "list">(getInitialView)
 
   const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(
     null,
@@ -31,6 +38,11 @@ export default function ClientsPage() {
   const [isArchiving, setIsArchiving] = useState(false)
 
   const [refreshKey, setRefreshKey] = useState(0)
+
+  function handleViewChange(newView: "grid" | "list") {
+    setView(newView)
+    localStorage.setItem("clientListView", newView)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -107,7 +119,7 @@ export default function ClientsPage() {
         Linear project from the client edit page.
       </TooltipHint>
 
-      <ClientFilters />
+      <ClientFilters view={view} onViewChange={handleViewChange} />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -118,6 +130,7 @@ export default function ClientsPage() {
           clients={clients}
           pagination={pagination}
           hasFilters={hasFilters}
+          view={view}
           onArchive={handleArchiveClick}
           onPageChange={handlePageChange}
         />

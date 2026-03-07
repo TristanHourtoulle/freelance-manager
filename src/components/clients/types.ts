@@ -20,6 +20,8 @@ export interface SerializedClient {
   archivedAt: string | null
   createdAt: string
   updatedAt: string
+  totalRevenue: number
+  lastActivityAt: string | null
   linearMappings?: LinearMappingDTO[]
 }
 
