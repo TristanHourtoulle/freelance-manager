@@ -6,6 +6,7 @@ import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { RevenueChartSkeleton } from "@/components/dashboard/revenue-chart-skeleton"
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state"
+import { RevenueTargetProgress } from "@/components/dashboard/revenue-target-progress"
 import { formatCurrency } from "@/lib/format"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 
@@ -90,6 +91,12 @@ export default function DashboardPage() {
               subtitle="Current month"
             />
           </div>
+          {data.monthlyRevenueTarget > 0 && (
+            <RevenueTargetProgress
+              currentRevenue={data.monthlyRevenue}
+              target={data.monthlyRevenueTarget}
+            />
+          )}
           <RevenueChart data={data.revenueByMonth} />
         </>
       ) : null}
