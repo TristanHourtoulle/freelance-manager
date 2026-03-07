@@ -11,8 +11,8 @@ export interface CacheMetadata {
 }
 
 export class TTLCache<T> {
-  private cache = new Map<string, CacheEntry<T>>()
-  private defaultTtlMs: number
+  private readonly cache = new Map<string, CacheEntry<T>>()
+  private readonly defaultTtlMs: number
 
   constructor(defaultTtlMs: number) {
     this.defaultTtlMs = defaultTtlMs
