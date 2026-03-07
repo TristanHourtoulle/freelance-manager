@@ -79,14 +79,6 @@ export default function BillingPage() {
     [],
   )
 
-  const handleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => {
-      const allIds = groups.flatMap((g) => g.tasks.map((t) => t.linearIssueId))
-      const allSelected = allIds.every((id) => prev.has(id))
-      return allSelected ? new Set() : new Set(allIds)
-    })
-  }, [groups])
-
   const handleMarkInvoiced = useCallback(async () => {
     setIsMarking(true)
     const res = await fetch("/api/billing/mark-invoiced", {
