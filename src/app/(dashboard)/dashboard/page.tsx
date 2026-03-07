@@ -1,18 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { RevenueChartSkeleton } from "@/components/dashboard/revenue-chart-skeleton"
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state"
 import { formatCurrency } from "@/lib/format"
+import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 
 import type { DashboardKPIs } from "@/components/dashboard/types"
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardKPIs | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
+  const [isStale, setIsStale] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -23,6 +27,8 @@ export default function DashboardPage() {
       if (!cancelled && res.ok) {
         const json: DashboardKPIs = await res.json()
         setData(json)
+        setLastSyncedAt(json.lastSyncedAt)
+        setIsStale(json.isStale)
       }
       if (!cancelled) {
         setIsLoading(false)
@@ -33,6 +39,11 @@ export default function DashboardPage() {
     return () => {
       cancelled = true
     }
+  }, [refreshKey])
+
+  const handleRefresh = useCallback(async () => {
+    await fetch("/api/linear/refresh", { method: "POST" })
+    setRefreshKey((k) => k + 1)
   }, [])
 
   const isEmpty =
@@ -45,6 +56,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1>Dashboard</h1>
+
+      <SyncStatusBar
+        lastSyncedAt={lastSyncedAt}
+        isStale={isStale}
+        onRefresh={handleRefresh}
+        isRefreshing={isLoading}
+      />
 
       {isLoading ? (
         <>

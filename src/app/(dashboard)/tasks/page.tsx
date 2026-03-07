@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { TaskFilters } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
+import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 
 import type {
   ClientTaskGroup,
@@ -20,6 +21,8 @@ export default function TasksPage() {
   const [groups, setGroups] = useState<ClientTaskGroup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
+  const [isStale, setIsStale] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +35,8 @@ export default function TasksPage() {
       if (!cancelled && res.ok) {
         const data: TasksApiResponse = await res.json()
         setGroups(data.groups)
+        setLastSyncedAt(data.lastSyncedAt)
+        setIsStale(data.isStale)
       }
       if (!cancelled) setIsLoading(false)
     }
@@ -41,6 +46,11 @@ export default function TasksPage() {
       cancelled = true
     }
   }, [searchParams, refreshKey])
+
+  const handleRefresh = useCallback(async () => {
+    await fetch("/api/linear/refresh", { method: "POST" })
+    setRefreshKey((k) => k + 1)
+  }, [])
 
   const updateOverride = useCallback(
     async (
@@ -101,6 +111,13 @@ export default function TasksPage() {
           <Button variant="secondary">To Invoice</Button>
         </Link>
       </div>
+
+      <SyncStatusBar
+        lastSyncedAt={lastSyncedAt}
+        isStale={isStale}
+        onRefresh={handleRefresh}
+        isRefreshing={isLoading}
+      />
 
       <TaskFilters clients={allClients} />
 

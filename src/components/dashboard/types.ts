@@ -7,4 +7,6 @@ export interface DashboardKPIs {
     label: string
     amount: number
   }>
+  lastSyncedAt: number | null
+  isStale: boolean
 }
