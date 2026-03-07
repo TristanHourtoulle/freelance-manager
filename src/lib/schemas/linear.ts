@@ -12,3 +12,7 @@ export const linearIssuesFilterSchema = z.object({
 })
 
 export type LinearIssuesFilter = z.infer<typeof linearIssuesFilterSchema>
+
+export const updateEstimateSchema = z.object({
+  estimate: z.number().int().min(0).max(100),
+})
