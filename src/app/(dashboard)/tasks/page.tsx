@@ -188,7 +188,7 @@ export default function TasksPage() {
 
   const allClients: ClientSummary[] = groups.map((g) => g.client)
   const hasFilters = Boolean(
-    searchParams.get("clientId") || searchParams.get("status"),
+    searchParams.get("clientId") || searchParams.get("preset"),
   )
 
   return (

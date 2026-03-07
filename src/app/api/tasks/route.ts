@@ -83,14 +83,27 @@ export async function GET(request: Request) {
         return true
       })
 
-      const filteredIssues = filters.status
-        ? uniqueIssues.filter((i) => i.status?.type === filters.status)
-        : uniqueIssues
+      const filteredIssues = (() => {
+        switch (filters.preset) {
+          case "active":
+            return uniqueIssues.filter(
+              (i) => !["completed", "cancelled"].includes(i.status?.type ?? ""),
+            )
+          case "done":
+            return uniqueIssues.filter((i) => i.status?.type === "completed")
+          case "backlog":
+            return uniqueIssues.filter((i) =>
+              ["backlog", "unstarted"].includes(i.status?.type ?? ""),
+            )
+          default:
+            return uniqueIssues
+        }
+      })()
 
       const billingMode = client.billingMode as BillingMode
       const rate = Number(client.rate)
 
-      const tasks: EnrichedTask[] = filteredIssues.map((issue) => {
+      let tasks: EnrichedTask[] = filteredIssues.map((issue) => {
         const override = overrideMap.get(issue.id)
         const rateOverride = override?.rateOverride
           ? Number(override.rateOverride)
@@ -124,6 +137,10 @@ export async function GET(request: Request) {
           rateOverride,
         }
       })
+
+      if (filters.preset === "to-invoice") {
+        tasks = tasks.filter((t) => t.toInvoice && !t.invoiced)
+      }
 
       const totalBilling =
         billingMode === "FIXED"
