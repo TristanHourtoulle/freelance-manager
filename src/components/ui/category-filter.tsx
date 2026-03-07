@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 const CATEGORIES = [
@@ -15,7 +15,10 @@ export function CategoryFilter() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const selected = searchParams.get("category")?.split(",") ?? []
+  const selected = useMemo(
+    () => searchParams.get("category")?.split(",") ?? [],
+    [searchParams],
+  )
 
   const updateCategories = useCallback(
     (next: string[]) => {

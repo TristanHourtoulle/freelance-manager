@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { TaskTable } from "@/components/tasks/task-table"
-
 import type { ClientTaskGroup } from "@/components/tasks/types"
 
 interface BillingGroupListProps {

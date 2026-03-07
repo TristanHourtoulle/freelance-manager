@@ -185,7 +185,7 @@ async function main() {
     acme,
     techstart,
     digitalAgency,
-    uniCapstone,
+    ,
     researchLab,
     portfolio,
     homeAuto,

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db"
-import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
+import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { updateSettingsSchema } from "@/lib/schemas/settings"
 import { NextResponse } from "next/server"
 
