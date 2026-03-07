@@ -9,6 +9,7 @@ import {
 } from "@heroicons/react/24/outline"
 import { authClient } from "@/lib/auth-client"
 import { NAV_ITEMS } from "@/lib/navigation"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 
 interface SidebarNavProps {
   userName: string
@@ -91,6 +92,10 @@ function NavContent({
             )}
           </kbd>
         </button>
+      </div>
+
+      <div className="px-3 pt-2">
+        <NotificationBell />
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
