@@ -6,6 +6,7 @@ import { PeriodSelector } from "@/components/analytics/period-selector"
 import { RevenueByMonthChart } from "@/components/analytics/revenue-by-month-chart"
 import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-chart"
 import { TimeByClientChart } from "@/components/analytics/time-by-client-chart"
+import { RevenueByCategoryChart } from "@/components/analytics/revenue-by-category-chart"
 import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
 
@@ -49,7 +50,8 @@ export default function AnalyticsPage() {
     data !== null &&
     data.revenueByMonth.every((m) => m.amount === 0) &&
     data.revenueByClient.every((c) => c.amount === 0) &&
-    data.hoursByClient.every((c) => c.hours === 0)
+    data.hoursByClient.every((c) => c.hours === 0) &&
+    data.revenueByCategory.every((c) => c.amount === 0)
 
   return (
     <div className="space-y-6">
@@ -66,6 +68,9 @@ export default function AnalyticsPage() {
           <RevenueByMonthChart data={data.revenueByMonth} />
           <div className="grid gap-4 lg:grid-cols-2">
             <RevenueByClientChart data={data.revenueByClient} />
+            <RevenueByCategoryChart data={data.revenueByCategory} />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
             <TimeByClientChart data={data.hoursByClient} />
           </div>
         </div>

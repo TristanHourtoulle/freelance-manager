@@ -12,6 +12,11 @@ export function AnalyticsSkeleton() {
         <Card title="Revenue by Client">
           <Skeleton className="h-64 w-full" />
         </Card>
+        <Card title="Revenue by Category">
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Time by Client">
           <Skeleton className="h-64 w-full" />
         </Card>

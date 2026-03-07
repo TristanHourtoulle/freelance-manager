@@ -185,7 +185,36 @@ export async function GET(request: Request) {
     revenueByClient.sort((a, b) => b.amount - a.amount)
     hoursByClient.sort((a, b) => b.hours - a.hours)
 
-    return NextResponse.json({ revenueByMonth, revenueByClient, hoursByClient })
+    // Revenue by category
+    const categoryLabels: Record<string, string> = {
+      FREELANCE: "Freelance",
+      STUDY: "Study",
+      PERSONAL: "Personal",
+      SIDE_PROJECT: "Side Project",
+    }
+
+    const categoryAmounts = new Map<string, number>()
+    for (const entry of revenueByClient) {
+      const client = clientMap.get(entry.clientId)!
+      const cat = client.category
+      categoryAmounts.set(cat, (categoryAmounts.get(cat) ?? 0) + entry.amount)
+    }
+
+    const revenueByCategory = Object.entries(categoryLabels)
+      .map(([category, label]) => ({
+        category,
+        label,
+        amount: Math.round((categoryAmounts.get(category) ?? 0) * 100) / 100,
+      }))
+      .filter((entry) => entry.amount > 0)
+      .sort((a, b) => b.amount - a.amount)
+
+    return NextResponse.json({
+      revenueByMonth,
+      revenueByClient,
+      hoursByClient,
+      revenueByCategory,
+    })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(
