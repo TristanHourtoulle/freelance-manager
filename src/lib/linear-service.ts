@@ -70,6 +70,14 @@ const issuesCache = new TTLCache<LinearIssueDTO[]>(ISSUES_TTL)
 
 let lastSyncedAt: number | null = null
 
+export async function updateLinearIssueEstimate(
+  issueId: string,
+  estimate: number,
+): Promise<void> {
+  await linearClient.updateIssue(issueId, { estimate })
+  issuesCache.clear()
+}
+
 export function clearLinearCaches(): void {
   teamsCache.clear()
   projectsCache.clear()

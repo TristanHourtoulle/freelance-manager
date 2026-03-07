@@ -8,12 +8,14 @@ interface TaskTableProps {
   tasks: EnrichedTask[]
   onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
   onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
+  onUpdateEstimate?: (linearIssueId: string, estimate: number) => void
 }
 
 export function TaskTable({
   tasks,
   onToggleToInvoice,
   onToggleInvoiced,
+  onUpdateEstimate,
 }: TaskTableProps) {
   if (tasks.length === 0) {
     return (
@@ -62,6 +64,7 @@ export function TaskTable({
               task={task}
               onToggleToInvoice={onToggleToInvoice}
               onToggleInvoiced={onToggleInvoiced}
+              onUpdateEstimate={onUpdateEstimate}
             />
           ))}
         </tbody>
