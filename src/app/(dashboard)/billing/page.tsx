@@ -9,6 +9,7 @@ import { BillingGroupList } from "@/components/billing/billing-group-list"
 import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
+import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { formatCurrency } from "@/lib/format"
 
 import type { ClientTaskGroup, ClientSummary } from "@/components/tasks/types"
@@ -147,6 +148,10 @@ export default function BillingPage() {
           </Link>
         </div>
       </div>
+
+      <TooltipHint storageKey="billing-page">
+        Flag tasks to invoice, then mark them as invoiced to track your revenue.
+      </TooltipHint>
 
       <BillingFilters clients={allClients} />
 
