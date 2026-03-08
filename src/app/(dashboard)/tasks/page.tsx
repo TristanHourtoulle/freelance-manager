@@ -22,6 +22,7 @@ import {
   useUpdateEstimate,
   useUpdateTaskStatus,
 } from "@/hooks/use-tasks"
+import { useHiddenStatuses } from "@/hooks/use-hidden-statuses"
 
 import type {
   ClientSummary,
@@ -42,10 +43,24 @@ export default function TasksPage() {
   })
 
   const { data, isLoading, isFetching } = useTasks(searchParams.toString())
+  const { hiddenStatusIds, toggleStatus, showAll } = useHiddenStatuses()
 
   const refreshMutation = useRefreshLinear()
 
-  const groups = data?.groups ?? []
+  const rawGroups = data?.groups ?? []
+
+  const groups = useMemo(
+    () =>
+      rawGroups
+        .map((g) => ({
+          ...g,
+          tasks: g.tasks.filter(
+            (t) => !t.status || !hiddenStatusIds.has(t.status.id),
+          ),
+        }))
+        .filter((g) => g.tasks.length > 0),
+    [rawGroups, hiddenStatusIds],
+  )
   const lastSyncedAt = data?.lastSyncedAt ?? null
   const isStale = data?.isStale ?? false
 
@@ -191,6 +206,10 @@ export default function TasksPage() {
           clients={allClients}
           view={view}
           onViewChange={handleViewChange}
+          allStatuses={availableStatuses}
+          hiddenStatusIds={hiddenStatusIds}
+          onToggleStatus={toggleStatus}
+          onShowAllStatuses={showAll}
         />
       </PageToolbar>
 

@@ -17,7 +17,9 @@ import {
   type TaskPreset,
 } from "@/lib/schemas/task"
 
-import type { ClientSummary } from "./types"
+import { StatusFilter } from "./status-filter"
+
+import type { ClientSummary, TaskStatusDTO } from "./types"
 
 export type TaskView = "list" | "kanban"
 
@@ -25,6 +27,10 @@ interface TaskFiltersProps {
   clients: ClientSummary[]
   view: TaskView
   onViewChange: (view: TaskView) => void
+  allStatuses: TaskStatusDTO[]
+  hiddenStatusIds: Set<string>
+  onToggleStatus: (statusId: string) => void
+  onShowAllStatuses: () => void
 }
 
 /**
@@ -32,7 +38,15 @@ interface TaskFiltersProps {
  * Provides preset tabs (active, billable, invoiced, all), client dropdown, and category filter.
  * All filter state is synced to URL search params.
  */
-export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
+export function TaskFilters({
+  clients,
+  view,
+  onViewChange,
+  allStatuses,
+  hiddenStatusIds,
+  onToggleStatus,
+  onShowAllStatuses,
+}: TaskFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -132,6 +146,12 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
         </div>
       </div>
       <CategoryFilter />
+      <StatusFilter
+        allStatuses={allStatuses}
+        hiddenStatusIds={hiddenStatusIds}
+        onToggleStatus={onToggleStatus}
+        onShowAll={onShowAllStatuses}
+      />
     </div>
   )
 }
