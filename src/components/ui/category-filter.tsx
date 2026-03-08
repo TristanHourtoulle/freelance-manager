@@ -10,6 +10,11 @@ const CATEGORIES = [
   { value: "SIDE_PROJECT", label: "Side Project" },
 ] as const
 
+/**
+ * Pill-based category filter that syncs selected values to URL search params.
+ * Supports multi-select with a clear-all action. Resets pagination on change.
+ * Used on the projects list page to filter by project category.
+ */
 export function CategoryFilter() {
   const router = useRouter()
   const pathname = usePathname()

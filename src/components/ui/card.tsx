@@ -4,6 +4,12 @@ interface CardProps {
   className?: string
 }
 
+/**
+ * Generic container card with an optional title header.
+ * Used as a layout primitive in dashboard pages and detail views.
+ *
+ * @param title - Optional heading rendered above the card content
+ */
 export function Card({ title, children, className = "" }: CardProps) {
   return (
     <div

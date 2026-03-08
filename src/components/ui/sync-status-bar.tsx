@@ -22,6 +22,16 @@ function formatRelativeTime(timestamp: number): string {
   return `${Math.floor(diffHours / 24)}d ago`
 }
 
+/**
+ * Inline status indicator showing the last sync time with a manual refresh button.
+ * Displays a green or amber dot depending on whether data is stale.
+ * Used on pages that cache external data (e.g. Linear issues).
+ *
+ * @param lastSyncedAt - Unix timestamp of the last successful sync, or null if never synced
+ * @param isStale - When true, the status dot turns amber to signal outdated data
+ * @param onRefresh - Callback triggered when the user clicks the refresh button
+ * @param isRefreshing - When true, disables the button and shows a spinning icon
+ */
 export function SyncStatusBar({
   lastSyncedAt,
   isStale,

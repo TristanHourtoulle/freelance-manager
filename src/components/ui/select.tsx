@@ -12,6 +12,15 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   placeholder?: string
 }
 
+/**
+ * Labeled select dropdown with inline validation error display.
+ * Supports ref forwarding for integration with react-hook-form.
+ *
+ * @param label - Visible label text; also used to derive a default `id`
+ * @param error - Validation error message shown below the select
+ * @param options - Array of { value, label } pairs to render as options
+ * @param placeholder - Disabled first option shown as a hint
+ */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   function Select(
     { label, error, options, placeholder, id, className = "", ...props },

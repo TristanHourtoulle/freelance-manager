@@ -5,6 +5,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 
+/**
+ * Labeled text input with inline validation error display.
+ * Supports ref forwarding for integration with react-hook-form.
+ *
+ * @param label - Visible label text; also used to derive a default `id`
+ * @param error - Validation error message shown below the input
+ */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { label, error, id, type = "text", className = "", ...props },
   ref,

@@ -16,6 +16,19 @@ interface ModalProps {
   isLoading?: boolean
 }
 
+/**
+ * Confirmation dialog rendered as a centered overlay.
+ * Closes on Escape key or backdrop click. Used for destructive or important actions.
+ *
+ * @param isOpen - Controls visibility of the modal
+ * @param onClose - Callback invoked when the user dismisses the modal
+ * @param onConfirm - Callback invoked when the user clicks the confirm button
+ * @param title - Heading displayed in the modal
+ * @param description - Explanatory text below the title
+ * @param confirmLabel - Label for the confirm button (defaults to "Confirm")
+ * @param variant - "default" or "danger"; controls confirm button styling
+ * @param isLoading - Disables interactions and shows a loading state on confirm
+ */
 export function Modal({
   isOpen,
   onClose,

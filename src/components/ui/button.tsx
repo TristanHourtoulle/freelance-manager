@@ -17,6 +17,13 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost: "text-text-secondary hover:bg-surface-muted hover:text-text-primary",
 }
 
+/**
+ * Multi-variant button with loading state support.
+ * Used across the entire application for user actions.
+ *
+ * @param variant - Visual style: "primary", "secondary", "danger", or "ghost"
+ * @param isLoading - When true, disables the button and shows a loading label
+ */
 export function Button({
   variant = "primary",
   isLoading = false,
