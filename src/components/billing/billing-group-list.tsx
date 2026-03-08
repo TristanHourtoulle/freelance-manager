@@ -24,6 +24,11 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Collapsible list of uninvoiced task groups organized by client.
+ * Each group displays tasks in a table with checkboxes for batch invoicing.
+ * Used on the billing page.
+ */
 export function BillingGroupList({
   groups,
   selectedIds,

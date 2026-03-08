@@ -8,6 +8,14 @@ import { fetchLinearProjects } from "@/lib/linear-service"
 import { linearProjectsFilterSchema } from "@/lib/schemas/linear"
 import { NextResponse } from "next/server"
 
+/**
+ * GET /api/linear/projects
+ * Fetches Linear projects, optionally filtered by team ID.
+ * @returns 200 - `LinearProject[]`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid query parameters
+ * @throws 502 - Linear API error
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

@@ -12,17 +12,24 @@ import type {
   Client,
   LinearMapping,
 } from "@/generated/prisma/client"
+import type { EnrichedTask, ClientSummary } from "@/components/tasks/types"
 import type {
-  EnrichedTask,
-  ClientTaskGroup,
-  ClientSummary,
-} from "@/components/tasks/types"
-import type { HistoryMonthGroup } from "@/components/billing/types"
+  HistoryMonthGroup,
+  HistoryClientGroup,
+} from "@/components/billing/types"
 
 type OverrideWithClient = TaskOverride & {
   client: Client & { linearMappings: LinearMapping[] }
 }
 
+/**
+ * GET /api/billing/history
+ * Returns invoiced tasks grouped by month and client, with totals.
+ * Defaults to the last 6 months if no date range is provided.
+ * @returns 200 - `{ months: HistoryMonthGroup[], grandTotal }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -79,7 +86,9 @@ export async function GET(request: Request) {
           identifier: string
           title: string
           estimate: number | undefined
-          status: { name: string; type: string; color: string } | undefined
+          status:
+            | { id: string; name: string; type: string; color: string }
+            | undefined
           url: string
           priorityLabel: string
         }
@@ -108,6 +117,7 @@ export async function GET(request: Request) {
               estimate: i.estimate,
               status: i.status
                 ? {
+                    id: i.status.id,
                     name: i.status.name,
                     type: i.status.type,
                     color: i.status.color,
@@ -120,6 +130,24 @@ export async function GET(request: Request) {
         )
         issueMapByClient.set(clientId, issueMap)
       }),
+    )
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        client: { userId: userOrError.id },
+        month: { gte: dateFrom, lte: dateTo },
+        ...(filters.clientId ? { clientId: filters.clientId } : {}),
+      },
+    })
+    const invoiceMap = new Map(
+      invoices.map((inv) => [
+        `${inv.clientId}-${getMonthKey(inv.month)}`,
+        {
+          id: inv.id,
+          status: inv.status,
+          totalAmount: Number(inv.totalAmount),
+        },
+      ]),
     )
 
     const monthClientMap = new Map<string, Map<string, OverrideWithClient[]>>()
@@ -139,7 +167,7 @@ export async function GET(request: Request) {
     const months: HistoryMonthGroup[] = []
 
     for (const [monthKey, clientMap] of monthClientMap) {
-      const clientGroups: ClientTaskGroup[] = []
+      const clientGroups: HistoryClientGroup[] = []
 
       for (const [clientId, clientOverrides] of clientMap) {
         const client = uniqueClients.get(clientId)!
@@ -206,11 +234,15 @@ export async function GET(request: Request) {
           rate,
         }
 
+        const invoiceKey = `${clientId}-${monthKey}`
+        const invoice = invoiceMap.get(invoiceKey)
+
         clientGroups.push({
           client: clientSummary,
           tasks,
           totalBilling: Math.round(totalBilling * 100) / 100,
           taskCount: tasks.length,
+          invoice,
         })
       }
 

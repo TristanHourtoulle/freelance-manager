@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { BillingFilters } from "@/components/billing/billing-filters"
@@ -9,50 +9,27 @@ import { BillingGroupList } from "@/components/billing/billing-group-list"
 import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
+import { useBilling, useMarkInvoiced } from "@/hooks/use-billing"
 import { formatCurrency } from "@/lib/format"
 
-import type { ClientTaskGroup, ClientSummary } from "@/components/tasks/types"
-import type { BillingApiResponse } from "@/components/billing/types"
+import type { ClientSummary } from "@/components/tasks/types"
 
 export default function BillingPage() {
   const searchParams = useSearchParams()
+  const { toast } = useToast()
 
-  const [groups, setGroups] = useState<ClientTaskGroup[]>([])
-  const [grandTotal, setGrandTotal] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const { data, isLoading } = useBilling(searchParams.toString())
+  const markInvoicedMutation = useMarkInvoiced()
+
+  const groups = data?.groups ?? []
+  const grandTotal = data?.grandTotal ?? 0
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-  const [isMarking, setIsMarking] = useState(false)
-  const { toast } = useToast()
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      const res = await fetch(`/api/billing?${searchParams.toString()}`, {
-        cache: "no-store",
-      })
-      if (!cancelled && res.ok) {
-        const data: BillingApiResponse = await res.json()
-        setGroups(data.groups)
-        setGrandTotal(data.grandTotal)
-      }
-      if (!cancelled) {
-        setIsLoading(false)
-        setSelectedIds(new Set())
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [searchParams, refreshKey])
 
   const handleToggleTask = useCallback((linearIssueId: string) => {
     setSelectedIds((prev) => {
@@ -83,25 +60,20 @@ export default function BillingPage() {
   )
 
   const handleMarkInvoiced = useCallback(async () => {
-    setIsMarking(true)
-    const res = await fetch("/api/billing/mark-invoiced", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ linearIssueIds: [...selectedIds] }),
+    markInvoicedMutation.mutate([...selectedIds], {
+      onSuccess: (data) => {
+        toast({
+          variant: "success",
+          title: `${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} marked as invoiced`,
+        })
+        setIsConfirmOpen(false)
+        setSelectedIds(new Set())
+      },
+      onError: () => {
+        toast({ variant: "error", title: "Failed to mark tasks as invoiced" })
+      },
     })
-    if (res.ok) {
-      toast({
-        variant: "success",
-        title: `${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} marked as invoiced`,
-      })
-      setIsConfirmOpen(false)
-      setSelectedIds(new Set())
-      setRefreshKey((k) => k + 1)
-    } else {
-      toast({ variant: "error", title: "Failed to mark tasks as invoiced" })
-    }
-    setIsMarking(false)
-  }, [selectedIds, toast])
+  }, [selectedIds, markInvoicedMutation, toast])
 
   const allClients: ClientSummary[] = useMemo(
     () => groups.map((g) => g.client),
@@ -145,23 +117,22 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>To Invoice</h1>
-        <div className="flex items-center gap-2">
-          <Link href="/billing/history">
-            <Button variant="secondary">History</Button>
-          </Link>
-          <Link href="/tasks">
-            <Button variant="secondary">View Tasks</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader title="To Invoice">
+        <Link href="/billing/history">
+          <Button variant="outline">History</Button>
+        </Link>
+        <Link href="/tasks">
+          <Button variant="outline">View Tasks</Button>
+        </Link>
+      </PageHeader>
 
       <TooltipHint storageKey="billing-page">
         Flag tasks to invoice, then mark them as invoiced to track your revenue.
       </TooltipHint>
 
-      <BillingFilters clients={allClients} />
+      <PageToolbar>
+        <BillingFilters clients={allClients} />
+      </PageToolbar>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -177,7 +148,7 @@ export default function BillingPage() {
             grandTotal={grandTotal}
             selectedCount={selectedIds.size}
             onMarkInvoiced={() => setIsConfirmOpen(true)}
-            isMarking={isMarking}
+            isMarking={markInvoicedMutation.isPending}
           />
 
           <BillingGroupList
@@ -196,7 +167,7 @@ export default function BillingPage() {
         title="Mark as invoiced"
         description={`You are about to mark ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} across ${selectedClientCount} client${selectedClientCount !== 1 ? "s" : ""} as invoiced (${formatCurrency(selectedTotal)}). This action can be undone from the Tasks page.`}
         confirmLabel="Mark as invoiced"
-        isLoading={isMarking}
+        isLoading={markInvoicedMutation.isPending}
       />
     </div>
   )

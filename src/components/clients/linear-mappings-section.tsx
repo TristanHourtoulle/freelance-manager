@@ -24,6 +24,10 @@ interface LinearMappingsSectionProps {
   clientId: string
 }
 
+/**
+ * Section for managing Linear team/project mappings on the client edit page.
+ * Loads existing mappings and Linear teams/projects, and allows adding or removing mappings.
+ */
 export function LinearMappingsSection({
   clientId,
 }: LinearMappingsSectionProps) {
@@ -68,7 +72,12 @@ export function LinearMappingsSection({
       ])
       if (cancelled) return
       if (teamsRes.ok) {
-        setTeams(await teamsRes.json())
+        const loadedTeams: LinearTeam[] = await teamsRes.json()
+        setTeams(loadedTeams)
+        const firstTeam = loadedTeams[0]
+        if (firstTeam && !selectedTeamId) {
+          setSelectedTeamId(firstTeam.id)
+        }
       } else {
         toast({ variant: "error", title: "Failed to load Linear teams" })
       }

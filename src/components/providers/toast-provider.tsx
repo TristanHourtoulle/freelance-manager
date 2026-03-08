@@ -32,6 +32,11 @@ const DEFAULT_DURATION = 5000
 
 let toastCounter = 0
 
+/**
+ * Context provider for the toast notification system.
+ * Wraps the app and renders a `ToastStack` for displaying notifications.
+ * Limits display to 3 simultaneous toasts.
+ */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -67,6 +72,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * Returns the toast function to display notifications.
+ * Must be used within a `ToastProvider`.
+ *
+ * @returns Object with a `toast` function that accepts `{ variant, title, description?, duration? }`
+ * @throws Error if called outside of a `ToastProvider`
+ */
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext)
   if (!context) {

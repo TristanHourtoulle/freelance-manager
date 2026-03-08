@@ -1,52 +1,48 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { HistoryFilters } from "@/components/billing/history-filters"
 import { HistorySummary } from "@/components/billing/history-summary"
 import { HistoryMonthList } from "@/components/billing/history-month-list"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageToolbar } from "@/components/ui/page-toolbar"
+import { useToast } from "@/components/providers/toast-provider"
+import { useBillingHistory, useUpdateInvoiceStatus } from "@/hooks/use-billing"
 
 import type { ClientSummary } from "@/components/tasks/types"
-import type {
-  HistoryMonthGroup,
-  HistoryApiResponse,
-} from "@/components/billing/types"
 
 export default function BillingHistoryPage() {
   const searchParams = useSearchParams()
+  const { toast } = useToast()
 
-  const [months, setMonths] = useState<HistoryMonthGroup[]>([])
-  const [grandTotal, setGrandTotal] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const { data, isLoading } = useBillingHistory(searchParams.toString())
+  const updateStatusMutation = useUpdateInvoiceStatus()
 
-  useEffect(() => {
-    let cancelled = false
+  const months = data?.months ?? []
+  const grandTotal = data?.grandTotal ?? 0
 
-    async function load() {
-      setIsLoading(true)
-      const res = await fetch(
-        `/api/billing/history?${searchParams.toString()}`,
+  const handleMarkAsPaid = useCallback(
+    (invoiceId: string) => {
+      updateStatusMutation.mutate(
+        { invoiceId, status: "PAID" },
         {
-          cache: "no-store",
+          onSuccess: () => {
+            toast({ variant: "success", title: "Invoice marked as paid" })
+          },
+          onError: () => {
+            toast({
+              variant: "error",
+              title: "Failed to update invoice status",
+            })
+          },
         },
       )
-      if (!cancelled && res.ok) {
-        const data: HistoryApiResponse = await res.json()
-        setMonths(data.months)
-        setGrandTotal(data.grandTotal)
-      }
-      if (!cancelled) {
-        setIsLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [searchParams])
+    },
+    [updateStatusMutation, toast],
+  )
 
   const allClients: ClientSummary[] = useMemo(() => {
     const clientMap = new Map<string, ClientSummary>()
@@ -77,14 +73,15 @@ export default function BillingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Invoiced History</h1>
+      <PageHeader title="Invoiced History">
         <Link href="/billing">
-          <Button variant="secondary">To Invoice</Button>
+          <Button variant="outline">To Invoice</Button>
         </Link>
-      </div>
+      </PageHeader>
 
-      <HistoryFilters clients={allClients} />
+      <PageToolbar>
+        <HistoryFilters clients={allClients} />
+      </PageToolbar>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -106,7 +103,7 @@ export default function BillingHistoryPage() {
             taskCount={totalTaskCount}
             grandTotal={grandTotal}
           />
-          <HistoryMonthList months={months} />
+          <HistoryMonthList months={months} onMarkAsPaid={handleMarkAsPaid} />
         </>
       )}
     </div>

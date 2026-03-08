@@ -13,6 +13,12 @@ interface UseNotificationsReturn {
   refetch: () => Promise<void>
 }
 
+/**
+ * Fetches and manages user notifications with auto-refresh on tab focus.
+ * Provides methods to mark as read, dismiss all, and refetch.
+ *
+ * @returns Object with `notifications`, `unreadCount`, `isLoading`, `markAsRead`, `dismissAll`, and `refetch`
+ */
 export function useNotifications(): UseNotificationsReturn {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)

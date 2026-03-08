@@ -5,6 +5,7 @@ import { AppHeader } from "./app-header"
 import { SidebarNav } from "./sidebar-nav"
 import { CommandPalette } from "@/components/ui/command-palette"
 import { ToastProvider } from "@/components/providers/toast-provider"
+import { QueryProvider } from "@/components/providers/query-provider"
 
 interface AppShellProps {
   userName: string
@@ -12,6 +13,13 @@ interface AppShellProps {
   children: React.ReactNode
 }
 
+/**
+ * Root layout shell for authenticated pages.
+ * Renders the sidebar, header, command palette, and toast provider.
+ *
+ * @param userName - Authenticated user's display name
+ * @param userEmail - Authenticated user's email
+ */
 export function AppShell({ userName, userEmail, children }: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -24,22 +32,24 @@ export function AppShell({ userName, userEmail, children }: AppShellProps) {
   }, [])
 
   return (
-    <ToastProvider>
-      <div className="min-h-screen bg-surface-secondary">
-        <CommandPalette />
-        <SidebarNav
-          userName={userName}
-          userEmail={userEmail}
-          isOpen={isSidebarOpen}
-          onClose={handleClose}
-        />
-        <div className="lg:pl-64">
-          <AppHeader onMenuToggle={handleToggle} />
-          <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-            {children}
-          </main>
+    <QueryProvider>
+      <ToastProvider>
+        <div className="min-h-screen bg-surface-secondary">
+          <CommandPalette />
+          <SidebarNav
+            userName={userName}
+            userEmail={userEmail}
+            isOpen={isSidebarOpen}
+            onClose={handleClose}
+          />
+          <div className="lg:pl-64">
+            <AppHeader onMenuToggle={handleToggle} />
+            <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </ToastProvider>
+      </ToastProvider>
+    </QueryProvider>
   )
 }

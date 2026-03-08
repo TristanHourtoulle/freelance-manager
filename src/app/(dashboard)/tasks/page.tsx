@@ -1,238 +1,231 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { TaskFilters } from "@/components/tasks/task-filters"
+import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageToolbar } from "@/components/ui/page-toolbar"
+import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
+import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
+import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
-import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
+import {
+  useTasks,
+  useRefreshLinear,
+  useUpdateTaskOverride,
+  useUpdateEstimate,
+  useUpdateTaskStatus,
+} from "@/hooks/use-tasks"
 
-import { calculateBilling } from "@/lib/billing"
-
-import type { BillingMode } from "@/generated/prisma/client"
 import type {
-  ClientTaskGroup,
   ClientSummary,
+  KanbanTask,
+  TaskStatusDTO,
   TasksApiResponse,
 } from "@/components/tasks/types"
 
 export default function TasksPage() {
   const searchParams = useSearchParams()
-
-  const [groups, setGroups] = useState<ClientTaskGroup[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
-  const [isStale, setIsStale] = useState(false)
+  const queryClient = useQueryClient()
   const { toast } = useToast()
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      const res = await fetch(`/api/tasks?${searchParams.toString()}`, {
-        cache: "no-store",
-      })
-      if (!cancelled && res.ok) {
-        const data: TasksApiResponse = await res.json()
-        setGroups(data.groups)
-        setLastSyncedAt(data.lastSyncedAt)
-        setIsStale(data.isStale)
-      }
-      if (!cancelled) setIsLoading(false)
+  const [view, setView] = useState<TaskView>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("tasks-view") as TaskView) || "list"
     }
+    return "list"
+  })
 
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [searchParams, refreshKey])
+  const { data, isLoading, isFetching } = useTasks(searchParams.toString())
 
-  const handleRefresh = useCallback(async () => {
-    await fetch("/api/linear/refresh", { method: "POST" })
-    setRefreshKey((k) => k + 1)
+  const refreshMutation = useRefreshLinear()
+
+  const groups = data?.groups ?? []
+  const lastSyncedAt = data?.lastSyncedAt ?? null
+  const isStale = data?.isStale ?? false
+
+  const handleViewChange = useCallback((newView: TaskView) => {
+    setView(newView)
+    localStorage.setItem("tasks-view", newView)
   }, [])
 
-  const updateOverride = useCallback(
-    async (
-      clientId: string,
-      linearIssueId: string,
-      payload: Record<string, unknown>,
-    ) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          return {
-            ...group,
-            tasks: group.tasks.map((task) => {
-              if (task.linearIssueId !== linearIssueId) return task
-              return { ...task, ...payload }
-            }),
-          }
-        }),
-      )
+  const handleRefresh = useCallback(async () => {
+    refreshMutation.mutate()
+  }, [refreshMutation])
 
-      const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, ...payload }),
-      })
-
-      if (!res.ok) {
-        setRefreshKey((k) => k + 1)
-      }
-    },
-    [],
-  )
+  const overrideMutation = useUpdateTaskOverride()
+  const estimateMutation = useUpdateEstimate()
 
   const handleToggleToInvoice = useCallback(
     (clientId: string, linearIssueId: string, value: boolean) => {
-      updateOverride(clientId, linearIssueId, { toInvoice: value })
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { toInvoice: value } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update task" }),
+        },
+      )
     },
-    [updateOverride],
+    [overrideMutation, toast],
   )
 
   const handleToggleInvoiced = useCallback(
     (clientId: string, linearIssueId: string, value: boolean) => {
-      updateOverride(clientId, linearIssueId, { invoiced: value })
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { invoiced: value } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update task" }),
+        },
+      )
     },
-    [updateOverride],
+    [overrideMutation, toast],
   )
 
   const handleUpdateEstimate = useCallback(
-    async (clientId: string, linearIssueId: string, estimate: number) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          const updatedTasks = group.tasks.map((task) => {
-            if (task.linearIssueId !== linearIssueId) return task
-            const billing = calculateBilling({
-              billingMode: group.client.billingMode as BillingMode,
-              rate: group.client.rate,
-              estimate,
-              rateOverride: task.rateOverride,
-            })
-            return {
-              ...task,
-              estimate,
-              billingAmount: billing.amount,
-              billingFormula: billing.formula,
-            }
-          })
-          const totalBilling = updatedTasks
-            .filter((t) => t.toInvoice)
-            .reduce((sum, t) => sum + t.billingAmount, 0)
-          return { ...group, tasks: updatedTasks, totalBilling }
-        }),
+    (_clientId: string, linearIssueId: string, estimate: number) => {
+      estimateMutation.mutate(
+        { linearIssueId, estimate },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update estimate" }),
+        },
       )
-
-      const res = await fetch(`/api/linear/issues/${linearIssueId}/estimate`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estimate }),
-      })
-
-      if (!res.ok) {
-        toast({ variant: "error", title: "Failed to update estimate" })
-        setRefreshKey((k) => k + 1)
-      }
     },
-    [toast],
+    [estimateMutation, toast],
   )
 
   const handleUpdateRate = useCallback(
-    async (clientId: string, linearIssueId: string, rate: number | null) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          const updatedTasks = group.tasks.map((task) => {
-            if (task.linearIssueId !== linearIssueId) return task
-            const billing = calculateBilling({
-              billingMode: group.client.billingMode as BillingMode,
-              rate: group.client.rate,
-              estimate: task.estimate,
-              rateOverride: rate,
-            })
-            return {
-              ...task,
-              rateOverride: rate,
-              billingAmount: billing.amount,
-              billingFormula: billing.formula,
-            }
-          })
-          const totalBilling = updatedTasks
-            .filter((t) => t.toInvoice)
-            .reduce((sum, t) => sum + t.billingAmount, 0)
-          return { ...group, tasks: updatedTasks, totalBilling }
-        }),
+    (clientId: string, linearIssueId: string, rate: number | null) => {
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { rateOverride: rate } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update rate" }),
+        },
       )
-
-      const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, rateOverride: rate }),
-      })
-
-      if (!res.ok) {
-        toast({ variant: "error", title: "Failed to update rate" })
-        setRefreshKey((k) => k + 1)
-      }
     },
-    [toast],
+    [overrideMutation, toast],
   )
+
+  const statusMutation = useUpdateTaskStatus()
+
+  const handleStatusChange = useCallback(
+    (linearIssueId: string, newStatus: TaskStatusDTO) => {
+      const queryKey = ["tasks", searchParams.toString()]
+      const previous = queryClient.getQueryData<TasksApiResponse>(queryKey)
+
+      if (previous) {
+        queryClient.setQueryData<TasksApiResponse>(queryKey, {
+          ...previous,
+          groups: previous.groups.map((g) => ({
+            ...g,
+            tasks: g.tasks.map((t) =>
+              t.linearIssueId === linearIssueId
+                ? { ...t, status: newStatus }
+                : t,
+            ),
+          })),
+        })
+      }
+
+      statusMutation.mutate(
+        { linearIssueId, stateId: newStatus.id },
+        {
+          onError: () => {
+            if (previous) {
+              queryClient.setQueryData(queryKey, previous)
+            }
+            toast({ variant: "error", title: "Failed to update status" })
+          },
+        },
+      )
+    },
+    [searchParams, queryClient, statusMutation, toast],
+  )
+
+  const availableStatuses: TaskStatusDTO[] = data?.allStatuses ?? []
 
   const allClients: ClientSummary[] = groups.map((g) => g.client)
   const hasFilters = Boolean(
     searchParams.get("clientId") || searchParams.get("preset"),
   )
 
+  const kanbanTasks: KanbanTask[] = useMemo(
+    () =>
+      groups.flatMap((g) =>
+        g.tasks.map((t) => ({
+          ...t,
+          clientName: g.client.company
+            ? `${g.client.name} (${g.client.company})`
+            : g.client.name,
+        })),
+      ),
+    [groups],
+  )
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Tasks</h1>
-        <div className="flex gap-3">
-          <Link href="/tasks/new">
-            <Button>New Task</Button>
-          </Link>
-          <Link href="/billing">
-            <Button variant="secondary">To Invoice</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader title="Tasks">
+        <Link href="/tasks/new">
+          <Button>New Task</Button>
+        </Link>
+        <Link href="/billing">
+          <Button variant="outline">To Invoice</Button>
+        </Link>
+      </PageHeader>
 
-      <TooltipHint storageKey="tasks-page">
-        Your Linear tasks appear here grouped by client. Use the sync button to
-        refresh data from Linear.
-      </TooltipHint>
-
-      <SyncStatusBar
-        lastSyncedAt={lastSyncedAt}
-        isStale={isStale}
-        onRefresh={handleRefresh}
-        isRefreshing={isLoading}
-      />
-
-      <TaskFilters clients={allClients} />
+      <PageToolbar>
+        <SyncStatusBar
+          lastSyncedAt={lastSyncedAt}
+          isStale={isStale}
+          onRefresh={handleRefresh}
+          isRefreshing={isLoading || isFetching}
+        />
+        <TaskFilters
+          clients={allClients}
+          view={view}
+          onViewChange={handleViewChange}
+        />
+      </PageToolbar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">Loading tasks...</p>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       ) : groups.length === 0 ? (
         <TaskEmptyState hasFilters={hasFilters} />
       ) : (
-        <TaskGroupList
-          groups={groups}
-          onToggleToInvoice={handleToggleToInvoice}
-          onToggleInvoiced={handleToggleInvoiced}
-          onUpdateEstimate={handleUpdateEstimate}
-          onUpdateRate={handleUpdateRate}
-        />
+        <>
+          <TaskKpiCards groups={groups} />
+
+          {view === "list" ? (
+            <TaskGroupList
+              groups={groups}
+              availableStatuses={availableStatuses}
+              onToggleToInvoice={handleToggleToInvoice}
+              onToggleInvoiced={handleToggleInvoiced}
+              onUpdateEstimate={handleUpdateEstimate}
+              onUpdateRate={handleUpdateRate}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <TaskKanbanBoard
+              tasks={kanbanTasks}
+              onStatusChange={handleStatusChange}
+            />
+          )}
+        </>
       )}
     </div>
   )

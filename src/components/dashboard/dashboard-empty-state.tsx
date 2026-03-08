@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
+/** Placeholder shown on the dashboard when the user has no data yet. */
 export function DashboardEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input px-6 py-16">
@@ -13,7 +14,7 @@ export function DashboardEmptyState() {
           <Button>Go to Clients</Button>
         </Link>
         <Link href="/tasks">
-          <Button variant="secondary">Go to Tasks</Button>
+          <Button variant="outline">Go to Tasks</Button>
         </Link>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { ViewToggle } from "@/components/clients/view-toggle"
+import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "Newest first" },
@@ -19,10 +20,22 @@ interface ClientFiltersProps {
   onViewChange: (view: "grid" | "list") => void
 }
 
+/**
+ * Filter toolbar for the clients page.
+ * Provides search, sort, category, archived toggle, and grid/list view switch.
+ * All filter state is synced to URL search params.
+ */
 export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  usePersistedFilters("clients", [
+    "sortBy",
+    "sortOrder",
+    "category",
+    "archived",
+  ])
 
   const [searchValue, setSearchValue] = useState(
     searchParams.get("search") ?? "",
@@ -95,7 +108,7 @@ export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
               id="sort"
               value={currentSort}
               onChange={(e) => handleSortChange(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm"
+              className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-sm hover:border-primary"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

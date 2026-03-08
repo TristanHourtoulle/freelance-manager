@@ -9,6 +9,7 @@ interface LinearMappingsListProps {
   onDelete: (mappingId: string) => void
 }
 
+/** List of existing Linear mappings with delete buttons. Used inside LinearMappingsSection. */
 export function LinearMappingsList({
   mappings,
   teamLookup,

@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { taskFilterSchema } from "@/lib/schemas/task"
-import { fetchLinearIssues, getLinearSyncStatus } from "@/lib/linear-service"
+import {
+  fetchLinearIssues,
+  fetchLinearWorkflowStates,
+  getLinearSyncStatus,
+} from "@/lib/linear-service"
 import { calculateBilling } from "@/lib/billing"
 import { NextResponse } from "next/server"
 
@@ -12,6 +16,15 @@ import type {
   ClientSummary,
 } from "@/components/tasks/types"
 
+/**
+ * GET /api/tasks
+ * Lists Linear issues grouped by client, enriched with billing calculations
+ * and override state. Supports filtering by client, category, and preset
+ * (active, done, backlog, to-invoice).
+ * @returns 200 - `{ groups: ClientTaskGroup[], lastSyncAt, lastWebhookReceivedAt }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -47,6 +60,14 @@ export async function GET(request: Request) {
       allOverrides.map((o) => [o.linearIssueId, o]),
     )
 
+    // Collect unique team IDs to fetch workflow states in parallel
+    const teamIds = new Set<string>()
+    for (const client of clientsWithMappings) {
+      for (const mapping of client.linearMappings) {
+        if (mapping.linearTeamId) teamIds.add(mapping.linearTeamId)
+      }
+    }
+
     const issuePromises = clientsWithMappings.flatMap((client) =>
       client.linearMappings.map(async (mapping) => {
         const issues = await fetchLinearIssues({
@@ -57,7 +78,29 @@ export async function GET(request: Request) {
       }),
     )
 
-    const results = await Promise.allSettled(issuePromises)
+    // Fetch workflow states for all teams in parallel with issues
+    const statesPromise = Promise.all(
+      [...teamIds].map((teamId) => fetchLinearWorkflowStates(teamId)),
+    )
+
+    const [results, allStatesArrays] = await Promise.all([
+      Promise.allSettled(issuePromises),
+      statesPromise,
+    ])
+
+    // Deduplicate workflow states by ID
+    const statesMap = new Map<
+      string,
+      { id: string; name: string; type: string; color: string }
+    >()
+    for (const states of allStatesArrays) {
+      for (const state of states) {
+        if (!statesMap.has(state.id)) {
+          statesMap.set(state.id, state)
+        }
+      }
+    }
+    const allStatuses = [...statesMap.values()]
 
     const issuesByClient = new Map<
       string,
@@ -123,6 +166,7 @@ export async function GET(request: Request) {
           estimate: issue.estimate,
           status: issue.status
             ? {
+                id: issue.status.id,
                 name: issue.status.name,
                 type: issue.status.type,
                 color: issue.status.color,
@@ -169,7 +213,7 @@ export async function GET(request: Request) {
 
     groups.sort((a, b) => b.taskCount - a.taskCount)
 
-    return NextResponse.json({ groups, ...getLinearSyncStatus() })
+    return NextResponse.json({ groups, allStatuses, ...getLinearSyncStatus() })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(

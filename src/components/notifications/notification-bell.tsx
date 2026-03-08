@@ -5,6 +5,11 @@ import { BellIcon } from "@heroicons/react/24/outline"
 import { useNotifications } from "./use-notifications"
 import { NotificationPanel } from "./notification-panel"
 
+/**
+ * Bell icon button that toggles the notification panel dropdown.
+ * Displays an unread count badge when there are unread notifications.
+ * Used in `AppHeader` and `SidebarNav`.
+ */
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -40,7 +45,7 @@ export function NotificationBell() {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+        className="relative flex cursor-pointer items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         aria-label="Notifications"
       >
         <BellIcon className="h-5 w-5" />
@@ -57,6 +62,7 @@ export function NotificationBell() {
             notifications={notifications}
             onMarkAsRead={markAsRead}
             onDismissAll={dismissAll}
+            onClose={() => setIsOpen(false)}
           />
         </div>
       )}

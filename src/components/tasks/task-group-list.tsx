@@ -1,12 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import { ChevronRightIcon } from "@heroicons/react/20/solid"
+
+import { Badge } from "@/components/ui/badge"
+
 import { TaskTable } from "./task-table"
 
-import type { ClientTaskGroup } from "./types"
+import type { ClientTaskGroup, TaskStatusDTO } from "./types"
 
 interface TaskGroupListProps {
   groups: ClientTaskGroup[]
+  availableStatuses: TaskStatusDTO[]
   onToggleToInvoice: (
     clientId: string,
     linearIssueId: string,
@@ -27,6 +32,7 @@ interface TaskGroupListProps {
     linearIssueId: string,
     rate: number | null,
   ) => void
+  onStatusChange: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -43,12 +49,19 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Collapsible accordion of task groups organized by client.
+ * Each group expands to a TaskTable with inline editing for estimates, rates, and invoicing.
+ * Used on the tasks page.
+ */
 export function TaskGroupList({
   groups,
+  availableStatuses,
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
   onUpdateRate,
+  onStatusChange,
 }: TaskGroupListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -72,43 +85,33 @@ export function TaskGroupList({
         return (
           <div
             key={group.client.id}
-            className="rounded-lg border border-border bg-surface"
+            className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
           >
             <button
               onClick={() => toggleCollapse(group.client.id)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
+              className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-surface-muted/50"
             >
               <div className="flex items-center gap-3">
-                <svg
-                  className={`h-4 w-4 text-text-muted transition-transform ${isCollapsed ? "" : "rotate-90"}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-                <div>
+                <ChevronRightIcon
+                  className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${isCollapsed ? "" : "rotate-90"}`}
+                />
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-text-primary">
                     {group.client.name}
                   </span>
                   {group.client.company && (
-                    <span className="ml-2 text-sm text-text-secondary">
+                    <span className="text-sm text-text-secondary">
                       {group.client.company}
                     </span>
                   )}
                 </div>
-                <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
+                <Badge variant="secondary">
                   {BILLING_MODE_LABELS[group.client.billingMode] ??
                     group.client.billingMode}
-                </span>
-                <span className="text-xs text-text-secondary">
+                </Badge>
+                <Badge variant="outline">
                   {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
-                </span>
+                </Badge>
               </div>
               <div className="text-sm font-semibold tabular-nums text-text-primary">
                 {formatAmount(group.totalBilling)}
@@ -121,6 +124,7 @@ export function TaskGroupList({
                   tasks={group.tasks}
                   clientRate={group.client.rate}
                   billingMode={group.client.billingMode}
+                  availableStatuses={availableStatuses}
                   onToggleToInvoice={(issueId, value) =>
                     onToggleToInvoice(group.client.id, issueId, value)
                   }
@@ -133,6 +137,7 @@ export function TaskGroupList({
                   onUpdateRate={(issueId, rate) =>
                     onUpdateRate(group.client.id, issueId, rate)
                   }
+                  onStatusChange={onStatusChange}
                 />
               </div>
             )}

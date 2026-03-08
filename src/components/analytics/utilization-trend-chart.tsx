@@ -1,17 +1,35 @@
 "use client"
 
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceLine,
   XAxis,
   YAxis,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
 } from "recharts"
-import { Card } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 import type { UtilizationMonth } from "@/components/analytics/types"
+
+const chartConfig = {
+  rate: {
+    label: "Utilization",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
 
 interface UtilizationTrendChartProps {
   data: UtilizationMonth[]
@@ -19,52 +37,43 @@ interface UtilizationTrendChartProps {
 
 export function UtilizationTrendChart({ data }: UtilizationTrendChartProps) {
   return (
-    <Card title="Monthly Utilization">
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+    <Card>
+      <CardHeader>
+        <CardTitle>Monthly Utilization</CardTitle>
+        <CardDescription>Utilization rate over time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-64 w-full"
+        >
+          <BarChart accessibilityLayer data={data}>
+            <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 12 }}
               tickLine={false}
+              tickMargin={10}
               axisLine={false}
+              tickFormatter={(value) => value.slice(0, 3)}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v: number) => `${v}%`}
             />
-            <Tooltip
-              formatter={(value: number | undefined) => [
-                `${value ?? 0}%`,
-                "Utilization",
-              ]}
-              contentStyle={{
-                borderRadius: "8px",
-                border: "1px solid var(--color-border)",
-                fontSize: "14px",
-              }}
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
             />
             <ReferenceLine
               y={100}
-              stroke="var(--color-destructive)"
+              stroke="hsl(var(--destructive))"
               strokeDasharray="4 4"
-              label={{
-                value: "100%",
-                position: "right",
-                fontSize: 11,
-                fill: "var(--color-text-secondary)",
-              }}
             />
-            <Bar
-              dataKey="rate"
-              fill="var(--color-primary)"
-              radius={[4, 4, 0, 0]}
-            />
+            <Bar dataKey="rate" fill="var(--color-rate)" radius={8} />
           </BarChart>
-        </ResponsiveContainer>
-      </div>
+        </ChartContainer>
+      </CardContent>
     </Card>
   )
 }

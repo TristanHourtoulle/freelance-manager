@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   ArrowDownTrayIcon,
   CurrencyEuroIcon,
@@ -13,6 +14,7 @@ interface NotificationPanelProps {
   notifications: Notification[]
   onMarkAsRead: (id: string) => void
   onDismissAll: () => void
+  onClose?: () => void
 }
 
 const TYPE_CONFIG: Record<
@@ -47,10 +49,19 @@ function formatRelativeTime(date: string | Date): string {
   return `${Math.floor(diffHours / 24)}d ago`
 }
 
+/**
+ * Scrollable panel listing notifications with type-specific icons and relative timestamps.
+ * Supports marking individual notifications as read and bulk dismiss.
+ *
+ * @param notifications - Array of notification records
+ * @param onMarkAsRead - Callback to mark a single notification as read
+ * @param onDismissAll - Callback to mark all notifications as read
+ */
 export function NotificationPanel({
   notifications,
   onMarkAsRead,
   onDismissAll,
+  onClose,
 }: NotificationPanelProps) {
   const hasUnread = notifications.some((n) => !n.readAt)
 
@@ -118,6 +129,16 @@ export function NotificationPanel({
           })}
         </ul>
       )}
+
+      <div className="border-t border-border px-4 py-2.5">
+        <Link
+          href="/notifications"
+          onClick={onClose}
+          className="block text-center text-xs font-medium text-primary hover:text-primary/80"
+        >
+          View all notifications
+        </Link>
+      </div>
     </div>
   )
 }

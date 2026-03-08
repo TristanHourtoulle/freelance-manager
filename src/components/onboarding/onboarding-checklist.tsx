@@ -1,6 +1,6 @@
 "use client"
 
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { OnboardingStepItem } from "./onboarding-step-item"
 
 import type { OnboardingStatus, OnboardingStepConfig } from "./types"
@@ -47,6 +47,12 @@ interface OnboardingChecklistProps {
   onboardingStatus: OnboardingStatus | null
 }
 
+/**
+ * Displays the getting-started checklist with a progress bar.
+ * Hidden once all steps are completed. Used on the `/dashboard` page.
+ *
+ * @param onboardingStatus - Current onboarding progress (null hides the checklist)
+ */
 export function OnboardingChecklist({
   onboardingStatus,
 }: OnboardingChecklistProps) {
@@ -57,39 +63,41 @@ export function OnboardingChecklist({
 
   return (
     <Card>
-      <div className="space-y-4">
-        <div>
-          <h3 className="mb-0">Getting Started</h3>
-          <p className="mt-1 text-xs text-text-muted">
-            Complete these steps to set up your workspace
-          </p>
-        </div>
-
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-text-secondary">
-              {completedCount} of {totalSteps} completed
-            </span>
-            <span className="font-medium text-primary">{percentage}%</span>
+      <CardContent>
+        <div className="space-y-4">
+          <div>
+            <h3 className="mb-0">Getting Started</h3>
+            <p className="mt-1 text-xs text-text-muted">
+              Complete these steps to set up your workspace
+            </p>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
-              style={{ width: `${percentage}%` }}
-            />
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-text-secondary">
+                {completedCount} of {totalSteps} completed
+              </span>
+              <span className="font-medium text-primary">{percentage}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="divide-y divide-border-light">
+            {STEP_CONFIGS.map((config) => (
+              <OnboardingStepItem
+                key={config.key}
+                config={config}
+                isCompleted={steps[config.key]}
+              />
+            ))}
           </div>
         </div>
-
-        <div className="divide-y divide-border-light">
-          {STEP_CONFIGS.map((config) => (
-            <OnboardingStepItem
-              key={config.key}
-              config={config}
-              isCompleted={steps[config.key]}
-            />
-          ))}
-        </div>
-      </div>
+      </CardContent>
     </Card>
   )
 }

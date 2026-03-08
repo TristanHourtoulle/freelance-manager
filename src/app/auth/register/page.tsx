@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
-import { Input } from "@/components/ui/input"
+import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
 
 const registerSchema = z
@@ -63,14 +63,14 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
+          <FormField
             label="Name"
             placeholder="John Doe"
             {...register("name")}
             error={errors.name?.message}
           />
 
-          <Input
+          <FormField
             label="Email"
             type="email"
             placeholder="you@example.com"
@@ -78,7 +78,7 @@ export default function RegisterPage() {
             error={errors.email?.message}
           />
 
-          <Input
+          <FormField
             label="Password"
             type="password"
             placeholder="At least 8 characters"
@@ -86,7 +86,7 @@ export default function RegisterPage() {
             error={errors.password?.message}
           />
 
-          <Input
+          <FormField
             label="Confirm password"
             type="password"
             placeholder="Repeat your password"

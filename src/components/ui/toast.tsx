@@ -130,6 +130,14 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
   )
 }
 
+/**
+ * Fixed-position container that renders a stack of toast notifications.
+ * Toasts auto-dismiss after their configured duration and animate in/out.
+ * Rendered in the root layout to provide app-wide feedback.
+ *
+ * @param toasts - Array of active toast data objects to display
+ * @param onDismiss - Callback to remove a toast by id
+ */
 export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
   if (toasts.length === 0) return null
 

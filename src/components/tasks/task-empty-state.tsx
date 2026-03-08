@@ -5,6 +5,10 @@ interface TaskEmptyStateProps {
   hasFilters: boolean
 }
 
+/**
+ * Placeholder shown on the tasks page when no tasks or Linear mappings exist.
+ * @param hasFilters - Whether active filters are narrowing the result set.
+ */
 export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
   if (hasFilters) {
     return (
@@ -28,7 +32,7 @@ export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
         Set up Linear project mappings on your clients to see tasks here.
       </p>
       <Link href="/clients" className="mt-4">
-        <Button variant="secondary">Go to Clients</Button>
+        <Button variant="outline">Go to Clients</Button>
       </Link>
     </div>
   )

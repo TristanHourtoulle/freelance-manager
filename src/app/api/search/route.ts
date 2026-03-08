@@ -18,6 +18,13 @@ interface SearchTaskResult {
   url: string
 }
 
+/**
+ * GET /api/search
+ * Searches across clients and Linear issues by query string.
+ * @returns 200 - `{ clients: SearchClientResult[], tasks: SearchTaskResult[] }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Missing or invalid `q` query parameter
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

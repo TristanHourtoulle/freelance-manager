@@ -7,15 +7,16 @@ interface ViewToggleProps {
   onViewChange: (view: "grid" | "list") => void
 }
 
+/** Toggle button pair for switching between grid and list views. Used in ClientFilters. */
 export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
   return (
     <div className="flex items-center rounded-lg border border-border">
       <button
         onClick={() => onViewChange("grid")}
-        className={`rounded-l-lg p-1.5 transition-colors ${
+        className={`cursor-pointer rounded-l-lg p-1.5 transition-colors ${
           view === "grid"
             ? "bg-surface-muted text-text-primary"
-            : "text-text-secondary hover:text-text-primary"
+            : "text-text-secondary hover:bg-surface-muted/50 hover:text-text-primary"
         }`}
         title="Grid view"
       >
@@ -23,10 +24,10 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
       </button>
       <button
         onClick={() => onViewChange("list")}
-        className={`rounded-r-lg p-1.5 transition-colors ${
+        className={`cursor-pointer rounded-r-lg p-1.5 transition-colors ${
           view === "list"
             ? "bg-surface-muted text-text-primary"
-            : "text-text-secondary hover:text-text-primary"
+            : "text-text-secondary hover:bg-surface-muted/50 hover:text-text-primary"
         }`}
         title="List view"
       >

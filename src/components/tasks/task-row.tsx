@@ -4,16 +4,23 @@ import { useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 
-import type { EnrichedTask } from "./types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { TableRow, TableCell } from "@/components/ui/table"
+
+import { TaskStatusBadge } from "./task-status-badge"
+import { TaskStatusPicker } from "./task-status-picker"
+import type { EnrichedTask, TaskStatusDTO } from "./types"
 
 interface TaskRowProps {
   task: EnrichedTask
   clientRate?: number
   billingMode?: string
+  availableStatuses?: TaskStatusDTO[]
   onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
   onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
   onUpdateEstimate?: (linearIssueId: string, estimate: number) => void
   onUpdateRate?: (linearIssueId: string, rate: number | null) => void
+  onStatusChange?: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 function formatEstimate(estimate: number | undefined): string {
@@ -28,14 +35,21 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Single table row for an enriched task with inline-editable estimate and rate fields,
+ * billable/invoiced toggles, and a link to the task detail page.
+ * Used inside TaskTable.
+ */
 export function TaskRow({
   task,
   clientRate,
   billingMode,
+  availableStatuses,
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
   onUpdateRate,
+  onStatusChange,
 }: TaskRowProps) {
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [editValue, setEditValue] = useState("")
@@ -123,47 +137,44 @@ export function TaskRow({
   }, [onUpdateRate, task.linearIssueId])
 
   return (
-    <tr className="border-b border-border-light last:border-0">
+    <TableRow className="border-b border-border-light last:border-0">
       {onToggleToInvoice && (
-        <td className="px-3 py-2.5">
-          <input
-            type="checkbox"
+        <TableCell>
+          <Checkbox
             checked={task.toInvoice}
-            onChange={(e) =>
-              onToggleToInvoice(task.linearIssueId, e.target.checked)
+            onCheckedChange={(checked) =>
+              onToggleToInvoice(task.linearIssueId, !!checked)
             }
-            className="h-4 w-4 rounded border-border-input text-primary focus:ring-primary"
           />
-        </td>
+        </TableCell>
       )}
-      <td className="px-3 py-2.5">
+      <TableCell>
         <Link
           href={`/tasks/${task.linearIssueId}`}
           className="text-sm font-medium text-text-secondary hover:text-primary"
         >
           {task.identifier}
         </Link>
-      </td>
-      <td className="max-w-xs truncate px-3 py-2.5 text-sm text-text-primary">
+      </TableCell>
+      <TableCell className="max-w-xs truncate text-sm text-text-primary">
         {task.title}
-      </td>
-      <td className="px-3 py-2.5">
-        {task.status ? (
-          <span
-            className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
-            style={{
-              backgroundColor: `${task.status.color}18`,
-              color: task.status.color,
-              borderColor: `${task.status.color}40`,
-            }}
-          >
-            {task.status.name}
-          </span>
+      </TableCell>
+      <TableCell>
+        {task.status && availableStatuses && onStatusChange ? (
+          <TaskStatusPicker
+            currentStatus={task.status}
+            availableStatuses={availableStatuses}
+            onStatusChange={(newStatus) =>
+              onStatusChange(task.linearIssueId, newStatus)
+            }
+          />
+        ) : task.status ? (
+          <TaskStatusBadge status={task.status} />
         ) : (
           <span className="text-xs text-text-muted">-</span>
         )}
-      </td>
-      <td className="px-3 py-2.5 text-right text-sm tabular-nums text-text-secondary">
+      </TableCell>
+      <TableCell className="text-right text-sm tabular-nums text-text-secondary">
         {isEditingEstimate ? (
           <input
             ref={inputRef}
@@ -189,9 +200,9 @@ export function TaskRow({
             {formatEstimate(task.estimate)}
           </button>
         )}
-      </td>
+      </TableCell>
       {showRateColumn && (
-        <td className="px-3 py-2.5 text-right text-sm tabular-nums">
+        <TableCell className="text-right text-sm tabular-nums">
           {isEditingRate ? (
             <input
               ref={rateInputRef}
@@ -234,16 +245,16 @@ export function TaskRow({
               {clientRate}
             </button>
           )}
-        </td>
+        </TableCell>
       )}
-      <td
-        className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-text-primary"
+      <TableCell
+        className="text-right text-sm font-medium tabular-nums text-text-primary"
         title={task.billingFormula}
       >
         {formatAmount(task.billingAmount)}
-      </td>
+      </TableCell>
       {onToggleInvoiced && (
-        <td className="px-3 py-2.5 text-center">
+        <TableCell className="text-center">
           {task.invoiced ? (
             <button
               onClick={() => onToggleInvoiced(task.linearIssueId, false)}
@@ -259,8 +270,8 @@ export function TaskRow({
               Not invoiced
             </button>
           )}
-        </td>
+        </TableCell>
       )}
-    </tr>
+    </TableRow>
   )
 }

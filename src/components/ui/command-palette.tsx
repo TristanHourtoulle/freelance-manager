@@ -7,6 +7,11 @@ import {
   type CommandItem,
 } from "@/hooks/use-command-palette"
 
+/**
+ * Global command palette overlay for searching pages, actions, clients, and tasks.
+ * Opened via keyboard shortcut and rendered in the root layout.
+ * Delegates state and keyboard navigation to the useCommandPalette hook.
+ */
 export function CommandPalette() {
   const {
     isOpen,

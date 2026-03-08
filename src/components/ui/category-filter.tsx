@@ -10,6 +10,11 @@ const CATEGORIES = [
   { value: "SIDE_PROJECT", label: "Side Project" },
 ] as const
 
+/**
+ * Pill-based category filter that syncs selected values to URL search params.
+ * Supports multi-select with a clear-all action. Resets pagination on change.
+ * Used on the projects list page to filter by project category.
+ */
 export function CategoryFilter() {
   const router = useRouter()
   const pathname = usePathname()
@@ -58,10 +63,10 @@ export function CategoryFilter() {
             key={cat.value}
             type="button"
             onClick={() => toggle(cat.value)}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+            className={`cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors ${
               isActive
-                ? "border-primary bg-primary text-white"
-                : "border-border bg-surface text-text-secondary hover:border-primary hover:text-primary"
+                ? "border-primary bg-primary text-white hover:bg-primary/80"
+                : "border-border bg-surface text-text-secondary hover:border-primary hover:bg-surface-muted hover:text-primary"
             }`}
           >
             {cat.label}
@@ -72,7 +77,7 @@ export function CategoryFilter() {
         <button
           type="button"
           onClick={clear}
-          className="text-sm text-text-secondary underline hover:text-primary"
+          className="cursor-pointer text-sm text-text-secondary underline hover:text-primary"
         >
           Clear
         </button>

@@ -1,3 +1,4 @@
+/** DTO for a Linear team/project mapping attached to a client. */
 export interface LinearMappingDTO {
   id: string
   clientId: string
@@ -7,6 +8,7 @@ export interface LinearMappingDTO {
   updatedAt: string
 }
 
+/** JSON-serializable representation of a client returned by the API. */
 export interface SerializedClient {
   id: string
   userId: string
@@ -25,6 +27,7 @@ export interface SerializedClient {
   linearMappings?: LinearMappingDTO[]
 }
 
+/** Generic pagination metadata returned alongside paginated API responses. */
 export interface Pagination {
   page: number
   limit: number

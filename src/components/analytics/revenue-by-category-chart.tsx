@@ -1,66 +1,120 @@
 "use client"
 
+import { useMemo } from "react"
+import { Label, Pie, PieChart } from "recharts"
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
-import { Card } from "@/components/ui/card"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart"
 
 import type { RevenueByCategory } from "@/components/analytics/types"
 
-const CATEGORY_COLORS: Record<string, string> = {
-  FREELANCE: "#2563EB",
-  STUDY: "#8B5CF6",
-  PERSONAL: "#F59E0B",
-  SIDE_PROJECT: "#10B981",
-}
+const chartConfig = {
+  amount: {
+    label: "Revenue",
+  },
+  FREELANCE: {
+    label: "Freelance",
+    color: "var(--chart-1)",
+  },
+  STUDY: {
+    label: "Study",
+    color: "var(--chart-2)",
+  },
+  PERSONAL: {
+    label: "Personal",
+    color: "var(--chart-4)",
+  },
+  SIDE_PROJECT: {
+    label: "Side Project",
+    color: "var(--chart-3)",
+  },
+} satisfies ChartConfig
 
 interface RevenueByCategoryChartProps {
   data: RevenueByCategory[]
 }
 
 export function RevenueByCategoryChart({ data }: RevenueByCategoryChartProps) {
+  const totalRevenue = useMemo(
+    () => data.reduce((sum, d) => sum + d.amount, 0),
+    [data],
+  )
+
+  const enrichedData = useMemo(
+    () => data.map((d) => ({ ...d, fill: `var(--color-${d.category})` })),
+    [data],
+  )
+
   return (
-    <Card title="Revenue by Category">
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
+    <Card className="flex flex-col">
+      <CardHeader className="items-center pb-0">
+        <CardTitle>Revenue by Category</CardTitle>
+        <CardDescription>Revenue split by client category</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ChartContainer
+          config={chartConfig}
+          className="mx-auto aspect-square max-h-[280px]"
+        >
           <PieChart>
-            <Pie
-              data={data}
-              dataKey="amount"
-              nameKey="label"
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={90}
-              paddingAngle={2}
-            >
-              {data.map((entry) => (
-                <Cell
-                  key={entry.category}
-                  fill={CATEGORY_COLORS[entry.category] ?? "#94A3B8"}
-                />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value: number | undefined) => [
-                `${(value ?? 0).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} €`,
-                "Revenue",
-              ]}
-              contentStyle={{
-                borderRadius: "8px",
-                border: "1px solid var(--color-border)",
-                fontSize: "14px",
-              }}
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
             />
-            <Legend wrapperStyle={{ fontSize: "12px" }} />
+            <Pie
+              data={enrichedData}
+              dataKey="amount"
+              nameKey="category"
+              innerRadius={60}
+              strokeWidth={5}
+            >
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                    return null
+                  }
+                  return (
+                    <text
+                      x={viewBox.cx}
+                      y={viewBox.cy}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                    >
+                      <tspan
+                        x={viewBox.cx}
+                        y={viewBox.cy}
+                        className="fill-foreground text-3xl font-bold"
+                      >
+                        {totalRevenue.toLocaleString("fr-FR")}
+                      </tspan>
+                      <tspan
+                        x={viewBox.cx}
+                        y={(viewBox.cy ?? 0) + 24}
+                        className="fill-muted-foreground"
+                      >
+                        EUR
+                      </tspan>
+                    </text>
+                  )
+                }}
+              />
+            </Pie>
+            <ChartLegend content={<ChartLegendContent nameKey="category" />} />
           </PieChart>
-        </ResponsiveContainer>
-      </div>
+        </ChartContainer>
+      </CardContent>
     </Card>
   )
 }

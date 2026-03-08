@@ -52,6 +52,12 @@ async function createNotification(input: NotificationInput): Promise<void> {
   })
 }
 
+/**
+ * Creates billing reminder notifications for clients with tasks pending invoice for 7+ days.
+ * Skips clients that already received a reminder in the last 24 hours.
+ *
+ * @param userId - The authenticated user ID
+ */
 export async function computeBillingReminders(userId: string): Promise<void> {
   const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS_MS)
 
@@ -99,6 +105,12 @@ export async function computeBillingReminders(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Creates notifications for active clients with no activity for 30+ days.
+ * Skips clients that already received an alert in the last 7 days.
+ *
+ * @param userId - The authenticated user ID
+ */
 export async function computeInactiveClientAlerts(
   userId: string,
 ): Promise<void> {
@@ -149,6 +161,12 @@ export async function computeInactiveClientAlerts(
   }
 }
 
+/**
+ * Creates a notification when Linear data is stale.
+ * Skips if an alert was already sent in the last 2 hours.
+ *
+ * @param userId - The authenticated user ID
+ */
 export async function computeSyncAlerts(userId: string): Promise<void> {
   const { isStale, lastSyncedAt } = getLinearSyncStatus()
 
@@ -175,6 +193,11 @@ export async function computeSyncAlerts(userId: string): Promise<void> {
   })
 }
 
+/**
+ * Runs all notification computations in parallel (billing reminders, inactive clients, sync alerts).
+ *
+ * @param userId - The authenticated user ID
+ */
 export async function computeAllNotifications(userId: string): Promise<void> {
   await Promise.all([
     computeBillingReminders(userId),

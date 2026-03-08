@@ -11,6 +11,14 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/**
+ * PATCH /api/clients/:id/archive
+ * Archives a client by setting its `archivedAt` timestamp.
+ * @returns 200 - The archived `SerializedClient`
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client not found
+ * @throws 409 - Client is already archived
+ */
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

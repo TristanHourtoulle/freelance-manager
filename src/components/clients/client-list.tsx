@@ -16,6 +16,11 @@ interface ClientListProps {
   onPageChange: (page: number) => void
 }
 
+/**
+ * Renders the client collection in either grid (ClientCard) or list (ClientRow) mode
+ * with pagination controls. Falls back to ClientEmptyState when empty.
+ * Used on the clients page.
+ */
 export function ClientList({
   clients,
   pagination,
@@ -86,7 +91,7 @@ export function ClientList({
           </p>
           <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => onPageChange(pagination.page - 1)}
               disabled={pagination.page <= 1}
               className="text-xs"
@@ -97,7 +102,7 @@ export function ClientList({
               {pagination.page} / {pagination.totalPages}
             </span>
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => onPageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
               className="text-xs"

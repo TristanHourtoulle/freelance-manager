@@ -1,27 +1,24 @@
 "use client"
 
+import { useMemo } from "react"
+import { Label, Pie, PieChart } from "recharts"
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
-import { Card } from "@/components/ui/card"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart"
 
 import type { HoursByClient } from "@/components/analytics/types"
-
-const COLORS = [
-  "#2563EB", // blue-600
-  "#3B82F6", // blue-500
-  "#60A5FA", // blue-400
-  "#93C5FD", // blue-300
-  "#BFDBFE", // blue-200
-  "#1D4ED8", // blue-700
-  "#1E40AF", // blue-800
-  "#DBEAFE", // blue-100
-]
 
 interface TimeByClientChartProps {
   data: HoursByClient[]
@@ -32,20 +29,51 @@ export function TimeByClientChart({
   data,
   onClientClick,
 }: TimeByClientChartProps) {
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {
+      hours: { label: "Hours" },
+    }
+    for (const [i, entry] of data.entries()) {
+      config[entry.clientName] = {
+        label: entry.clientName,
+        color: `var(--chart-${(i % 5) + 1})`,
+      }
+    }
+    return config
+  }, [data])
+
+  const totalHours = useMemo(
+    () => data.reduce((sum, d) => sum + d.hours, 0),
+    [data],
+  )
+
+  const enrichedData = useMemo(
+    () => data.map((d) => ({ ...d, fill: `var(--color-${d.clientName})` })),
+    [data],
+  )
+
   return (
-    <Card title="Time by Client">
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
+    <Card className="flex flex-col">
+      <CardHeader className="items-center pb-0">
+        <CardTitle>Time by Client</CardTitle>
+        <CardDescription>Billed hours per client</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ChartContainer
+          config={chartConfig}
+          className="mx-auto aspect-square max-h-[280px]"
+        >
           <PieChart>
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
+            />
             <Pie
-              data={data}
+              data={enrichedData}
               dataKey="hours"
               nameKey="clientName"
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={90}
-              paddingAngle={2}
+              innerRadius={60}
+              strokeWidth={5}
               style={onClientClick ? { cursor: "pointer" } : undefined}
               onClick={
                 onClientClick
@@ -58,25 +86,43 @@ export function TimeByClientChart({
                   : undefined
               }
             >
-              {data.map((_, i) => (
-                <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
-              ))}
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                    return null
+                  }
+                  return (
+                    <text
+                      x={viewBox.cx}
+                      y={viewBox.cy}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                    >
+                      <tspan
+                        x={viewBox.cx}
+                        y={viewBox.cy}
+                        className="fill-foreground text-3xl font-bold"
+                      >
+                        {totalHours}
+                      </tspan>
+                      <tspan
+                        x={viewBox.cx}
+                        y={(viewBox.cy ?? 0) + 24}
+                        className="fill-muted-foreground"
+                      >
+                        Hours
+                      </tspan>
+                    </text>
+                  )
+                }}
+              />
             </Pie>
-            <Tooltip
-              formatter={(value: number | undefined) => [
-                `${value ?? 0}h`,
-                "Hours",
-              ]}
-              contentStyle={{
-                borderRadius: "8px",
-                border: "1px solid var(--color-border)",
-                fontSize: "14px",
-              }}
+            <ChartLegend
+              content={<ChartLegendContent nameKey="clientName" />}
             />
-            <Legend wrapperStyle={{ fontSize: "12px" }} />
           </PieChart>
-        </ResponsiveContainer>
-      </div>
+        </ChartContainer>
+      </CardContent>
     </Card>
   )
 }

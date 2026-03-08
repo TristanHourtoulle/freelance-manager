@@ -1,16 +1,28 @@
 "use client"
 
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts"
-import { Card } from "@/components/ui/card"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 
 import type { RevenueByMonth } from "@/components/analytics/types"
+
+const chartConfig = {
+  amount: {
+    label: "Revenue",
+    color: "var(--chart-1)",
+  },
+} satisfies ChartConfig
 
 interface RevenueByMonthChartProps {
   data: RevenueByMonth[]
@@ -18,41 +30,35 @@ interface RevenueByMonthChartProps {
 
 export function RevenueByMonthChart({ data }: RevenueByMonthChartProps) {
   return (
-    <Card title="Revenue by Month">
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+    <Card>
+      <CardHeader>
+        <CardTitle>Revenue by Month</CardTitle>
+        <CardDescription>
+          Monthly revenue over the selected period
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-64 w-full"
+        >
+          <BarChart accessibilityLayer data={data}>
+            <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 12 }}
               tickLine={false}
+              tickMargin={10}
               axisLine={false}
+              tickFormatter={(value) => value.slice(0, 3)}
             />
-            <YAxis
-              tick={{ fontSize: 12 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v: number) => `${v}\u202F\u20AC`}
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent hideLabel />}
             />
-            <Tooltip
-              formatter={(value: number | undefined) => [
-                `${(value ?? 0).toLocaleString("fr-FR")} \u20AC`,
-                "Revenue",
-              ]}
-              contentStyle={{
-                borderRadius: "8px",
-                border: "1px solid var(--color-border)",
-                fontSize: "14px",
-              }}
-            />
-            <Bar
-              dataKey="amount"
-              fill="var(--color-primary)"
-              radius={[4, 4, 0, 0]}
-            />
+            <Bar dataKey="amount" fill="var(--color-amount)" radius={8} />
           </BarChart>
-        </ResponsiveContainer>
-      </div>
+        </ChartContainer>
+      </CardContent>
     </Card>
   )
 }

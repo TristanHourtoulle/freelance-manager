@@ -1,11 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 
-import type { HistoryMonthGroup } from "@/components/billing/types"
+import type {
+  HistoryMonthGroup,
+  HistoryClientGroup,
+} from "@/components/billing/types"
 
 interface HistoryMonthListProps {
   months: HistoryMonthGroup[]
+  onMarkAsPaid?: (invoiceId: string) => void
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -22,7 +26,54 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
-export function HistoryMonthList({ months }: HistoryMonthListProps) {
+/**
+ * Two-level collapsible list of invoiced tasks grouped first by month, then by client.
+ * Each client group expands to show a task detail table.
+ * Used on the billing history page.
+ */
+function InvoiceStatusBadge({
+  group,
+  onMarkAsPaid,
+}: {
+  group: HistoryClientGroup
+  onMarkAsPaid?: (invoiceId: string) => void
+}) {
+  if (!group.invoice) return null
+
+  const { status, id } = group.invoice
+
+  if (status === "PAID") {
+    return (
+      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        Paid
+      </span>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+        Sent
+      </span>
+      {onMarkAsPaid && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onMarkAsPaid(id)
+          }}
+          className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100"
+        >
+          Mark as paid
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function HistoryMonthList({
+  months,
+  onMarkAsPaid,
+}: HistoryMonthListProps) {
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set())
   const [collapsedClients, setCollapsedClients] = useState<Set<string>>(
     new Set(),
@@ -133,6 +184,10 @@ export function HistoryMonthList({ months }: HistoryMonthListProps) {
                             {group.taskCount} task
                             {group.taskCount !== 1 ? "s" : ""}
                           </span>
+                          <InvoiceStatusBadge
+                            group={group}
+                            onMarkAsPaid={onMarkAsPaid}
+                          />
                         </div>
                         <span className="text-sm font-semibold tabular-nums text-text-primary">
                           {formatAmount(group.totalBilling)}

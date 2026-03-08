@@ -31,6 +31,10 @@ function getDotColor(lastActivityAt: string | null): string {
   return "bg-red-500"
 }
 
+/**
+ * Colored dot (green/amber/red) with an optional relative-time label indicating
+ * how recently a client had activity. Used in ClientCard and ClientRow.
+ */
 export function ActivityIndicator({
   lastActivityAt,
   showLabel = true,

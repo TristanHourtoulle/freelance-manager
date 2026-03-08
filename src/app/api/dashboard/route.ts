@@ -12,6 +12,13 @@ import { getLinearSyncStatus } from "@/lib/linear-service"
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
 import type { Client, LinearMapping } from "@/generated/prisma/client"
 
+/**
+ * GET /api/dashboard
+ * Returns dashboard KPIs: billing pipeline, monthly revenue, billed hours,
+ * revenue target, and a 6-month revenue chart.
+ * @returns 200 - `{ pipeline, monthlyRevenue, billedHours, monthlyRevenueTarget, revenueByMonth, lastSyncAt, lastWebhookReceivedAt }`
+ * @throws 401 - Unauthenticated request
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

@@ -6,6 +6,7 @@ const trustedOrigins = process.env.NEXT_PUBLIC_APP_URL
   ? [process.env.NEXT_PUBLIC_APP_URL]
   : []
 
+/** Server-side Better Auth instance configured with Prisma adapter and email/password. */
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",

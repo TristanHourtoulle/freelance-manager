@@ -1,3 +1,4 @@
+/** User-defined overrides for a task's billing and invoicing state. */
 export interface TaskOverrideDTO {
   linearIssueId: string
   toInvoice: boolean
@@ -6,12 +7,15 @@ export interface TaskOverrideDTO {
   rateOverride: number | null
 }
 
+/** Linear workflow status label and color. */
 export interface TaskStatusDTO {
+  id: string
   name: string
   type: string
   color: string
 }
 
+/** A Linear issue enriched with billing calculations and override flags. */
 export interface EnrichedTask {
   linearIssueId: string
   identifier: string
@@ -27,6 +31,7 @@ export interface EnrichedTask {
   rateOverride: number | null
 }
 
+/** Full detail payload for a single task, returned by the task detail API. */
 export interface TaskDetailResponse {
   issue: {
     id: string
@@ -55,6 +60,7 @@ export interface TaskDetailResponse {
   client: { id: string; name: string; billingMode: string; rate: number } | null
 }
 
+/** Lightweight client info used in task filters and group headers. */
 export interface ClientSummary {
   id: string
   name: string
@@ -63,6 +69,7 @@ export interface ClientSummary {
   rate: number
 }
 
+/** Group of tasks belonging to a single client, with billing totals. */
 export interface ClientTaskGroup {
   client: ClientSummary
   tasks: EnrichedTask[]
@@ -70,8 +77,15 @@ export interface ClientTaskGroup {
   taskCount: number
 }
 
+/** A task enriched with the client name, used for the Kanban board flat list. */
+export interface KanbanTask extends EnrichedTask {
+  clientName: string
+}
+
+/** Response shape from the tasks list API endpoint. */
 export interface TasksApiResponse {
   groups: ClientTaskGroup[]
+  allStatuses: TaskStatusDTO[]
   lastSyncedAt: number | null
   isStale: boolean
 }
