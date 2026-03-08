@@ -159,6 +159,9 @@ export function TaskRow({
       <TableCell className="max-w-xs truncate text-sm text-text-primary">
         {task.title}
       </TableCell>
+      <TableCell className="text-sm text-text-secondary">
+        {task.projectName ?? "-"}
+      </TableCell>
       <TableCell>
         {task.status && availableStatuses && onStatusChange ? (
           <TaskStatusPicker

@@ -176,6 +176,7 @@ export async function GET(request: Request) {
           priorityLabel: issue.priorityLabel,
           billingAmount: billing.amount,
           billingFormula: billing.formula,
+          projectName: issue.projectName,
           toInvoice: override?.toInvoice ?? false,
           invoiced: override?.invoiced ?? false,
           rateOverride,

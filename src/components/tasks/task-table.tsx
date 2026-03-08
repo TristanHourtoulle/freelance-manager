@@ -166,6 +166,9 @@ export function TaskTable({
               Title{renderSortIcon("title")}
             </TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
+              Project
+            </TableHead>
+            <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
               Status
             </TableHead>
             <TableHead
