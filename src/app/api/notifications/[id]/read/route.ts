@@ -7,6 +7,13 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/**
+ * PATCH /api/notifications/:id/read
+ * Marks a single notification as read by setting its `readAt` timestamp.
+ * @returns 200 - The updated `Notification`
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Notification not found
+ */
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

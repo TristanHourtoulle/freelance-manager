@@ -6,6 +6,13 @@ interface RouteContext {
   params: Promise<{ id: string; mappingId: string }>
 }
 
+/**
+ * DELETE /api/clients/:id/linear-mappings/:mappingId
+ * Deletes a Linear mapping from a client.
+ * @returns 204 - No content
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client or mapping not found
+ */
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

@@ -14,6 +14,14 @@ import {
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
 import type { Client, LinearMapping } from "@/generated/prisma/client"
 
+/**
+ * GET /api/analytics
+ * Returns analytics data: revenue by month, by client, by category, hours by
+ * client, and utilization metrics over the requested period.
+ * @returns 200 - `{ revenueByMonth, revenueByClient, hoursByClient, revenueByCategory, utilization }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

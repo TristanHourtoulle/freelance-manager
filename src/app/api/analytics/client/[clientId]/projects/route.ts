@@ -15,6 +15,13 @@ interface RouteContext {
   params: Promise<{ clientId: string }>
 }
 
+/**
+ * GET /api/analytics/client/:clientId/projects
+ * Returns per-project revenue and hours breakdown for a specific client.
+ * @returns 200 - `{ clientId, clientName, projects: { projectId, projectName, hours, amount }[] }`
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client not found
+ */
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

@@ -2,6 +2,12 @@ import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { NextResponse } from "next/server"
 
+/**
+ * GET /api/onboarding
+ * Returns onboarding progress: which setup steps are completed and overall completion count.
+ * @returns 200 - `{ steps, completedCount, totalSteps, allCompleted }`
+ * @throws 401 - Unauthenticated request
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

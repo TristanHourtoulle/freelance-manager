@@ -3,6 +3,12 @@ import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { updateSettingsSchema } from "@/lib/schemas/settings"
 import { NextResponse } from "next/server"
 
+/**
+ * GET /api/settings
+ * Retrieves user settings (creates defaults if none exist).
+ * @returns 200 - `{ availableHoursPerMonth, monthlyRevenueTarget }`
+ * @throws 401 - Unauthenticated request
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -23,6 +29,13 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * PUT /api/settings
+ * Updates user settings (available hours per month, monthly revenue target).
+ * @returns 200 - `{ availableHoursPerMonth, monthlyRevenueTarget }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ */
 export async function PUT(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

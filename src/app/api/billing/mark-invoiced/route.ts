@@ -3,6 +3,14 @@ import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { markInvoicedSchema } from "@/lib/schemas/billing"
 import { NextResponse } from "next/server"
 
+/**
+ * POST /api/billing/mark-invoiced
+ * Marks a batch of tasks as invoiced by their Linear issue IDs.
+ * @returns 200 - `{ markedCount: number }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body (missing linearIssueIds)
+ * @throws 403 - Attempting to mark tasks owned by another user
+ */
 export async function POST(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

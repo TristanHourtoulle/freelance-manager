@@ -5,6 +5,14 @@ import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { computeAllNotifications } from "@/lib/notification-service"
 import { notificationFilterSchema } from "@/lib/schemas/notification"
 
+/**
+ * GET /api/notifications
+ * Lists notifications for the authenticated user. Triggers notification
+ * computation before returning results. Supports filtering by read status and type.
+ * @returns 200 - `{ items: Notification[], unreadCount: number }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

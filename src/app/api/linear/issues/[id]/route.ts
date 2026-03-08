@@ -11,6 +11,15 @@ import { calculateBilling } from "@/lib/billing"
 
 import type { BillingMode } from "@/generated/prisma/client"
 
+/**
+ * GET /api/linear/issues/:id
+ * Fetches a single Linear issue with its override, billing calculation, and
+ * associated client information.
+ * @returns 200 - `{ issue, override, billing, client }`
+ * @throws 401 - Unauthenticated request
+ * @throws 403 - Issue override belongs to another user
+ * @throws 502 - Linear API error
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
