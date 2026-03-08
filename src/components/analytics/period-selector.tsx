@@ -1,7 +1,13 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const PERIOD_OPTIONS = [
   { value: "1m", label: "This month" },
@@ -45,12 +51,28 @@ export function PeriodSelector() {
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Select
-        label="Period"
-        value={period}
-        onChange={(e) => handlePeriodChange(e.target.value)}
-        options={PERIOD_OPTIONS}
-      />
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-muted-foreground">
+          Period
+        </label>
+        <Select
+          value={period}
+          onValueChange={(val) => {
+            if (val) handlePeriodChange(val)
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select period" />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIOD_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {period === "custom" && (
         <>
           <div className="space-y-2">

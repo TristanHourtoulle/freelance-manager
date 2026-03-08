@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 /** Loading skeleton for the analytics page, mirroring the full chart grid layout. */
@@ -7,27 +7,57 @@ export function AnalyticsSkeleton() {
     <div className="space-y-6">
       <Skeleton className="h-10 w-48" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Utilization Rate">
-          <Skeleton className="h-32 w-full" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Utilization Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
         </Card>
-        <Card title="Monthly Utilization">
-          <Skeleton className="h-64 w-full" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Monthly Utilization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
         </Card>
       </div>
-      <Card title="Revenue by Month">
-        <Skeleton className="h-64 w-full" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Revenue by Month</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 w-full" />
+        </CardContent>
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Revenue by Client">
-          <Skeleton className="h-64 w-full" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue by Client</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
         </Card>
-        <Card title="Revenue by Category">
-          <Skeleton className="h-64 w-full" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
         </Card>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Time by Client">
-          <Skeleton className="h-64 w-full" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Time by Client</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
         </Card>
       </div>
     </div>

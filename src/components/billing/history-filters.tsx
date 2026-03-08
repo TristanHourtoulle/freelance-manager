@@ -1,7 +1,13 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
 import type { ClientSummary } from "@/components/tasks/types"
@@ -31,22 +37,33 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  const clientOptions = [
-    { value: "", label: "All clients" },
-    ...clients.map((c) => ({
-      value: c.id,
-      label: c.company ? `${c.name} (${c.company})` : c.name,
-    })),
-  ]
+  const clientId = searchParams.get("clientId") ?? ""
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Select
-        label="Client"
-        value={searchParams.get("clientId") ?? ""}
-        onChange={(e) => updateParam("clientId", e.target.value)}
-        options={clientOptions}
-      />
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-muted-foreground">
+          Client
+        </label>
+        <Select
+          value={clientId || undefined}
+          onValueChange={(val) =>
+            updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="All clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.company ? `${c.name} (${c.company})` : c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="space-y-2">
         <label htmlFor="dateFrom">From</label>
         <input

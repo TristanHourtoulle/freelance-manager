@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 
 interface KpiCardProps {
   title: string
@@ -10,13 +10,15 @@ interface KpiCardProps {
 export function KpiCard({ title, value, subtitle }: KpiCardProps) {
   return (
     <Card>
-      <p className="text-sm font-medium text-text-secondary">{title}</p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
-        {value}
-      </p>
-      {subtitle && (
-        <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
-      )}
+      <CardContent>
+        <p className="text-sm font-medium text-text-secondary">{title}</p>
+        <p className="mt-2 text-3xl font-semibold tracking-tight text-text-primary">
+          {value}
+        </p>
+        {subtitle && (
+          <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>
+        )}
+      </CardContent>
     </Card>
   )
 }

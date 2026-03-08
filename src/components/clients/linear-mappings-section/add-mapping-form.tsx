@@ -1,5 +1,11 @@
 import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface SelectOption {
   id: string
@@ -34,35 +40,64 @@ export function AddMappingForm({
     <div className="space-y-3 rounded-lg border border-dashed border-border-input p-4">
       <p className="text-sm font-medium text-text-secondary">Add a mapping</p>
 
-      <Select
-        label="Team"
-        placeholder="Select a team"
-        value={selectedTeamId}
-        onChange={(e) => onTeamChange(e.target.value)}
-        options={teams.map((t) => ({ value: t.id, label: t.name }))}
-      />
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-muted-foreground">
+          Team
+        </label>
+        <Select
+          value={selectedTeamId || undefined}
+          onValueChange={(val) => {
+            if (val) onTeamChange(val)
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a team" />
+          </SelectTrigger>
+          <SelectContent>
+            {teams.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {selectedTeamId && (
-        <Select
-          label="Project"
-          placeholder={
-            isLoadingProjects ? "Loading projects..." : "Select a project"
-          }
-          value={selectedProjectId}
-          onChange={(e) => onProjectChange(e.target.value)}
-          disabled={isLoadingProjects}
-          options={availableProjects.map((p) => ({
-            value: p.id,
-            label: p.name,
-          }))}
-        />
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-muted-foreground">
+            Project
+          </label>
+          <Select
+            value={selectedProjectId || undefined}
+            onValueChange={(val) => {
+              if (val) onProjectChange(val)
+            }}
+            disabled={isLoadingProjects}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  isLoadingProjects ? "Loading projects..." : "Select a project"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {availableProjects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       <Button
         onClick={onAdd}
         isLoading={isSaving}
         disabled={!selectedTeamId && !selectedProjectId}
-        variant="secondary"
+        variant="outline"
       >
         Add Mapping
       </Button>

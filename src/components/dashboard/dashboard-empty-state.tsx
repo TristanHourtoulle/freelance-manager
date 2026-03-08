@@ -14,7 +14,7 @@ export function DashboardEmptyState() {
           <Button>Go to Clients</Button>
         </Link>
         <Link href="/tasks">
-          <Button variant="secondary">Go to Tasks</Button>
+          <Button variant="outline">Go to Tasks</Button>
         </Link>
       </div>
     </div>

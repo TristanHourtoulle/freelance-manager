@@ -2,9 +2,9 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Input } from "@/components/ui/input"
+import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   availableHoursSchema,
   type AvailableHoursInput,
@@ -44,22 +44,27 @@ export function AvailableHoursForm({
   }
 
   return (
-    <Card title="Working Hours">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Input
-          label="Available hours per month"
-          type="number"
-          {...register("availableHoursPerMonth", { valueAsNumber: true })}
-          error={errors.availableHoursPerMonth?.message}
-        />
-        <p className="text-sm text-text-secondary">
-          Default: 140h/month. Used to calculate your utilization rate in
-          analytics.
-        </p>
-        <Button type="submit" isLoading={isSubmitting}>
-          Save
-        </Button>
-      </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Working Hours</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            label="Available hours per month"
+            type="number"
+            {...register("availableHoursPerMonth", { valueAsNumber: true })}
+            error={errors.availableHoursPerMonth?.message}
+          />
+          <p className="text-sm text-text-secondary">
+            Default: 140h/month. Used to calculate your utilization rate in
+            analytics.
+          </p>
+          <Button type="submit" isLoading={isSubmitting}>
+            Save
+          </Button>
+        </form>
+      </CardContent>
     </Card>
   )
 }

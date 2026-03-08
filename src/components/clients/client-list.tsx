@@ -91,7 +91,7 @@ export function ClientList({
           </p>
           <div className="flex items-center gap-2">
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => onPageChange(pagination.page - 1)}
               disabled={pagination.page <= 1}
               className="text-xs"
@@ -102,7 +102,7 @@ export function ClientList({
               {pagination.page} / {pagination.totalPages}
             </span>
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={() => onPageChange(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
               className="text-xs"

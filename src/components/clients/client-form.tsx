@@ -1,11 +1,17 @@
 "use client"
 
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { FormField } from "@/components/ui/form-field"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { createClientSchema } from "@/lib/schemas/client"
 import { useToast } from "@/components/providers/toast-provider"
 
@@ -48,6 +54,7 @@ export function ClientForm({
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CreateClientInput>({
     resolver: zodResolver(createClientSchema) as Resolver<CreateClientInput>,
@@ -85,13 +92,13 @@ export function ClientForm({
       noValidate
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input
+        <FormField
           label="Name"
           placeholder="Client name"
           {...register("name")}
           error={errors.name?.message}
         />
-        <Input
+        <FormField
           label="Email"
           type="email"
           placeholder="client@example.com"
@@ -100,7 +107,7 @@ export function ClientForm({
         />
       </div>
 
-      <Input
+      <FormField
         label="Company"
         placeholder="Company name"
         {...register("company")}
@@ -108,13 +115,35 @@ export function ClientForm({
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Select
-          label="Billing Mode"
-          options={BILLING_MODE_OPTIONS}
-          {...register("billingMode")}
-          error={errors.billingMode?.message}
+        <Controller
+          name="billingMode"
+          control={control}
+          render={({ field }) => (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                Billing Mode
+              </label>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select billing mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BILLING_MODE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.billingMode?.message && (
+                <p className="text-sm text-destructive">
+                  {errors.billingMode.message}
+                </p>
+              )}
+            </div>
+          )}
         />
-        <Input
+        <FormField
           label="Rate"
           type="number"
           step="0.01"
@@ -125,11 +154,33 @@ export function ClientForm({
           })}
           error={errors.rate?.message}
         />
-        <Select
-          label="Category"
-          options={CATEGORY_OPTIONS}
-          {...register("category")}
-          error={errors.category?.message}
+        <Controller
+          name="category"
+          control={control}
+          render={({ field }) => (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                Category
+              </label>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.category?.message && (
+                <p className="text-sm text-destructive">
+                  {errors.category.message}
+                </p>
+              )}
+            </div>
+          )}
         />
       </div>
 
@@ -149,7 +200,7 @@ export function ClientForm({
       <div className="flex justify-end gap-3">
         <Button
           type="button"
-          variant="secondary"
+          variant="outline"
           onClick={() => router.push("/clients")}
         >
           Cancel

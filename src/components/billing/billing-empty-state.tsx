@@ -33,7 +33,7 @@ export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
         Mark tasks as billable from the Tasks page to see them here.
       </p>
       <Link href="/tasks" className="mt-4">
-        <Button variant="secondary">Go to Tasks</Button>
+        <Button variant="outline">Go to Tasks</Button>
       </Link>
     </div>
   )
