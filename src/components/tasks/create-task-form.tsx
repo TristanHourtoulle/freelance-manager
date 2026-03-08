@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { createLinearIssueSchema } from "@/lib/schemas/linear"
+import { useToast } from "@/components/providers/toast-provider"
 import { useState, useMemo, useEffect, useCallback } from "react"
 
 import type { Resolver } from "react-hook-form"
@@ -49,6 +50,7 @@ interface CreateTaskFormProps {
  */
 export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [apiError, setApiError] = useState("")
   const [metadata, setMetadata] = useState<TeamMetadata | null>(null)
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false)
@@ -87,18 +89,26 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
     },
   })
 
-  const fetchMetadata = useCallback(async (teamId: string) => {
-    setIsLoadingMetadata(true)
-    try {
-      const res = await fetch(`/api/linear/teams/${teamId}/metadata`)
-      if (res.ok) {
+  const fetchMetadata = useCallback(
+    async (teamId: string) => {
+      setIsLoadingMetadata(true)
+      try {
+        const res = await fetch(`/api/linear/teams/${teamId}/metadata`)
+        if (!res.ok) {
+          toast({
+            variant: "error",
+            title: "Failed to load team options",
+          })
+          return
+        }
         const data: TeamMetadata = await res.json()
         setMetadata(data)
+      } finally {
+        setIsLoadingMetadata(false)
       }
-    } finally {
-      setIsLoadingMetadata(false)
-    }
-  }, [])
+    },
+    [toast],
+  )
 
   useEffect(() => {
     if (selectedTeamId) {

@@ -50,7 +50,7 @@ export function TaskKanbanBoard({
       const existing = columnMap.get(statusName)
 
       if (existing) {
-        existing.tasks.push(task)
+        existing.tasks = [...existing.tasks, task]
       } else {
         columnMap.set(statusName, {
           status: task.status ?? {

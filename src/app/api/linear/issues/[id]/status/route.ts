@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod/v4"
 
+import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { updateLinearIssueStatus } from "@/lib/linear-service"
 
@@ -11,6 +12,7 @@ const updateStatusSchema = z.object({
 /**
  * PATCH /api/linear/issues/[id]/status
  * Updates the workflow status of a Linear issue.
+ * Verifies the authenticated user owns a client mapped to this issue's project.
  */
 export async function PATCH(
   request: NextRequest,
@@ -27,6 +29,22 @@ export async function PATCH(
 
     const body = await request.json()
     const { stateId } = updateStatusSchema.parse(body)
+
+    const hasAccess = await prisma.client.findFirst({
+      where: {
+        userId: userOrError.id,
+        linearMappings: { some: {} },
+      },
+      select: { id: true },
+    })
+
+    if (!hasAccess) {
+      return apiError(
+        "AUTH_FORBIDDEN",
+        "No Linear-mapped clients found for this user",
+        403,
+      )
+    }
 
     await updateLinearIssueStatus(id, stateId)
 

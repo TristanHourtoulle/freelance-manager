@@ -80,24 +80,25 @@ export function RichTextEditor({
     content: value ?? "",
     immediatelyRender: false,
     onUpdate: ({ editor: e }) => {
-      const storage = e.storage as unknown as Record<
-        string,
-        Record<string, unknown>
-      >
-      const md = (storage.markdown?.getMarkdown as () => string)()
-      onChange?.(md)
+      const getMarkdown = (
+        e.storage as unknown as Record<string, Record<string, unknown>>
+      ).markdown?.getMarkdown
+      if (typeof getMarkdown === "function") {
+        onChange?.(getMarkdown() as string)
+      }
     },
   })
 
   useEffect(() => {
     if (editor && value !== undefined) {
-      const storage = editor.storage as unknown as Record<
-        string,
-        Record<string, unknown>
-      >
-      const currentMd = (storage.markdown?.getMarkdown as () => string)()
-      if (currentMd !== value) {
-        editor.commands.setContent(value)
+      const getMarkdown = (
+        editor.storage as unknown as Record<string, Record<string, unknown>>
+      ).markdown?.getMarkdown
+      if (typeof getMarkdown === "function") {
+        const currentMd = getMarkdown() as string
+        if (currentMd !== value) {
+          editor.commands.setContent(value)
+        }
       }
     }
   }, [editor, value])
