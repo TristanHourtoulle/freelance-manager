@@ -22,6 +22,11 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Two-level collapsible list of invoiced tasks grouped first by month, then by client.
+ * Each client group expands to show a task detail table.
+ * Used on the billing history page.
+ */
 export function HistoryMonthList({ months }: HistoryMonthListProps) {
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set())
   const [collapsedClients, setCollapsedClients] = useState<Set<string>>(

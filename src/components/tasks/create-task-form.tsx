@@ -12,6 +12,7 @@ import { useState, useMemo } from "react"
 import type { Resolver } from "react-hook-form"
 import type { CreateLinearIssueInput } from "@/lib/schemas/linear"
 
+/** A Linear project associated with a client via a mapping. */
 export interface MappedProject {
   projectId: string
   projectName: string
@@ -23,6 +24,11 @@ interface CreateTaskFormProps {
   mappedProjects: MappedProject[]
 }
 
+/**
+ * Form for creating a new Linear issue from within the app.
+ * Validates input with Zod and posts to the Linear issues API.
+ * Used on the /tasks/new page.
+ */
 export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
   const router = useRouter()
   const [apiError, setApiError] = useState("")

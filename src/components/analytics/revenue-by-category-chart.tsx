@@ -23,6 +23,7 @@ interface RevenueByCategoryChartProps {
   data: RevenueByCategory[]
 }
 
+/** Donut pie chart displaying revenue split by client category. Used on the analytics page. */
 export function RevenueByCategoryChart({ data }: RevenueByCategoryChartProps) {
   return (
     <Card title="Revenue by Category">

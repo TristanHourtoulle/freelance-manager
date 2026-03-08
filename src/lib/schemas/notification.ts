@@ -1,5 +1,6 @@
 import { z } from "zod/v4"
 
+/** Allowed notification type identifiers. */
 export const notificationTypeSchema = z.enum([
   "BILLING_REMINDER",
   "INACTIVE_CLIENT",
@@ -14,6 +15,7 @@ const booleanFromString = z
     return val === "true" || val === "1"
   })
 
+/** Validates query parameters for the notification list endpoint. */
 export const notificationFilterSchema = z.object({
   unreadOnly: booleanFromString.default(true),
   type: notificationTypeSchema.optional(),

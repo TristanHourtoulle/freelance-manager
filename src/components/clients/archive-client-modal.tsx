@@ -11,6 +11,7 @@ interface ArchiveClientModalProps {
   isLoading: boolean
 }
 
+/** Confirmation modal for archiving or unarchiving a client. Used on the clients page. */
 export function ArchiveClientModal({
   clientName,
   isArchived,

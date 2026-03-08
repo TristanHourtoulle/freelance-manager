@@ -5,6 +5,11 @@ import { BellIcon } from "@heroicons/react/24/outline"
 import { useNotifications } from "./use-notifications"
 import { NotificationPanel } from "./notification-panel"
 
+/**
+ * Bell icon button that toggles the notification panel dropdown.
+ * Displays an unread count badge when there are unread notifications.
+ * Used in `AppHeader` and `SidebarNav`.
+ */
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)

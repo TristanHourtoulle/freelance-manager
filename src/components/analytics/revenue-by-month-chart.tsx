@@ -16,6 +16,7 @@ interface RevenueByMonthChartProps {
   data: RevenueByMonth[]
 }
 
+/** Vertical bar chart displaying monthly revenue over the selected period. Used on the analytics page. */
 export function RevenueByMonthChart({ data }: RevenueByMonthChartProps) {
   return (
     <Card title="Revenue by Month">

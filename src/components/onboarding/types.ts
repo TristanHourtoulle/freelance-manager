@@ -1,3 +1,4 @@
+/** Boolean flags for each onboarding step completion. */
 export interface OnboardingSteps {
   hasClient: boolean
   hasBillingDefaults: boolean
@@ -6,6 +7,7 @@ export interface OnboardingSteps {
   hasInvoiced: boolean
 }
 
+/** Aggregated onboarding progress with step flags, counts, and completion status. */
 export interface OnboardingStatus {
   steps: OnboardingSteps
   completedCount: number
@@ -13,6 +15,7 @@ export interface OnboardingStatus {
   allCompleted: boolean
 }
 
+/** Configuration for a single onboarding step (label, description, CTA link). */
 export interface OnboardingStepConfig {
   key: keyof OnboardingSteps
   label: string

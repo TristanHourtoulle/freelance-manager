@@ -1,5 +1,6 @@
 import type { ClientTaskGroup } from "@/components/tasks/types"
 
+/** Response shape from the uninvoiced billing API endpoint. */
 export interface BillingApiResponse {
   groups: ClientTaskGroup[]
   grandTotal: number
@@ -11,6 +12,7 @@ export interface BillingApiResponse {
   }
 }
 
+/** A group of invoiced tasks for a single calendar month. */
 export interface HistoryMonthGroup {
   month: string
   label: string
@@ -19,6 +21,7 @@ export interface HistoryMonthGroup {
   taskCount: number
 }
 
+/** Response shape from the billing history API endpoint. */
 export interface HistoryApiResponse {
   months: HistoryMonthGroup[]
   grandTotal: number

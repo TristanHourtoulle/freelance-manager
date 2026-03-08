@@ -28,6 +28,13 @@ interface TimeByClientChartProps {
   onClientClick?: (clientId: string, clientName: string) => void
 }
 
+/**
+ * Donut pie chart displaying billed hours per client.
+ * Clicking a client slice navigates to the per-project drill-down.
+ * Used on the analytics page.
+ *
+ * @param onClientClick - Callback fired when a pie slice is clicked, receives the client id and name.
+ */
 export function TimeByClientChart({
   data,
   onClientClick,

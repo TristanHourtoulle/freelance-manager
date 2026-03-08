@@ -12,6 +12,13 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/**
+ * GET /api/clients/:id
+ * Retrieves a single client by ID.
+ * @returns 200 - The `SerializedClient`
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client not found
+ */
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -33,6 +40,14 @@ export async function GET(request: Request, context: RouteContext) {
   }
 }
 
+/**
+ * PUT /api/clients/:id
+ * Updates an existing client by ID.
+ * @returns 200 - The updated `SerializedClient`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ * @throws 404 - Client not found
+ */
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -62,6 +77,13 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 }
 
+/**
+ * DELETE /api/clients/:id
+ * Permanently deletes a client by ID.
+ * @returns 204 - No content
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client not found
+ */
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

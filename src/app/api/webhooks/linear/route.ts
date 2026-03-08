@@ -13,6 +13,14 @@ import {
   verifyLinearWebhookSignature,
 } from "@/lib/linear-webhook"
 
+/**
+ * POST /api/webhooks/linear
+ * Handles incoming Linear webhook events. Verifies the signature, clears
+ * caches on issue events, and deletes overrides when issues are removed.
+ * @returns 200 - `{ success: true }`
+ * @throws 401 - Missing or invalid webhook signature
+ * @throws 400 - Malformed JSON or invalid payload
+ */
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const rawBody = await request.text()

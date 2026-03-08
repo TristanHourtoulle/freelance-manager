@@ -20,6 +20,7 @@ function getBarColor(rate: number): string {
   return "bg-green-600"
 }
 
+/** Gauge card displaying the overall utilization rate as a percentage with a progress bar. Used on the analytics page. */
 export function UtilizationGauge({ utilization }: UtilizationGaugeProps) {
   const clampedWidth = Math.min(utilization.rate, 100)
 

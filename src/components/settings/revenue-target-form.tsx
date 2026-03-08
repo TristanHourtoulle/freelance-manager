@@ -17,6 +17,13 @@ interface RevenueTargetFormProps {
   onSave: (value: number) => Promise<void>
 }
 
+/**
+ * Form for setting the monthly revenue target in EUR.
+ * Used on the `/settings` page.
+ *
+ * @param defaultValue - Current revenue target
+ * @param onSave - Callback to persist the new value
+ */
 export function RevenueTargetForm({
   defaultValue,
   onSave,

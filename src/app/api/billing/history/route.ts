@@ -23,6 +23,14 @@ type OverrideWithClient = TaskOverride & {
   client: Client & { linearMappings: LinearMapping[] }
 }
 
+/**
+ * GET /api/billing/history
+ * Returns invoiced tasks grouped by month and client, with totals.
+ * Defaults to the last 6 months if no date range is provided.
+ * @returns 200 - `{ months: HistoryMonthGroup[], grandTotal }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

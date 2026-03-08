@@ -21,6 +21,15 @@ type OverrideWithClient = TaskOverride & {
   client: Client & { linearMappings: LinearMapping[] }
 }
 
+/**
+ * GET /api/billing
+ * Returns the billing pipeline: tasks marked toInvoice but not yet invoiced,
+ * grouped by client with pagination. Enriches each task with Linear issue data
+ * and billing calculations.
+ * @returns 200 - `{ groups: ClientTaskGroup[], grandTotal, pagination }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

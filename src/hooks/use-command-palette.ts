@@ -7,8 +7,10 @@ import { NAV_ITEMS, ACTION_ITEMS } from "@/lib/navigation"
 import { fuzzyFilter } from "@/lib/fuzzy-match"
 import type { NavItem, ActionItem } from "@/lib/navigation"
 
+/** Discriminator for the kind of item displayed in the command palette. */
 export type CommandItemType = "page" | "action" | "client" | "task"
 
+/** A single actionable item in the command palette (page link, action, client, or task). */
 export interface CommandItem {
   id: string
   label: string
@@ -19,6 +21,7 @@ export interface CommandItem {
   comingSoon?: boolean
 }
 
+/** A titled group of command items displayed as a section in the palette. */
 export interface CommandSection {
   title: string
   items: CommandItem[]
@@ -56,6 +59,15 @@ function actionToCommand(item: ActionItem): CommandItem {
   }
 }
 
+/**
+ * Manages the global command palette (Cmd+K / Ctrl+K).
+ * Handles open/close state, fuzzy filtering of pages and actions,
+ * debounced API search for clients and tasks, and keyboard navigation.
+ *
+ * @returns Object with `isOpen`, `open`, `close`, `query`, `setQuery`, `sections`,
+ *   `allItems`, `activeIndex`, `setActiveIndex`, `executeItem`, `handleKeyDown`,
+ *   `inputRef`, and `isSyncing`
+ */
 export function useCommandPalette() {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)

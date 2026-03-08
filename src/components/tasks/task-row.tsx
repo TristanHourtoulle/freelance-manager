@@ -28,6 +28,11 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Single table row for an enriched task with inline-editable estimate and rate fields,
+ * billable/invoiced toggles, and a link to the task detail page.
+ * Used inside TaskTable.
+ */
 export function TaskRow({
   task,
   clientRate,

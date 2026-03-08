@@ -43,6 +43,11 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Collapsible accordion of task groups organized by client.
+ * Each group expands to a TaskTable with inline editing for estimates, rates, and invoicing.
+ * Used on the tasks page.
+ */
 export function TaskGroupList({
   groups,
   onToggleToInvoice,

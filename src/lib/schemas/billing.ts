@@ -2,6 +2,7 @@ import { z } from "zod/v4"
 
 import { categoryFilterField } from "./category-filter"
 
+/** Validates query parameters for the billing overview endpoint. */
 export const billingFilterSchema = z.object({
   clientId: z.string().optional(),
   category: categoryFilterField,
@@ -11,10 +12,12 @@ export const billingFilterSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 })
 
+/** Validates the request body when marking Linear issues as invoiced. */
 export const markInvoicedSchema = z.object({
   linearIssueIds: z.array(z.string().min(1)).min(1),
 })
 
+/** Validates query parameters for the billing history endpoint. */
 export const historyFilterSchema = z.object({
   clientId: z.string().optional(),
   dateFrom: z.coerce.date().optional(),

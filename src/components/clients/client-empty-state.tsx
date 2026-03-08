@@ -5,6 +5,10 @@ interface ClientEmptyStateProps {
   hasFilters: boolean
 }
 
+/**
+ * Placeholder shown on the clients page when no clients exist or match current filters.
+ * @param hasFilters - Whether active filters are narrowing the result set.
+ */
 export function ClientEmptyState({ hasFilters }: ClientEmptyStateProps) {
   if (hasFilters) {
     return (

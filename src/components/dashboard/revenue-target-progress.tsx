@@ -6,6 +6,10 @@ interface RevenueTargetProgressProps {
   target: number
 }
 
+/**
+ * Progress bar card showing current monthly revenue vs. the user-defined target.
+ * Returns null when no target is configured. Used on the dashboard.
+ */
 export function RevenueTargetProgress({
   currentRevenue,
   target,

@@ -12,6 +12,15 @@ import type {
   ClientSummary,
 } from "@/components/tasks/types"
 
+/**
+ * GET /api/tasks
+ * Lists Linear issues grouped by client, enriched with billing calculations
+ * and override state. Supports filtering by client, category, and preset
+ * (active, done, backlog, to-invoice).
+ * @returns 200 - `{ groups: ClientTaskGroup[], lastSyncAt, lastWebhookReceivedAt }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

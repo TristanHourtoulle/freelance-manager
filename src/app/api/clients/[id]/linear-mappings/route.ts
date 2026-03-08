@@ -7,6 +7,13 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/**
+ * GET /api/clients/:id/linear-mappings
+ * Lists all Linear mappings (team/project associations) for a client.
+ * @returns 200 - `LinearMapping[]`
+ * @throws 401 - Unauthenticated request
+ * @throws 404 - Client not found
+ */
 export async function GET(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -33,6 +40,15 @@ export async function GET(request: Request, context: RouteContext) {
   }
 }
 
+/**
+ * POST /api/clients/:id/linear-mappings
+ * Creates a new Linear mapping for a client (team or project association).
+ * @returns 201 - The created `LinearMapping`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ * @throws 404 - Client not found
+ * @throws 409 - Duplicate mapping
+ */
 export async function POST(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

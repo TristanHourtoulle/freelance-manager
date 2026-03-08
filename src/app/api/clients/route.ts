@@ -9,6 +9,14 @@ import { NextResponse } from "next/server"
 
 import type { Prisma } from "@/generated/prisma/client"
 
+/**
+ * GET /api/clients
+ * Lists clients with filtering, sorting, and pagination. Supports sorting by
+ * name, createdAt, revenue, or lastActivity.
+ * @returns 200 - `{ items: SerializedClient[], pagination: { page, limit, total, totalPages } }`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter/sort parameters
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -172,6 +180,13 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST /api/clients
+ * Creates a new client for the authenticated user.
+ * @returns 201 - The created `SerializedClient`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ */
 export async function POST(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

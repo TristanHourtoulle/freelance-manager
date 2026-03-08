@@ -9,6 +9,10 @@ interface HistoryFiltersProps {
   clients: ClientSummary[]
 }
 
+/**
+ * Filter bar for the billing history page.
+ * Provides client and date-range filters synced to URL search params.
+ */
 export function HistoryFilters({ clients }: HistoryFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()

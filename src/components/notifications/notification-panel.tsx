@@ -47,6 +47,14 @@ function formatRelativeTime(date: string | Date): string {
   return `${Math.floor(diffHours / 24)}d ago`
 }
 
+/**
+ * Scrollable panel listing notifications with type-specific icons and relative timestamps.
+ * Supports marking individual notifications as read and bulk dismiss.
+ *
+ * @param notifications - Array of notification records
+ * @param onMarkAsRead - Callback to mark a single notification as read
+ * @param onDismissAll - Callback to mark all notifications as read
+ */
 export function NotificationPanel({
   notifications,
   onMarkAsRead,

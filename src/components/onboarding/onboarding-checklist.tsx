@@ -47,6 +47,12 @@ interface OnboardingChecklistProps {
   onboardingStatus: OnboardingStatus | null
 }
 
+/**
+ * Displays the getting-started checklist with a progress bar.
+ * Hidden once all steps are completed. Used on the `/dashboard` page.
+ *
+ * @param onboardingStatus - Current onboarding progress (null hides the checklist)
+ */
 export function OnboardingChecklist({
   onboardingStatus,
 }: OnboardingChecklistProps) {

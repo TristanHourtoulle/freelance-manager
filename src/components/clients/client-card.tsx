@@ -41,6 +41,7 @@ interface ClientCardProps {
   onArchive: (id: string) => void
 }
 
+/** Grid-view card displaying a client summary (name, billing, revenue, activity). Used by ClientList in grid mode. */
 export function ClientCard({ client, onArchive }: ClientCardProps) {
   const isArchived = Boolean(client.archivedAt)
 

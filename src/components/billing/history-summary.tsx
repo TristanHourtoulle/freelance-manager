@@ -14,6 +14,7 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/** Summary bar showing aggregate stats (months, clients, tasks, grand total) for the billing history page. */
 export function HistorySummary({
   monthCount,
   clientCount,

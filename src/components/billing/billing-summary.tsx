@@ -18,6 +18,10 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
+/**
+ * Summary bar showing aggregate billing stats (clients, tasks, grand total) and a
+ * "Mark as invoiced" action button. Used on the billing page.
+ */
 export function BillingSummary({
   groupCount,
   taskCount,

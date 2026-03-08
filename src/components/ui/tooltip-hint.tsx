@@ -15,6 +15,13 @@ function getStorageValue(key: string): boolean {
   return localStorage.getItem(`${STORAGE_PREFIX}${key}`) === "1"
 }
 
+/**
+ * Dismissible hint banner persisted via localStorage.
+ * Once dismissed, it never reappears for the same storageKey.
+ * Used to display one-time onboarding or contextual tips.
+ *
+ * @param storageKey - Unique key used to track dismissal state in localStorage
+ */
 export function TooltipHint({ storageKey, children }: TooltipHintProps) {
   const [isDismissed, setIsDismissed] = useState(() =>
     getStorageValue(storageKey),

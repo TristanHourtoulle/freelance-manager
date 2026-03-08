@@ -7,6 +7,14 @@ interface RouteContext {
   params: Promise<{ linearIssueId: string }>
 }
 
+/**
+ * PATCH /api/tasks/:linearIssueId/override
+ * Creates or updates a task override (toInvoice, invoiced, rateOverride) for a Linear issue.
+ * @returns 200 - The upserted `TaskOverride` with serialized `rateOverride`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ * @throws 404 - Client not found
+ */
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const userOrError = await getAuthenticatedUser(request)

@@ -15,6 +15,11 @@ interface TaskFiltersProps {
   clients: ClientSummary[]
 }
 
+/**
+ * Filter toolbar for the tasks page.
+ * Provides preset tabs (active, billable, invoiced, all), client dropdown, and category filter.
+ * All filter state is synced to URL search params.
+ */
 export function TaskFilters({ clients }: TaskFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()

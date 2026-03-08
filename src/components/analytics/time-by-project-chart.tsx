@@ -34,6 +34,13 @@ interface TimeByProjectChartProps {
   onBack: () => void
 }
 
+/**
+ * Horizontal bar chart showing billed hours per project for a single client.
+ * Fetches project data from the API on mount. Displayed as a drill-down from TimeByClientChart.
+ * Used on the analytics page.
+ *
+ * @param onBack - Callback to navigate back to the client-level view.
+ */
 export function TimeByProjectChart({
   clientId,
   clientName,

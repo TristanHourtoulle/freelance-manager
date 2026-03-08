@@ -17,6 +17,7 @@ interface UtilizationTrendChartProps {
   data: UtilizationMonth[]
 }
 
+/** Bar chart showing monthly utilization rate over time with a 100% reference line. Used on the analytics page. */
 export function UtilizationTrendChart({ data }: UtilizationTrendChartProps) {
   return (
     <Card title="Monthly Utilization">

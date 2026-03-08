@@ -1,3 +1,4 @@
+/** Aggregated KPI data returned by the dashboard API. */
 export interface DashboardKPIs {
   pipeline: number
   monthlyRevenue: number

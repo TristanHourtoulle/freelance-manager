@@ -6,6 +6,7 @@ interface KpiCardProps {
   subtitle?: string
 }
 
+/** Single metric card displaying a title, large value, and optional subtitle. Used on the dashboard. */
 export function KpiCard({ title, value, subtitle }: KpiCardProps) {
   return (
     <Card>

@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
+/** Loading skeleton for the KPI cards row on the dashboard. */
 export function KpiCardsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-3">

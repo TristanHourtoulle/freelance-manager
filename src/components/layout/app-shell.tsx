@@ -12,6 +12,13 @@ interface AppShellProps {
   children: React.ReactNode
 }
 
+/**
+ * Root layout shell for authenticated pages.
+ * Renders the sidebar, header, command palette, and toast provider.
+ *
+ * @param userName - Authenticated user's display name
+ * @param userEmail - Authenticated user's email
+ */
 export function AppShell({ userName, userEmail, children }: AppShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 

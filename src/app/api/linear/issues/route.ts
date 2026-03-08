@@ -12,6 +12,14 @@ import {
 } from "@/lib/schemas/linear"
 import { NextResponse } from "next/server"
 
+/**
+ * GET /api/linear/issues
+ * Fetches Linear issues with optional team/project filters.
+ * @returns 200 - `LinearIssue[]`
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid filter parameters
+ * @throws 502 - Linear API error
+ */
 export async function GET(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)
@@ -35,6 +43,16 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST /api/linear/issues
+ * Creates a new issue in Linear. The target project must be mapped to one of
+ * the authenticated user's clients.
+ * @returns 201 - The created Linear issue
+ * @throws 401 - Unauthenticated request
+ * @throws 400 - Invalid request body
+ * @throws 403 - Project is not mapped to any client
+ * @throws 502 - Linear API error
+ */
 export async function POST(request: Request) {
   try {
     const userOrError = await getAuthenticatedUser(request)

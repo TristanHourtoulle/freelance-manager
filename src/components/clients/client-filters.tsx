@@ -19,6 +19,11 @@ interface ClientFiltersProps {
   onViewChange: (view: "grid" | "list") => void
 }
 
+/**
+ * Filter toolbar for the clients page.
+ * Provides search, sort, category, archived toggle, and grid/list view switch.
+ * All filter state is synced to URL search params.
+ */
 export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
