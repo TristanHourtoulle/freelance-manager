@@ -62,6 +62,7 @@ export interface LinearIssueDTO {
   assignee: LinearIssueAssigneeDTO | undefined
   labels: LinearIssueLabelDTO[]
   projectId: string | undefined
+  projectName: string | undefined
   teamId: string | undefined
 }
 
@@ -188,6 +189,7 @@ export async function createLinearIssue(input: {
       color: label.color,
     })),
     projectId: project?.id ?? undefined,
+    projectName: project?.name ?? undefined,
     teamId: team?.id ?? undefined,
   }
 }
@@ -706,7 +708,7 @@ interface RawIssueResponse {
           color: string
         }>
       }
-      project: { id: string } | null
+      project: { id: string; name: string } | null
       team: { id: string } | null
     }>
   }
@@ -770,6 +772,7 @@ export async function fetchLinearIssues(filters: {
           }
           project {
             id
+            name
           }
           team {
             id
@@ -819,6 +822,7 @@ export async function fetchLinearIssues(filters: {
       color: label.color,
     })),
     projectId: node.project?.id ?? undefined,
+    projectName: node.project?.name ?? undefined,
     teamId: node.team?.id ?? undefined,
   }))
 

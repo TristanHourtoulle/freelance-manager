@@ -136,7 +136,6 @@ export function LinearMappingsSection({
 
     if (res.ok) {
       toast({ variant: "success", title: "Mapping added" })
-      setSelectedTeamId("")
       setSelectedProjectId("")
       const mappingsRes = await fetch(
         `/api/clients/${clientId}/linear-mappings`,
@@ -178,8 +177,12 @@ export function LinearMappingsSection({
   )
 
   const projectLookup = useMemo(
-    () => new Map(allProjects.map((p) => [p.id, p.name])),
-    [allProjects],
+    () =>
+      new Map([
+        ...allProjects.map((p) => [p.id, p.name] as const),
+        ...projects.map((p) => [p.id, p.name] as const),
+      ]),
+    [allProjects, projects],
   )
 
   const availableProjects = useMemo(() => {

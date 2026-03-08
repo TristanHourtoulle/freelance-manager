@@ -26,6 +26,7 @@ export interface EnrichedTask {
   priorityLabel: string
   billingAmount: number
   billingFormula: string
+  projectName: string | undefined
   toInvoice: boolean
   invoiced: boolean
   rateOverride: number | null

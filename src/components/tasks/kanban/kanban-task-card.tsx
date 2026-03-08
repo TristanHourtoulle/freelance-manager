@@ -56,6 +56,11 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
       </p>
       <p className="text-sm font-medium mt-1 line-clamp-2">{task.title}</p>
       <p className="text-xs text-muted-foreground mt-1">{task.clientName}</p>
+      {task.projectName && (
+        <p className="text-xs text-muted-foreground/70 mt-0.5">
+          {task.projectName}
+        </p>
+      )}
       <div className="flex items-center justify-between mt-2">
         {task.estimate !== undefined ? (
           <span className="text-xs text-muted-foreground">
