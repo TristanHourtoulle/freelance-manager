@@ -15,6 +15,25 @@ const eslintConfig = defineConfig([
     // Generated code
     "src/generated/**",
   ]),
+  {
+    // Restrict lucide-react imports to shadcn/ui components only
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/components/ui/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message:
+                "Use @heroicons/react instead. lucide-react is reserved for internal shadcn/ui components.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
