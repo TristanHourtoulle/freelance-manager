@@ -3,8 +3,8 @@
 import { useState, useMemo, useCallback } from "react"
 import {
   DndContext,
-  closestCorners,
   DragOverlay,
+  pointerWithin,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core"
@@ -29,11 +29,7 @@ interface StatusColumn {
 
 interface TaskKanbanBoardProps {
   tasks: KanbanTask[]
-  onStatusChange: (
-    linearIssueId: string,
-    newStatusName: string,
-    newStatusId: string,
-  ) => void
+  onStatusChange: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 /**
@@ -75,17 +71,33 @@ export function TaskKanbanBoard({
     })
   }, [tasks])
 
-  /** Lookup from status name to status ID, derived from the first task in each column. */
-  const statusIdByName = useMemo(() => {
+  /** Set of all column droppable IDs (status names). */
+  const columnNames = useMemo(
+    () => new Set(columns.map((c) => c.status.name)),
+    [columns],
+  )
+
+  /** Lookup from task ID to its column's status name. */
+  const taskColumnMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const task of tasks) {
-      const name = task.status?.name
-      if (name && task.status?.id && !map.has(name)) {
-        map.set(name, task.status.id)
+    for (const col of columns) {
+      for (const task of col.tasks) {
+        map.set(task.linearIssueId, col.status.name)
       }
     }
     return map
-  }, [tasks])
+  }, [columns])
+
+  /** Lookup from status name to full status DTO. */
+  const statusByName = useMemo(() => {
+    const map = new Map<string, TaskStatusDTO>()
+    for (const col of columns) {
+      if (!map.has(col.status.name)) {
+        map.set(col.status.name, col.status)
+      }
+    }
+    return map
+  }, [columns])
 
   const activeTask = useMemo(
     () => tasks.find((t) => t.linearIssueId === activeTaskId) ?? null,
@@ -104,7 +116,14 @@ export function TaskKanbanBoard({
       if (!over) return
 
       const taskId = active.id as string
-      const targetColumnName = over.id as string
+      const overId = over.id as string
+
+      // Resolve target column: over.id can be a column name or a task ID
+      const targetColumnName = columnNames.has(overId)
+        ? overId
+        : taskColumnMap.get(overId)
+
+      if (!targetColumnName) return
 
       const draggedTask = tasks.find((t) => t.linearIssueId === taskId)
       if (!draggedTask) return
@@ -112,17 +131,17 @@ export function TaskKanbanBoard({
       const currentStatus = draggedTask.status?.name ?? "No Status"
       if (currentStatus === targetColumnName) return
 
-      const targetStatusId = statusIdByName.get(targetColumnName)
-      if (!targetStatusId) return
+      const targetStatus = statusByName.get(targetColumnName)
+      if (!targetStatus || !targetStatus.id) return
 
-      onStatusChange(taskId, targetColumnName, targetStatusId)
+      onStatusChange(taskId, targetStatus)
     },
-    [tasks, onStatusChange, statusIdByName],
+    [tasks, onStatusChange, statusByName, columnNames, taskColumnMap],
   )
 
   return (
     <DndContext
-      collisionDetection={closestCorners}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >

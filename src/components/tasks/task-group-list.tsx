@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 
 import { TaskTable } from "./task-table"
 
-import type { ClientTaskGroup } from "./types"
+import type { ClientTaskGroup, TaskStatusDTO } from "./types"
 
 interface TaskGroupListProps {
   groups: ClientTaskGroup[]
+  availableStatuses: TaskStatusDTO[]
   onToggleToInvoice: (
     clientId: string,
     linearIssueId: string,
@@ -31,6 +32,7 @@ interface TaskGroupListProps {
     linearIssueId: string,
     rate: number | null,
   ) => void
+  onStatusChange: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -54,10 +56,12 @@ function formatAmount(amount: number): string {
  */
 export function TaskGroupList({
   groups,
+  availableStatuses,
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
   onUpdateRate,
+  onStatusChange,
 }: TaskGroupListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -120,6 +124,7 @@ export function TaskGroupList({
                   tasks={group.tasks}
                   clientRate={group.client.rate}
                   billingMode={group.client.billingMode}
+                  availableStatuses={availableStatuses}
                   onToggleToInvoice={(issueId, value) =>
                     onToggleToInvoice(group.client.id, issueId, value)
                   }
@@ -132,6 +137,7 @@ export function TaskGroupList({
                   onUpdateRate={(issueId, rate) =>
                     onUpdateRate(group.client.id, issueId, rate)
                   }
+                  onStatusChange={onStatusChange}
                 />
               </div>
             )}

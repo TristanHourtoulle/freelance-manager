@@ -8,16 +8,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { TableRow, TableCell } from "@/components/ui/table"
 
 import { TaskStatusBadge } from "./task-status-badge"
-import type { EnrichedTask } from "./types"
+import { TaskStatusPicker } from "./task-status-picker"
+import type { EnrichedTask, TaskStatusDTO } from "./types"
 
 interface TaskRowProps {
   task: EnrichedTask
   clientRate?: number
   billingMode?: string
+  availableStatuses?: TaskStatusDTO[]
   onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
   onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
   onUpdateEstimate?: (linearIssueId: string, estimate: number) => void
   onUpdateRate?: (linearIssueId: string, rate: number | null) => void
+  onStatusChange?: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 function formatEstimate(estimate: number | undefined): string {
@@ -41,10 +44,12 @@ export function TaskRow({
   task,
   clientRate,
   billingMode,
+  availableStatuses,
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
   onUpdateRate,
+  onStatusChange,
 }: TaskRowProps) {
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [editValue, setEditValue] = useState("")
@@ -155,7 +160,15 @@ export function TaskRow({
         {task.title}
       </TableCell>
       <TableCell>
-        {task.status ? (
+        {task.status && availableStatuses && onStatusChange ? (
+          <TaskStatusPicker
+            currentStatus={task.status}
+            availableStatuses={availableStatuses}
+            onStatusChange={(newStatus) =>
+              onStatusChange(task.linearIssueId, newStatus)
+            }
+          />
+        ) : task.status ? (
           <TaskStatusBadge status={task.status} />
         ) : (
           <span className="text-xs text-text-muted">-</span>

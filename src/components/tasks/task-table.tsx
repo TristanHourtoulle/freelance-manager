@@ -14,7 +14,7 @@ import {
 
 import { TaskRow } from "./task-row"
 
-import type { EnrichedTask } from "./types"
+import type { EnrichedTask, TaskStatusDTO } from "./types"
 
 type SortField = "identifier" | "title" | "estimate" | "amount"
 type SortDirection = "asc" | "desc"
@@ -23,10 +23,12 @@ interface TaskTableProps {
   tasks: EnrichedTask[]
   clientRate?: number
   billingMode?: string
+  availableStatuses?: TaskStatusDTO[]
   onToggleToInvoice?: (linearIssueId: string, value: boolean) => void
   onToggleInvoiced?: (linearIssueId: string, value: boolean) => void
   onUpdateEstimate?: (linearIssueId: string, estimate: number) => void
   onUpdateRate?: (linearIssueId: string, rate: number | null) => void
+  onStatusChange?: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
 function compareTasks(
@@ -62,10 +64,12 @@ export function TaskTable({
   tasks,
   clientRate,
   billingMode,
+  availableStatuses,
   onToggleToInvoice,
   onToggleInvoiced,
   onUpdateEstimate,
   onUpdateRate,
+  onStatusChange,
 }: TaskTableProps) {
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
@@ -195,10 +199,12 @@ export function TaskTable({
               task={task}
               clientRate={clientRate}
               billingMode={billingMode}
+              availableStatuses={availableStatuses}
               onToggleToInvoice={onToggleToInvoice}
               onToggleInvoiced={onToggleInvoiced}
               onUpdateEstimate={onUpdateEstimate}
               onUpdateRate={onUpdateRate}
+              onStatusChange={onStatusChange}
             />
           ))}
           {filteredAndSortedTasks.length === 0 && search && (

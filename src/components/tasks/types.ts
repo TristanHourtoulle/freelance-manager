@@ -85,6 +85,7 @@ export interface KanbanTask extends EnrichedTask {
 /** Response shape from the tasks list API endpoint. */
 export interface TasksApiResponse {
   groups: ClientTaskGroup[]
+  allStatuses: TaskStatusDTO[]
   lastSyncedAt: number | null
   isStale: boolean
 }

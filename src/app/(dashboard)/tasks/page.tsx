@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,12 +15,22 @@ import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 import { useToast } from "@/components/providers/toast-provider"
-import { useTasks, useRefreshLinear } from "@/hooks/use-tasks"
+import {
+  useTasks,
+  useRefreshLinear,
+  useUpdateTaskStatus,
+} from "@/hooks/use-tasks"
 
-import type { ClientSummary, KanbanTask } from "@/components/tasks/types"
+import type {
+  ClientSummary,
+  KanbanTask,
+  TaskStatusDTO,
+  TasksApiResponse,
+} from "@/components/tasks/types"
 
 export default function TasksPage() {
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const { toast } = useToast()
   const [view, setView] = useState<TaskView>(() => {
     if (typeof window !== "undefined") {
@@ -108,26 +119,43 @@ export default function TasksPage() {
     [toast],
   )
 
-  const handleStatusChange = useCallback(
-    async (
-      linearIssueId: string,
-      _newStatusName: string,
-      newStatusId: string,
-    ) => {
-      const res = await fetch(`/api/linear/issues/${linearIssueId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stateId: newStatusId }),
-      })
+  const statusMutation = useUpdateTaskStatus()
 
-      if (res.ok) {
-        toast({ variant: "success", title: "Status updated" })
-      } else {
-        toast({ variant: "error", title: "Failed to update status" })
+  const handleStatusChange = useCallback(
+    (linearIssueId: string, newStatus: TaskStatusDTO) => {
+      const queryKey = ["tasks", searchParams.toString()]
+      const previous = queryClient.getQueryData<TasksApiResponse>(queryKey)
+
+      if (previous) {
+        queryClient.setQueryData<TasksApiResponse>(queryKey, {
+          ...previous,
+          groups: previous.groups.map((g) => ({
+            ...g,
+            tasks: g.tasks.map((t) =>
+              t.linearIssueId === linearIssueId
+                ? { ...t, status: newStatus }
+                : t,
+            ),
+          })),
+        })
       }
+
+      statusMutation.mutate(
+        { linearIssueId, stateId: newStatus.id },
+        {
+          onError: () => {
+            if (previous) {
+              queryClient.setQueryData(queryKey, previous)
+            }
+            toast({ variant: "error", title: "Failed to update status" })
+          },
+        },
+      )
     },
-    [toast],
+    [searchParams, queryClient, statusMutation, toast],
   )
+
+  const availableStatuses: TaskStatusDTO[] = data?.allStatuses ?? []
 
   const allClients: ClientSummary[] = groups.map((g) => g.client)
   const hasFilters = Boolean(
@@ -190,10 +218,12 @@ export default function TasksPage() {
           {view === "list" ? (
             <TaskGroupList
               groups={groups}
+              availableStatuses={availableStatuses}
               onToggleToInvoice={handleToggleToInvoice}
               onToggleInvoiced={handleToggleInvoiced}
               onUpdateEstimate={handleUpdateEstimate}
               onUpdateRate={handleUpdateRate}
+              onStatusChange={handleStatusChange}
             />
           ) : (
             <TaskKanbanBoard

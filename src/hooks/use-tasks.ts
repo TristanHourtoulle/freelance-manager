@@ -67,6 +67,33 @@ export function useUpdateTaskOverride() {
 }
 
 /**
+ * Updates a task's workflow status in Linear.
+ */
+export function useUpdateTaskStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      linearIssueId,
+      stateId,
+    }: {
+      linearIssueId: string
+      stateId: string
+    }) => {
+      const res = await fetch(`/api/linear/issues/${linearIssueId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stateId }),
+      })
+      if (!res.ok) throw new Error("Failed to update status")
+    },
+    // No onSuccess invalidation -- the caller handles optimistic updates.
+    // Immediate refetch would race with Linear's propagation delay and
+    // overwrite the optimistic data with stale server state.
+  })
+}
+
+/**
  * Updates a task estimate in Linear.
  */
 export function useUpdateEstimate() {
