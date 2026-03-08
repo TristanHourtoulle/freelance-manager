@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import {
   ArrowDownTrayIcon,
+  ClockIcon,
   CurrencyEuroIcon,
   ExclamationTriangleIcon,
   UserIcon,
@@ -29,6 +30,10 @@ const TYPE_CONFIG: Record<
   IMPORT_SUMMARY: {
     icon: ArrowDownTrayIcon,
     color: "text-emerald-500 bg-emerald-50",
+  },
+  PAYMENT_OVERDUE: {
+    icon: ClockIcon,
+    color: "text-orange-500 bg-orange-50",
   },
 }
 

@@ -129,6 +129,7 @@ export async function GET(request: Request) {
             projectName: undefined,
             toInvoice: true,
             invoiced: false,
+            paid: false,
             rateOverride,
           }
         }
@@ -160,6 +161,7 @@ export async function GET(request: Request) {
           projectName: issue.projectName,
           toInvoice: true,
           invoiced: false,
+          paid: false,
           rateOverride,
         }
       })

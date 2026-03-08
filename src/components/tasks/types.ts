@@ -29,6 +29,7 @@ export interface EnrichedTask {
   projectName: string | undefined
   toInvoice: boolean
   invoiced: boolean
+  paid: boolean
   rateOverride: number | null
 }
 

@@ -258,21 +258,28 @@ export function TaskRow({
       </TableCell>
       {onToggleInvoiced && (
         <TableCell className="text-center">
-          {task.invoiced ? (
-            <button
-              onClick={() => onToggleInvoiced(task.linearIssueId, false)}
-              className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
-            >
-              Invoiced
-            </button>
-          ) : (
-            <button
-              onClick={() => onToggleInvoiced(task.linearIssueId, true)}
-              className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
-            >
-              Not invoiced
-            </button>
-          )}
+          <div className="flex items-center justify-center gap-1.5">
+            {task.invoiced ? (
+              <button
+                onClick={() => onToggleInvoiced(task.linearIssueId, false)}
+                className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
+              >
+                Invoiced
+              </button>
+            ) : (
+              <button
+                onClick={() => onToggleInvoiced(task.linearIssueId, true)}
+                className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
+              >
+                Not invoiced
+              </button>
+            )}
+            {task.paid && (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                Paid
+              </span>
+            )}
+          </div>
         </TableCell>
       )}
     </TableRow>

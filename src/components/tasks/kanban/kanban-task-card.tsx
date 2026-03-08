@@ -62,13 +62,20 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
         </p>
       )}
       <div className="flex items-center justify-between mt-2">
-        {task.estimate !== undefined ? (
-          <span className="text-xs text-muted-foreground">
-            {task.estimate}h
-          </span>
-        ) : (
-          <span />
-        )}
+        <div className="flex items-center gap-1.5">
+          {task.estimate !== undefined ? (
+            <span className="text-xs text-muted-foreground">
+              {task.estimate}h
+            </span>
+          ) : (
+            <span />
+          )}
+          {task.paid && (
+            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+              Paid
+            </span>
+          )}
+        </div>
         <span className="text-xs font-medium">
           {formatEur(task.billingAmount)}
         </span>

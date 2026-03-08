@@ -194,7 +194,64 @@ export async function computeSyncAlerts(userId: string): Promise<void> {
 }
 
 /**
- * Runs all notification computations in parallel (billing reminders, inactive clients, sync alerts).
+ * Creates notifications for invoices past their 30-day payment deadline.
+ * Skips invoices that already received an alert in the last 24 hours.
+ *
+ * @param userId - The authenticated user ID
+ */
+export async function computePaymentOverdueAlerts(
+  userId: string,
+): Promise<void> {
+  const now = new Date()
+
+  const overdueInvoices = await prisma.invoice.findMany({
+    where: {
+      status: "SENT",
+      paymentDueDate: { lt: now, not: null },
+      client: { userId, archivedAt: null },
+    },
+    include: {
+      client: { select: { id: true, name: true } },
+    },
+  })
+
+  for (const invoice of overdueInvoices) {
+    const alreadyNotified = await hasRecentNotification(
+      userId,
+      "PAYMENT_OVERDUE",
+      24 * 60 * 60 * 1000,
+      { key: "invoiceId", value: invoice.id },
+    )
+    if (alreadyNotified) continue
+
+    const daysOverdue = Math.floor(
+      (now.getTime() - invoice.paymentDueDate!.getTime()) /
+        (24 * 60 * 60 * 1000),
+    )
+
+    const monthLabel = invoice.month.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    })
+
+    await createNotification({
+      userId,
+      type: "PAYMENT_OVERDUE",
+      title: "Payment overdue",
+      message: `Invoice for ${invoice.client.name} (${monthLabel}) is overdue by ${daysOverdue} day${daysOverdue !== 1 ? "s" : ""} (${Number(invoice.totalAmount).toFixed(2)}EUR)`,
+      metadata: {
+        invoiceId: invoice.id,
+        clientId: invoice.client.id,
+        clientName: invoice.client.name,
+        daysOverdue,
+        totalAmount: Number(invoice.totalAmount),
+      },
+    })
+  }
+}
+
+/**
+ * Runs all notification computations in parallel.
  *
  * @param userId - The authenticated user ID
  */
@@ -203,5 +260,6 @@ export async function computeAllNotifications(userId: string): Promise<void> {
     computeBillingReminders(userId),
     computeInactiveClientAlerts(userId),
     computeSyncAlerts(userId),
+    computePaymentOverdueAlerts(userId),
   ])
 }
