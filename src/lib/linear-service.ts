@@ -114,6 +114,9 @@ export async function createLinearIssue(input: {
   estimate?: number
   teamId: string
   projectId: string
+  assigneeId?: string
+  stateId?: string
+  labelIds?: string[]
 }): Promise<LinearIssueDTO> {
   const payload = await linearClient.createIssue({
     teamId: input.teamId,
@@ -121,6 +124,9 @@ export async function createLinearIssue(input: {
     description: input.description,
     estimate: input.estimate,
     projectId: input.projectId,
+    assigneeId: input.assigneeId,
+    stateId: input.stateId,
+    labelIds: input.labelIds,
   })
 
   const issue = await payload.issue
@@ -177,6 +183,9 @@ export function clearLinearCaches(): void {
   teamsCache.clear()
   projectsCache.clear()
   issuesCache.clear()
+  membersCache.clear()
+  statesCache.clear()
+  labelsCache.clear()
 }
 
 /**
@@ -400,6 +409,197 @@ export async function fetchLinearProjects(
 
   projectsCache.set(cacheKey, result)
   lastSyncedAt = Date.now()
+  return result
+}
+
+/** Normalized team member for assignment. */
+export interface LinearMemberDTO {
+  id: string
+  name: string
+  email: string | undefined
+}
+
+/** Normalized workflow state for status selection. */
+export interface LinearWorkflowStateDTO {
+  id: string
+  name: string
+  type: string
+  color: string
+}
+
+interface RawTeamMembersResponse {
+  team: {
+    members: {
+      nodes: Array<{
+        id: string
+        name: string
+        email: string | null
+        active: boolean
+      }>
+    }
+  }
+}
+
+interface RawWorkflowStatesResponse {
+  team: {
+    states: {
+      nodes: Array<{
+        id: string
+        name: string
+        type: string
+        color: string
+      }>
+    }
+  }
+}
+
+interface RawTeamLabelsResponse {
+  team: {
+    labels: {
+      nodes: Array<{
+        id: string
+        name: string
+        color: string
+      }>
+    }
+  }
+}
+
+const membersCache = new TTLCache<LinearMemberDTO[]>(TEAMS_TTL)
+const statesCache = new TTLCache<LinearWorkflowStateDTO[]>(TEAMS_TTL)
+const labelsCache = new TTLCache<LinearIssueLabelDTO[]>(TEAMS_TTL)
+
+/**
+ * Fetches active members of a Linear team.
+ *
+ * @param teamId - Linear team ID
+ * @returns Array of team members
+ */
+export async function fetchLinearTeamMembers(
+  teamId: string,
+): Promise<LinearMemberDTO[]> {
+  const cached = membersCache.get(teamId)
+  if (cached) return cached
+
+  const query = `
+    query TeamMembers($teamId: String!) {
+      team(id: $teamId) {
+        members(first: 100) {
+          nodes {
+            id
+            name
+            email
+            active
+          }
+        }
+      }
+    }
+  `
+
+  const response = await linearClient.client.rawRequest<
+    RawTeamMembersResponse,
+    { teamId: string }
+  >(query, { teamId })
+
+  if (!response.data) return []
+
+  const result = response.data.team.members.nodes
+    .filter((m) => m.active)
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email ?? undefined,
+    }))
+
+  membersCache.set(teamId, result)
+  return result
+}
+
+/**
+ * Fetches workflow states for a Linear team.
+ *
+ * @param teamId - Linear team ID
+ * @returns Array of workflow states
+ */
+export async function fetchLinearWorkflowStates(
+  teamId: string,
+): Promise<LinearWorkflowStateDTO[]> {
+  const cached = statesCache.get(teamId)
+  if (cached) return cached
+
+  const query = `
+    query TeamStates($teamId: String!) {
+      team(id: $teamId) {
+        states(first: 50) {
+          nodes {
+            id
+            name
+            type
+            color
+          }
+        }
+      }
+    }
+  `
+
+  const response = await linearClient.client.rawRequest<
+    RawWorkflowStatesResponse,
+    { teamId: string }
+  >(query, { teamId })
+
+  if (!response.data) return []
+
+  const result = response.data.team.states.nodes.map((s) => ({
+    id: s.id,
+    name: s.name,
+    type: s.type,
+    color: s.color,
+  }))
+
+  statesCache.set(teamId, result)
+  return result
+}
+
+/**
+ * Fetches labels for a Linear team.
+ *
+ * @param teamId - Linear team ID
+ * @returns Array of team labels
+ */
+export async function fetchLinearTeamLabels(
+  teamId: string,
+): Promise<LinearIssueLabelDTO[]> {
+  const cached = labelsCache.get(teamId)
+  if (cached) return cached
+
+  const query = `
+    query TeamLabels($teamId: String!) {
+      team(id: $teamId) {
+        labels(first: 100) {
+          nodes {
+            id
+            name
+            color
+          }
+        }
+      }
+    }
+  `
+
+  const response = await linearClient.client.rawRequest<
+    RawTeamLabelsResponse,
+    { teamId: string }
+  >(query, { teamId })
+
+  if (!response.data) return []
+
+  const result = response.data.team.labels.nodes.map((l) => ({
+    id: l.id,
+    name: l.name,
+    color: l.color,
+  }))
+
+  labelsCache.set(teamId, result)
   return result
 }
 

@@ -12,11 +12,23 @@ export interface BillingApiResponse {
   }
 }
 
+/** Invoice status for a client within a month. */
+export interface InvoiceInfo {
+  id: string
+  status: "DRAFT" | "SENT" | "PAID"
+  totalAmount: number
+}
+
+/** A client group within history, with optional invoice info. */
+export interface HistoryClientGroup extends ClientTaskGroup {
+  invoice?: InvoiceInfo
+}
+
 /** A group of invoiced tasks for a single calendar month. */
 export interface HistoryMonthGroup {
   month: string
   label: string
-  clients: ClientTaskGroup[]
+  clients: HistoryClientGroup[]
   monthTotal: number
   taskCount: number
 }

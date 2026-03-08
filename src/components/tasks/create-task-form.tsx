@@ -6,11 +6,17 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { createLinearIssueSchema } from "@/lib/schemas/linear"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 
 import type { Resolver } from "react-hook-form"
 import type { CreateLinearIssueInput } from "@/lib/schemas/linear"
+import type {
+  LinearMemberDTO,
+  LinearWorkflowStateDTO,
+  LinearIssueLabelDTO,
+} from "@/lib/linear-service"
 
 /** A Linear project associated with a client via a mapping. */
 export interface MappedProject {
@@ -20,6 +26,12 @@ export interface MappedProject {
   clientName: string
 }
 
+interface TeamMetadata {
+  members: LinearMemberDTO[]
+  states: LinearWorkflowStateDTO[]
+  labels: LinearIssueLabelDTO[]
+}
+
 interface CreateTaskFormProps {
   mappedProjects: MappedProject[]
 }
@@ -27,11 +39,17 @@ interface CreateTaskFormProps {
 /**
  * Form for creating a new Linear issue from within the app.
  * Validates input with Zod and posts to the Linear issues API.
- * Used on the /tasks/new page.
+ * Supports assignee, status, and label selection synced to Linear.
  */
 export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
   const router = useRouter()
   const [apiError, setApiError] = useState("")
+  const [metadata, setMetadata] = useState<TeamMetadata | null>(null)
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false)
+  const [selectedTeamId, setSelectedTeamId] = useState("")
+  const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(
+    new Set(),
+  )
 
   const projectOptions = useMemo(
     () =>
@@ -57,14 +75,62 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       estimate: undefined,
       teamId: "",
       projectId: "",
+      assigneeId: undefined,
+      stateId: undefined,
+      labelIds: undefined,
     },
   })
+
+  const fetchMetadata = useCallback(async (teamId: string) => {
+    setIsLoadingMetadata(true)
+    try {
+      const res = await fetch(`/api/linear/teams/${teamId}/metadata`)
+      if (res.ok) {
+        const data: TeamMetadata = await res.json()
+        setMetadata(data)
+      }
+    } finally {
+      setIsLoadingMetadata(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedTeamId) {
+      fetchMetadata(selectedTeamId)
+    } else {
+      setMetadata(null)
+    }
+  }, [selectedTeamId, fetchMetadata])
 
   function handleProjectChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const value = e.target.value
     const parts = value.split("::")
-    setValue("projectId", parts[0] ?? "")
-    setValue("teamId", parts[1] ?? "")
+    const projectId = parts[0] ?? ""
+    const teamId = parts[1] ?? ""
+    setValue("projectId", projectId, { shouldValidate: true })
+    setValue("teamId", teamId, { shouldValidate: true })
+
+    if (teamId !== selectedTeamId) {
+      setSelectedTeamId(teamId)
+      setValue("assigneeId", undefined)
+      setValue("stateId", undefined)
+      setValue("labelIds", undefined)
+      setSelectedLabelIds(new Set())
+    }
+  }
+
+  function handleLabelToggle(labelId: string) {
+    setSelectedLabelIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(labelId)) {
+        next.delete(labelId)
+      } else {
+        next.add(labelId)
+      }
+      const ids = [...next]
+      setValue("labelIds", ids.length > 0 ? ids : undefined)
+      return next
+    })
   }
 
   async function handleFormSubmit(data: CreateLinearIssueInput) {
@@ -89,6 +155,24 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
     }
   }
 
+  const memberOptions = useMemo(
+    () =>
+      metadata?.members.map((m) => ({
+        value: m.id,
+        label: m.name,
+      })) ?? [],
+    [metadata],
+  )
+
+  const stateOptions = useMemo(
+    () =>
+      metadata?.states.map((s) => ({
+        value: s.id,
+        label: s.name,
+      })) ?? [],
+    [metadata],
+  )
+
   return (
     <form
       onSubmit={handleSubmit(handleFormSubmit)}
@@ -101,6 +185,9 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
         {...register("title")}
         error={errors.title?.message}
       />
+
+      <input type="hidden" {...register("projectId")} />
+      <input type="hidden" {...register("teamId")} />
 
       <Select
         label="Project"
@@ -121,13 +208,81 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
         error={errors.estimate?.message}
       />
 
+      {selectedTeamId && (
+        <div className="space-y-6 rounded-lg border border-border-light bg-surface-secondary/30 p-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
+            Linear Options
+          </p>
+
+          {isLoadingMetadata ? (
+            <p className="text-sm text-text-secondary">
+              Loading team options...
+            </p>
+          ) : metadata ? (
+            <>
+              {memberOptions.length > 0 && (
+                <Select
+                  label="Assignee"
+                  options={memberOptions}
+                  placeholder="Unassigned"
+                  onChange={(e) =>
+                    setValue("assigneeId", e.target.value || undefined)
+                  }
+                />
+              )}
+
+              {stateOptions.length > 0 && (
+                <Select
+                  label="Status"
+                  options={stateOptions}
+                  placeholder="Default status"
+                  onChange={(e) =>
+                    setValue("stateId", e.target.value || undefined)
+                  }
+                />
+              )}
+
+              {metadata.labels.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-text-secondary">
+                    Labels
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {metadata.labels.map((label) => {
+                      const isSelected = selectedLabelIds.has(label.id)
+                      return (
+                        <button
+                          key={label.id}
+                          type="button"
+                          onClick={() => handleLabelToggle(label.id)}
+                          className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            isSelected
+                              ? "border-transparent text-white"
+                              : "border-border bg-surface text-text-secondary hover:border-primary hover:text-primary"
+                          }`}
+                          style={
+                            isSelected
+                              ? { backgroundColor: label.color }
+                              : undefined
+                          }
+                        >
+                          {label.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      )}
+
       <div className="space-y-2">
-        <label htmlFor="description">Description</label>
-        <textarea
-          id="description"
-          rows={4}
+        <label>Description</label>
+        <RichTextEditor
           placeholder="Describe the task..."
-          {...register("description")}
+          onChange={(md) => setValue("description", md || undefined)}
         />
         {errors.description?.message && (
           <p className="text-sm text-destructive">

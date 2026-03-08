@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   ArrowDownTrayIcon,
   CurrencyEuroIcon,
@@ -13,6 +14,7 @@ interface NotificationPanelProps {
   notifications: Notification[]
   onMarkAsRead: (id: string) => void
   onDismissAll: () => void
+  onClose?: () => void
 }
 
 const TYPE_CONFIG: Record<
@@ -59,6 +61,7 @@ export function NotificationPanel({
   notifications,
   onMarkAsRead,
   onDismissAll,
+  onClose,
 }: NotificationPanelProps) {
   const hasUnread = notifications.some((n) => !n.readAt)
 
@@ -126,6 +129,16 @@ export function NotificationPanel({
           })}
         </ul>
       )}
+
+      <div className="border-t border-border px-4 py-2.5">
+        <Link
+          href="/notifications"
+          onClick={onClose}
+          className="block text-center text-xs font-medium text-primary hover:text-primary/80"
+        >
+          View all notifications
+        </Link>
+      </div>
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Select } from "@/components/ui/select"
 import { CategoryFilter } from "@/components/ui/category-filter"
+import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 import {
   TASK_PRESETS,
   TASK_PRESET_LABELS,
@@ -24,6 +25,8 @@ export function TaskFilters({ clients }: TaskFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  usePersistedFilters("tasks", ["preset", "clientId", "category"])
 
   const currentPreset: TaskPreset =
     (searchParams.get("preset") as TaskPreset) ?? "active"
@@ -62,10 +65,10 @@ export function TaskFilters({ clients }: TaskFiltersProps) {
             key={preset}
             type="button"
             onClick={() => handlePresetChange(preset)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               currentPreset === preset
-                ? "bg-primary text-white"
-                : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
+                ? "bg-primary text-white hover:bg-primary/80"
+                : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
             }`}
           >
             {TASK_PRESET_LABELS[preset]}

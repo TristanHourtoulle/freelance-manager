@@ -34,7 +34,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`${error ? "border-destructive" : ""} ${className}`}
+          className={`cursor-pointer ${error ? "border-destructive" : ""} ${className}`}
           {...props}
         >
           {placeholder && (

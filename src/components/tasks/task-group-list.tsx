@@ -77,15 +77,15 @@ export function TaskGroupList({
         return (
           <div
             key={group.client.id}
-            className="rounded-lg border border-border bg-surface"
+            className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
           >
             <button
               onClick={() => toggleCollapse(group.client.id)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
+              className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-surface-muted/50"
             >
               <div className="flex items-center gap-3">
                 <svg
-                  className={`h-4 w-4 text-text-muted transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                  className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${isCollapsed ? "" : "rotate-90"}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -97,21 +97,21 @@ export function TaskGroupList({
                     d="M9 5l7 7-7 7"
                   />
                 </svg>
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-text-primary">
                     {group.client.name}
                   </span>
                   {group.client.company && (
-                    <span className="ml-2 text-sm text-text-secondary">
+                    <span className="text-sm text-text-secondary">
                       {group.client.company}
                     </span>
                   )}
                 </div>
-                <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
+                <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-xs font-medium text-text-secondary">
                   {BILLING_MODE_LABELS[group.client.billingMode] ??
                     group.client.billingMode}
                 </span>
-                <span className="text-xs text-text-secondary">
+                <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-xs font-medium text-text-secondary">
                   {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
                 </span>
               </div>

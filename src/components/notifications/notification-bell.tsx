@@ -45,7 +45,7 @@ export function NotificationBell() {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+        className="relative flex cursor-pointer items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         aria-label="Notifications"
       >
         <BellIcon className="h-5 w-5" />
@@ -62,6 +62,7 @@ export function NotificationBell() {
             notifications={notifications}
             onMarkAsRead={markAsRead}
             onDismissAll={dismissAll}
+            onClose={() => setIsOpen(false)}
           />
         </div>
       )}

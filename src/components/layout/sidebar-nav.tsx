@@ -65,7 +65,7 @@ function NavContent({
         </div>
       </div>
 
-      <div className="px-3 pt-3">
+      <div className="flex items-center gap-2 px-3 pt-3">
         <button
           onClick={() => {
             document.dispatchEvent(
@@ -76,7 +76,7 @@ function NavContent({
               }),
             )
           }}
-          className="flex w-full items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+          className="flex flex-1 items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         >
           <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
           <span className="flex-1 text-left">Search...</span>
@@ -92,9 +92,6 @@ function NavContent({
             )}
           </kbd>
         </button>
-      </div>
-
-      <div className="px-3 pt-2">
         <NotificationBell />
       </div>
 

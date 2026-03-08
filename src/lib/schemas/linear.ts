@@ -27,6 +27,9 @@ export const createLinearIssueSchema = z.object({
   estimate: z.number().int().positive().optional(),
   teamId: z.string().min(1, "Team is required"),
   projectId: z.string().min(1, "Project is required"),
+  assigneeId: z.string().min(1).optional(),
+  stateId: z.string().min(1).optional(),
+  labelIds: z.array(z.string().min(1)).optional(),
 })
 
 export type CreateLinearIssueInput = z.infer<typeof createLinearIssueSchema>

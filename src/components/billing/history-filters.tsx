@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Select } from "@/components/ui/select"
+import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
 import type { ClientSummary } from "@/components/tasks/types"
 
@@ -17,6 +18,8 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  usePersistedFilters("billing-history", ["clientId", "dateFrom", "dateTo"])
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())

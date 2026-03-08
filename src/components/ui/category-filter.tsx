@@ -63,10 +63,10 @@ export function CategoryFilter() {
             key={cat.value}
             type="button"
             onClick={() => toggle(cat.value)}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+            className={`cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors ${
               isActive
-                ? "border-primary bg-primary text-white"
-                : "border-border bg-surface text-text-secondary hover:border-primary hover:text-primary"
+                ? "border-primary bg-primary text-white hover:bg-primary/80"
+                : "border-border bg-surface text-text-secondary hover:border-primary hover:bg-surface-muted hover:text-primary"
             }`}
           >
             {cat.label}
@@ -77,7 +77,7 @@ export function CategoryFilter() {
         <button
           type="button"
           onClick={clear}
-          className="text-sm text-text-secondary underline hover:text-primary"
+          className="cursor-pointer text-sm text-text-secondary underline hover:text-primary"
         >
           Clear
         </button>

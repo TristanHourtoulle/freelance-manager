@@ -1,16 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageToolbar } from "@/components/ui/page-toolbar"
 import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
+import { useClients, useArchiveClient } from "@/hooks/use-clients"
 
-import type { SerializedClient, Pagination } from "@/components/clients/types"
+import type { SerializedClient } from "@/components/clients/types"
 
 function getInitialView(): "grid" | "list" {
   if (typeof window === "undefined") return "grid"
@@ -22,54 +25,27 @@ export default function ClientsPage() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { toast } = useToast()
 
-  const [clients, setClients] = useState<SerializedClient[]>([])
-  const [pagination, setPagination] = useState<Pagination>({
+  const [view, setView] = useState<"grid" | "list">(getInitialView)
+  const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(
+    null,
+  )
+
+  const { data, isLoading } = useClients(searchParams.toString())
+  const archiveMutation = useArchiveClient()
+
+  const clients = data?.items ?? []
+  const pagination = data?.pagination ?? {
     page: 1,
     limit: 20,
     total: 0,
     totalPages: 0,
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [view, setView] = useState<"grid" | "list">(getInitialView)
-
-  const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(
-    null,
-  )
-  const [isArchiving, setIsArchiving] = useState(false)
-
-  const [refreshKey, setRefreshKey] = useState(0)
-  const { toast } = useToast()
+  }
 
   function handleViewChange(newView: "grid" | "list") {
     setView(newView)
     localStorage.setItem("clientListView", newView)
-  }
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      const res = await fetch(`/api/clients?${searchParams.toString()}`, {
-        cache: "no-store",
-      })
-      if (!cancelled && res.ok) {
-        const data = await res.json()
-        setClients(data.items)
-        setPagination(data.pagination)
-      }
-      if (!cancelled) setIsLoading(false)
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [searchParams, refreshKey])
-
-  function refreshClients() {
-    setRefreshKey((k) => k + 1)
   }
 
   function handlePageChange(page: number) {
@@ -85,31 +61,29 @@ export default function ClientsPage() {
 
   async function handleArchiveConfirm() {
     if (!archiveTarget) return
-    setIsArchiving(true)
 
     const isArchived = Boolean(archiveTarget.archivedAt)
-    const endpoint = isArchived ? "unarchive" : "archive"
 
-    const res = await fetch(`/api/clients/${archiveTarget.id}/${endpoint}`, {
-      method: "PATCH",
-    })
-
-    if (res.ok) {
-      toast({
-        variant: "success",
-        title: isArchived ? "Client unarchived" : "Client archived",
-      })
-      setArchiveTarget(null)
-      refreshClients()
-    } else {
-      toast({
-        variant: "error",
-        title: isArchived
-          ? "Failed to unarchive client"
-          : "Failed to archive client",
-      })
-    }
-    setIsArchiving(false)
+    archiveMutation.mutate(
+      { clientId: archiveTarget.id, archive: !isArchived },
+      {
+        onSuccess: () => {
+          toast({
+            variant: "success",
+            title: isArchived ? "Client unarchived" : "Client archived",
+          })
+          setArchiveTarget(null)
+        },
+        onError: () => {
+          toast({
+            variant: "error",
+            title: isArchived
+              ? "Failed to unarchive client"
+              : "Failed to archive client",
+          })
+        },
+      },
+    )
   }
 
   const hasFilters = Boolean(
@@ -120,19 +94,20 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Clients</h1>
+      <PageHeader title="Clients">
         <Link href="/clients/new">
           <Button>New Client</Button>
         </Link>
-      </div>
+      </PageHeader>
 
       <TooltipHint storageKey="clients-page">
         Add your clients here. Set their billing mode and rate, then connect a
         Linear project from the client edit page.
       </TooltipHint>
 
-      <ClientFilters view={view} onViewChange={handleViewChange} />
+      <PageToolbar>
+        <ClientFilters view={view} onViewChange={handleViewChange} />
+      </PageToolbar>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -156,7 +131,7 @@ export default function ClientsPage() {
           isOpen={Boolean(archiveTarget)}
           onClose={() => setArchiveTarget(null)}
           onConfirm={handleArchiveConfirm}
-          isLoading={isArchiving}
+          isLoading={archiveMutation.isPending}
         />
       )}
     </div>

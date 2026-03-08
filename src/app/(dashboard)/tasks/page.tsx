@@ -1,62 +1,36 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TaskFilters } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
+import { useTasks, useRefreshLinear } from "@/hooks/use-tasks"
 
-import { calculateBilling } from "@/lib/billing"
-
-import type { BillingMode } from "@/generated/prisma/client"
-import type {
-  ClientTaskGroup,
-  ClientSummary,
-  TasksApiResponse,
-} from "@/components/tasks/types"
+import type { ClientSummary } from "@/components/tasks/types"
 
 export default function TasksPage() {
   const searchParams = useSearchParams()
-
-  const [groups, setGroups] = useState<ClientTaskGroup[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
-  const [isStale, setIsStale] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    let cancelled = false
+  const { data, isLoading, isFetching } = useTasks(searchParams.toString())
 
-    async function load() {
-      setIsLoading(true)
-      const res = await fetch(`/api/tasks?${searchParams.toString()}`, {
-        cache: "no-store",
-      })
-      if (!cancelled && res.ok) {
-        const data: TasksApiResponse = await res.json()
-        setGroups(data.groups)
-        setLastSyncedAt(data.lastSyncedAt)
-        setIsStale(data.isStale)
-      }
-      if (!cancelled) setIsLoading(false)
-    }
+  const refreshMutation = useRefreshLinear()
 
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [searchParams, refreshKey])
+  const groups = data?.groups ?? []
+  const lastSyncedAt = data?.lastSyncedAt ?? null
+  const isStale = data?.isStale ?? false
 
   const handleRefresh = useCallback(async () => {
-    await fetch("/api/linear/refresh", { method: "POST" })
-    setRefreshKey((k) => k + 1)
-  }, [])
+    refreshMutation.mutate()
+  }, [refreshMutation])
 
   const updateOverride = useCallback(
     async (
@@ -64,19 +38,6 @@ export default function TasksPage() {
       linearIssueId: string,
       payload: Record<string, unknown>,
     ) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          return {
-            ...group,
-            tasks: group.tasks.map((task) => {
-              if (task.linearIssueId !== linearIssueId) return task
-              return { ...task, ...payload }
-            }),
-          }
-        }),
-      )
-
       const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -84,10 +45,10 @@ export default function TasksPage() {
       })
 
       if (!res.ok) {
-        setRefreshKey((k) => k + 1)
+        toast({ variant: "error", title: "Failed to update task" })
       }
     },
-    [],
+    [toast],
   )
 
   const handleToggleToInvoice = useCallback(
@@ -106,31 +67,6 @@ export default function TasksPage() {
 
   const handleUpdateEstimate = useCallback(
     async (clientId: string, linearIssueId: string, estimate: number) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          const updatedTasks = group.tasks.map((task) => {
-            if (task.linearIssueId !== linearIssueId) return task
-            const billing = calculateBilling({
-              billingMode: group.client.billingMode as BillingMode,
-              rate: group.client.rate,
-              estimate,
-              rateOverride: task.rateOverride,
-            })
-            return {
-              ...task,
-              estimate,
-              billingAmount: billing.amount,
-              billingFormula: billing.formula,
-            }
-          })
-          const totalBilling = updatedTasks
-            .filter((t) => t.toInvoice)
-            .reduce((sum, t) => sum + t.billingAmount, 0)
-          return { ...group, tasks: updatedTasks, totalBilling }
-        }),
-      )
-
       const res = await fetch(`/api/linear/issues/${linearIssueId}/estimate`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -139,7 +75,6 @@ export default function TasksPage() {
 
       if (!res.ok) {
         toast({ variant: "error", title: "Failed to update estimate" })
-        setRefreshKey((k) => k + 1)
       }
     },
     [toast],
@@ -147,31 +82,6 @@ export default function TasksPage() {
 
   const handleUpdateRate = useCallback(
     async (clientId: string, linearIssueId: string, rate: number | null) => {
-      setGroups((prev) =>
-        prev.map((group) => {
-          if (group.client.id !== clientId) return group
-          const updatedTasks = group.tasks.map((task) => {
-            if (task.linearIssueId !== linearIssueId) return task
-            const billing = calculateBilling({
-              billingMode: group.client.billingMode as BillingMode,
-              rate: group.client.rate,
-              estimate: task.estimate,
-              rateOverride: rate,
-            })
-            return {
-              ...task,
-              rateOverride: rate,
-              billingAmount: billing.amount,
-              billingFormula: billing.formula,
-            }
-          })
-          const totalBilling = updatedTasks
-            .filter((t) => t.toInvoice)
-            .reduce((sum, t) => sum + t.billingAmount, 0)
-          return { ...group, tasks: updatedTasks, totalBilling }
-        }),
-      )
-
       const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -180,7 +90,6 @@ export default function TasksPage() {
 
       if (!res.ok) {
         toast({ variant: "error", title: "Failed to update rate" })
-        setRefreshKey((k) => k + 1)
       }
     },
     [toast],
@@ -193,31 +102,29 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Tasks</h1>
-        <div className="flex gap-3">
-          <Link href="/tasks/new">
-            <Button>New Task</Button>
-          </Link>
-          <Link href="/billing">
-            <Button variant="secondary">To Invoice</Button>
-          </Link>
-        </div>
-      </div>
+      <PageHeader title="Tasks">
+        <Link href="/tasks/new">
+          <Button>New Task</Button>
+        </Link>
+        <Link href="/billing">
+          <Button variant="secondary">To Invoice</Button>
+        </Link>
+      </PageHeader>
 
       <TooltipHint storageKey="tasks-page">
         Your Linear tasks appear here grouped by client. Use the sync button to
         refresh data from Linear.
       </TooltipHint>
 
-      <SyncStatusBar
-        lastSyncedAt={lastSyncedAt}
-        isStale={isStale}
-        onRefresh={handleRefresh}
-        isRefreshing={isLoading}
-      />
-
-      <TaskFilters clients={allClients} />
+      <PageToolbar>
+        <SyncStatusBar
+          lastSyncedAt={lastSyncedAt}
+          isStale={isStale}
+          onRefresh={handleRefresh}
+          isRefreshing={isLoading || isFetching}
+        />
+        <TaskFilters clients={allClients} />
+      </PageToolbar>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">

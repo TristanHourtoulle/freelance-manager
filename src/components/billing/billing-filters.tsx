@@ -3,6 +3,7 @@
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { Select } from "@/components/ui/select"
 import { CategoryFilter } from "@/components/ui/category-filter"
+import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
 import type { ClientSummary } from "@/components/tasks/types"
 
@@ -18,6 +19,8 @@ export function BillingFilters({ clients }: BillingFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  usePersistedFilters("billing", ["clientId", "category", "dateFrom", "dateTo"])
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())

@@ -72,7 +72,12 @@ export function LinearMappingsSection({
       ])
       if (cancelled) return
       if (teamsRes.ok) {
-        setTeams(await teamsRes.json())
+        const loadedTeams: LinearTeam[] = await teamsRes.json()
+        setTeams(loadedTeams)
+        const firstTeam = loadedTeams[0]
+        if (firstTeam && !selectedTeamId) {
+          setSelectedTeamId(firstTeam.id)
+        }
       } else {
         toast({ variant: "error", title: "Failed to load Linear teams" })
       }
