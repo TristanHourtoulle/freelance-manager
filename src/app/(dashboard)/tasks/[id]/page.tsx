@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+
+import { TaskStatusBadge } from "@/components/tasks/task-status-badge"
 import {
   ArrowLeftIcon,
   ArrowTopRightOnSquareIcon,
@@ -241,18 +243,7 @@ export default function TaskDetailPage() {
           <span className="text-sm font-medium text-text-secondary">
             {issue.identifier}
           </span>
-          {issue.status && (
-            <span
-              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium"
-              style={{
-                backgroundColor: `${issue.status.color}18`,
-                color: issue.status.color,
-                borderColor: `${issue.status.color}40`,
-              }}
-            >
-              {issue.status.name}
-            </span>
-          )}
+          {issue.status && <TaskStatusBadge status={issue.status} />}
           {issue.labels.map((label) => (
             <span
               key={label.id}

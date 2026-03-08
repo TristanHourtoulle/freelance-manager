@@ -6,11 +6,11 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Badge } from "@/components/ui/badge"
 
 import { KanbanTaskCard } from "./kanban-task-card"
-import type { KanbanTask } from "../types"
+import { TaskStatusBadge } from "../task-status-badge"
+import type { KanbanTask, TaskStatusDTO } from "../types"
 
 interface KanbanColumnProps {
-  statusName: string
-  statusColor?: string
+  status: TaskStatusDTO
   tasks: KanbanTask[]
 }
 
@@ -18,25 +18,15 @@ interface KanbanColumnProps {
  * A single status column in the Kanban board.
  * Acts as a droppable zone and renders a sorted list of task cards.
  */
-export function KanbanColumn({
-  statusName,
-  statusColor,
-  tasks,
-}: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: statusName })
+export function KanbanColumn({ status, tasks }: KanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: status.name })
 
   const taskIds = tasks.map((t) => t.linearIssueId)
 
   return (
     <div className="min-w-[280px] w-[280px] flex flex-col">
       <div className="flex items-center gap-2 mb-3 px-1">
-        {statusColor && (
-          <span
-            className="inline-block size-2.5 rounded-full"
-            style={{ backgroundColor: statusColor }}
-          />
-        )}
-        <h3 className="text-sm font-semibold">{statusName}</h3>
+        <TaskStatusBadge status={status} />
         <Badge variant="secondary">{tasks.length}</Badge>
       </div>
 

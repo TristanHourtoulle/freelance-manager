@@ -11,20 +11,19 @@ import {
 
 import { KanbanColumn } from "./kanban-column"
 import { KanbanTaskCard } from "./kanban-task-card"
-import type { KanbanTask } from "../types"
+import type { KanbanTask, TaskStatusDTO } from "../types"
 
-/** Priority ordering for known Linear status names. Unknown statuses sort last. */
-const STATUS_ORDER: Record<string, number> = {
-  Backlog: 0,
-  Todo: 1,
-  "In Progress": 2,
-  "In Review": 3,
-  Done: 4,
+/** Priority ordering for known Linear workflow state types. */
+const STATUS_TYPE_ORDER: Record<string, number> = {
+  backlog: 0,
+  unstarted: 1,
+  started: 2,
+  completed: 3,
+  cancelled: 4,
 }
 
 interface StatusColumn {
-  name: string
-  color: string | undefined
+  status: TaskStatusDTO
   tasks: KanbanTask[]
 }
 
@@ -58,16 +57,20 @@ export function TaskKanbanBoard({
         existing.tasks.push(task)
       } else {
         columnMap.set(statusName, {
-          name: statusName,
-          color: task.status?.color,
+          status: task.status ?? {
+            id: "",
+            name: "No Status",
+            type: "backlog",
+            color: "#95a2b3",
+          },
           tasks: [task],
         })
       }
     }
 
     return [...columnMap.values()].sort((a, b) => {
-      const orderA = STATUS_ORDER[a.name] ?? 999
-      const orderB = STATUS_ORDER[b.name] ?? 999
+      const orderA = STATUS_TYPE_ORDER[a.status.type] ?? 999
+      const orderB = STATUS_TYPE_ORDER[b.status.type] ?? 999
       return orderA - orderB
     })
   }, [tasks])
@@ -127,9 +130,8 @@ export function TaskKanbanBoard({
         <div className="flex gap-4">
           {columns.map((column) => (
             <KanbanColumn
-              key={column.name}
-              statusName={column.name}
-              statusColor={column.color}
+              key={column.status.name}
+              status={column.status}
               tasks={column.tasks}
             />
           ))}

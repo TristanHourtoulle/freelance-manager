@@ -4,10 +4,10 @@ import { useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableRow, TableCell } from "@/components/ui/table"
 
+import { TaskStatusBadge } from "./task-status-badge"
 import type { EnrichedTask } from "./types"
 
 interface TaskRowProps {
@@ -156,16 +156,7 @@ export function TaskRow({
       </TableCell>
       <TableCell>
         {task.status ? (
-          <Badge
-            variant="outline"
-            style={{
-              backgroundColor: `${task.status.color}18`,
-              color: task.status.color,
-              borderColor: `${task.status.color}40`,
-            }}
-          >
-            {task.status.name}
-          </Badge>
+          <TaskStatusBadge status={task.status} />
         ) : (
           <span className="text-xs text-text-muted">-</span>
         )}
