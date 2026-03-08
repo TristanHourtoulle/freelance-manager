@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
+/** Loading skeleton for the analytics page, mirroring the full chart grid layout. */
 export function AnalyticsSkeleton() {
   return (
     <div className="space-y-6">

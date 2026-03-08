@@ -24,6 +24,10 @@ interface LinearMappingsSectionProps {
   clientId: string
 }
 
+/**
+ * Section for managing Linear team/project mappings on the client edit page.
+ * Loads existing mappings and Linear teams/projects, and allows adding or removing mappings.
+ */
 export function LinearMappingsSection({
   clientId,
 }: LinearMappingsSectionProps) {

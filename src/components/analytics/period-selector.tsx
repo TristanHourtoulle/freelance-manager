@@ -11,6 +11,11 @@ const PERIOD_OPTIONS = [
   { value: "custom", label: "Custom range" },
 ]
 
+/**
+ * Dropdown selector for choosing an analytics time period.
+ * Syncs the selected period (and optional custom date range) to URL search params.
+ * Used on the analytics page.
+ */
 export function PeriodSelector() {
   const router = useRouter()
   const pathname = usePathname()

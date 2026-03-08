@@ -36,6 +36,13 @@ interface WelcomeModalProps {
   onClose: () => void
 }
 
+/**
+ * Full-screen welcome modal with multi-slide onboarding carousel.
+ * Shown on first visit and dismissed via localStorage.
+ *
+ * @param isOpen - Whether the modal is visible
+ * @param onClose - Callback to close and dismiss the modal
+ */
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const overlayRef = useRef<HTMLDivElement>(null)

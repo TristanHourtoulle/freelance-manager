@@ -18,6 +18,7 @@ interface AddMappingFormProps {
   onAdd: () => void
 }
 
+/** Inline form for adding a new Linear team/project mapping. Used inside LinearMappingsSection. */
 export function AddMappingForm({
   teams,
   selectedTeamId,

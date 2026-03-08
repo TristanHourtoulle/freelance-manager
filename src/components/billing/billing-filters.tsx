@@ -10,6 +10,10 @@ interface BillingFiltersProps {
   clients: ClientSummary[]
 }
 
+/**
+ * Filter bar for the uninvoiced billing page.
+ * Provides client, date-range, and category filters synced to URL search params.
+ */
 export function BillingFilters({ clients }: BillingFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()

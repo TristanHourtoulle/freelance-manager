@@ -14,6 +14,7 @@ interface TaskTableProps {
   onUpdateRate?: (linearIssueId: string, rate: number | null) => void
 }
 
+/** Data table rendering a list of enriched tasks as TaskRow elements with sortable columns. Used inside TaskGroupList. */
 export function TaskTable({
   tasks,
   clientRate,

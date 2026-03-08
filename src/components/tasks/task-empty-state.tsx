@@ -5,6 +5,10 @@ interface TaskEmptyStateProps {
   hasFilters: boolean
 }
 
+/**
+ * Placeholder shown on the tasks page when no tasks or Linear mappings exist.
+ * @param hasFilters - Whether active filters are narrowing the result set.
+ */
 export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
   if (hasFilters) {
     return (

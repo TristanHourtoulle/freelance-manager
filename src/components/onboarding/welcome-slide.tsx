@@ -6,6 +6,13 @@ interface WelcomeSlideProps {
   description: string
 }
 
+/**
+ * A single slide in the welcome modal carousel with icon, title, and description.
+ *
+ * @param icon - Hero icon component to display
+ * @param title - Slide heading
+ * @param description - Slide body text
+ */
 export function WelcomeSlide({
   icon: Icon,
   title,

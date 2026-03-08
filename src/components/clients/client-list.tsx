@@ -16,6 +16,11 @@ interface ClientListProps {
   onPageChange: (page: number) => void
 }
 
+/**
+ * Renders the client collection in either grid (ClientCard) or list (ClientRow) mode
+ * with pagination controls. Falls back to ClientEmptyState when empty.
+ * Used on the clients page.
+ */
 export function ClientList({
   clients,
   pagination,

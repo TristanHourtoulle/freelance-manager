@@ -131,6 +131,15 @@ function NavContent({
   )
 }
 
+/**
+ * Sidebar navigation with user info, search trigger, nav links, and logout.
+ * Fixed on desktop; slides in as an overlay on mobile.
+ *
+ * @param userName - Authenticated user's display name
+ * @param userEmail - Authenticated user's email
+ * @param isOpen - Whether the mobile sidebar overlay is open
+ * @param onClose - Callback to close the mobile sidebar
+ */
 export function SidebarNav({
   userName,
   userEmail,

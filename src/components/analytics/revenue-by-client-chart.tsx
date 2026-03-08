@@ -16,6 +16,7 @@ interface RevenueByClientChartProps {
   data: RevenueByClient[]
 }
 
+/** Horizontal bar chart displaying revenue per client. Used on the analytics page. */
 export function RevenueByClientChart({ data }: RevenueByClientChartProps) {
   const chartHeight = Math.max(256, data.length * 40)
 

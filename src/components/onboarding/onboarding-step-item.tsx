@@ -12,6 +12,13 @@ interface OnboardingStepItemProps {
   isCompleted: boolean
 }
 
+/**
+ * Renders a single onboarding step with a completion icon and CTA link.
+ * Used inside `OnboardingChecklist`.
+ *
+ * @param config - Step configuration (label, description, href, ctaLabel)
+ * @param isCompleted - Whether this step has been completed
+ */
 export function OnboardingStepItem({
   config,
   isCompleted,

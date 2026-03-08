@@ -17,6 +17,13 @@ interface AvailableHoursFormProps {
   onSave: (value: number) => Promise<void>
 }
 
+/**
+ * Form for configuring the user's available working hours per month.
+ * Used on the `/settings` page.
+ *
+ * @param defaultValue - Current available hours setting
+ * @param onSave - Callback to persist the new value
+ */
 export function AvailableHoursForm({
   defaultValue,
   onSave,

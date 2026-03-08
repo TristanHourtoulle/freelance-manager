@@ -14,6 +14,7 @@ interface RevenueChartProps {
   data: Array<{ month: string; label: string; amount: number }>
 }
 
+/** Bar chart showing the last 6 months of revenue. Used on the dashboard. */
 export function RevenueChart({ data }: RevenueChartProps) {
   return (
     <Card title="Revenue (6 months)">

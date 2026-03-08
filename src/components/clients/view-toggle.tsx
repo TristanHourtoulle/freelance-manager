@@ -7,6 +7,7 @@ interface ViewToggleProps {
   onViewChange: (view: "grid" | "list") => void
 }
 
+/** Toggle button pair for switching between grid and list views. Used in ClientFilters. */
 export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
   return (
     <div className="flex items-center rounded-lg border border-border">

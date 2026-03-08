@@ -5,6 +5,11 @@ interface BillingEmptyStateProps {
   hasFilters: boolean
 }
 
+/**
+ * Placeholder shown on the billing page when no uninvoiced tasks exist.
+ * Renders a different message depending on whether filters are active.
+ * @param hasFilters - Whether active filters are narrowing the result set.
+ */
 export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
   if (hasFilters) {
     return (

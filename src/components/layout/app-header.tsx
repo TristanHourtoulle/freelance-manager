@@ -7,6 +7,12 @@ interface AppHeaderProps {
   onMenuToggle: () => void
 }
 
+/**
+ * Sticky mobile header with hamburger menu toggle and notification bell.
+ * Hidden on desktop (lg+) where the sidebar is always visible.
+ *
+ * @param onMenuToggle - Callback to toggle the mobile sidebar
+ */
 export function AppHeader({ onMenuToggle }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-surface px-4 py-3 lg:hidden">

@@ -41,6 +41,7 @@ interface ClientRowProps {
   onArchive: (id: string) => void
 }
 
+/** Table row displaying a single client in list view. Used by ClientList in list mode. */
 export function ClientRow({ client, onArchive }: ClientRowProps) {
   const isArchived = Boolean(client.archivedAt)
   const rateDisplay =

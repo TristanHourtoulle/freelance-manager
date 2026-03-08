@@ -32,6 +32,11 @@ interface ClientFormProps {
   onSubmit: (data: CreateClientInput) => Promise<void>
 }
 
+/**
+ * Form for creating or editing a client (name, email, billing mode, rate, category, notes).
+ * Uses react-hook-form with Zod validation.
+ * Used on the /clients/new and /clients/[id]/edit pages.
+ */
 export function ClientForm({
   defaultValues,
   isEdit = false,
