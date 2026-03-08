@@ -121,6 +121,7 @@ export default function NotificationsPage() {
         <button
           type="button"
           onClick={() => setFilter("all")}
+          aria-pressed={filter === "all"}
           className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
             filter === "all"
               ? "bg-primary text-white"
@@ -132,6 +133,7 @@ export default function NotificationsPage() {
         <button
           type="button"
           onClick={() => setFilter("unread")}
+          aria-pressed={filter === "unread"}
           className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
             filter === "unread"
               ? "bg-primary text-white"
