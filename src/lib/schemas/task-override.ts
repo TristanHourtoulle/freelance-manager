@@ -1,5 +1,6 @@
 import { z } from "zod/v4"
 
+/** Validates the request body when creating a task override. */
 export const createTaskOverrideSchema = z.object({
   clientId: z.string().min(1),
   linearIssueId: z.string().min(1),
@@ -9,6 +10,7 @@ export const createTaskOverrideSchema = z.object({
   rateOverride: z.number().min(0).optional(),
 })
 
+/** Validates the request body when partially updating a task override. */
 export const updateTaskOverrideSchema = z.object({
   toInvoice: z.boolean().optional(),
   invoiced: z.boolean().optional(),
@@ -16,6 +18,7 @@ export const updateTaskOverrideSchema = z.object({
   rateOverride: z.number().min(0).nullable().optional(),
 })
 
+/** Validates the request body when upserting a task override by Linear issue ID. */
 export const upsertTaskOverrideSchema = z.object({
   clientId: z.string().min(1),
   toInvoice: z.boolean().optional(),
