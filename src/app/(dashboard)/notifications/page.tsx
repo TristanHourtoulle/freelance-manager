@@ -111,7 +111,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <h1>Notifications</h1>
         {unreadCount > 0 && (
-          <Button variant="secondary" onClick={dismissAll}>
+          <Button variant="outline" onClick={dismissAll}>
             Mark all as read
           </Button>
         )}

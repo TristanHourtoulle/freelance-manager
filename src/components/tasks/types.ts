@@ -9,6 +9,7 @@ export interface TaskOverrideDTO {
 
 /** Linear workflow status label and color. */
 export interface TaskStatusDTO {
+  id: string
   name: string
   type: string
   color: string
@@ -74,6 +75,11 @@ export interface ClientTaskGroup {
   tasks: EnrichedTask[]
   totalBilling: number
   taskCount: number
+}
+
+/** A task enriched with the client name, used for the Kanban board flat list. */
+export interface KanbanTask extends EnrichedTask {
+  clientName: string
 }
 
 /** Response shape from the tasks list API endpoint. */

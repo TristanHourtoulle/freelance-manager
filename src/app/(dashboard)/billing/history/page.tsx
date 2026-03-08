@@ -75,7 +75,7 @@ export default function BillingHistoryPage() {
     <div className="space-y-6">
       <PageHeader title="Invoiced History">
         <Link href="/billing">
-          <Button variant="secondary">To Invoice</Button>
+          <Button variant="outline">To Invoice</Button>
         </Link>
       </PageHeader>
 

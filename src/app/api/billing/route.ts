@@ -146,6 +146,7 @@ export async function GET(request: Request) {
           estimate: issue.estimate,
           status: issue.status
             ? {
+                id: issue.status.id,
                 name: issue.status.name,
                 type: issue.status.type,
                 color: issue.status.color,

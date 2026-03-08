@@ -1,8 +1,23 @@
 "use client"
 
+import { useState, useMemo, useCallback } from "react"
+import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid"
+
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
 import { TaskRow } from "./task-row"
 
 import type { EnrichedTask } from "./types"
+
+type SortField = "identifier" | "title" | "estimate" | "amount"
+type SortDirection = "asc" | "desc"
 
 interface TaskTableProps {
   tasks: EnrichedTask[]
@@ -14,7 +29,35 @@ interface TaskTableProps {
   onUpdateRate?: (linearIssueId: string, rate: number | null) => void
 }
 
-/** Data table rendering a list of enriched tasks as TaskRow elements with sortable columns. Used inside TaskGroupList. */
+function compareTasks(
+  a: EnrichedTask,
+  b: EnrichedTask,
+  field: SortField,
+  direction: SortDirection,
+): number {
+  const multiplier = direction === "asc" ? 1 : -1
+
+  switch (field) {
+    case "identifier":
+      return (
+        multiplier *
+        a.identifier.localeCompare(b.identifier, undefined, { numeric: true })
+      )
+    case "title":
+      return multiplier * a.title.localeCompare(b.title)
+    case "estimate": {
+      const aVal = a.estimate ?? -1
+      const bVal = b.estimate ?? -1
+      return multiplier * (aVal - bVal)
+    }
+    case "amount":
+      return multiplier * (a.billingAmount - b.billingAmount)
+    default:
+      return 0
+  }
+}
+
+/** Data table rendering a list of enriched tasks as TaskRow elements with sortable columns and inline search. Used inside TaskGroupList. */
 export function TaskTable({
   tasks,
   clientRate,
@@ -24,7 +67,45 @@ export function TaskTable({
   onUpdateEstimate,
   onUpdateRate,
 }: TaskTableProps) {
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const [search, setSearch] = useState("")
+
   const showRateColumn = billingMode === "HOURLY" || billingMode === "DAILY"
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortField === field) {
+        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+      } else {
+        setSortField(field)
+        setSortDirection("asc")
+      }
+    },
+    [sortField],
+  )
+
+  const filteredAndSortedTasks = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    let result = tasks
+
+    if (query) {
+      result = tasks.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          t.identifier.toLowerCase().includes(query),
+      )
+    }
+
+    if (sortField) {
+      result = [...result].sort((a, b) =>
+        compareTasks(a, b, sortField, sortDirection),
+      )
+    }
+
+    return result
+  }, [tasks, search, sortField, sortDirection])
+
   if (tasks.length === 0) {
     return (
       <p className="py-4 text-center text-sm text-text-secondary">
@@ -33,45 +114,82 @@ export function TaskTable({
     )
   }
 
+  function renderSortIcon(field: SortField) {
+    if (sortField !== field) {
+      return (
+        <ChevronUpIcon className="ml-1 inline h-3.5 w-3.5 text-text-muted/40" />
+      )
+    }
+    return sortDirection === "asc" ? (
+      <ChevronUpIcon className="ml-1 inline h-3.5 w-3.5 text-text-primary" />
+    ) : (
+      <ChevronDownIcon className="ml-1 inline h-3.5 w-3.5 text-text-primary" />
+    )
+  }
+
+  const sortableHeadClass =
+    "cursor-pointer select-none text-xs font-medium uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors"
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b border-border">
+    <div>
+      <div className="px-3 py-2">
+        <Input
+          type="text"
+          placeholder="Search by title or ID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b border-border">
             {onToggleToInvoice && (
-              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Bill
-              </th>
+              </TableHead>
             )}
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-              ID
-            </th>
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-              Title
-            </th>
-            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
+            <TableHead
+              className={sortableHeadClass}
+              onClick={() => handleSort("identifier")}
+            >
+              ID{renderSortIcon("identifier")}
+            </TableHead>
+            <TableHead
+              className={sortableHeadClass}
+              onClick={() => handleSort("title")}
+            >
+              Title{renderSortIcon("title")}
+            </TableHead>
+            <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
               Status
-            </th>
-            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-              Estimate
-            </th>
+            </TableHead>
+            <TableHead
+              className={`text-right ${sortableHeadClass}`}
+              onClick={() => handleSort("estimate")}
+            >
+              Estimate{renderSortIcon("estimate")}
+            </TableHead>
             {showRateColumn && (
-              <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
+              <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Rate
-              </th>
+              </TableHead>
             )}
-            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-              Amount
-            </th>
+            <TableHead
+              className={`text-right ${sortableHeadClass}`}
+              onClick={() => handleSort("amount")}
+            >
+              Amount{renderSortIcon("amount")}
+            </TableHead>
             {onToggleInvoiced && (
-              <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
+              <TableHead className="text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
                 Invoiced
-              </th>
+              </TableHead>
             )}
-          </tr>
-        </thead>
-        <tbody>
-          {tasks.map((task) => (
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredAndSortedTasks.map((task) => (
             <TaskRow
               key={task.linearIssueId}
               task={task}
@@ -83,8 +201,18 @@ export function TaskTable({
               onUpdateRate={onUpdateRate}
             />
           ))}
-        </tbody>
-      </table>
+          {filteredAndSortedTasks.length === 0 && search && (
+            <TableRow>
+              <td
+                colSpan={99}
+                className="py-4 text-center text-sm text-text-secondary"
+              >
+                No tasks match &quot;{search}&quot;
+              </td>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
     </div>
   )
 }

@@ -105,7 +105,7 @@ export default function EditClientPage() {
             {new Date(client.archivedAt).toLocaleDateString()}.
           </p>
           <Button
-            variant="secondary"
+            variant="outline"
             onClick={handleUnarchive}
             isLoading={isUnarchiving}
             className="text-xs"

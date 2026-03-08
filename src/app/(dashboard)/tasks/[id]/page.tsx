@@ -9,7 +9,7 @@ import {
   ArrowLeftIcon,
   ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/20/solid"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import type { TaskDetailResponse } from "@/components/tasks/types"
@@ -193,15 +193,17 @@ export default function TaskDetailPage() {
           Back
         </button>
         <Card>
-          <div className="py-8 text-center">
-            <p className="text-text-secondary">{error ?? "Task not found"}</p>
-            <Link
-              href="/tasks"
-              className="mt-4 inline-block text-sm text-primary hover:underline"
-            >
-              Return to tasks
-            </Link>
-          </div>
+          <CardContent>
+            <div className="py-8 text-center">
+              <p className="text-text-secondary">{error ?? "Task not found"}</p>
+              <Link
+                href="/tasks"
+                className="mt-4 inline-block text-sm text-primary hover:underline"
+              >
+                Return to tasks
+              </Link>
+            </div>
+          </CardContent>
         </Card>
       </div>
     )
@@ -274,120 +276,130 @@ export default function TaskDetailPage() {
       <div className="grid gap-6 md:grid-cols-2">
         {/* Details Card */}
         <Card>
-          <dl className="space-y-4">
-            <InfoRow label="Priority" value={issue.priorityLabel || "-"} />
-            <InfoRow
-              label="Assignee"
-              value={issue.assignee?.name ?? "Unassigned"}
-            />
-            <InfoRow label="Project" value={issue.projectName ?? "-"} />
-            <div className="flex items-baseline justify-between">
-              <dt className="text-sm font-medium text-text-secondary">
-                Estimate
-              </dt>
-              <dd className="text-sm text-text-primary">
-                {isEditingEstimate ? (
-                  <input
-                    ref={estimateInputRef}
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={estimateValue}
-                    onChange={(e) => setEstimateValue(e.target.value)}
-                    onBlur={submitEstimate}
-                    onKeyDown={handleEstimateKeyDown}
-                    className="w-16 rounded border border-border-input bg-surface px-1.5 py-0.5 text-right text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                ) : (
-                  <button
-                    onClick={startEditingEstimate}
-                    className="cursor-pointer rounded px-1.5 py-0.5 hover:bg-surface-muted"
-                  >
-                    {issue.estimate !== undefined ? `${issue.estimate}h` : "-"}
-                  </button>
-                )}
-              </dd>
-            </div>
-            {issue.dueDate && (
-              <InfoRow label="Due date" value={formatDate(issue.dueDate)} />
-            )}
-            <InfoRow label="Created" value={formatDate(issue.createdAt)} />
-            <InfoRow label="Updated" value={formatDate(issue.updatedAt)} />
-          </dl>
-        </Card>
-
-        {/* Billing Card */}
-        <Card>
-          <h3 className="mb-4 text-sm font-semibold text-text-primary">
-            Billing
-          </h3>
-          {client ? (
+          <CardContent>
             <dl className="space-y-4">
-              <InfoRow label="Client" value={client.name} />
-              <InfoRow label="Billing mode" value={client.billingMode} />
-              <InfoRow label="Rate" value={`${client.rate} EUR`} />
-              {billing && (
-                <>
-                  <InfoRow
-                    label="Amount"
-                    value={formatAmount(billing.amount)}
-                  />
-                  <InfoRow label="Formula" value={billing.formula} />
-                </>
-              )}
-              <div className="flex items-center justify-between">
+              <InfoRow label="Priority" value={issue.priorityLabel || "-"} />
+              <InfoRow
+                label="Assignee"
+                value={issue.assignee?.name ?? "Unassigned"}
+              />
+              <InfoRow label="Project" value={issue.projectName ?? "-"} />
+              <div className="flex items-baseline justify-between">
                 <dt className="text-sm font-medium text-text-secondary">
-                  To invoice
+                  Estimate
                 </dt>
-                <dd>
-                  <input
-                    type="checkbox"
-                    checked={toInvoice}
-                    onChange={(e) => handleToggleToInvoice(e.target.checked)}
-                    className="h-4 w-4 rounded border-border-input text-primary focus:ring-primary"
-                  />
-                </dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-sm font-medium text-text-secondary">
-                  Invoiced
-                </dt>
-                <dd>
-                  {invoiced ? (
-                    <button
-                      onClick={() => handleToggleInvoiced(false)}
-                      className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
-                    >
-                      Invoiced
-                    </button>
+                <dd className="text-sm text-text-primary">
+                  {isEditingEstimate ? (
+                    <input
+                      ref={estimateInputRef}
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={estimateValue}
+                      onChange={(e) => setEstimateValue(e.target.value)}
+                      onBlur={submitEstimate}
+                      onKeyDown={handleEstimateKeyDown}
+                      className="w-16 rounded border border-border-input bg-surface px-1.5 py-0.5 text-right text-sm tabular-nums text-text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   ) : (
                     <button
-                      onClick={() => handleToggleInvoiced(true)}
-                      className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
+                      onClick={startEditingEstimate}
+                      className="cursor-pointer rounded px-1.5 py-0.5 hover:bg-surface-muted"
                     >
-                      Not invoiced
+                      {issue.estimate !== undefined
+                        ? `${issue.estimate}h`
+                        : "-"}
                     </button>
                   )}
                 </dd>
               </div>
+              {issue.dueDate && (
+                <InfoRow label="Due date" value={formatDate(issue.dueDate)} />
+              )}
+              <InfoRow label="Created" value={formatDate(issue.createdAt)} />
+              <InfoRow label="Updated" value={formatDate(issue.updatedAt)} />
             </dl>
-          ) : (
-            <p className="text-sm text-text-muted">
-              No client mapped to this task.
-            </p>
-          )}
+          </CardContent>
+        </Card>
+
+        {/* Billing Card */}
+        <Card>
+          <CardContent>
+            <h3 className="mb-4 text-sm font-semibold text-text-primary">
+              Billing
+            </h3>
+            {client ? (
+              <dl className="space-y-4">
+                <InfoRow label="Client" value={client.name} />
+                <InfoRow label="Billing mode" value={client.billingMode} />
+                <InfoRow label="Rate" value={`${client.rate} EUR`} />
+                {billing && (
+                  <>
+                    <InfoRow
+                      label="Amount"
+                      value={formatAmount(billing.amount)}
+                    />
+                    <InfoRow label="Formula" value={billing.formula} />
+                  </>
+                )}
+                <div className="flex items-center justify-between">
+                  <dt className="text-sm font-medium text-text-secondary">
+                    To invoice
+                  </dt>
+                  <dd>
+                    <input
+                      type="checkbox"
+                      checked={toInvoice}
+                      onChange={(e) => handleToggleToInvoice(e.target.checked)}
+                      className="h-4 w-4 rounded border-border-input text-primary focus:ring-primary"
+                    />
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-sm font-medium text-text-secondary">
+                    Invoiced
+                  </dt>
+                  <dd>
+                    {invoiced ? (
+                      <button
+                        onClick={() => handleToggleInvoiced(false)}
+                        className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
+                      >
+                        Invoiced
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleInvoiced(true)}
+                        className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
+                      >
+                        Not invoiced
+                      </button>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-sm text-text-muted">
+                No client mapped to this task.
+              </p>
+            )}
+          </CardContent>
         </Card>
       </div>
 
       {/* Description */}
       {issue.description && (
         <Card>
-          <h3 className="mb-4 text-sm font-semibold text-text-primary">
-            Description
-          </h3>
-          <div className="prose prose-sm max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-primary prose-code:rounded prose-code:bg-surface-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:bg-surface-muted">
-            <Markdown remarkPlugins={[remarkGfm]}>{issue.description}</Markdown>
-          </div>
+          <CardContent>
+            <h3 className="mb-4 text-sm font-semibold text-text-primary">
+              Description
+            </h3>
+            <div className="prose prose-sm max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-primary prose-code:rounded prose-code:bg-surface-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-sm prose-pre:bg-surface-muted">
+              <Markdown remarkPlugins={[remarkGfm]}>
+                {issue.description}
+              </Markdown>
+            </div>
+          </CardContent>
         </Card>
       )}
     </div>

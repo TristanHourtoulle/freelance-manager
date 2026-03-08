@@ -87,6 +87,20 @@ export function setLastWebhookReceivedAt(timestamp: number): void {
 }
 
 /**
+ * Updates an issue's workflow status in Linear and clears the local issues cache.
+ *
+ * @param issueId - Linear issue ID
+ * @param stateId - New workflow state ID
+ */
+export async function updateLinearIssueStatus(
+  issueId: string,
+  stateId: string,
+): Promise<void> {
+  await linearClient.updateIssue(issueId, { stateId })
+  issuesCache.clear()
+}
+
+/**
  * Updates an issue's estimate in Linear and clears the local issues cache.
  *
  * @param issueId - Linear issue ID

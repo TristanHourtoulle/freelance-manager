@@ -4,8 +4,14 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { FormField } from "@/components/ui/form-field"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { createLinearIssueSchema } from "@/lib/schemas/linear"
 import { useState, useMemo, useEffect, useCallback } from "react"
@@ -102,8 +108,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
     }
   }, [selectedTeamId, fetchMetadata])
 
-  function handleProjectChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const value = e.target.value
+  function handleProjectChange(value: string) {
     const parts = value.split("::")
     const projectId = parts[0] ?? ""
     const teamId = parts[1] ?? ""
@@ -179,7 +184,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       className="space-y-6"
       noValidate
     >
-      <Input
+      <FormField
         label="Title"
         placeholder="Issue title"
         {...register("title")}
@@ -189,15 +194,34 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       <input type="hidden" {...register("projectId")} />
       <input type="hidden" {...register("teamId")} />
 
-      <Select
-        label="Project"
-        options={projectOptions}
-        placeholder="Select a project"
-        onChange={handleProjectChange}
-        error={errors.projectId?.message || errors.teamId?.message}
-      />
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-muted-foreground">
+          Project
+        </label>
+        <Select
+          onValueChange={(val: string | null) => {
+            if (val) handleProjectChange(val)
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projectOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(errors.projectId?.message || errors.teamId?.message) && (
+          <p className="text-sm text-destructive">
+            {errors.projectId?.message || errors.teamId?.message}
+          </p>
+        )}
+      </div>
 
-      <Input
+      <FormField
         label="Estimate (points)"
         type="number"
         min="1"
@@ -221,25 +245,51 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
           ) : metadata ? (
             <>
               {memberOptions.length > 0 && (
-                <Select
-                  label="Assignee"
-                  options={memberOptions}
-                  placeholder="Unassigned"
-                  onChange={(e) =>
-                    setValue("assigneeId", e.target.value || undefined)
-                  }
-                />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Assignee
+                  </label>
+                  <Select
+                    onValueChange={(val: string | null) =>
+                      setValue("assigneeId", val ?? undefined)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {memberOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
               {stateOptions.length > 0 && (
-                <Select
-                  label="Status"
-                  options={stateOptions}
-                  placeholder="Default status"
-                  onChange={(e) =>
-                    setValue("stateId", e.target.value || undefined)
-                  }
-                />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Status
+                  </label>
+                  <Select
+                    onValueChange={(val: string | null) =>
+                      setValue("stateId", val ?? undefined)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Default status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stateOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
               {metadata.labels.length > 0 && (
@@ -296,7 +346,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       <div className="flex justify-end gap-3">
         <Button
           type="button"
-          variant="secondary"
+          variant="outline"
           onClick={() => router.push("/tasks")}
         >
           Cancel

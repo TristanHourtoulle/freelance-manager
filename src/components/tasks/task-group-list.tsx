@@ -1,6 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { ChevronRightIcon } from "@heroicons/react/20/solid"
+
+import { Badge } from "@/components/ui/badge"
+
 import { TaskTable } from "./task-table"
 
 import type { ClientTaskGroup } from "./types"
@@ -84,19 +88,9 @@ export function TaskGroupList({
               className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-surface-muted/50"
             >
               <div className="flex items-center gap-3">
-                <svg
+                <ChevronRightIcon
                   className={`h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 ${isCollapsed ? "" : "rotate-90"}`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
+                />
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-text-primary">
                     {group.client.name}
@@ -107,13 +101,13 @@ export function TaskGroupList({
                     </span>
                   )}
                 </div>
-                <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-xs font-medium text-text-secondary">
+                <Badge variant="secondary">
                   {BILLING_MODE_LABELS[group.client.billingMode] ??
                     group.client.billingMode}
-                </span>
-                <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-xs font-medium text-text-secondary">
+                </Badge>
+                <Badge variant="outline">
                   {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
-                </span>
+                </Badge>
               </div>
               <div className="text-sm font-semibold tabular-nums text-text-primary">
                 {formatAmount(group.totalBilling)}

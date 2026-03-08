@@ -32,7 +32,7 @@ export function TaskEmptyState({ hasFilters }: TaskEmptyStateProps) {
         Set up Linear project mappings on your clients to see tasks here.
       </p>
       <Link href="/clients" className="mt-4">
-        <Button variant="secondary">Go to Clients</Button>
+        <Button variant="outline">Go to Clients</Button>
       </Link>
     </div>
   )

@@ -86,7 +86,9 @@ export async function GET(request: Request) {
           identifier: string
           title: string
           estimate: number | undefined
-          status: { name: string; type: string; color: string } | undefined
+          status:
+            | { id: string; name: string; type: string; color: string }
+            | undefined
           url: string
           priorityLabel: string
         }
@@ -115,6 +117,7 @@ export async function GET(request: Request) {
               estimate: i.estimate,
               status: i.status
                 ? {
+                    id: i.status.id,
                     name: i.status.name,
                     type: i.status.type,
                     color: i.status.color,

@@ -119,10 +119,10 @@ export default function BillingPage() {
     <div className="space-y-6">
       <PageHeader title="To Invoice">
         <Link href="/billing/history">
-          <Button variant="secondary">History</Button>
+          <Button variant="outline">History</Button>
         </Link>
         <Link href="/tasks">
-          <Button variant="secondary">View Tasks</Button>
+          <Button variant="outline">View Tasks</Button>
         </Link>
       </PageHeader>
 

@@ -1,24 +1,32 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/ui/page-header"
 import { PageToolbar } from "@/components/ui/page-toolbar"
-import { TaskFilters } from "@/components/tasks/task-filters"
+import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
+import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
+import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
-import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
 import { useTasks, useRefreshLinear } from "@/hooks/use-tasks"
 
-import type { ClientSummary } from "@/components/tasks/types"
+import type { ClientSummary, KanbanTask } from "@/components/tasks/types"
 
 export default function TasksPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const [view, setView] = useState<TaskView>(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("tasks-view") as TaskView) || "list"
+    }
+    return "list"
+  })
 
   const { data, isLoading, isFetching } = useTasks(searchParams.toString())
 
@@ -27,6 +35,11 @@ export default function TasksPage() {
   const groups = data?.groups ?? []
   const lastSyncedAt = data?.lastSyncedAt ?? null
   const isStale = data?.isStale ?? false
+
+  const handleViewChange = useCallback((newView: TaskView) => {
+    setView(newView)
+    localStorage.setItem("tasks-view", newView)
+  }, [])
 
   const handleRefresh = useCallback(async () => {
     refreshMutation.mutate()
@@ -95,9 +108,43 @@ export default function TasksPage() {
     [toast],
   )
 
+  const handleStatusChange = useCallback(
+    async (
+      linearIssueId: string,
+      _newStatusName: string,
+      newStatusId: string,
+    ) => {
+      const res = await fetch(`/api/linear/issues/${linearIssueId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stateId: newStatusId }),
+      })
+
+      if (res.ok) {
+        toast({ variant: "success", title: "Status updated" })
+      } else {
+        toast({ variant: "error", title: "Failed to update status" })
+      }
+    },
+    [toast],
+  )
+
   const allClients: ClientSummary[] = groups.map((g) => g.client)
   const hasFilters = Boolean(
     searchParams.get("clientId") || searchParams.get("preset"),
+  )
+
+  const kanbanTasks: KanbanTask[] = useMemo(
+    () =>
+      groups.flatMap((g) =>
+        g.tasks.map((t) => ({
+          ...t,
+          clientName: g.client.company
+            ? `${g.client.name} (${g.client.company})`
+            : g.client.name,
+        })),
+      ),
+    [groups],
   )
 
   return (
@@ -107,14 +154,9 @@ export default function TasksPage() {
           <Button>New Task</Button>
         </Link>
         <Link href="/billing">
-          <Button variant="secondary">To Invoice</Button>
+          <Button variant="outline">To Invoice</Button>
         </Link>
       </PageHeader>
-
-      <TooltipHint storageKey="tasks-page">
-        Your Linear tasks appear here grouped by client. Use the sync button to
-        refresh data from Linear.
-      </TooltipHint>
 
       <PageToolbar>
         <SyncStatusBar
@@ -123,23 +165,43 @@ export default function TasksPage() {
           onRefresh={handleRefresh}
           isRefreshing={isLoading || isFetching}
         />
-        <TaskFilters clients={allClients} />
+        <TaskFilters
+          clients={allClients}
+          view={view}
+          onViewChange={handleViewChange}
+        />
       </PageToolbar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">Loading tasks...</p>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="h-64 rounded-xl" />
         </div>
       ) : groups.length === 0 ? (
         <TaskEmptyState hasFilters={hasFilters} />
       ) : (
-        <TaskGroupList
-          groups={groups}
-          onToggleToInvoice={handleToggleToInvoice}
-          onToggleInvoiced={handleToggleInvoiced}
-          onUpdateEstimate={handleUpdateEstimate}
-          onUpdateRate={handleUpdateRate}
-        />
+        <>
+          <TaskKpiCards groups={groups} />
+
+          {view === "list" ? (
+            <TaskGroupList
+              groups={groups}
+              onToggleToInvoice={handleToggleToInvoice}
+              onToggleInvoiced={handleToggleInvoiced}
+              onUpdateEstimate={handleUpdateEstimate}
+              onUpdateRate={handleUpdateRate}
+            />
+          ) : (
+            <TaskKanbanBoard
+              tasks={kanbanTasks}
+              onStatusChange={handleStatusChange}
+            />
+          )}
+        </>
       )}
     </div>
   )
