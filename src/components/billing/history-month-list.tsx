@@ -1,6 +1,16 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
+import {
+  ArrowUpTrayIcon,
+  DocumentIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline"
+import {
+  useUploadInvoiceFile,
+  useDeleteInvoiceFile,
+} from "@/hooks/use-invoice-files"
+import { useToast } from "@/components/providers/toast-provider"
 
 import type {
   HistoryMonthGroup,
@@ -26,11 +36,43 @@ function formatAmount(amount: number): string {
   }).format(amount)
 }
 
-/**
- * Two-level collapsible list of invoiced tasks grouped first by month, then by client.
- * Each client group expands to show a task detail table.
- * Used on the billing history page.
- */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+function PaymentDeadlineBadge({
+  paymentDueDate,
+  status,
+}: {
+  paymentDueDate: string | null
+  status: string
+}) {
+  if (status === "PAID") return null
+  if (!paymentDueDate) return null
+
+  const dueDate = new Date(paymentDueDate)
+  const now = new Date()
+  const diffMs = dueDate.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000))
+
+  if (diffDays > 0) {
+    return (
+      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+        Due in {diffDays}d
+      </span>
+    )
+  }
+
+  const overdueDays = Math.abs(diffDays)
+  return (
+    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+      Overdue {overdueDays}d
+    </span>
+  )
+}
+
 function InvoiceStatusBadge({
   group,
   onMarkAsPaid,
@@ -40,7 +82,7 @@ function InvoiceStatusBadge({
 }) {
   if (!group.invoice) return null
 
-  const { status, id } = group.invoice
+  const { status, id, paymentDueDate } = group.invoice
 
   if (status === "PAID") {
     return (
@@ -55,6 +97,7 @@ function InvoiceStatusBadge({
       <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
         Sent
       </span>
+      <PaymentDeadlineBadge paymentDueDate={paymentDueDate} status={status} />
       {onMarkAsPaid && (
         <button
           onClick={(e) => {
@@ -66,6 +109,115 @@ function InvoiceStatusBadge({
           Mark as paid
         </button>
       )}
+    </div>
+  )
+}
+
+function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadMutation = useUploadInvoiceFile()
+  const deleteMutation = useDeleteInvoiceFile()
+  const { toast } = useToast()
+
+  const invoiceId = group.invoice?.id
+  const files = group.invoice?.files ?? []
+
+  const handleUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file || !invoiceId) return
+
+      uploadMutation.mutate(
+        { invoiceId, file },
+        {
+          onSuccess: () => {
+            toast({ variant: "success", title: "PDF uploaded" })
+          },
+          onError: (error) => {
+            toast({
+              variant: "error",
+              title: error.message || "Upload failed",
+            })
+          },
+        },
+      )
+
+      // Reset input so same file can be re-uploaded
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    },
+    [invoiceId, uploadMutation, toast],
+  )
+
+  const handleDelete = useCallback(
+    (fileId: string) => {
+      if (!invoiceId) return
+      deleteMutation.mutate(
+        { invoiceId, fileId },
+        {
+          onError: () => {
+            toast({ variant: "error", title: "Failed to delete file" })
+          },
+        },
+      )
+    },
+    [invoiceId, deleteMutation, toast],
+  )
+
+  if (!group.invoice) return null
+
+  return (
+    <div className="flex items-center gap-2 border-t border-border-light px-4 py-2">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        onChange={handleUpload}
+        className="hidden"
+      />
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          fileInputRef.current?.click()
+        }}
+        disabled={uploadMutation.isPending}
+        className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-surface-muted px-2 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-border disabled:opacity-50"
+      >
+        <ArrowUpTrayIcon className="h-3.5 w-3.5" />
+        {uploadMutation.isPending ? "Uploading..." : "Upload PDF"}
+      </button>
+
+      {files.map((file) => (
+        <div
+          key={file.id}
+          className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-2 py-1 text-xs text-text-secondary"
+        >
+          <DocumentIcon className="h-3.5 w-3.5 text-red-500" />
+          <a
+            href={`/api/billing/invoices/${invoiceId}/files/${file.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-primary hover:underline"
+          >
+            {file.fileName}
+          </a>
+          <span className="text-text-muted">
+            ({formatFileSize(file.fileSize)})
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDelete(file.id)
+            }}
+            disabled={deleteMutation.isPending}
+            className="cursor-pointer text-text-muted transition-colors hover:text-red-500 disabled:opacity-50"
+          >
+            <TrashIcon className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
     </div>
   )
 }
@@ -193,6 +345,8 @@ export function HistoryMonthList({
                           {formatAmount(group.totalBilling)}
                         </span>
                       </button>
+
+                      <InvoiceFileSection group={group} />
 
                       {!isClientCollapsed && (
                         <div className="border-t border-border-light">

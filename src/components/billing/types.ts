@@ -12,11 +12,21 @@ export interface BillingApiResponse {
   }
 }
 
+/** File metadata for an invoice attachment. */
+export interface InvoiceFileInfo {
+  id: string
+  fileName: string
+  fileSize: number
+  uploadedAt: string
+}
+
 /** Invoice status for a client within a month. */
 export interface InvoiceInfo {
   id: string
   status: "DRAFT" | "SENT" | "PAID"
   totalAmount: number
+  paymentDueDate: string | null
+  files: InvoiceFileInfo[]
 }
 
 /** A client group within history, with optional invoice info. */
