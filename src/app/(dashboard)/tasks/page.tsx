@@ -18,6 +18,8 @@ import { useToast } from "@/components/providers/toast-provider"
 import {
   useTasks,
   useRefreshLinear,
+  useUpdateTaskOverride,
+  useUpdateEstimate,
   useUpdateTaskStatus,
 } from "@/hooks/use-tasks"
 
@@ -56,67 +58,59 @@ export default function TasksPage() {
     refreshMutation.mutate()
   }, [refreshMutation])
 
-  const updateOverride = useCallback(
-    async (
-      clientId: string,
-      linearIssueId: string,
-      payload: Record<string, unknown>,
-    ) => {
-      const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, ...payload }),
-      })
-
-      if (!res.ok) {
-        toast({ variant: "error", title: "Failed to update task" })
-      }
-    },
-    [toast],
-  )
+  const overrideMutation = useUpdateTaskOverride()
+  const estimateMutation = useUpdateEstimate()
 
   const handleToggleToInvoice = useCallback(
     (clientId: string, linearIssueId: string, value: boolean) => {
-      updateOverride(clientId, linearIssueId, { toInvoice: value })
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { toInvoice: value } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update task" }),
+        },
+      )
     },
-    [updateOverride],
+    [overrideMutation, toast],
   )
 
   const handleToggleInvoiced = useCallback(
     (clientId: string, linearIssueId: string, value: boolean) => {
-      updateOverride(clientId, linearIssueId, { invoiced: value })
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { invoiced: value } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update task" }),
+        },
+      )
     },
-    [updateOverride],
+    [overrideMutation, toast],
   )
 
   const handleUpdateEstimate = useCallback(
-    async (clientId: string, linearIssueId: string, estimate: number) => {
-      const res = await fetch(`/api/linear/issues/${linearIssueId}/estimate`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estimate }),
-      })
-
-      if (!res.ok) {
-        toast({ variant: "error", title: "Failed to update estimate" })
-      }
+    (_clientId: string, linearIssueId: string, estimate: number) => {
+      estimateMutation.mutate(
+        { linearIssueId, estimate },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update estimate" }),
+        },
+      )
     },
-    [toast],
+    [estimateMutation, toast],
   )
 
   const handleUpdateRate = useCallback(
-    async (clientId: string, linearIssueId: string, rate: number | null) => {
-      const res = await fetch(`/api/tasks/${linearIssueId}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, rateOverride: rate }),
-      })
-
-      if (!res.ok) {
-        toast({ variant: "error", title: "Failed to update rate" })
-      }
+    (clientId: string, linearIssueId: string, rate: number | null) => {
+      overrideMutation.mutate(
+        { linearIssueId, clientId, payload: { rateOverride: rate } },
+        {
+          onError: () =>
+            toast({ variant: "error", title: "Failed to update rate" }),
+        },
+      )
     },
-    [toast],
+    [overrideMutation, toast],
   )
 
   const statusMutation = useUpdateTaskStatus()

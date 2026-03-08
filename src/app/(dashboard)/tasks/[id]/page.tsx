@@ -24,6 +24,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { normalizeLineBreaks } from "@/lib/format"
+
 import type { TaskDetailResponse } from "@/components/tasks/types"
 
 function formatDate(iso: string): string {
@@ -39,56 +41,6 @@ function formatAmount(amount: number): string {
     style: "currency",
     currency: "EUR",
   }).format(amount)
-}
-
-/**
- * Normalizes Linear markdown so that single newlines become paragraph breaks.
- * Preserves fenced code blocks, consecutive list items, consecutive table
- * rows, and already-blank lines.
- */
-function normalizeLineBreaks(md: string): string {
-  const lines = md.split("\n")
-  const result: string[] = []
-  let inCodeBlock = false
-
-  /** Whether a line belongs to a "block group" (list, table, blockquote). */
-  const isBlockLine = (l: string) =>
-    /^(\s*[-*+]\s|\s*\d+[.)]\s|\s*>|^\|)/.test(l)
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] as string
-
-    // Toggle fenced code block state
-    if (line.trimStart().startsWith("```")) {
-      inCodeBlock = !inCodeBlock
-      result.push(line)
-      continue
-    }
-
-    // Inside code blocks, preserve everything as-is
-    if (inCodeBlock) {
-      result.push(line)
-      continue
-    }
-
-    result.push(line)
-
-    const next = lines[i + 1] as string | undefined
-
-    // Don't insert blank line if current or next line is empty (already spaced)
-    if (!line.trim() || next === undefined || !next.trim()) continue
-
-    // Don't break apart consecutive block-group lines (list items, table rows)
-    if (isBlockLine(line) && isBlockLine(next)) continue
-
-    // Don't break between a heading separator (---/===) and adjacent lines
-    if (/^[-=]{3,}\s*$/.test(next)) continue
-
-    // Everything else: insert blank line to create a paragraph break
-    result.push("")
-  }
-
-  return result.join("\n")
 }
 
 /** Priority label to visual style mapping. */
