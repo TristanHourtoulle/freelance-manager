@@ -2,6 +2,7 @@ import { linearClient } from "@/lib/linear"
 import { TTLCache } from "@/lib/cache"
 import { env } from "@/lib/env"
 
+/** Normalized representation of a Linear team. */
 export interface LinearTeamDTO {
   id: string
   name: string
@@ -11,6 +12,7 @@ export interface LinearTeamDTO {
   icon: string | undefined
 }
 
+/** Normalized representation of a Linear project. */
 export interface LinearProjectDTO {
   id: string
   name: string
@@ -23,6 +25,7 @@ export interface LinearProjectDTO {
   icon: string | undefined
 }
 
+/** Normalized representation of a Linear issue workflow status. */
 export interface LinearIssueStatusDTO {
   id: string
   name: string
@@ -30,18 +33,21 @@ export interface LinearIssueStatusDTO {
   color: string
 }
 
+/** Normalized representation of a Linear issue assignee. */
 export interface LinearIssueAssigneeDTO {
   id: string
   name: string
   email: string | undefined
 }
 
+/** Normalized representation of a Linear issue label. */
 export interface LinearIssueLabelDTO {
   id: string
   name: string
   color: string
 }
 
+/** Normalized representation of a Linear issue with status, assignee, and labels. */
 export interface LinearIssueDTO {
   id: string
   identifier: string
@@ -71,10 +77,21 @@ const issuesCache = new TTLCache<LinearIssueDTO[]>(ISSUES_TTL)
 let lastSyncedAt: number | null = null
 let lastWebhookReceivedAt: number | null = null
 
+/**
+ * Records the timestamp of the most recent Linear webhook event.
+ *
+ * @param timestamp - Unix timestamp in milliseconds
+ */
 export function setLastWebhookReceivedAt(timestamp: number): void {
   lastWebhookReceivedAt = timestamp
 }
 
+/**
+ * Updates an issue's estimate in Linear and clears the local issues cache.
+ *
+ * @param issueId - Linear issue ID
+ * @param estimate - New estimate value (in story points / hours)
+ */
 export async function updateLinearIssueEstimate(
   issueId: string,
   estimate: number,
@@ -83,6 +100,14 @@ export async function updateLinearIssueEstimate(
   issuesCache.clear()
 }
 
+/**
+ * Creates a new issue in Linear and returns the normalized DTO.
+ * Clears the issues cache after creation.
+ *
+ * @param input - Issue creation parameters (title, description, estimate, teamId, projectId)
+ * @returns The newly created issue as a LinearIssueDTO
+ * @throws Error if Linear API returns no issue after creation
+ */
 export async function createLinearIssue(input: {
   title: string
   description?: string
@@ -147,12 +172,18 @@ export async function createLinearIssue(input: {
   }
 }
 
+/** Clears all in-memory Linear caches (teams, projects, issues). */
 export function clearLinearCaches(): void {
   teamsCache.clear()
   projectsCache.clear()
   issuesCache.clear()
 }
 
+/**
+ * Returns the current Linear sync status including staleness detection.
+ *
+ * @returns Object with lastSyncedAt timestamp, lastWebhookReceivedAt timestamp, and isStale flag
+ */
 export function getLinearSyncStatus(): {
   lastSyncedAt: number | null
   lastWebhookReceivedAt: number | null
@@ -163,6 +194,7 @@ export function getLinearSyncStatus(): {
   return { lastSyncedAt, lastWebhookReceivedAt, isStale }
 }
 
+/** Extended issue DTO with description, dates, and project name for the detail view. */
 export interface LinearIssueDetailDTO extends LinearIssueDTO {
   description: string | undefined
   updatedAt: string
@@ -207,6 +239,14 @@ interface RawIssueDetailResponse {
   }
 }
 
+/**
+ * Fetches a single Linear issue by ID using a GraphQL query.
+ * Returns the full detail DTO including description and project name.
+ *
+ * @param issueId - Linear issue ID
+ * @returns The issue detail DTO
+ * @throws Error if the Linear API returns no data
+ */
 export async function fetchLinearIssueById(
   issueId: string,
 ): Promise<LinearIssueDetailDTO> {
@@ -304,6 +344,11 @@ export async function fetchLinearIssueById(
   }
 }
 
+/**
+ * Fetches all Linear teams with TTL caching.
+ *
+ * @returns Array of normalized team DTOs
+ */
 export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
   const cached = teamsCache.get("all")
   if (cached) return cached
@@ -324,6 +369,12 @@ export async function fetchLinearTeams(): Promise<LinearTeamDTO[]> {
   return result
 }
 
+/**
+ * Fetches Linear projects with TTL caching, optionally filtered by team.
+ *
+ * @param teamId - Optional team ID to filter projects
+ * @returns Array of normalized project DTOs
+ */
 export async function fetchLinearProjects(
   teamId?: string,
 ): Promise<LinearProjectDTO[]> {
@@ -352,6 +403,7 @@ export async function fetchLinearProjects(
   return result
 }
 
+/** Lightweight issue representation returned by search queries. */
 export interface LinearIssueSearchResult {
   id: string
   identifier: string
@@ -370,6 +422,13 @@ interface RawIssueSearchResponse {
   }
 }
 
+/**
+ * Searches Linear issues by text query using a GraphQL search.
+ * Returns up to 5 matching results.
+ *
+ * @param query - Free-text search query
+ * @returns Array of lightweight search results
+ */
 export async function searchLinearIssues(
   query: string,
 ): Promise<LinearIssueSearchResult[]> {
@@ -439,6 +498,13 @@ interface RawIssueResponse {
   }
 }
 
+/**
+ * Fetches Linear issues with TTL caching, optionally filtered by team and/or project.
+ *
+ * @param filters - Optional teamId and/or projectId to filter issues
+ * @returns Array of normalized issue DTOs
+ * @throws Error if the Linear API returns no data
+ */
 export async function fetchLinearIssues(filters: {
   teamId?: string
   projectId?: string

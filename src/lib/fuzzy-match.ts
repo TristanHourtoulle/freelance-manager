@@ -3,6 +3,20 @@ interface FuzzyMatchResult {
   score: number
 }
 
+/**
+ * Performs a fuzzy match of a query string against a target string.
+ * Scores exact substring matches higher, then falls back to character-by-character matching.
+ *
+ * @param query - The search query
+ * @param target - The string to match against
+ * @returns Match result with `isMatch` flag and a relevance `score`
+ *
+ * @example
+ * ```ts
+ * fuzzyMatch("cli", "ClientCard") // => { isMatch: true, score: 130 }
+ * fuzzyMatch("xyz", "ClientCard") // => { isMatch: false, score: 0 }
+ * ```
+ */
 export function fuzzyMatch(query: string, target: string): FuzzyMatchResult {
   if (query.length === 0) {
     return { isMatch: true, score: 0 }
@@ -42,6 +56,20 @@ export function fuzzyMatch(query: string, target: string): FuzzyMatchResult {
   return { isMatch: true, score }
 }
 
+/**
+ * Filters and sorts an array of items by fuzzy matching against a key.
+ * Returns all matching items sorted by descending relevance score.
+ *
+ * @param query - The search query (returns all items if empty)
+ * @param items - The items to filter
+ * @param getKey - Function to extract the searchable string from each item
+ * @returns Filtered and sorted items
+ *
+ * @example
+ * ```ts
+ * fuzzyFilter("acme", clients, (c) => c.name)
+ * ```
+ */
 export function fuzzyFilter<T>(
   query: string,
   items: T[],

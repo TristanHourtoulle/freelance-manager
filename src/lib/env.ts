@@ -9,4 +9,5 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 })
 
+/** Validated environment variables. Throws at startup if any required variable is missing. */
 export const env = envSchema.parse(process.env)
