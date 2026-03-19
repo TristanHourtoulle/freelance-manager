@@ -2,9 +2,8 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   revenueTargetSchema,
   type RevenueTargetInput,
@@ -17,13 +16,6 @@ interface RevenueTargetFormProps {
   onSave: (value: number) => Promise<void>
 }
 
-/**
- * Form for setting the monthly revenue target in EUR.
- * Used on the `/settings` page.
- *
- * @param defaultValue - Current revenue target
- * @param onSave - Callback to persist the new value
- */
 export function RevenueTargetForm({
   defaultValue,
   onSave,
@@ -42,28 +34,41 @@ export function RevenueTargetForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Revenue Target</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            label="Monthly revenue target (EUR)"
-            type="number"
-            step="0.01"
-            {...register("monthlyRevenueTarget", { valueAsNumber: true })}
-            error={errors.monthlyRevenueTarget?.message}
-          />
-          <p className="text-sm text-text-secondary">
-            Set your monthly revenue goal. 0 means no target. Displayed as a
-            progress bar on the dashboard.
-          </p>
-          <Button type="submit" isLoading={isSubmitting}>
-            Save
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-border bg-surface p-6">
+      <h2 className="text-base font-semibold text-foreground">
+        Revenue Target
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Set your monthly revenue goal. 0 means no target. Displayed on the
+        dashboard.
+      </p>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="mt-4 flex items-center gap-2.5"
+      >
+        <Input
+          type="number"
+          step="0.01"
+          {...register("monthlyRevenueTarget", { valueAsNumber: true })}
+          aria-invalid={!!errors.monthlyRevenueTarget}
+          className="h-[38px] w-40 px-4"
+          style={{ borderRadius: "19px 12px 12px 19px" }}
+        />
+        <Button
+          type="submit"
+          variant="gradient"
+          size="lg"
+          isLoading={isSubmitting}
+          style={{ borderRadius: "12px 19px 19px 12px" }}
+        >
+          Save
+        </Button>
+      </form>
+      {errors.monthlyRevenueTarget?.message && (
+        <p className="mt-2 text-sm text-destructive">
+          {errors.monthlyRevenueTarget.message}
+        </p>
+      )}
+    </div>
   )
 }

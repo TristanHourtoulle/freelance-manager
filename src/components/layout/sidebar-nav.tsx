@@ -4,12 +4,14 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   ArrowRightStartOnRectangleIcon,
+  Cog6ToothIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline"
 import { authClient } from "@/lib/auth-client"
-import { NAV_ITEMS } from "@/lib/navigation"
+import { NAV_ITEMS, SETTINGS_NAV_SECTIONS } from "@/lib/navigation"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { useUserImage } from "@/components/providers/user-provider"
 
 interface SidebarNavProps {
   userName: string
@@ -27,7 +29,7 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function NavContent({
+function AppNav({
   userName,
   userEmail,
 }: {
@@ -36,11 +38,11 @@ function NavContent({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { image: userImage } = useUserImage()
 
   function isActive(href: string): boolean {
-    if (href === "/dashboard") {
-      return pathname === "/dashboard"
-    }
+    if (href === "/dashboard") return pathname === "/dashboard"
+    if (href === "/settings") return pathname.startsWith("/settings")
     return pathname.startsWith(href)
   }
 
@@ -54,16 +56,22 @@ function NavContent({
       {/* User profile */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3.5">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-normal text-white bg-linear-to-r from-[#2563eb] to-[#1442a9]">
-            {getInitials(userName)}
-          </div>
+          {userImage ? (
+            <img
+              src={userImage}
+              alt={userName}
+              className="size-12 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-normal text-white bg-linear-to-r from-[#2563eb] to-[#1442a9]">
+              {getInitials(userName)}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="truncate text-base font-medium text-text-primary">
               {userName}
             </p>
-            <p className="truncate text-sm font-medium text-text-secondary">
-              {userEmail}
-            </p>
+            <p className="truncate text-xs text-text-secondary">{userEmail}</p>
           </div>
         </div>
       </div>
@@ -132,6 +140,81 @@ function NavContent({
       </div>
     </div>
   )
+}
+
+function SettingsNav() {
+  const pathname = usePathname()
+
+  function isActive(href: string): boolean {
+    if (href === "/settings") return pathname === "/settings"
+    return pathname.startsWith(href)
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Settings header */}
+      <div className="flex items-center gap-3 p-5 pb-4">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+          <Cog6ToothIcon className="size-5 text-foreground" />
+        </div>
+        <div>
+          <p className="text-base font-semibold text-foreground">Settings</p>
+          <p className="text-xs text-muted-foreground">Manage your workspace</p>
+        </div>
+      </div>
+
+      <div className="mx-5 border-t border-border" />
+
+      {/* Settings navigation sections */}
+      <nav className="flex-1 overflow-y-auto p-3 pt-2">
+        {SETTINGS_NAV_SECTIONS.map((section, sIdx) => (
+          <div key={sIdx} className={sIdx > 0 ? "mt-4" : "mt-1"}>
+            {section.title && (
+              <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {section.title}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const active = isActive(item.href)
+                const isBack = item.href === "/dashboard"
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isBack
+                        ? "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                        : active
+                          ? "bg-primary text-white"
+                          : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </div>
+  )
+}
+
+function NavContent({
+  userName,
+  userEmail,
+}: {
+  userName: string
+  userEmail: string
+}) {
+  const pathname = usePathname()
+  const isSettings = pathname.startsWith("/settings")
+
+  if (isSettings) return <SettingsNav />
+  return <AppNav userName={userName} userEmail={userEmail} />
 }
 
 export function SidebarNav({

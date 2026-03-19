@@ -36,10 +36,10 @@ export function Chip({
       onClick={onClick}
       style={SHAPE_STYLES[position]}
       className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center gap-2.5 border px-5 py-2 text-sm font-medium transition-colors",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1.5 border px-3.5 py-1.5 text-xs font-medium transition-colors",
         isActive
-          ? "bg-linear-to-r from-[#2563eb] to-[#1442a9] border-transparent text-white"
-          : "bg-surface border-border text-text-secondary hover:border-primary/40 hover:text-text-primary",
+          ? "bg-linear-to-r from-[#2563eb] to-[#1442a9] border-transparent text-white dark:from-primary dark:to-primary/70"
+          : "bg-transparent border-border text-text-secondary hover:border-primary/40 hover:text-text-primary",
         className,
       )}
     >

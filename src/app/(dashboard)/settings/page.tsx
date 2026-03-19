@@ -1,95 +1,156 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AvailableHoursForm } from "@/components/settings/available-hours-form"
-import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
+import { useCallback, useEffect, useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod/v4"
+import { ProfilePhotoForm } from "@/components/settings/profile-photo-form"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
-import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 
-interface Settings {
-  availableHoursPerMonth: number
-  monthlyRevenueTarget: number
+import type { Resolver } from "react-hook-form"
+
+const profileSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100).trim(),
+  email: z.email("Invalid email address"),
+})
+
+type ProfileInput = z.infer<typeof profileSchema>
+
+interface UserProfile {
+  name: string
+  email: string
 }
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<Settings | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export default function ProfileSettingsPage() {
   const { toast } = useToast()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      setIsLoading(true)
-      const res = await fetch("/api/settings", { cache: "no-store" })
-      if (res.ok) {
-        const json: Settings = await res.json()
-        setSettings(json)
+      const res = await fetch("/api/user", { cache: "no-store" })
+      if (!cancelled && res.ok) {
+        const data = await res.json()
+        setProfile({ name: data.name, email: data.email })
       }
-      setIsLoading(false)
+      if (!cancelled) setIsLoading(false)
     }
-
     load()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  async function handleSaveHours(value: number) {
-    const res = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ availableHoursPerMonth: value }),
-    })
-
-    if (res.ok) {
-      const json: Settings = await res.json()
-      setSettings(json)
-      toast({ variant: "success", title: "Settings saved" })
-    } else {
-      toast({ variant: "error", title: "Failed to save settings" })
-    }
-  }
-
-  async function handleSaveTarget(value: number) {
-    const res = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ monthlyRevenueTarget: value }),
-    })
-
-    if (res.ok) {
-      const json: Settings = await res.json()
-      setSettings(json)
-      toast({ variant: "success", title: "Settings saved" })
-    } else {
-      toast({ variant: "error", title: "Failed to save settings" })
-    }
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Profile" />
+        <Skeleton className="h-36 rounded-xl" />
+        <Skeleton className="h-48 rounded-xl" />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" />
+      <PageHeader title="Profile" />
+      <ProfilePhotoForm />
+      {profile && <ProfileForm defaultValues={profile} onSaved={setProfile} />}
+    </div>
+  )
+}
 
-      <TooltipHint storageKey="settings-page">
-        Configure your working hours and revenue target for dashboard analytics.
-      </TooltipHint>
+function ProfileForm({
+  defaultValues,
+  onSaved,
+}: {
+  defaultValues: ProfileInput
+  onSaved: (p: UserProfile) => void
+}) {
+  const { toast } = useToast()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileInput>({
+    resolver: zodResolver(profileSchema) as Resolver<ProfileInput>,
+    defaultValues,
+  })
 
-      {isLoading ? (
-        <div className="animate-pulse rounded-lg border border-border bg-surface p-6">
-          <div className="h-6 w-32 rounded bg-surface-muted" />
-          <div className="mt-4 h-10 w-64 rounded bg-surface-muted" />
+  const onSubmit = useCallback(
+    async (data: ProfileInput) => {
+      const res = await fetch("/api/user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const user = await res.json()
+        onSaved({ name: user.name, email: user.email })
+        toast({ variant: "success", title: "Profile updated" })
+      } else {
+        toast({ variant: "error", title: "Failed to update profile" })
+      }
+    },
+    [onSaved, toast],
+  )
+
+  return (
+    <div className="rounded-xl border border-border bg-surface p-6">
+      <h2 className="text-base font-semibold text-foreground">
+        Personal Information
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Update your name and email address.
+      </p>
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-sm font-medium text-muted-foreground">
+              Name
+            </label>
+            <Input
+              placeholder="Your name"
+              {...register("name")}
+              aria-invalid={!!errors.name}
+              className="h-[38px] px-4"
+              style={{ borderRadius: "19px 12px 12px 19px" }}
+            />
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <label className="text-sm font-medium text-muted-foreground">
+              Email
+            </label>
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              {...register("email")}
+              aria-invalid={!!errors.email}
+              className="h-[38px] px-4"
+              style={{ borderRadius: "12px" }}
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="gradient"
+            size="lg"
+            isLoading={isSubmitting}
+            style={{ borderRadius: "12px 19px 19px 12px" }}
+          >
+            Save
+          </Button>
         </div>
-      ) : settings ? (
-        <>
-          <AvailableHoursForm
-            defaultValue={settings.availableHoursPerMonth}
-            onSave={handleSaveHours}
-          />
-          <RevenueTargetForm
-            defaultValue={settings.monthlyRevenueTarget}
-            onSave={handleSaveTarget}
-          />
-        </>
-      ) : (
-        <p className="text-sm text-destructive">Failed to load settings.</p>
-      )}
+        {(errors.name?.message || errors.email?.message) && (
+          <p className="text-sm text-destructive">
+            {errors.name?.message || errors.email?.message}
+          </p>
+        )}
+      </form>
     </div>
   )
 }

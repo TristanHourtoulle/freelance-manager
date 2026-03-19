@@ -2,9 +2,8 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { FormField } from "@/components/ui/form-field"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   availableHoursSchema,
   type AvailableHoursInput,
@@ -17,13 +16,6 @@ interface AvailableHoursFormProps {
   onSave: (value: number) => Promise<void>
 }
 
-/**
- * Form for configuring the user's available working hours per month.
- * Used on the `/settings` page.
- *
- * @param defaultValue - Current available hours setting
- * @param onSave - Callback to persist the new value
- */
 export function AvailableHoursForm({
   defaultValue,
   onSave,
@@ -44,27 +36,38 @@ export function AvailableHoursForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Working Hours</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            label="Available hours per month"
-            type="number"
-            {...register("availableHoursPerMonth", { valueAsNumber: true })}
-            error={errors.availableHoursPerMonth?.message}
-          />
-          <p className="text-sm text-text-secondary">
-            Default: 140h/month. Used to calculate your utilization rate in
-            analytics.
-          </p>
-          <Button type="submit" isLoading={isSubmitting}>
-            Save
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-border bg-surface p-6">
+      <h2 className="text-base font-semibold text-foreground">Working Hours</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Default: 140h/month. Used to calculate your utilization rate in
+        analytics.
+      </p>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="mt-4 flex items-center gap-2.5"
+      >
+        <Input
+          type="number"
+          {...register("availableHoursPerMonth", { valueAsNumber: true })}
+          aria-invalid={!!errors.availableHoursPerMonth}
+          className="h-[38px] w-32 px-4"
+          style={{ borderRadius: "19px 12px 12px 19px" }}
+        />
+        <Button
+          type="submit"
+          variant="gradient"
+          size="lg"
+          isLoading={isSubmitting}
+          style={{ borderRadius: "12px 19px 19px 12px" }}
+        >
+          Save
+        </Button>
+      </form>
+      {errors.availableHoursPerMonth?.message && (
+        <p className="mt-2 text-sm text-destructive">
+          {errors.availableHoursPerMonth.message}
+        </p>
+      )}
+    </div>
   )
 }

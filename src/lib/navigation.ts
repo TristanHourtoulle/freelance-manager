@@ -1,23 +1,33 @@
 import {
+  ArrowDownTrayIcon,
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  BellIcon,
   ChartBarIcon,
   CheckCircleIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
-  Squares2X2Icon,
-  UsersIcon,
+  LinkIcon,
+  PaintBrushIcon,
   PlusIcon,
-  ArrowPathIcon,
-  ArrowDownTrayIcon,
+  ServerStackIcon,
+  Squares2X2Icon,
+  UserCircleIcon,
+  UsersIcon,
+  WalletIcon,
 } from "@heroicons/react/24/outline"
 
-/** A navigation entry displayed in the sidebar. */
 export interface NavItem {
   label: string
   href: string
   icon: React.ComponentType<{ className?: string }>
 }
 
-/** Sidebar navigation items displayed in the app shell. */
+export interface NavSection {
+  title?: string
+  items: NavItem[]
+}
+
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: Squares2X2Icon },
   { label: "Clients", href: "/clients", icon: UsersIcon },
@@ -27,7 +37,45 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
 ]
 
-/** A quick action available in the command palette. */
+export const SETTINGS_NAV_SECTIONS: NavSection[] = [
+  {
+    items: [{ label: "Back to app", href: "/dashboard", icon: ArrowLeftIcon }],
+  },
+  {
+    title: "Account",
+    items: [
+      { label: "Profile", href: "/settings", icon: UserCircleIcon },
+      {
+        label: "Appearance",
+        href: "/settings/appearance",
+        icon: PaintBrushIcon,
+      },
+    ],
+  },
+  {
+    title: "Workspace",
+    items: [
+      {
+        label: "Billing & Invoicing",
+        href: "/settings/billing",
+        icon: WalletIcon,
+      },
+      {
+        label: "Notifications",
+        href: "/settings/notifications",
+        icon: BellIcon,
+      },
+      { label: "Integrations", href: "/settings/integrations", icon: LinkIcon },
+    ],
+  },
+  {
+    title: "Advanced",
+    items: [
+      { label: "Data & Export", href: "/settings/data", icon: ServerStackIcon },
+    ],
+  },
+]
+
 export interface ActionItem {
   id: string
   label: string
@@ -37,7 +85,6 @@ export interface ActionItem {
   comingSoon?: boolean
 }
 
-/** Quick action items available in the command palette. */
 export const ACTION_ITEMS: ActionItem[] = [
   {
     id: "new-client",
