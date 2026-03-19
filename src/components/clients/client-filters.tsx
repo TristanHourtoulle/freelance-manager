@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,13 +17,13 @@ import { ViewToggle } from "@/components/clients/view-toggle"
 import { Checkbox } from "@/components/ui/checkbox"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
-const SORT_OPTIONS = [
-  { value: "createdAt:desc", label: "Newest first" },
-  { value: "createdAt:asc", label: "Oldest first" },
-  { value: "name:asc", label: "Name A-Z" },
-  { value: "name:desc", label: "Name Z-A" },
-  { value: "revenue:desc", label: "Revenue (high to low)" },
-  { value: "lastActivity:desc", label: "Recent activity first" },
+const SORT_OPTION_KEYS = [
+  { value: "createdAt:desc", key: "newestFirst" },
+  { value: "createdAt:asc", key: "oldestFirst" },
+  { value: "name:asc", key: "nameAZ" },
+  { value: "name:desc", key: "nameZA" },
+  { value: "revenue:desc", key: "revenueHighToLow" },
+  { value: "lastActivity:desc", key: "recentActivity" },
 ] as const
 
 interface ClientFiltersProps {
@@ -31,6 +32,7 @@ interface ClientFiltersProps {
 }
 
 export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
+  const t = useTranslations("clients")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -99,7 +101,7 @@ export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
           <Input
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by name or company..."
+            placeholder={t("searchPlaceholder")}
             className="h-[38px] pl-8"
           />
         </div>
@@ -114,9 +116,9 @@ export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              {SORT_OPTIONS.map((opt) => (
+              {SORT_OPTION_KEYS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(`sortOptions.${opt.key}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -128,7 +130,7 @@ export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
                 updateParams("archived", checked ? "true" : "")
               }
             />
-            Archived
+            {t("archived")}
           </label>
           <ViewToggle view={view} onViewChange={onViewChange} />
         </div>

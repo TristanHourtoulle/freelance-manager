@@ -2,6 +2,7 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,6 +21,8 @@ export function AvailableHoursForm({
   defaultValue,
   onSave,
 }: AvailableHoursFormProps) {
+  const t = useTranslations("settingsBilling")
+  const tc = useTranslations("common")
   const {
     register,
     handleSubmit,
@@ -37,10 +40,11 @@ export function AvailableHoursForm({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
-      <h2 className="text-base font-semibold text-foreground">Working Hours</h2>
+      <h2 className="text-base font-semibold text-foreground">
+        {t("workingHours")}
+      </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Default: 140h/month. Used to calculate your utilization rate in
-        analytics.
+        {t("workingHoursDesc")}
       </p>
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -60,7 +64,7 @@ export function AvailableHoursForm({
           isLoading={isSubmitting}
           style={{ borderRadius: "12px 19px 19px 12px" }}
         >
-          Save
+          {tc("save")}
         </Button>
       </form>
       {errors.availableHoursPerMonth?.message && (

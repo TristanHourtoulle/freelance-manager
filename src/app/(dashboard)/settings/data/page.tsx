@@ -6,21 +6,23 @@ import {
   ArrowDownTrayIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { useToast } from "@/components/providers/toast-provider"
 
 function ExportCard({
-  title,
-  description,
+  titleKey,
+  descriptionKey,
   endpoint,
 }: {
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   endpoint: string
 }) {
   const { toast } = useToast()
+  const t = useTranslations("settingsData")
   const [isExporting, setIsExporting] = useState<string | null>(null)
 
   const handleExport = useCallback(
@@ -42,22 +44,27 @@ function ExportCard({
         URL.revokeObjectURL(url)
         toast({
           variant: "success",
-          title: `${title} exported as ${format.toUpperCase()}`,
+          title: t("exportSuccess", {
+            title: t(titleKey),
+            format: format.toUpperCase(),
+          }),
         })
       } catch {
-        toast({ variant: "error", title: "Export failed" })
+        toast({ variant: "error", title: t("exportError") })
       } finally {
         setIsExporting(null)
       }
     },
-    [endpoint, title, toast],
+    [endpoint, titleKey, toast, t],
   )
 
   return (
     <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-5">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        <h3 className="text-sm font-semibold text-foreground">{t(titleKey)}</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {t(descriptionKey)}
+        </p>
       </div>
       <div className="flex items-center gap-0">
         <Button
@@ -68,7 +75,7 @@ function ExportCard({
           isLoading={isExporting === "csv"}
         >
           <ArrowDownTrayIcon className="size-3.5" />
-          CSV
+          {t("csvButton")}
         </Button>
         <Button
           variant="outline"
@@ -78,7 +85,7 @@ function ExportCard({
           isLoading={isExporting === "json"}
         >
           <ArrowDownTrayIcon className="size-3.5" />
-          JSON
+          {t("jsonButton")}
         </Button>
       </div>
     </div>
@@ -88,6 +95,8 @@ function ExportCard({
 export default function DataSettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useTranslations("settingsData")
+  const tc = useTranslations("common")
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [confirmText, setConfirmText] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
@@ -104,23 +113,23 @@ export default function DataSettingsPage() {
     if (res.ok) {
       router.push("/auth/login")
     } else {
-      toast({ variant: "error", title: "Failed to delete account" })
+      toast({ variant: "error", title: t("toasts.deleteError") })
     }
-  }, [confirmText, router, toast])
+  }, [confirmText, router, toast, t])
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Data & Export" />
+      <PageHeader title={t("title")} />
 
       <div className="space-y-3">
         <ExportCard
-          title="Clients"
-          description="Export all your client data."
+          titleKey="clientsExport"
+          descriptionKey="clientsExportDesc"
           endpoint="/api/export/clients"
         />
         <ExportCard
-          title="Invoices"
-          description="Export all your invoice history."
+          titleKey="invoicesExport"
+          descriptionKey="invoicesExportDesc"
           endpoint="/api/export/invoices"
         />
       </div>
@@ -131,11 +140,10 @@ export default function DataSettingsPage() {
           <ExclamationTriangleIcon className="size-5 shrink-0 text-destructive" />
           <div className="flex-1">
             <h2 className="text-base font-semibold text-destructive">
-              Delete Account
+              {t("deleteAccount")}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Permanently delete your account and all associated data. This
-              action cannot be undone.
+              {t("deleteAccountDesc")}
             </p>
             <Button
               variant="destructive"
@@ -144,7 +152,7 @@ export default function DataSettingsPage() {
               className="mt-4"
               onClick={() => setIsDeleteOpen(true)}
             >
-              Delete my account
+              {t("deleteButton")}
             </Button>
           </div>
         </div>
@@ -162,16 +170,18 @@ export default function DataSettingsPage() {
           />
           <div className="relative z-50 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
             <h2 className="text-base font-semibold text-foreground">
-              Delete your account?
+              {t("deleteConfirmTitle")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This will permanently delete your account, all clients, tasks,
-              invoices, and settings. This cannot be undone.
+              {t("deleteConfirmDesc")}
             </p>
             <div className="mt-4 space-y-2">
               <label className="text-sm font-medium text-foreground">
-                Type <span className="font-mono font-bold">DELETE</span> to
-                confirm
+                {t.rich("deleteConfirmInstruction", {
+                  keyword: () => (
+                    <span className="font-mono font-bold">DELETE</span>
+                  ),
+                })}
               </label>
               <Input
                 value={confirmText}
@@ -191,7 +201,7 @@ export default function DataSettingsPage() {
                   setConfirmText("")
                 }}
               >
-                Cancel
+                {tc("cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -201,7 +211,7 @@ export default function DataSettingsPage() {
                 onClick={handleDeleteAccount}
                 isLoading={isDeleting}
               >
-                Delete permanently
+                {t("deleteConfirmButton")}
               </Button>
             </div>
           </div>

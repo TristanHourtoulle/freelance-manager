@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
+import { useTranslations } from "next-intl"
 import { AvailableHoursForm } from "@/components/settings/available-hours-form"
 import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,8 @@ export default function BillingSettingsPage() {
   const [settings, setSettings] = useState<AllSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const t = useTranslations("settingsBilling")
+  const tc = useTranslations("common")
 
   useEffect(() => {
     let cancelled = false
@@ -65,18 +68,18 @@ export default function BillingSettingsPage() {
       })
       if (res.ok) {
         setSettings(await res.json())
-        toast({ variant: "success", title: "Settings saved" })
+        toast({ variant: "success", title: t("toasts.success") })
       } else {
-        toast({ variant: "error", title: "Failed to save settings" })
+        toast({ variant: "error", title: t("toasts.error") })
       }
     },
-    [toast],
+    [toast, t],
   )
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Billing & Invoicing" />
+        <PageHeader title={t("title")} />
         <div className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-xl" />
@@ -89,15 +92,15 @@ export default function BillingSettingsPage() {
   if (!settings) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Billing & Invoicing" />
-        <p className="text-sm text-destructive">Failed to load settings.</p>
+        <PageHeader title={t("title")} />
+        <p className="text-sm text-destructive">{tc("failedToLoad")}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Billing & Invoicing" />
+      <PageHeader title={t("title")} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <AvailableHoursForm
@@ -130,6 +133,8 @@ function BillingDefaultsCard({
   defaultValues: BillingDefaults
   onSave: (data: Record<string, unknown>) => Promise<void>
 }) {
+  const t = useTranslations("settingsBilling")
+  const tc = useTranslations("common")
   const {
     register,
     handleSubmit,
@@ -143,10 +148,10 @@ function BillingDefaultsCard({
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
       <h2 className="text-base font-semibold text-foreground">
-        Billing Defaults
+        {t("billingDefaults")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        These defaults are applied when creating new clients and invoices.
+        {t("billingDefaultsDesc")}
       </p>
       <form
         onSubmit={handleSubmit((data) => onSave(data))}
@@ -158,7 +163,7 @@ function BillingDefaultsCard({
           render={({ field }) => (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">
-                Currency
+                {t("currencyLabel")}
               </label>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger
@@ -181,7 +186,7 @@ function BillingDefaultsCard({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-muted-foreground">
-            Payment terms
+            {t("paymentTermsLabel")}
           </label>
           <Input
             type="number"
@@ -196,7 +201,7 @@ function BillingDefaultsCard({
 
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-muted-foreground">
-            Default rate
+            {t("defaultRateLabel")}
           </label>
           <Input
             type="number"
@@ -217,7 +222,7 @@ function BillingDefaultsCard({
           isLoading={isSubmitting}
           style={{ borderRadius: "12px 19px 19px 12px" }}
         >
-          Save
+          {tc("save")}
         </Button>
       </form>
       {(errors.defaultPaymentDays?.message || errors.defaultRate?.message) && (

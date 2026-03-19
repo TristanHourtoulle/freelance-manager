@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import {
   ArchiveBoxIcon,
   ArchiveBoxArrowDownIcon,
@@ -20,18 +21,18 @@ const CATEGORY_BADGES: Record<string, string> = {
   SIDE_PROJECT: "bg-amber-50 text-amber-700 ring-amber-600/20",
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  FREELANCE: "Freelance",
-  STUDY: "Study",
-  PERSONAL: "Personal",
-  SIDE_PROJECT: "Side Project",
+const CATEGORY_KEYS: Record<string, string> = {
+  FREELANCE: "freelance",
+  STUDY: "study",
+  PERSONAL: "personal",
+  SIDE_PROJECT: "sideProject",
 }
 
-const BILLING_LABELS: Record<string, string> = {
-  HOURLY: "Hourly",
-  DAILY: "Daily",
-  FIXED: "Fixed",
-  FREE: "Free",
+const BILLING_KEYS: Record<string, string> = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  FIXED: "fixed",
+  FREE: "free",
 }
 
 function getInitials(name: string): string {
@@ -56,6 +57,9 @@ interface ClientCardProps {
 }
 
 export function ClientCard({ client, onArchive }: ClientCardProps) {
+  const t = useTranslations("clients.card")
+  const tc = useTranslations("common")
+  const tClients = useTranslations("clients")
   const isArchived = Boolean(client.archivedAt)
   const linearCount = client.linearMappings?.length ?? 0
 
@@ -81,32 +85,36 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
             {client.name}
           </h3>
           <p className="truncate text-xs text-muted-foreground">
-            {client.company || "No company"}
+            {client.company || tc("noCompany")}
           </p>
         </div>
         <span
           className={`inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${CATEGORY_BADGES[client.category] ?? "bg-gray-50 text-gray-700 ring-gray-600/20"}`}
         >
-          {CATEGORY_LABELS[client.category] ?? client.category}
+          {CATEGORY_KEYS[client.category]
+            ? tc(`categories.${CATEGORY_KEYS[client.category]}`)
+            : client.category}
         </span>
       </div>
 
       {/* Metrics row */}
       <div className="grid grid-cols-3 gap-px border-y border-border bg-border">
         <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
-          <span className="text-xs text-muted-foreground">Billing</span>
+          <span className="text-xs text-muted-foreground">{t("billing")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
-            {BILLING_LABELS[client.billingMode] ?? client.billingMode}
+            {BILLING_KEYS[client.billingMode]
+              ? tc(`billingModes.${BILLING_KEYS[client.billingMode]}`)
+              : client.billingMode}
           </span>
         </div>
         <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
-          <span className="text-xs text-muted-foreground">Rate</span>
+          <span className="text-xs text-muted-foreground">{t("rate")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
             {formatRate(client.billingMode, client.rate)}
           </span>
         </div>
         <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
-          <span className="text-xs text-muted-foreground">Revenue</span>
+          <span className="text-xs text-muted-foreground">{t("revenue")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
             {client.totalRevenue > 0
               ? formatCurrency(client.totalRevenue)
@@ -128,7 +136,7 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
 
         {isArchived && (
           <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
-            Archived
+            {tClients("archived")}
           </span>
         )}
 
@@ -142,7 +150,11 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
             variant="ghost"
             size="icon-sm"
             onClick={() => onArchive(client.id)}
-            title={isArchived ? "Unarchive client" : "Archive client"}
+            title={
+              isArchived
+                ? tClients("unarchiveClient")
+                : tClients("archiveClient")
+            }
           >
             {isArchived ? (
               <ArchiveBoxArrowDownIcon className="size-4" />

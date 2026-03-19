@@ -1,12 +1,14 @@
 "use client"
 
 import { useCallback, useState } from "react"
+import { useTranslations } from "next-intl"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { useToast } from "@/components/providers/toast-provider"
 import { useUserImage } from "@/components/providers/user-provider"
 
 export function ProfilePhotoForm() {
   const { toast } = useToast()
+  const t = useTranslations("profilePhoto")
   const { image, setImage } = useUserImage()
   const [isSaving, setIsSaving] = useState(false)
 
@@ -27,21 +29,19 @@ export function ProfilePhotoForm() {
       if (res.ok) {
         toast({
           variant: "success",
-          title: value ? "Photo updated" : "Photo removed",
+          title: value ? t("toasts.uploaded") : t("toasts.removed"),
         })
       } else {
-        toast({ variant: "error", title: "Failed to update photo" })
+        toast({ variant: "error", title: t("toasts.error") })
       }
     },
-    [setImage, toast],
+    [setImage, toast, t],
   )
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
-      <h2 className="text-base font-semibold text-foreground">Profile Photo</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Upload a profile photo. PNG, JPEG, or WebP — max 5MB (auto-compressed).
-      </p>
+      <h2 className="text-base font-semibold text-foreground">{t("title")}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{t("description")}</p>
       <div className="mt-4">
         <ImageUpload
           value={image}
@@ -51,7 +51,7 @@ export function ProfilePhotoForm() {
         />
       </div>
       {isSaving && (
-        <p className="mt-2 text-xs text-muted-foreground">Saving...</p>
+        <p className="mt-2 text-xs text-muted-foreground">{t("saving")}</p>
       )}
     </div>
   )

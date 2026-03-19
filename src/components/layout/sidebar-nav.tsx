@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   ArrowRightStartOnRectangleIcon,
   Cog6ToothIcon,
@@ -39,6 +40,8 @@ function AppNav({
   const pathname = usePathname()
   const router = useRouter()
   const { image: userImage } = useUserImage()
+  const t = useTranslations("nav")
+  const ts = useTranslations("settingsNav")
 
   function isActive(href: string): boolean {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -95,7 +98,7 @@ function AppNav({
         >
           <div className="flex items-center gap-2.5">
             <MagnifyingGlassIcon className="size-4 shrink-0 text-text-muted" />
-            <span className="text-text-muted">Search...</span>
+            <span className="text-text-muted">{t("search")}</span>
           </div>
           <kbd className="rounded bg-surface-muted/50 px-1.5 py-0.5 text-[11px] text-text-muted">
             {typeof navigator !== "undefined" &&
@@ -135,7 +138,7 @@ function AppNav({
           className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
         >
           <ArrowRightStartOnRectangleIcon className="h-5 w-5 shrink-0" />
-          Logout
+          {t("logout")}
         </button>
       </div>
     </div>
@@ -144,6 +147,7 @@ function AppNav({
 
 function SettingsNav() {
   const pathname = usePathname()
+  const t = useTranslations("settingsNav")
 
   function isActive(href: string): boolean {
     if (href === "/settings") return pathname === "/settings"
@@ -158,8 +162,10 @@ function SettingsNav() {
           <Cog6ToothIcon className="size-5 text-foreground" />
         </div>
         <div>
-          <p className="text-base font-semibold text-foreground">Settings</p>
-          <p className="text-xs text-muted-foreground">Manage your workspace</p>
+          <p className="text-base font-semibold text-foreground">
+            {t("title")}
+          </p>
+          <p className="text-xs text-muted-foreground">{t("description")}</p>
         </div>
       </div>
 

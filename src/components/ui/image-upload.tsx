@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useRef, useState } from "react"
+import { useTranslations } from "next-intl"
 import { CameraIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { cn } from "@/lib/utils"
 
@@ -84,6 +85,7 @@ export function ImageUpload({
   fallback,
   className,
 }: ImageUploadProps) {
+  const t = useTranslations("imageUpload")
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [isCompressing, setIsCompressing] = useState(false)
@@ -96,13 +98,13 @@ export function ImageUpload({
       setError(null)
 
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        setError("Only PNG, JPEG, or WebP images are accepted")
+        setError(t("invalidType"))
         return
       }
 
       // Allow up to 5MB input — compression will resize + reduce quality
       if (file.size > 5 * 1024 * 1024) {
-        setError("Image must be under 5MB")
+        setError(t("tooLarge"))
         return
       }
 
@@ -111,7 +113,7 @@ export function ImageUpload({
         const base64 = await compressImage(file)
         onChange(base64)
       } catch {
-        setError("Failed to process image")
+        setError(t("processingError"))
       } finally {
         setIsCompressing(false)
       }
@@ -194,7 +196,7 @@ export function ImageUpload({
         className="hidden"
       />
       {isCompressing && (
-        <p className="text-xs text-muted-foreground">Compressing...</p>
+        <p className="text-xs text-muted-foreground">{t("compressing")}</p>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

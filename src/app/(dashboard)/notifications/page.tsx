@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useTranslations } from "next-intl"
 import {
   ArrowDownTrayIcon,
   ClockIcon,
@@ -61,6 +62,8 @@ function NotificationRow({
   const Icon = config.icon
   const isUnread = !notification.readAt
 
+  const t = useTranslations("notifications")
+
   return (
     <div
       className={`flex items-start gap-4 rounded-lg border border-border px-4 py-3 transition-colors ${
@@ -92,7 +95,7 @@ function NotificationRow({
         <button
           onClick={() => onMarkAsRead(notification.id)}
           className="shrink-0 rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
-          title="Mark as read"
+          title={t("markAsRead")}
         >
           <CheckIcon className="h-4 w-4" />
         </button>
@@ -102,6 +105,8 @@ function NotificationRow({
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations("notifications")
+  const tc = useTranslations("common")
   const { notifications, unreadCount, isLoading, markAsRead, dismissAll } =
     useNotifications()
   const [filter, setFilter] = useState<FilterTab>("all")
@@ -115,23 +120,27 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Notifications">
+      <PageHeader title={t("title")}>
         {unreadCount > 0 && (
           <Button variant="outline" shape="pill" size="lg" onClick={dismissAll}>
-            Mark all as read
+            {t("markAllAsRead")}
           </Button>
         )}
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2.5">
         <Chip
-          label="All"
+          label={t("allTab")}
           isActive={filter === "all"}
           onClick={() => setFilter("all")}
           position="first"
         />
         <Chip
-          label={unreadCount > 0 ? `Unread (${unreadCount})` : "Unread"}
+          label={
+            unreadCount > 0
+              ? t("unreadCount", { count: unreadCount })
+              : t("unreadTab")
+          }
           isActive={filter === "unread"}
           onClick={() => setFilter("unread")}
           position="last"
@@ -140,14 +149,12 @@ export default function NotificationsPage() {
 
       {isLoading ? (
         <div className="py-16 text-center text-sm text-text-secondary">
-          Loading notifications...
+          {tc("loading")}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface py-16 text-center">
           <p className="text-sm text-text-secondary">
-            {filter === "unread"
-              ? "No unread notifications"
-              : "No notifications yet"}
+            {filter === "unread" ? t("noUnread") : t("noNotifications")}
           </p>
         </div>
       ) : (

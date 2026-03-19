@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
@@ -17,6 +18,7 @@ import type { DashboardKPIs } from "@/components/dashboard/types"
 import type { OnboardingStatus } from "@/components/onboarding/types"
 
 export default function DashboardPage() {
+  const t = useTranslations("dashboard")
   const [data, setData] = useState<DashboardKPIs | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -81,7 +83,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard" />
+      <PageHeader title={t("title")} />
 
       <WelcomeModal
         isOpen={isWelcomeOpen}
@@ -108,19 +110,19 @@ export default function DashboardPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <KpiCard
-              title="Pipeline"
+              title={t("pipeline")}
               value={formatCurrency(data.pipeline)}
-              subtitle="To invoice"
+              subtitle={t("toInvoice")}
             />
             <KpiCard
-              title="Monthly Revenue"
+              title={t("monthlyRevenue")}
               value={formatCurrency(data.monthlyRevenue)}
-              subtitle="Current month"
+              subtitle={t("currentMonth")}
             />
             <KpiCard
-              title="Billed Hours"
+              title={t("billedHours")}
               value={`${data.billedHours}h`}
-              subtitle="Current month"
+              subtitle={t("currentMonth")}
             />
           </div>
           {data.monthlyRevenueTarget > 0 && (

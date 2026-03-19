@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
@@ -81,6 +82,7 @@ function ToggleCard({
 
 export default function NotificationsSettingsPage() {
   const { toast } = useToast()
+  const t = useTranslations("settingsNotifications")
   const [prefs, setPrefs] = useState<NotificationPrefs>(
     DEFAULT_NOTIFICATION_PREFS,
   )
@@ -114,18 +116,18 @@ export default function NotificationsSettingsPage() {
       })
       setIsSaving(false)
       if (res.ok) {
-        toast({ variant: "success", title: "Notification preferences saved" })
+        toast({ variant: "success", title: t("toasts.success") })
       } else {
-        toast({ variant: "error", title: "Failed to save preferences" })
+        toast({ variant: "error", title: t("toasts.error") })
       }
     },
-    [toast],
+    [toast, t],
   )
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Notifications" />
+        <PageHeader title={t("title")} />
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
@@ -135,15 +137,15 @@ export default function NotificationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Notifications">
+      <PageHeader title={t("title")}>
         {isSaving && (
-          <span className="text-xs text-muted-foreground">Saving...</span>
+          <span className="text-xs text-muted-foreground">{t("saving")}</span>
         )}
       </PageHeader>
 
       <ToggleCard
-        title="Billing Reminders"
-        description="Get notified when tasks are ready to invoice."
+        title={t("billingReminders")}
+        description={t("billingRemindersDesc")}
         enabled={prefs.billingReminder.enabled}
         onToggle={(enabled) =>
           save({
@@ -152,7 +154,7 @@ export default function NotificationsSettingsPage() {
           })
         }
         threshold={{
-          label: "Remind after",
+          label: t("remindAfter"),
           value: prefs.billingReminder.delayDays,
           onChange: (delayDays) =>
             save({
@@ -161,13 +163,13 @@ export default function NotificationsSettingsPage() {
             }),
           min: 1,
           max: 90,
-          suffix: "days",
+          suffix: t("days"),
         }}
       />
 
       <ToggleCard
-        title="Inactive Client Alerts"
-        description="Get notified when a client has had no activity."
+        title={t("inactiveClient")}
+        description={t("inactiveClientDesc")}
         enabled={prefs.inactiveClient.enabled}
         onToggle={(enabled) =>
           save({
@@ -176,7 +178,7 @@ export default function NotificationsSettingsPage() {
           })
         }
         threshold={{
-          label: "After",
+          label: t("after"),
           value: prefs.inactiveClient.delayDays,
           onChange: (delayDays) =>
             save({
@@ -185,20 +187,20 @@ export default function NotificationsSettingsPage() {
             }),
           min: 7,
           max: 365,
-          suffix: "days of inactivity",
+          suffix: t("daysOfInactivity"),
         }}
       />
 
       <ToggleCard
-        title="Sync Alerts"
-        description="Get notified when Linear data becomes stale."
+        title={t("syncAlerts")}
+        description={t("syncAlertsDesc")}
         enabled={prefs.syncAlert.enabled}
         onToggle={(enabled) => save({ ...prefs, syncAlert: { enabled } })}
       />
 
       <ToggleCard
-        title="Payment Overdue"
-        description="Get notified when an invoice passes its payment deadline."
+        title={t("paymentOverdue")}
+        description={t("paymentOverdueDesc")}
         enabled={prefs.paymentOverdue.enabled}
         onToggle={(enabled) => save({ ...prefs, paymentOverdue: { enabled } })}
       />

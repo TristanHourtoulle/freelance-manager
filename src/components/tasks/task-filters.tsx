@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { ListBulletIcon, ViewColumnsIcon } from "@heroicons/react/24/outline"
 import { Chip } from "@/components/ui/chip-group"
 import {
@@ -11,11 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
-import {
-  TASK_PRESETS,
-  TASK_PRESET_LABELS,
-  type TaskPreset,
-} from "@/lib/schemas/task"
+import { TASK_PRESETS, type TaskPreset } from "@/lib/schemas/task"
 
 import type { ClientSummary } from "./types"
 
@@ -27,14 +24,31 @@ interface TaskFiltersProps {
   onViewChange: (view: TaskView) => void
 }
 
-const CATEGORIES = [
-  { value: "FREELANCE", label: "Freelance" },
-  { value: "STUDY", label: "Study" },
-  { value: "PERSONAL", label: "Personal" },
-  { value: "SIDE_PROJECT", label: "Side Project" },
+const CATEGORY_VALUES = [
+  "FREELANCE",
+  "STUDY",
+  "PERSONAL",
+  "SIDE_PROJECT",
 ] as const
 
+const CATEGORY_KEYS: Record<string, string> = {
+  FREELANCE: "freelance",
+  STUDY: "study",
+  PERSONAL: "personal",
+  SIDE_PROJECT: "sideProject",
+}
+
+const PRESET_KEYS: Record<TaskPreset, string> = {
+  active: "active",
+  all: "all",
+  done: "done",
+  "to-invoice": "toInvoice",
+  backlog: "backlog",
+}
+
 export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
+  const t = useTranslations("tasks")
+  const tc = useTranslations("common")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -88,7 +102,7 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
           {TASK_PRESETS.map((preset, index) => (
             <Chip
               key={preset}
-              label={TASK_PRESET_LABELS[preset]}
+              label={t(`presets.${PRESET_KEYS[preset]}`)}
               isActive={currentPreset === preset}
               onClick={() => handlePresetChange(preset)}
               position={
@@ -129,12 +143,12 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
 
       {/* Category chips + Client dropdown on the same row (Figma layout) */}
       <div className="flex flex-wrap items-stretch gap-2.5">
-        {CATEGORIES.map((cat, index) => (
+        {CATEGORY_VALUES.map((value, index) => (
           <Chip
-            key={cat.value}
-            label={cat.label}
-            isActive={selectedCategories.includes(cat.value)}
-            onClick={() => handleCategoryToggle(cat.value)}
+            key={value}
+            label={tc(`categories.${CATEGORY_KEYS[value]}`)}
+            isActive={selectedCategories.includes(value)}
+            onClick={() => handleCategoryToggle(value)}
             position={index === 0 ? "first" : "middle"}
           />
         ))}
@@ -156,13 +170,13 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
                       ? c.company
                         ? `${c.name} (${c.company})`
                         : c.name
-                      : "All clients"
+                      : t("allClients")
                   })()
-                : "All clients"}
+                : t("allClients")}
             </span>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All clients</SelectItem>
+            <SelectItem value="__all__">{t("allClients")}</SelectItem>
             {clients.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.company ? `${c.name} (${c.company})` : c.name}

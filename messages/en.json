@@ -1,0 +1,335 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "success": "Success",
+    "failedToLoad": "Failed to load data.",
+    "noCompany": "No company",
+    "noActivity": "No activity",
+    "categories": {
+      "freelance": "Freelance",
+      "study": "Study",
+      "personal": "Personal",
+      "sideProject": "Side Project"
+    },
+    "billingModes": {
+      "hourly": "Hourly",
+      "daily": "Daily",
+      "fixed": "Fixed",
+      "free": "Free"
+    }
+  },
+
+  "nav": {
+    "dashboard": "Dashboard",
+    "clients": "Clients",
+    "tasks": "Tasks",
+    "billing": "Billing",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "logout": "Logout",
+    "search": "Search...",
+    "backToApp": "Back to app"
+  },
+
+  "settingsNav": {
+    "title": "Settings",
+    "description": "Manage your workspace",
+    "account": "Account",
+    "profile": "Profile",
+    "appearance": "Appearance",
+    "workspace": "Workspace",
+    "billingInvoicing": "Billing & Invoicing",
+    "notifications": "Notifications",
+    "integrations": "Integrations",
+    "advanced": "Advanced",
+    "dataExport": "Data & Export"
+  },
+
+  "dashboard": {
+    "title": "Dashboard",
+    "pipeline": "Pipeline",
+    "toInvoice": "To invoice",
+    "monthlyRevenue": "Monthly Revenue",
+    "currentMonth": "Current month",
+    "billedHours": "Billed Hours",
+    "revenueTarget": "Revenue Target",
+    "revenueChart": "Revenue (6 months)",
+    "revenueChartDesc": "Last 6 months of revenue",
+    "refresh": "Refresh",
+    "lastSynced": "Last synced: {time}"
+  },
+
+  "clients": {
+    "title": "Clients",
+    "newClient": "New Client",
+    "hint": "Add your clients here. Set their billing mode and rate, then connect a Linear project from the client edit page.",
+    "dismissHint": "Dismiss hint",
+    "searchPlaceholder": "Search by name or company...",
+    "archived": "Archived",
+    "gridView": "Grid view",
+    "listView": "List view",
+    "editClient": "Edit Client",
+    "archiveClient": "Archive client",
+    "unarchiveClient": "Unarchive client",
+    "sortOptions": {
+      "newestFirst": "Newest first",
+      "oldestFirst": "Oldest first",
+      "nameAZ": "Name A-Z",
+      "nameZA": "Name Z-A",
+      "revenueHighToLow": "Revenue (high to low)",
+      "recentActivity": "Recent activity first"
+    },
+    "card": {
+      "billing": "Billing",
+      "rate": "Rate",
+      "revenue": "Revenue"
+    },
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "Client name",
+      "email": "Email",
+      "emailPlaceholder": "client@example.com",
+      "company": "Company",
+      "companyPlaceholder": "Company name",
+      "logo": "Logo",
+      "billingMode": "Billing Mode",
+      "selectBillingMode": "Select billing mode",
+      "ratePlaceholder": "0.00",
+      "category": "Category",
+      "selectCategory": "Select category",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional notes...",
+      "createButton": "Create Client",
+      "updateButton": "Update Client"
+    },
+    "toasts": {
+      "created": "Client created",
+      "updated": "Client updated",
+      "archived": "Client archived",
+      "unarchived": "Client unarchived",
+      "archiveError": "Failed to archive client",
+      "unarchiveError": "Failed to unarchive client"
+    },
+    "total": "{count, plural, one {# client} other {# clients}} total",
+    "previous": "Previous",
+    "next": "Next"
+  },
+
+  "tasks": {
+    "title": "Tasks",
+    "syncWithLinear": "Sync with Linear",
+    "newTasks": "New Tasks",
+    "allClients": "All clients",
+    "kpi": {
+      "billableAmount": "Billable Amount",
+      "completedTasks": "Completed Tasks",
+      "totalTasks": "Total Tasks",
+      "totalHours": "Total Hours"
+    },
+    "presets": {
+      "active": "Active",
+      "all": "All",
+      "done": "Done",
+      "toInvoice": "To Invoice",
+      "backlog": "Backlog"
+    },
+    "toasts": {
+      "updateTaskError": "Failed to update task",
+      "updateEstimateError": "Failed to update estimate",
+      "updateRateError": "Failed to update rate",
+      "updateStatusError": "Failed to update status"
+    }
+  },
+
+  "billing": {
+    "title": "To Invoice",
+    "history": "History",
+    "viewTasks": "View Tasks",
+    "hint": "Flag tasks to invoice, then mark them as invoiced to track your revenue.",
+    "markAsInvoiced": "Mark as invoiced",
+    "markAsInvoicedCount": "Mark as invoiced ({count})",
+    "toasts": {
+      "success": "{count, plural, one {# task} other {# tasks}} marked as invoiced",
+      "error": "Failed to mark tasks as invoiced"
+    }
+  },
+
+  "analytics": {
+    "title": "Analytics",
+    "periods": {
+      "thisMonth": "This month",
+      "threeMonths": "3 months",
+      "sixMonths": "6 months",
+      "thisYear": "This year"
+    }
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "markAllAsRead": "Mark all as read",
+    "allTab": "All",
+    "unreadTab": "Unread",
+    "unreadCount": "Unread ({count})",
+    "noUnread": "No unread notifications",
+    "noNotifications": "No notifications yet",
+    "markAsRead": "Mark as read"
+  },
+
+  "settingsProfile": {
+    "title": "Profile",
+    "personalInfo": "Personal Information",
+    "personalInfoDesc": "Update your name and email address.",
+    "nameLabel": "Name",
+    "namePlaceholder": "Your name",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "toasts": {
+      "success": "Profile updated",
+      "error": "Failed to update profile"
+    }
+  },
+
+  "settingsBilling": {
+    "title": "Billing & Invoicing",
+    "workingHours": "Working Hours",
+    "workingHoursDesc": "Default: 140h/month. Used to calculate your utilization rate in analytics.",
+    "revenueTarget": "Revenue Target",
+    "revenueTargetDesc": "Set your monthly revenue goal. 0 means no target. Displayed on the dashboard.",
+    "billingDefaults": "Billing Defaults",
+    "billingDefaultsDesc": "These defaults are applied when creating new clients and invoices.",
+    "currencyLabel": "Currency",
+    "paymentTermsLabel": "Payment terms",
+    "defaultRateLabel": "Default rate",
+    "toasts": {
+      "success": "Settings saved",
+      "error": "Failed to save settings"
+    }
+  },
+
+  "settingsNotifications": {
+    "title": "Notifications",
+    "saving": "Saving...",
+    "billingReminders": "Billing Reminders",
+    "billingRemindersDesc": "Get notified when tasks are ready to invoice.",
+    "remindAfter": "Remind after",
+    "days": "days",
+    "inactiveClient": "Inactive Client Alerts",
+    "inactiveClientDesc": "Get notified when a client has had no activity.",
+    "after": "After",
+    "daysOfInactivity": "days of inactivity",
+    "syncAlerts": "Sync Alerts",
+    "syncAlertsDesc": "Get notified when Linear data becomes stale.",
+    "paymentOverdue": "Payment Overdue",
+    "paymentOverdueDesc": "Get notified when an invoice passes its payment deadline.",
+    "toasts": {
+      "success": "Notification preferences saved",
+      "error": "Failed to save preferences"
+    }
+  },
+
+  "settingsIntegrations": {
+    "title": "Integrations",
+    "apiToken": "API Token",
+    "connected": "Connected",
+    "notConfigured": "Not configured",
+    "configured": "Configured",
+    "tokenDesc": "Connect your Linear workspace to sync tasks and track time.",
+    "tokenPlaceholderNew": "lin_api_...",
+    "tokenPlaceholderReplace": "Enter new token to replace...",
+    "connectButton": "Connect",
+    "updateButton": "Update",
+    "removeToken": "Remove token",
+    "tokenInstructions": "Generate from {path}. Encrypted with AES-256-GCM.",
+    "tokenPath": "Linear > Settings > API > Personal API keys",
+    "webhook": "Webhook",
+    "webhookDesc": "Set up a webhook in Linear for real-time task sync. Add this URL in {path}.",
+    "webhookPath": "Linear > Settings > API > Webhooks",
+    "copyButton": "Copy",
+    "webhookSecretNote": "The webhook secret is configured via the {code} environment variable.",
+    "syncStatus": "Sync Status",
+    "refreshNow": "Refresh now",
+    "lastSync": "Last sync",
+    "status": "Status",
+    "notSyncedYet": "Not synced yet — click Refresh",
+    "waitingForSync": "Waiting for first sync",
+    "stale": "Stale — data may be outdated",
+    "upToDate": "Up to date",
+    "toasts": {
+      "tokenSaved": "Linear API token saved and verified",
+      "tokenRemoved": "Linear API token removed",
+      "tokenRemoveError": "Failed to remove token",
+      "webhookCopied": "Webhook URL copied",
+      "refreshed": "Linear data refreshed"
+    }
+  },
+
+  "settingsAppearance": {
+    "title": "Appearance",
+    "themeTitle": "Theme",
+    "themeDesc": "Choose how Freelance Manager looks for you.",
+    "light": "Light",
+    "lightDesc": "Always light",
+    "dark": "Dark",
+    "darkDesc": "Always dark",
+    "system": "System",
+    "systemDesc": "Match OS",
+    "accentTitle": "Accent Color",
+    "accentDesc": "Choose a primary color for buttons, links, and highlights.",
+    "colors": {
+      "blue": "Blue",
+      "purple": "Purple",
+      "green": "Green",
+      "orange": "Orange",
+      "pink": "Pink",
+      "teal": "Teal",
+      "red": "Red",
+      "indigo": "Indigo"
+    },
+    "toasts": {
+      "themeSet": "Theme set to {theme}"
+    }
+  },
+
+  "settingsData": {
+    "title": "Data & Export",
+    "clientsExport": "Clients",
+    "clientsExportDesc": "Export all your client data.",
+    "invoicesExport": "Invoices",
+    "invoicesExportDesc": "Export all your invoice history.",
+    "csvButton": "CSV",
+    "jsonButton": "JSON",
+    "exportSuccess": "{title} exported as {format}",
+    "exportError": "Export failed",
+    "deleteAccount": "Delete Account",
+    "deleteAccountDesc": "Permanently delete your account and all associated data. This action cannot be undone.",
+    "deleteButton": "Delete my account",
+    "deleteConfirmTitle": "Delete your account?",
+    "deleteConfirmDesc": "This will permanently delete your account, all clients, tasks, invoices, and settings. This cannot be undone.",
+    "deleteConfirmInstruction": "Type {keyword} to confirm",
+    "deleteConfirmButton": "Delete permanently",
+    "toasts": {
+      "deleteError": "Failed to delete account"
+    }
+  },
+
+  "imageUpload": {
+    "invalidType": "Only PNG, JPEG, or WebP images are accepted",
+    "tooLarge": "Image must be under 5MB",
+    "processingError": "Failed to process image",
+    "compressing": "Compressing..."
+  },
+
+  "profilePhoto": {
+    "title": "Profile Photo",
+    "description": "Upload a profile photo. PNG, JPEG, or WebP — max 5MB (auto-compressed).",
+    "saving": "Saving...",
+    "toasts": {
+      "uploaded": "Photo updated",
+      "removed": "Photo removed",
+      "error": "Failed to update photo"
+    }
+  }
+}

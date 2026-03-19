@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { useTranslations } from "next-intl"
 
 import { StatCard, StatCardGroup } from "@/components/ui/stat-card"
 
@@ -18,6 +19,7 @@ function formatEur(value: number): string {
 }
 
 export function TaskKpiCards({ groups }: TaskKpiCardsProps) {
+  const t = useTranslations("tasks.kpi")
   const stats = useMemo(() => {
     let totalTasks = 0
     let totalHours = 0
@@ -46,12 +48,15 @@ export function TaskKpiCards({ groups }: TaskKpiCardsProps) {
   return (
     <StatCardGroup>
       <StatCard
-        label="Billable Amount"
+        label={t("billableAmount")}
         value={formatEur(stats.billableAmount)}
       />
-      <StatCard label="Completed Tasks" value={String(stats.completedTasks)} />
-      <StatCard label="Total Tasks" value={String(stats.totalTasks)} />
-      <StatCard label="Total Hours" value={`${stats.totalHours} h`} />
+      <StatCard
+        label={t("completedTasks")}
+        value={String(stats.completedTasks)}
+      />
+      <StatCard label={t("totalTasks")} value={String(stats.totalTasks)} />
+      <StatCard label={t("totalHours")} value={`${stats.totalHours} h`} />
     </StatCardGroup>
   )
 }

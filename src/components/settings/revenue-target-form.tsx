@@ -2,6 +2,7 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,6 +21,8 @@ export function RevenueTargetForm({
   defaultValue,
   onSave,
 }: RevenueTargetFormProps) {
+  const t = useTranslations("settingsBilling")
+  const tc = useTranslations("common")
   const {
     register,
     handleSubmit,
@@ -36,11 +39,10 @@ export function RevenueTargetForm({
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
       <h2 className="text-base font-semibold text-foreground">
-        Revenue Target
+        {t("revenueTarget")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Set your monthly revenue goal. 0 means no target. Displayed on the
-        dashboard.
+        {t("revenueTargetDesc")}
       </p>
       <form
         onSubmit={handleSubmit(onSubmit)}
@@ -61,7 +63,7 @@ export function RevenueTargetForm({
           isLoading={isSubmitting}
           style={{ borderRadius: "12px 19px 19px 12px" }}
         >
-          Save
+          {tc("save")}
         </Button>
       </form>
       {errors.monthlyRevenueTarget?.message && (

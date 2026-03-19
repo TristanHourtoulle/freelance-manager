@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { PeriodSelector } from "@/components/analytics/period-selector"
@@ -18,6 +19,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import type { AnalyticsData } from "@/components/analytics/types"
 
 export default function AnalyticsPage() {
+  const t = useTranslations("analytics")
   const searchParams = useSearchParams()
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Analytics" />
+      <PageHeader title={t("title")} />
 
       <div className="flex flex-col gap-4">
         <PeriodSelector />

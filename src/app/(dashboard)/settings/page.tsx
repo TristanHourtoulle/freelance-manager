@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
+import { useTranslations } from "next-intl"
 import { ProfilePhotoForm } from "@/components/settings/profile-photo-form"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +28,7 @@ interface UserProfile {
 
 export default function ProfileSettingsPage() {
   const { toast } = useToast()
+  const t = useTranslations("settingsProfile")
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -49,7 +51,7 @@ export default function ProfileSettingsPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Profile" />
+        <PageHeader title={t("title")} />
         <Skeleton className="h-36 rounded-xl" />
         <Skeleton className="h-48 rounded-xl" />
       </div>
@@ -58,7 +60,7 @@ export default function ProfileSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Profile" />
+      <PageHeader title={t("title")} />
       <ProfilePhotoForm />
       {profile && <ProfileForm defaultValues={profile} onSaved={setProfile} />}
     </div>
@@ -73,6 +75,8 @@ function ProfileForm({
   onSaved: (p: UserProfile) => void
 }) {
   const { toast } = useToast()
+  const t = useTranslations("settingsProfile")
+  const tc = useTranslations("common")
   const {
     register,
     handleSubmit,
@@ -92,30 +96,30 @@ function ProfileForm({
       if (res.ok) {
         const user = await res.json()
         onSaved({ name: user.name, email: user.email })
-        toast({ variant: "success", title: "Profile updated" })
+        toast({ variant: "success", title: t("toasts.success") })
       } else {
-        toast({ variant: "error", title: "Failed to update profile" })
+        toast({ variant: "error", title: t("toasts.error") })
       }
     },
-    [onSaved, toast],
+    [onSaved, toast, t],
   )
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6">
       <h2 className="text-base font-semibold text-foreground">
-        Personal Information
+        {t("personalInfo")}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Update your name and email address.
+        {t("personalInfoDesc")}
       </p>
       <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
         <div className="flex flex-wrap items-end gap-2.5">
           <div className="flex-1 space-y-1.5">
             <label className="text-sm font-medium text-muted-foreground">
-              Name
+              {t("nameLabel")}
             </label>
             <Input
-              placeholder="Your name"
+              placeholder={t("namePlaceholder")}
               {...register("name")}
               aria-invalid={!!errors.name}
               className="h-[38px] px-4"
@@ -124,11 +128,11 @@ function ProfileForm({
           </div>
           <div className="flex-1 space-y-1.5">
             <label className="text-sm font-medium text-muted-foreground">
-              Email
+              {t("emailLabel")}
             </label>
             <Input
               type="email"
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
               {...register("email")}
               aria-invalid={!!errors.email}
               className="h-[38px] px-4"
@@ -142,7 +146,7 @@ function ProfileForm({
             isLoading={isSubmitting}
             style={{ borderRadius: "12px 19px 19px 12px" }}
           >
-            Save
+            {tc("save")}
           </Button>
         </div>
         {(errors.name?.message || errors.email?.message) && (

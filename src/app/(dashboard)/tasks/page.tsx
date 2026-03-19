@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
@@ -31,6 +32,7 @@ import type {
 } from "@/components/tasks/types"
 
 export default function TasksPage() {
+  const t = useTranslations("tasks")
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -81,11 +83,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { toInvoice: value } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update task" }),
+            toast({ variant: "error", title: t("toasts.updateTaskError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const handleToggleInvoiced = useCallback(
@@ -94,11 +96,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { invoiced: value } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update task" }),
+            toast({ variant: "error", title: t("toasts.updateTaskError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const handleUpdateEstimate = useCallback(
@@ -107,11 +109,11 @@ export default function TasksPage() {
         { linearIssueId, estimate },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update estimate" }),
+            toast({ variant: "error", title: t("toasts.updateEstimateError") }),
         },
       )
     },
-    [estimateMutation, toast],
+    [estimateMutation, toast, t],
   )
 
   const handleUpdateRate = useCallback(
@@ -120,11 +122,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { rateOverride: rate } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update rate" }),
+            toast({ variant: "error", title: t("toasts.updateRateError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const statusMutation = useUpdateTaskStatus()
@@ -155,12 +157,12 @@ export default function TasksPage() {
             if (previous) {
               queryClient.setQueryData(queryKey, previous)
             }
-            toast({ variant: "error", title: "Failed to update status" })
+            toast({ variant: "error", title: t("toasts.updateStatusError") })
           },
         },
       )
     },
-    [searchParams, queryClient, statusMutation, toast],
+    [searchParams, queryClient, statusMutation, toast, t],
   )
 
   const availableStatuses: TaskStatusDTO[] = data?.allStatuses ?? []
@@ -185,7 +187,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Tasks">
+      <PageHeader title={t("title")}>
         <Button
           variant="outline"
           shape="pill-left"
@@ -196,12 +198,12 @@ export default function TasksPage() {
           <ArrowPathIcon
             className={`size-4 ${isFetching ? "animate-spin" : ""}`}
           />
-          Sync with Linear
+          {t("syncWithLinear")}
         </Button>
         <Link href="/tasks/new">
           <Button variant="gradient" shape="pill-right" size="lg">
             <PlusIcon className="size-4" />
-            New Tasks
+            {t("newTasks")}
           </Button>
         </Link>
       </PageHeader>

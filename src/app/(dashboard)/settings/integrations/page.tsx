@@ -10,6 +10,7 @@ import {
   EyeSlashIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
@@ -42,6 +43,7 @@ function formatTimeAgo(ts: number | null): string {
 
 export default function IntegrationsSettingsPage() {
   const { toast } = useToast()
+  const t = useTranslations("settingsIntegrations")
 
   // Token state
   const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null)
@@ -95,7 +97,7 @@ export default function IntegrationsSettingsPage() {
       setShowToken(false)
       toast({
         variant: "success",
-        title: "Linear API token saved and verified",
+        title: t("toasts.tokenSaved"),
       })
     } else {
       toast({
@@ -103,7 +105,7 @@ export default function IntegrationsSettingsPage() {
         title: data.error?.message ?? "Failed to save token",
       })
     }
-  }, [token, toast])
+  }, [token, toast, t])
 
   const handleDeleteToken = useCallback(async () => {
     setIsDeleting(true)
@@ -111,37 +113,36 @@ export default function IntegrationsSettingsPage() {
     setIsDeleting(false)
     if (res.ok) {
       setTokenStatus({ configured: false, maskedToken: null })
-      toast({ variant: "success", title: "Linear API token removed" })
+      toast({ variant: "success", title: t("toasts.tokenRemoved") })
     } else {
-      toast({ variant: "error", title: "Failed to remove token" })
+      toast({ variant: "error", title: t("toasts.tokenRemoveError") })
     }
-  }, [toast])
+  }, [toast, t])
 
   const handleCopyUrl = useCallback(async () => {
     if (!webhook?.webhookUrl) return
     await navigator.clipboard.writeText(webhook.webhookUrl)
-    toast({ variant: "success", title: "Webhook URL copied" })
-  }, [webhook, toast])
+    toast({ variant: "success", title: t("toasts.webhookCopied") })
+  }, [webhook, toast, t])
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     const res = await fetch("/api/linear/refresh", { method: "POST" })
     if (res.ok) {
       const data = await res.json()
-      // Use the refresh response directly (cache-status may hit a different worker in dev)
       setSync({
         lastSyncedAt: data.lastSyncedAt ?? Date.now(),
         isStale: false,
       })
     }
     setIsRefreshing(false)
-    toast({ variant: "success", title: "Linear data refreshed" })
-  }, [toast])
+    toast({ variant: "success", title: t("toasts.refreshed") })
+  }, [toast, t])
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Integrations" />
+        <PageHeader title={t("title")} />
         <Skeleton className="h-48 rounded-xl" />
         <Skeleton className="h-32 rounded-xl" />
         <Skeleton className="h-32 rounded-xl" />
@@ -151,27 +152,27 @@ export default function IntegrationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Integrations" />
+      <PageHeader title={t("title")} />
 
       {/* Linear API Token */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-foreground">API Token</h2>
+          <h2 className="text-base font-semibold text-foreground">
+            {t("apiToken")}
+          </h2>
           {tokenStatus?.configured ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
               <CheckCircleIcon className="size-3" />
-              Connected
+              {t("connected")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
               <ExclamationTriangleIcon className="size-3" />
-              Not configured
+              {t("notConfigured")}
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Connect your Linear workspace to sync tasks and track time.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("tokenDesc")}</p>
 
         {tokenStatus?.configured && tokenStatus.maskedToken && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-surface-secondary/50 px-3 py-2">
@@ -183,7 +184,7 @@ export default function IntegrationsSettingsPage() {
               size="icon-xs"
               onClick={handleDeleteToken}
               isLoading={isDeleting}
-              title="Remove token"
+              title={t("removeToken")}
               className="ml-auto text-destructive hover:bg-destructive/10"
             >
               <TrashIcon className="size-3.5" />
@@ -199,8 +200,8 @@ export default function IntegrationsSettingsPage() {
               onChange={(e) => setToken(e.target.value)}
               placeholder={
                 tokenStatus?.configured
-                  ? "Enter new token to replace..."
-                  : "lin_api_..."
+                  ? t("tokenPlaceholderReplace")
+                  : t("tokenPlaceholderNew")
               }
               className="h-[38px] pl-4 pr-9 font-mono text-xs"
               style={{ borderRadius: "19px 12px 12px 19px" }}
@@ -225,40 +226,46 @@ export default function IntegrationsSettingsPage() {
             isLoading={isSaving}
             style={{ borderRadius: "12px 19px 19px 12px" }}
           >
-            {tokenStatus?.configured ? "Update" : "Connect"}
+            {tokenStatus?.configured ? t("updateButton") : t("connectButton")}
           </Button>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Generate from{" "}
-          <span className="font-medium text-foreground">
-            Linear &gt; Settings &gt; API &gt; Personal API keys
-          </span>
-          . Encrypted with AES-256-GCM.
+          {t.rich("tokenInstructions", {
+            path: () => (
+              <span className="font-medium text-foreground">
+                {t("tokenPath")}
+              </span>
+            ),
+          })}
         </p>
       </div>
 
       {/* Webhook Configuration */}
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-foreground">Webhook</h2>
+          <h2 className="text-base font-semibold text-foreground">
+            {t("webhook")}
+          </h2>
           {webhook?.configured ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
               <CheckCircleIcon className="size-3" />
-              Configured
+              {t("configured")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
               <ExclamationTriangleIcon className="size-3" />
-              Not configured
+              {t("notConfigured")}
             </span>
           )}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set up a webhook in Linear for real-time task sync. Add this URL in{" "}
-          <span className="font-medium text-foreground">
-            Linear &gt; Settings &gt; API &gt; Webhooks
-          </span>
-          .
+          {t.rich("webhookDesc", {
+            path: () => (
+              <span className="font-medium text-foreground">
+                {t("webhookPath")}
+              </span>
+            ),
+          })}
         </p>
 
         {webhook?.webhookUrl && (
@@ -273,15 +280,19 @@ export default function IntegrationsSettingsPage() {
               onClick={handleCopyUrl}
             >
               <ClipboardIcon className="size-3.5" />
-              Copy
+              {t("copyButton")}
             </Button>
           </div>
         )}
 
         <p className="mt-2 text-xs text-muted-foreground">
-          The webhook secret is configured via the{" "}
-          <code className="rounded bg-muted px-1">LINEAR_WEBHOOK_SECRET</code>{" "}
-          environment variable.
+          {t.rich("webhookSecretNote", {
+            code: () => (
+              <code className="rounded bg-muted px-1">
+                LINEAR_WEBHOOK_SECRET
+              </code>
+            ),
+          })}
         </p>
       </div>
 
@@ -290,7 +301,7 @@ export default function IntegrationsSettingsPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-base font-semibold text-foreground">
-              Sync Status
+              {t("syncStatus")}
             </h2>
             {sync && (
               <span
@@ -306,26 +317,26 @@ export default function IntegrationsSettingsPage() {
             isLoading={isRefreshing}
           >
             <ArrowPathIcon className="size-3.5" />
-            Refresh now
+            {t("refreshNow")}
           </Button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-muted-foreground">Last sync</p>
+            <p className="text-xs text-muted-foreground">{t("lastSync")}</p>
             <p className="text-sm font-medium text-foreground">
               {sync?.lastSyncedAt
                 ? formatTimeAgo(sync.lastSyncedAt)
-                : "Not synced yet — click Refresh"}
+                : t("notSyncedYet")}
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Status</p>
+            <p className="text-xs text-muted-foreground">{t("status")}</p>
             <p className="text-sm font-medium text-foreground">
               {!sync?.lastSyncedAt
-                ? "Waiting for first sync"
+                ? t("waitingForSync")
                 : sync.isStale
-                  ? "Stale — data may be outdated"
-                  : "Up to date"}
+                  ? t("stale")
+                  : t("upToDate")}
             </p>
           </div>
         </div>

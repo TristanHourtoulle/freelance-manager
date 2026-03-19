@@ -1,0 +1,335 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "success": "Succès",
+    "failedToLoad": "Impossible de charger les données.",
+    "noCompany": "Aucune entreprise",
+    "noActivity": "Aucune activité",
+    "categories": {
+      "freelance": "Freelance",
+      "study": "Études",
+      "personal": "Personnel",
+      "sideProject": "Projet perso"
+    },
+    "billingModes": {
+      "hourly": "Horaire",
+      "daily": "Journalier",
+      "fixed": "Forfait",
+      "free": "Gratuit"
+    }
+  },
+
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "clients": "Clients",
+    "tasks": "Tâches",
+    "billing": "Facturation",
+    "analytics": "Analyses",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "search": "Rechercher...",
+    "backToApp": "Retour à l'app"
+  },
+
+  "settingsNav": {
+    "title": "Paramètres",
+    "description": "Gérer votre espace de travail",
+    "account": "Compte",
+    "profile": "Profil",
+    "appearance": "Apparence",
+    "workspace": "Espace de travail",
+    "billingInvoicing": "Facturation",
+    "notifications": "Notifications",
+    "integrations": "Intégrations",
+    "advanced": "Avancé",
+    "dataExport": "Données & Export"
+  },
+
+  "dashboard": {
+    "title": "Tableau de bord",
+    "pipeline": "Pipeline",
+    "toInvoice": "À facturer",
+    "monthlyRevenue": "Revenu mensuel",
+    "currentMonth": "Mois en cours",
+    "billedHours": "Heures facturées",
+    "revenueTarget": "Objectif de revenu",
+    "revenueChart": "Revenus (6 mois)",
+    "revenueChartDesc": "Revenus des 6 derniers mois",
+    "refresh": "Rafraîchir",
+    "lastSynced": "Dernière sync : {time}"
+  },
+
+  "clients": {
+    "title": "Clients",
+    "newClient": "Nouveau client",
+    "hint": "Ajoutez vos clients ici. Définissez le mode de facturation et le tarif, puis connectez un projet Linear depuis la page d'édition du client.",
+    "dismissHint": "Masquer l'astuce",
+    "searchPlaceholder": "Rechercher par nom ou entreprise...",
+    "archived": "Archivés",
+    "gridView": "Vue grille",
+    "listView": "Vue liste",
+    "editClient": "Modifier le client",
+    "archiveClient": "Archiver le client",
+    "unarchiveClient": "Désarchiver le client",
+    "sortOptions": {
+      "newestFirst": "Plus récents",
+      "oldestFirst": "Plus anciens",
+      "nameAZ": "Nom A-Z",
+      "nameZA": "Nom Z-A",
+      "revenueHighToLow": "Revenu (décroissant)",
+      "recentActivity": "Activité récente"
+    },
+    "card": {
+      "billing": "Facturation",
+      "rate": "Tarif",
+      "revenue": "Revenu"
+    },
+    "form": {
+      "name": "Nom",
+      "namePlaceholder": "Nom du client",
+      "email": "Email",
+      "emailPlaceholder": "client@exemple.com",
+      "company": "Entreprise",
+      "companyPlaceholder": "Nom de l'entreprise",
+      "logo": "Logo",
+      "billingMode": "Mode de facturation",
+      "selectBillingMode": "Sélectionner un mode",
+      "ratePlaceholder": "0,00",
+      "category": "Catégorie",
+      "selectCategory": "Sélectionner une catégorie",
+      "notes": "Notes",
+      "notesPlaceholder": "Notes supplémentaires...",
+      "createButton": "Créer le client",
+      "updateButton": "Mettre à jour"
+    },
+    "toasts": {
+      "created": "Client créé",
+      "updated": "Client mis à jour",
+      "archived": "Client archivé",
+      "unarchived": "Client désarchivé",
+      "archiveError": "Erreur lors de l'archivage",
+      "unarchiveError": "Erreur lors du désarchivage"
+    },
+    "total": "{count, plural, one {# client} other {# clients}} au total",
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
+
+  "tasks": {
+    "title": "Tâches",
+    "syncWithLinear": "Synchroniser avec Linear",
+    "newTasks": "Nouvelles tâches",
+    "allClients": "Tous les clients",
+    "kpi": {
+      "billableAmount": "Montant facturable",
+      "completedTasks": "Tâches terminées",
+      "totalTasks": "Total des tâches",
+      "totalHours": "Total des heures"
+    },
+    "presets": {
+      "active": "Actives",
+      "all": "Toutes",
+      "done": "Terminées",
+      "toInvoice": "À facturer",
+      "backlog": "Backlog"
+    },
+    "toasts": {
+      "updateTaskError": "Erreur lors de la mise à jour de la tâche",
+      "updateEstimateError": "Erreur lors de la mise à jour de l'estimation",
+      "updateRateError": "Erreur lors de la mise à jour du tarif",
+      "updateStatusError": "Erreur lors de la mise à jour du statut"
+    }
+  },
+
+  "billing": {
+    "title": "À facturer",
+    "history": "Historique",
+    "viewTasks": "Voir les tâches",
+    "hint": "Marquez les tâches à facturer, puis confirmez la facturation pour suivre vos revenus.",
+    "markAsInvoiced": "Marquer comme facturé",
+    "markAsInvoicedCount": "Marquer comme facturé ({count})",
+    "toasts": {
+      "success": "{count, plural, one {# tâche marquée} other {# tâches marquées}} comme facturée(s)",
+      "error": "Erreur lors du marquage des tâches"
+    }
+  },
+
+  "analytics": {
+    "title": "Analyses",
+    "periods": {
+      "thisMonth": "Ce mois",
+      "threeMonths": "3 mois",
+      "sixMonths": "6 mois",
+      "thisYear": "Cette année"
+    }
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "markAllAsRead": "Tout marquer comme lu",
+    "allTab": "Toutes",
+    "unreadTab": "Non lues",
+    "unreadCount": "Non lues ({count})",
+    "noUnread": "Aucune notification non lue",
+    "noNotifications": "Aucune notification pour le moment",
+    "markAsRead": "Marquer comme lu"
+  },
+
+  "settingsProfile": {
+    "title": "Profil",
+    "personalInfo": "Informations personnelles",
+    "personalInfoDesc": "Modifiez votre nom et adresse email.",
+    "nameLabel": "Nom",
+    "namePlaceholder": "Votre nom",
+    "emailLabel": "Email",
+    "emailPlaceholder": "vous@exemple.com",
+    "toasts": {
+      "success": "Profil mis à jour",
+      "error": "Erreur lors de la mise à jour du profil"
+    }
+  },
+
+  "settingsBilling": {
+    "title": "Facturation",
+    "workingHours": "Heures de travail",
+    "workingHoursDesc": "Par défaut : 140h/mois. Utilisé pour calculer votre taux d'utilisation dans les analyses.",
+    "revenueTarget": "Objectif de revenu",
+    "revenueTargetDesc": "Définissez votre objectif de revenu mensuel. 0 signifie pas d'objectif. Affiché sur le tableau de bord.",
+    "billingDefaults": "Paramètres de facturation",
+    "billingDefaultsDesc": "Ces valeurs par défaut sont appliquées lors de la création de nouveaux clients et factures.",
+    "currencyLabel": "Devise",
+    "paymentTermsLabel": "Délai de paiement",
+    "defaultRateLabel": "Tarif par défaut",
+    "toasts": {
+      "success": "Paramètres enregistrés",
+      "error": "Erreur lors de l'enregistrement"
+    }
+  },
+
+  "settingsNotifications": {
+    "title": "Notifications",
+    "saving": "Enregistrement...",
+    "billingReminders": "Rappels de facturation",
+    "billingRemindersDesc": "Être notifié quand des tâches sont prêtes à facturer.",
+    "remindAfter": "Rappeler après",
+    "days": "jours",
+    "inactiveClient": "Alertes client inactif",
+    "inactiveClientDesc": "Être notifié quand un client n'a pas eu d'activité.",
+    "after": "Après",
+    "daysOfInactivity": "jours d'inactivité",
+    "syncAlerts": "Alertes de synchronisation",
+    "syncAlertsDesc": "Être notifié quand les données Linear sont obsolètes.",
+    "paymentOverdue": "Paiement en retard",
+    "paymentOverdueDesc": "Être notifié quand une facture dépasse son échéance.",
+    "toasts": {
+      "success": "Préférences de notification enregistrées",
+      "error": "Erreur lors de l'enregistrement des préférences"
+    }
+  },
+
+  "settingsIntegrations": {
+    "title": "Intégrations",
+    "apiToken": "Jeton API",
+    "connected": "Connecté",
+    "notConfigured": "Non configuré",
+    "configured": "Configuré",
+    "tokenDesc": "Connectez votre espace Linear pour synchroniser les tâches et suivre le temps.",
+    "tokenPlaceholderNew": "lin_api_...",
+    "tokenPlaceholderReplace": "Entrez un nouveau jeton pour remplacer...",
+    "connectButton": "Connecter",
+    "updateButton": "Mettre à jour",
+    "removeToken": "Supprimer le jeton",
+    "tokenInstructions": "Générez depuis {path}. Chiffré avec AES-256-GCM.",
+    "tokenPath": "Linear > Settings > API > Personal API keys",
+    "webhook": "Webhook",
+    "webhookDesc": "Configurez un webhook dans Linear pour la synchronisation en temps réel. Ajoutez cette URL dans {path}.",
+    "webhookPath": "Linear > Settings > API > Webhooks",
+    "copyButton": "Copier",
+    "webhookSecretNote": "Le secret du webhook est configuré via la variable d'environnement {code}.",
+    "syncStatus": "Statut de synchronisation",
+    "refreshNow": "Rafraîchir maintenant",
+    "lastSync": "Dernière sync",
+    "status": "Statut",
+    "notSyncedYet": "Pas encore synchronisé — cliquez sur Rafraîchir",
+    "waitingForSync": "En attente de la première synchronisation",
+    "stale": "Obsolète — les données peuvent être périmées",
+    "upToDate": "À jour",
+    "toasts": {
+      "tokenSaved": "Jeton API Linear enregistré et vérifié",
+      "tokenRemoved": "Jeton API Linear supprimé",
+      "tokenRemoveError": "Erreur lors de la suppression du jeton",
+      "webhookCopied": "URL du webhook copiée",
+      "refreshed": "Données Linear rafraîchies"
+    }
+  },
+
+  "settingsAppearance": {
+    "title": "Apparence",
+    "themeTitle": "Thème",
+    "themeDesc": "Choisissez l'apparence de Freelance Manager.",
+    "light": "Clair",
+    "lightDesc": "Toujours clair",
+    "dark": "Sombre",
+    "darkDesc": "Toujours sombre",
+    "system": "Système",
+    "systemDesc": "Suivre l'OS",
+    "accentTitle": "Couleur d'accent",
+    "accentDesc": "Choisissez une couleur principale pour les boutons, liens et mises en avant.",
+    "colors": {
+      "blue": "Bleu",
+      "purple": "Violet",
+      "green": "Vert",
+      "orange": "Orange",
+      "pink": "Rose",
+      "teal": "Turquoise",
+      "red": "Rouge",
+      "indigo": "Indigo"
+    },
+    "toasts": {
+      "themeSet": "Thème défini sur {theme}"
+    }
+  },
+
+  "settingsData": {
+    "title": "Données & Export",
+    "clientsExport": "Clients",
+    "clientsExportDesc": "Exportez toutes vos données clients.",
+    "invoicesExport": "Factures",
+    "invoicesExportDesc": "Exportez tout votre historique de factures.",
+    "csvButton": "CSV",
+    "jsonButton": "JSON",
+    "exportSuccess": "{title} exporté en {format}",
+    "exportError": "Erreur lors de l'export",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountDesc": "Supprimez définitivement votre compte et toutes les données associées. Cette action est irréversible.",
+    "deleteButton": "Supprimer mon compte",
+    "deleteConfirmTitle": "Supprimer votre compte ?",
+    "deleteConfirmDesc": "Cela supprimera définitivement votre compte, tous les clients, tâches, factures et paramètres. Cette action est irréversible.",
+    "deleteConfirmInstruction": "Tapez {keyword} pour confirmer",
+    "deleteConfirmButton": "Supprimer définitivement",
+    "toasts": {
+      "deleteError": "Erreur lors de la suppression du compte"
+    }
+  },
+
+  "imageUpload": {
+    "invalidType": "Seuls les fichiers PNG, JPEG ou WebP sont acceptés",
+    "tooLarge": "L'image doit faire moins de 5 Mo",
+    "processingError": "Erreur lors du traitement de l'image",
+    "compressing": "Compression..."
+  },
+
+  "profilePhoto": {
+    "title": "Photo de profil",
+    "description": "Téléchargez une photo de profil. PNG, JPEG ou WebP — max 5 Mo (compression auto).",
+    "saving": "Enregistrement...",
+    "toasts": {
+      "uploaded": "Photo mise à jour",
+      "removed": "Photo supprimée",
+      "error": "Erreur lors de la mise à jour de la photo"
+    }
+  }
+}
