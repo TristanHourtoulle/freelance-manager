@@ -9,10 +9,20 @@ export { CategorySchema }
 export const BillingModeSchema = z.enum(["HOURLY", "DAILY", "FIXED", "FREE"])
 
 /** Validates the request body when creating a new client. */
+/** Validates a base64 data URL for images (PNG, JPEG, WebP). Max ~512KB encoded. */
+const base64ImageSchema = z
+  .string()
+  .max(700_000)
+  .refine(
+    (v) => v.startsWith("data:image/"),
+    "Must be a base64 data URL (data:image/...)",
+  )
+
 export const createClientSchema = z.object({
   name: z.string().min(1).max(100).trim(),
   email: z.email().optional(),
   company: z.string().max(100).trim().optional(),
+  logo: base64ImageSchema.nullable().optional(),
   billingMode: BillingModeSchema.default("HOURLY"),
   rate: z.number().min(0).default(0),
   category: CategorySchema.default("FREELANCE"),
@@ -24,6 +34,7 @@ export const updateClientSchema = z.object({
   name: z.string().min(1).max(100).trim().optional(),
   email: z.email().optional(),
   company: z.string().max(100).trim().optional(),
+  logo: base64ImageSchema.nullable().optional(),
   billingMode: BillingModeSchema.optional(),
   rate: z.number().min(0).optional(),
   category: CategorySchema.optional(),

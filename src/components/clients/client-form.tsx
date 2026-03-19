@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
+import { ImageUpload } from "@/components/ui/image-upload"
 import {
   Select,
   SelectContent,
@@ -62,6 +63,7 @@ export function ClientForm({
       name: "",
       email: undefined,
       company: undefined,
+      logo: undefined,
       billingMode: "HOURLY",
       rate: 0,
       category: "FREELANCE",
@@ -91,20 +93,39 @@ export function ClientForm({
       className="space-y-6"
       noValidate
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          label="Name"
-          placeholder="Client name"
-          {...register("name")}
-          error={errors.name?.message}
+      <div className="flex items-start gap-5">
+        <Controller
+          name="logo"
+          control={control}
+          render={({ field }) => (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-muted-foreground">
+                Logo
+              </label>
+              <ImageUpload
+                value={field.value}
+                onChange={(v) => field.onChange(v)}
+                size="lg"
+                shape="rounded"
+              />
+            </div>
+          )}
         />
-        <FormField
-          label="Email"
-          type="email"
-          placeholder="client@example.com"
-          {...register("email")}
-          error={errors.email?.message}
-        />
+        <div className="grid flex-1 gap-4 sm:grid-cols-2">
+          <FormField
+            label="Name"
+            placeholder="Client name"
+            {...register("name")}
+            error={errors.name?.message}
+          />
+          <FormField
+            label="Email"
+            type="email"
+            placeholder="client@example.com"
+            {...register("email")}
+            error={errors.email?.message}
+          />
+        </div>
       </div>
 
       <FormField

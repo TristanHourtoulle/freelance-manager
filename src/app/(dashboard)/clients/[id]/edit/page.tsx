@@ -88,6 +88,7 @@ export default function EditClientPage() {
     name: client.name,
     email: client.email ?? undefined,
     company: client.company ?? undefined,
+    logo: client.logo ?? undefined,
     billingMode: client.billingMode as CreateClientInput["billingMode"],
     rate: client.rate,
     category: client.category as CreateClientInput["category"],

@@ -72,8 +72,25 @@ model UserSettings {
   id                     String   @id @default(cuid())
   userId                 String   @unique
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Billing defaults
   availableHoursPerMonth Int      @default(140)
   monthlyRevenueTarget   Decimal  @default(0) @db.Decimal(10, 2)
+  defaultCurrency        String   @default("EUR")
+  defaultPaymentDays     Int      @default(30)
+  defaultRate            Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Notification preferences (JSON: { billingReminder: true, inactiveClient: true, ... })
+  notificationPrefs      Json?
+
+  // Linear integration (AES-256-GCM encrypted)
+  linearApiTokenEncrypted Bytes?
+  linearApiTokenIv        Bytes?
+
+  // Appearance
+  theme                  String   @default("system")
+  accentColor            String   @default("#2563eb")
+
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -117,6 +134,7 @@ model Client {
   name        String
   email       String?
   company     String?
+  logo        String?
   billingMode BillingMode  @default(HOURLY)
   rate        Decimal      @default(0) @db.Decimal(10, 2)
   category    Category     @default(FREELANCE)

@@ -65,9 +65,17 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
     >
       {/* Header: avatar + name + category */}
       <div className="flex items-center gap-3 p-4 pb-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#2563eb] to-[#1442a9] text-xs font-medium text-white">
-          {getInitials(client.name)}
-        </div>
+        {client.logo ? (
+          <img
+            src={client.logo}
+            alt={`${client.name} logo`}
+            className="size-10 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-linear-to-r from-[#2563eb] to-[#1442a9] text-xs font-medium text-white">
+            {getInitials(client.name)}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold text-foreground">
             {client.name}

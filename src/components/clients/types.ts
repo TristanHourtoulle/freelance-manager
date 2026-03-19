@@ -15,6 +15,7 @@ export interface SerializedClient {
   name: string
   email: string | null
   company: string | null
+  logo: string | null
   billingMode: string
   rate: number
   category: string
