@@ -13,6 +13,7 @@ import { UtilizationGauge } from "@/components/analytics/utilization-gauge"
 import { UtilizationTrendChart } from "@/components/analytics/utilization-trend-chart"
 import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
+import { PageHeader } from "@/components/ui/page-header"
 
 import type { AnalyticsData } from "@/components/analytics/types"
 
@@ -64,7 +65,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1>Analytics</h1>
+      <PageHeader title="Analytics" />
 
       <div className="flex flex-col gap-4">
         <PeriodSelector />

@@ -11,6 +11,8 @@ import {
 } from "@heroicons/react/24/outline"
 import { useNotifications } from "@/components/notifications/use-notifications"
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip-group"
+import { PageHeader } from "@/components/ui/page-header"
 
 import type { Notification, NotificationType } from "@/generated/prisma/client"
 
@@ -113,40 +115,27 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Notifications</h1>
+      <PageHeader title="Notifications">
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={dismissAll}>
+          <Button variant="outline" shape="pill" size="lg" onClick={dismissAll}>
             Mark all as read
           </Button>
         )}
-      </div>
+      </PageHeader>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Chip
+          label="All"
+          isActive={filter === "all"}
           onClick={() => setFilter("all")}
-          aria-pressed={filter === "all"}
-          className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            filter === "all"
-              ? "bg-primary text-white"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
-          }`}
-        >
-          All
-        </button>
-        <button
-          type="button"
+          position="first"
+        />
+        <Chip
+          label={unreadCount > 0 ? `Unread (${unreadCount})` : "Unread"}
+          isActive={filter === "unread"}
           onClick={() => setFilter("unread")}
-          aria-pressed={filter === "unread"}
-          className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            filter === "unread"
-              ? "bg-primary text-white"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
-          }`}
-        >
-          Unread {unreadCount > 0 && `(${unreadCount})`}
-        </button>
+          position="last"
+        />
       </div>
 
       {isLoading ? (

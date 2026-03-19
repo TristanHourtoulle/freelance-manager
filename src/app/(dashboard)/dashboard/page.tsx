@@ -10,6 +10,7 @@ import { RevenueTargetProgress } from "@/components/dashboard/revenue-target-pro
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist"
 import { WelcomeModal } from "@/components/onboarding/welcome-modal"
 import { formatCurrency } from "@/lib/format"
+import { PageHeader } from "@/components/ui/page-header"
 import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 
 import type { DashboardKPIs } from "@/components/dashboard/types"
@@ -80,7 +81,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1>Dashboard</h1>
+      <PageHeader title="Dashboard" />
 
       <WelcomeModal
         isOpen={isWelcomeOpen}

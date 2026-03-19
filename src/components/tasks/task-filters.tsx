@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { ListBulletIcon, ViewColumnsIcon } from "@heroicons/react/24/outline"
+import { Chip } from "@/components/ui/chip-group"
 import {
   Select,
   SelectContent,
@@ -9,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CategoryFilter } from "@/components/ui/category-filter"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 import {
   TASK_PRESETS,
@@ -17,9 +17,7 @@ import {
   type TaskPreset,
 } from "@/lib/schemas/task"
 
-import { StatusFilter } from "./status-filter"
-
-import type { ClientSummary, TaskStatusDTO } from "./types"
+import type { ClientSummary } from "./types"
 
 export type TaskView = "list" | "kanban"
 
@@ -27,26 +25,16 @@ interface TaskFiltersProps {
   clients: ClientSummary[]
   view: TaskView
   onViewChange: (view: TaskView) => void
-  allStatuses: TaskStatusDTO[]
-  hiddenStatusIds: Set<string>
-  onToggleStatus: (statusId: string) => void
-  onShowAllStatuses: () => void
 }
 
-/**
- * Filter toolbar for the tasks page.
- * Provides preset tabs (active, billable, invoiced, all), client dropdown, and category filter.
- * All filter state is synced to URL search params.
- */
-export function TaskFilters({
-  clients,
-  view,
-  onViewChange,
-  allStatuses,
-  hiddenStatusIds,
-  onToggleStatus,
-  onShowAllStatuses,
-}: TaskFiltersProps) {
+const CATEGORIES = [
+  { value: "FREELANCE", label: "Freelance" },
+  { value: "STUDY", label: "Study" },
+  { value: "PERSONAL", label: "Personal" },
+  { value: "SIDE_PROJECT", label: "Side Project" },
+] as const
+
+export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -55,6 +43,10 @@ export function TaskFilters({
 
   const currentPreset: TaskPreset =
     (searchParams.get("preset") as TaskPreset) ?? "active"
+
+  const selectedCategories = searchParams.get("category")?.split(",") ?? []
+
+  const clientId = searchParams.get("clientId") ?? ""
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -74,25 +66,39 @@ export function TaskFilters({
     }
   }
 
-  const clientId = searchParams.get("clientId") ?? ""
+  function handleCategoryToggle(value: string) {
+    const next = selectedCategories.includes(value)
+      ? selectedCategories.filter((v) => v !== value)
+      : [...selectedCategories, value]
+    const params = new URLSearchParams(searchParams.toString())
+    if (next.length > 0) {
+      params.set("category", next.join(","))
+    } else {
+      params.delete("category")
+    }
+    params.delete("page")
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Preset tabs row */}
       <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          {TASK_PRESETS.map((preset) => (
-            <button
+        <div className="flex flex-wrap items-center gap-2.5">
+          {TASK_PRESETS.map((preset, index) => (
+            <Chip
               key={preset}
-              type="button"
+              label={TASK_PRESET_LABELS[preset]}
+              isActive={currentPreset === preset}
               onClick={() => handlePresetChange(preset)}
-              className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                currentPreset === preset
-                  ? "bg-primary text-primary-foreground hover:bg-primary/80"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-              }`}
-            >
-              {TASK_PRESET_LABELS[preset]}
-            </button>
+              position={
+                index === 0
+                  ? "first"
+                  : index === TASK_PRESETS.length - 1
+                    ? "last"
+                    : "middle"
+              }
+            />
           ))}
         </div>
         <div className="flex items-center rounded-lg border border-border">
@@ -120,38 +126,40 @@ export function TaskFilters({
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-muted-foreground">
-            Client
-          </label>
-          <Select
-            value={clientId || undefined}
-            onValueChange={(val) =>
-              updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
-            }
+
+      {/* Category chips + Client dropdown on the same row (Figma layout) */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        {CATEGORIES.map((cat, index) => (
+          <Chip
+            key={cat.value}
+            label={cat.label}
+            isActive={selectedCategories.includes(cat.value)}
+            onClick={() => handleCategoryToggle(cat.value)}
+            position={index === 0 ? "first" : "middle"}
+          />
+        ))}
+        <Select
+          value={clientId || undefined}
+          onValueChange={(val) =>
+            updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
+          }
+        >
+          <SelectTrigger
+            className="h-[38px] w-auto border-border bg-surface px-5 text-sm font-medium text-text-secondary"
+            style={{ borderRadius: "12px 19px 19px 12px" }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All clients</SelectItem>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.company ? `${c.name} (${c.company})` : c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <SelectValue placeholder="All clients" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All clients</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.company ? `${c.name} (${c.company})` : c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      <CategoryFilter />
-      <StatusFilter
-        allStatuses={allStatuses}
-        hiddenStatusIds={hiddenStatusIds}
-        onToggleStatus={onToggleStatus}
-        onShowAll={onShowAllStatuses}
-      />
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { AvailableHoursForm } from "@/components/settings/available-hours-form"
 import { RevenueTargetForm } from "@/components/settings/revenue-target-form"
+import { PageHeader } from "@/components/ui/page-header"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
 
@@ -64,7 +65,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h1>Settings</h1>
+      <PageHeader title="Settings" />
 
       <TooltipHint storageKey="settings-page">
         Configure your working hours and revenue target for dashboard analytics.

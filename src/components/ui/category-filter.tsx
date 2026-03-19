@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { Chip } from "@/components/ui/chip-group"
 
 const CATEGORIES = [
   { value: "FREELANCE", label: "Freelance" },
@@ -12,8 +13,7 @@ const CATEGORIES = [
 
 /**
  * Pill-based category filter that syncs selected values to URL search params.
- * Supports multi-select with a clear-all action. Resets pagination on change.
- * Used on the projects list page to filter by project category.
+ * Uses the stadium-shape Chip component from the design system.
  */
 export function CategoryFilter() {
   const router = useRouter()
@@ -54,23 +54,23 @@ export function CategoryFilter() {
   }, [updateCategories])
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm font-medium text-text-secondary">Category:</span>
-      {CATEGORIES.map((cat) => {
+    <div className="flex flex-wrap items-center gap-2.5">
+      {CATEGORIES.map((cat, index) => {
         const isActive = selected.includes(cat.value)
         return (
-          <button
+          <Chip
             key={cat.value}
-            type="button"
+            label={cat.label}
+            isActive={isActive}
             onClick={() => toggle(cat.value)}
-            className={`cursor-pointer rounded-full border px-3 py-1 text-sm transition-colors ${
-              isActive
-                ? "border-primary bg-primary text-white hover:bg-primary/80"
-                : "border-border bg-surface text-text-secondary hover:border-primary hover:bg-surface-muted hover:text-primary"
-            }`}
-          >
-            {cat.label}
-          </button>
+            position={
+              index === 0
+                ? "first"
+                : index === CATEGORIES.length - 1
+                  ? "last"
+                  : "middle"
+            }
+          />
         )
       })}
       {selected.length > 0 && (

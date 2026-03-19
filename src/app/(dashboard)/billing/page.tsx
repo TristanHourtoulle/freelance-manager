@@ -10,7 +10,6 @@ import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
-import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { useToast } from "@/components/providers/toast-provider"
 import { useBilling, useMarkInvoiced } from "@/hooks/use-billing"
@@ -119,10 +118,14 @@ export default function BillingPage() {
     <div className="space-y-6">
       <PageHeader title="To Invoice">
         <Link href="/billing/history">
-          <Button variant="outline">History</Button>
+          <Button variant="outline" shape="pill-left" size="lg">
+            History
+          </Button>
         </Link>
         <Link href="/tasks">
-          <Button variant="outline">View Tasks</Button>
+          <Button variant="outline" shape="pill-right" size="lg">
+            View Tasks
+          </Button>
         </Link>
       </PageHeader>
 
@@ -130,9 +133,7 @@ export default function BillingPage() {
         Flag tasks to invoice, then mark them as invoiced to track your revenue.
       </TooltipHint>
 
-      <PageToolbar>
-        <BillingFilters clients={allClients} />
-      </PageToolbar>
+      <BillingFilters clients={allClients} />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">

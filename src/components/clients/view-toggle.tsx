@@ -15,8 +15,8 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange("grid")}
         className={`cursor-pointer rounded-l-lg p-1.5 transition-colors ${
           view === "grid"
-            ? "bg-surface-muted text-text-primary"
-            : "text-text-secondary hover:bg-surface-muted/50 hover:text-text-primary"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         }`}
         title="Grid view"
       >
@@ -26,8 +26,8 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange("list")}
         className={`cursor-pointer rounded-r-lg p-1.5 transition-colors ${
           view === "list"
-            ? "bg-surface-muted text-text-primary"
-            : "text-text-secondary hover:bg-surface-muted/50 hover:text-text-primary"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         }`}
         title="List view"
       >
