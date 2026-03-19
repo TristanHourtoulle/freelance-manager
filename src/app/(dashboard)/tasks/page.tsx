@@ -4,16 +4,15 @@ import { useCallback, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
+import { ArrowPathIcon, PlusIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/ui/page-header"
-import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
 import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
-import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 import { useToast } from "@/components/providers/toast-provider"
 import {
   useTasks,
@@ -187,31 +186,25 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Tasks">
+        <Button
+          variant="outline"
+          shape="pill-left"
+          size="lg"
+          onClick={handleRefresh}
+          disabled={isLoading || isFetching}
+        >
+          <ArrowPathIcon
+            className={`size-4 ${isFetching ? "animate-spin" : ""}`}
+          />
+          Sync with Linear
+        </Button>
         <Link href="/tasks/new">
-          <Button>New Task</Button>
-        </Link>
-        <Link href="/billing">
-          <Button variant="outline">To Invoice</Button>
+          <Button variant="gradient" shape="pill-right" size="lg">
+            <PlusIcon className="size-4" />
+            New Tasks
+          </Button>
         </Link>
       </PageHeader>
-
-      <PageToolbar>
-        <SyncStatusBar
-          lastSyncedAt={lastSyncedAt}
-          isStale={isStale}
-          onRefresh={handleRefresh}
-          isRefreshing={isLoading || isFetching}
-        />
-        <TaskFilters
-          clients={allClients}
-          view={view}
-          onViewChange={handleViewChange}
-          allStatuses={availableStatuses}
-          hiddenStatusIds={hiddenStatusIds}
-          onToggleStatus={toggleStatus}
-          onShowAllStatuses={showAll}
-        />
-      </PageToolbar>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -227,6 +220,12 @@ export default function TasksPage() {
       ) : (
         <>
           <TaskKpiCards groups={groups} />
+
+          <TaskFilters
+            clients={allClients}
+            view={view}
+            onViewChange={handleViewChange}
+          />
 
           {view === "list" ? (
             <TaskGroupList

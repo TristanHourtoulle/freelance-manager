@@ -51,21 +51,27 @@ function NavContent({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-white">
+      {/* User profile */}
+      <div className="p-5 pb-4">
+        <div className="flex items-center gap-3.5">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-normal text-white bg-linear-to-r from-[#2563eb] to-[#1442a9]">
             {getInitials(userName)}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-text-primary">
+            <p className="truncate text-base font-medium text-text-primary">
               {userName}
             </p>
-            <p className="truncate text-xs text-text-secondary">{userEmail}</p>
+            <p className="truncate text-sm font-medium text-text-secondary">
+              {userEmail}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 px-3 pt-3">
+      <div className="mx-5 border-t border-border" />
+
+      {/* Search + Notification */}
+      <div className="flex items-center gap-3 px-5 pt-5">
         <button
           onClick={() => {
             document.dispatchEvent(
@@ -76,26 +82,25 @@ function NavContent({
               }),
             )
           }}
-          className="flex flex-1 items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+          className="flex h-10 flex-1 items-center justify-between border border-border bg-surface px-4 text-sm transition-colors hover:bg-surface-muted"
+          style={{ borderRadius: "20px 12px 12px 20px" }}
         >
-          <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
-          <span className="flex-1 text-left">Search...</span>
-          <kbd className="flex items-center gap-1 rounded border border-border bg-surface-secondary px-2.5 py-0.5 text-xs font-medium text-text-secondary">
+          <div className="flex items-center gap-2.5">
+            <MagnifyingGlassIcon className="size-4 shrink-0 text-text-muted" />
+            <span className="text-text-muted">Search...</span>
+          </div>
+          <kbd className="rounded bg-surface-muted/50 px-1.5 py-0.5 text-[11px] text-text-muted">
             {typeof navigator !== "undefined" &&
-            navigator.platform?.includes("Mac") ? (
-              <>
-                <span className="text-lg">{"\u2318"}</span>
-                <span>K</span>
-              </>
-            ) : (
-              "Ctrl+K"
-            )}
+            navigator.platform?.includes("Mac")
+              ? "\u2318 K"
+              : "Ctrl+K"}
           </kbd>
         </button>
         <NotificationBell />
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 p-3 pt-4">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href)
           return (
@@ -115,6 +120,7 @@ function NavContent({
         })}
       </nav>
 
+      {/* Logout */}
       <div className="border-t border-border p-3">
         <button
           onClick={handleLogout}
@@ -128,15 +134,6 @@ function NavContent({
   )
 }
 
-/**
- * Sidebar navigation with user info, search trigger, nav links, and logout.
- * Fixed on desktop; slides in as an overlay on mobile.
- *
- * @param userName - Authenticated user's display name
- * @param userEmail - Authenticated user's email
- * @param isOpen - Whether the mobile sidebar overlay is open
- * @param onClose - Callback to close the mobile sidebar
- */
 export function SidebarNav({
   userName,
   userEmail,
@@ -146,7 +143,7 @@ export function SidebarNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border bg-surface lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r-2 border-border bg-surface lg:block">
         <NavContent userName={userName} userEmail={userEmail} />
       </aside>
 

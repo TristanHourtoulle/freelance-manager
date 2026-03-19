@@ -6,9 +6,8 @@ import { useNotifications } from "./use-notifications"
 import { NotificationPanel } from "./notification-panel"
 
 /**
- * Bell icon button that toggles the notification panel dropdown.
+ * Bell icon button with stadium pill-right shape matching the Figma design.
  * Displays an unread count badge when there are unread notifications.
- * Used in `AppHeader` and `SidebarNav`.
  */
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
@@ -45,12 +44,13 @@ export function NotificationBell() {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex cursor-pointer items-center justify-center rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+        className="relative flex h-10 w-10 cursor-pointer items-center justify-center border border-border bg-surface text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
+        style={{ borderRadius: "12px 20px 20px 12px" }}
         aria-label="Notifications"
       >
-        <BellIcon className="h-5 w-5" />
+        <BellIcon className="size-[18px]" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
