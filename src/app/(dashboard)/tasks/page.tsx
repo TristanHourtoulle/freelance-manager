@@ -165,7 +165,7 @@ export default function TasksPage() {
 
   const availableStatuses: TaskStatusDTO[] = data?.allStatuses ?? []
 
-  const allClients: ClientSummary[] = groups.map((g) => g.client)
+  const allClients: ClientSummary[] = data?.allClients ?? []
   const hasFilters = Boolean(
     searchParams.get("clientId") || searchParams.get("preset"),
   )

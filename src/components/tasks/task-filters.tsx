@@ -128,7 +128,7 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
       </div>
 
       {/* Category chips + Client dropdown on the same row (Figma layout) */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-stretch gap-2.5">
         {CATEGORIES.map((cat, index) => (
           <Chip
             key={cat.value}
@@ -139,16 +139,27 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
           />
         ))}
         <Select
-          value={clientId || undefined}
+          value={clientId || "__all__"}
           onValueChange={(val) =>
             updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
           }
         >
           <SelectTrigger
-            className="h-[38px] w-auto border-border bg-surface px-5 text-sm font-medium text-text-secondary"
+            className="h-auto w-auto border-border bg-transparent px-3.5 py-1.5 text-xs font-medium text-text-secondary"
             style={{ borderRadius: "12px 19px 19px 12px" }}
           >
-            <SelectValue placeholder="All clients" />
+            <span>
+              {clientId
+                ? (() => {
+                    const c = clients.find((cl) => cl.id === clientId)
+                    return c
+                      ? c.company
+                        ? `${c.name} (${c.company})`
+                        : c.name
+                      : "All clients"
+                  })()
+                : "All clients"}
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All clients</SelectItem>

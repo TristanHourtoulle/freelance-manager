@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     const params = Object.fromEntries(url.searchParams)
     const filters = taskFilterSchema.parse(params)
 
+    // Filtered clients for task grouping
     const clients = await prisma.client.findMany({
       where: {
         userId: userOrError.id,
@@ -44,6 +45,21 @@ export async function GET(request: Request) {
       },
       include: { linearMappings: true },
     })
+
+    // All clients with Linear mappings (unfiltered) for the client dropdown
+    const allClientsRaw = await prisma.client.findMany({
+      where: { userId: userOrError.id, archivedAt: null },
+      include: { linearMappings: true },
+    })
+    const allClients: ClientSummary[] = allClientsRaw
+      .filter((c) => c.linearMappings.length > 0)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        company: c.company,
+        billingMode: c.billingMode,
+        rate: Number(c.rate),
+      }))
 
     const clientsWithMappings = clients.filter(
       (c) => c.linearMappings.length > 0,
@@ -236,7 +252,12 @@ export async function GET(request: Request) {
 
     groups.sort((a, b) => b.taskCount - a.taskCount)
 
-    return NextResponse.json({ groups, allStatuses, ...getLinearSyncStatus() })
+    return NextResponse.json({
+      groups,
+      allStatuses,
+      allClients,
+      ...getLinearSyncStatus(),
+    })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(

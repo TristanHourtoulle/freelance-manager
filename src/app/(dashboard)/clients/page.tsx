@@ -96,7 +96,7 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <PageHeader title="Clients">
         <Link href="/clients/new">
-          <Button variant="gradient" shape="pill-right" size="lg">
+          <Button variant="gradient" shape="pill" size="lg">
             <PlusIcon className="size-5" />
             New Client
           </Button>

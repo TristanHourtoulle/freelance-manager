@@ -88,6 +88,7 @@ export interface KanbanTask extends EnrichedTask {
 export interface TasksApiResponse {
   groups: ClientTaskGroup[]
   allStatuses: TaskStatusDTO[]
+  allClients: ClientSummary[]
   lastSyncedAt: number | null
   isStale: boolean
 }
