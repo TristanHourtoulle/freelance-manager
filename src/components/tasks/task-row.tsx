@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 
@@ -51,6 +52,7 @@ export function TaskRow({
   onUpdateRate,
   onStatusChange,
 }: TaskRowProps) {
+  const t = useTranslations("taskTable")
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [editValue, setEditValue] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -223,13 +225,13 @@ export function TaskRow({
               <button
                 onClick={startEditingRate}
                 className="cursor-pointer rounded px-1.5 py-0.5 font-medium text-amber-600 hover:bg-surface-muted"
-                title={`Overridden (default: ${clientRate} EUR)`}
+                title={t("overriddenRate", { rate: String(clientRate) })}
               >
                 {task.rateOverride}
               </button>
               <button
                 onClick={resetRate}
-                title="Reset to client default"
+                title={t("resetRate")}
                 className="rounded p-0.5 text-text-muted hover:text-red-500"
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -264,19 +266,19 @@ export function TaskRow({
                 onClick={() => onToggleInvoiced(task.linearIssueId, false)}
                 className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
               >
-                Invoiced
+                {t("invoiced")}
               </button>
             ) : (
               <button
                 onClick={() => onToggleInvoiced(task.linearIssueId, true)}
                 className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
               >
-                Not invoiced
+                {t("notInvoiced")}
               </button>
             )}
             {task.paid && (
               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                Paid
+                {t("paid")}
               </span>
             )}
           </div>

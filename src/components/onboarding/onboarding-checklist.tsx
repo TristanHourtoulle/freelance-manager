@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Card, CardContent } from "@/components/ui/card"
 import { OnboardingStepItem } from "./onboarding-step-item"
 
@@ -8,38 +9,38 @@ import type { OnboardingStatus, OnboardingStepConfig } from "./types"
 const STEP_CONFIGS: OnboardingStepConfig[] = [
   {
     key: "hasClient",
-    label: "Create your first client",
-    description: "Add a client with their billing mode and rate",
+    label: "steps.createClient",
+    description: "steps.createClientDesc",
     href: "/clients/new",
-    ctaLabel: "Add client",
+    ctaLabel: "steps.createClientAction",
   },
   {
     key: "hasBillingDefaults",
-    label: "Set your billing defaults",
-    description: "Configure your working hours and revenue target",
+    label: "steps.setDefaults",
+    description: "steps.setDefaultsDesc",
     href: "/settings",
-    ctaLabel: "Go to settings",
+    ctaLabel: "steps.setDefaultsAction",
   },
   {
     key: "hasLinearMapping",
-    label: "Connect a Linear project",
-    description: "Link a Linear team or project to a client",
+    label: "steps.connectLinear",
+    description: "steps.connectLinearDesc",
     href: "/clients",
-    ctaLabel: "Go to clients",
+    ctaLabel: "steps.connectLinearAction",
   },
   {
     key: "hasTaskImported",
-    label: "Import your first tasks",
-    description: "Sync tasks from Linear to start tracking billable work",
+    label: "steps.importTasks",
+    description: "steps.importTasksDesc",
     href: "/tasks",
-    ctaLabel: "Go to tasks",
+    ctaLabel: "steps.importTasksAction",
   },
   {
     key: "hasInvoiced",
-    label: "Mark your first invoice",
-    description: "Mark completed tasks as invoiced to track revenue",
+    label: "steps.markInvoice",
+    description: "steps.markInvoiceDesc",
     href: "/billing",
-    ctaLabel: "Go to billing",
+    ctaLabel: "steps.markInvoiceAction",
   },
 ]
 
@@ -56,6 +57,8 @@ interface OnboardingChecklistProps {
 export function OnboardingChecklist({
   onboardingStatus,
 }: OnboardingChecklistProps) {
+  const t = useTranslations("onboarding")
+
   if (!onboardingStatus || onboardingStatus.allCompleted) return null
 
   const { steps, completedCount, totalSteps } = onboardingStatus
@@ -66,16 +69,17 @@ export function OnboardingChecklist({
       <CardContent>
         <div className="space-y-4">
           <div>
-            <h3 className="mb-0">Getting Started</h3>
-            <p className="mt-1 text-xs text-text-muted">
-              Complete these steps to set up your workspace
-            </p>
+            <h3 className="mb-0">{t("title")}</h3>
+            <p className="mt-1 text-xs text-text-muted">{t("description")}</p>
           </div>
 
           <div className="space-y-1">
             <div className="flex items-center justify-between text-sm">
               <span className="text-text-secondary">
-                {completedCount} of {totalSteps} completed
+                {t("progress", {
+                  completed: completedCount,
+                  total: totalSteps,
+                })}
               </span>
               <span className="font-medium text-primary">{percentage}%</span>
             </div>
@@ -91,7 +95,12 @@ export function OnboardingChecklist({
             {STEP_CONFIGS.map((config) => (
               <OnboardingStepItem
                 key={config.key}
-                config={config}
+                config={{
+                  ...config,
+                  label: t(config.label),
+                  description: t(config.description),
+                  ctaLabel: t(config.ctaLabel),
+                }}
                 isCompleted={steps[config.key]}
               />
             ))}

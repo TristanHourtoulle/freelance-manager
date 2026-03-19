@@ -3,6 +3,7 @@
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import { ImageUpload } from "@/components/ui/image-upload"
@@ -20,18 +21,18 @@ import type { Resolver } from "react-hook-form"
 import type { CreateClientInput } from "@/lib/schemas/client"
 
 const BILLING_MODE_OPTIONS = [
-  { value: "HOURLY", label: "Hourly" },
-  { value: "DAILY", label: "Daily" },
-  { value: "FIXED", label: "Fixed" },
-  { value: "FREE", label: "Free" },
-]
+  { value: "HOURLY", key: "hourly" },
+  { value: "DAILY", key: "daily" },
+  { value: "FIXED", key: "fixed" },
+  { value: "FREE", key: "free" },
+] as const
 
 const CATEGORY_OPTIONS = [
-  { value: "FREELANCE", label: "Freelance" },
-  { value: "STUDY", label: "Study" },
-  { value: "PERSONAL", label: "Personal" },
-  { value: "SIDE_PROJECT", label: "Side Project" },
-]
+  { value: "FREELANCE", key: "freelance" },
+  { value: "STUDY", key: "study" },
+  { value: "PERSONAL", key: "personal" },
+  { value: "SIDE_PROJECT", key: "sideProject" },
+] as const
 
 interface ClientFormProps {
   defaultValues?: Partial<CreateClientInput>
@@ -51,6 +52,9 @@ export function ClientForm({
 }: ClientFormProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useTranslations("clients.form")
+  const tc = useTranslations("common")
+  const tt = useTranslations("clients.toasts")
 
   const {
     register,
@@ -77,12 +81,12 @@ export function ClientForm({
       await onSubmit(data)
       toast({
         variant: "success",
-        title: isEdit ? "Client updated" : "Client created",
+        title: isEdit ? tt("updated") : tt("created"),
       })
     } catch (error) {
       toast({
         variant: "error",
-        title: error instanceof Error ? error.message : "Something went wrong",
+        title: error instanceof Error ? error.message : tc("error"),
       })
     }
   }
@@ -100,7 +104,7 @@ export function ClientForm({
           render={({ field }) => (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">
-                Logo
+                {t("logo")}
               </label>
               <ImageUpload
                 value={field.value}
@@ -113,15 +117,15 @@ export function ClientForm({
         />
         <div className="grid flex-1 gap-4 sm:grid-cols-2">
           <FormField
-            label="Name"
-            placeholder="Client name"
+            label={t("name")}
+            placeholder={t("namePlaceholder")}
             {...register("name")}
             error={errors.name?.message}
           />
           <FormField
-            label="Email"
+            label={t("email")}
             type="email"
-            placeholder="client@example.com"
+            placeholder={t("emailPlaceholder")}
             {...register("email")}
             error={errors.email?.message}
           />
@@ -129,8 +133,8 @@ export function ClientForm({
       </div>
 
       <FormField
-        label="Company"
-        placeholder="Company name"
+        label={t("company")}
+        placeholder={t("companyPlaceholder")}
         {...register("company")}
         error={errors.company?.message}
       />
@@ -142,16 +146,16 @@ export function ClientForm({
           render={({ field }) => (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">
-                Billing Mode
+                {t("billingMode")}
               </label>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select billing mode" />
+                  <SelectValue placeholder={t("selectBillingMode")} />
                 </SelectTrigger>
                 <SelectContent>
                   {BILLING_MODE_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {tc(`billingModes.${opt.key}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -165,11 +169,11 @@ export function ClientForm({
           )}
         />
         <FormField
-          label="Rate"
+          label={t("rate")}
           type="number"
           step="0.01"
           min="0"
-          placeholder="0.00"
+          placeholder={t("ratePlaceholder")}
           {...register("rate", {
             setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
           })}
@@ -181,16 +185,16 @@ export function ClientForm({
           render={({ field }) => (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-muted-foreground">
-                Category
+                {t("category")}
               </label>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={t("selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORY_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {tc(`categories.${opt.key}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -206,11 +210,11 @@ export function ClientForm({
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="notes">Notes</label>
+        <label htmlFor="notes">{t("notes")}</label>
         <textarea
           id="notes"
           rows={3}
-          placeholder="Additional notes..."
+          placeholder={t("notesPlaceholder")}
           {...register("notes")}
         />
         {errors.notes?.message && (
@@ -224,10 +228,10 @@ export function ClientForm({
           variant="outline"
           onClick={() => router.push("/clients")}
         >
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button type="submit" isLoading={isSubmitting}>
-          {isEdit ? "Update Client" : "Create Client"}
+          {isEdit ? t("updateButton") : t("createButton")}
         </Button>
       </div>
     </form>

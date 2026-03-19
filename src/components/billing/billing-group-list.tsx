@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import type { ClientTaskGroup } from "@/components/tasks/types"
 
 interface BillingGroupListProps {
@@ -10,11 +11,11 @@ interface BillingGroupListProps {
   onToggleGroup: (clientId: string, linearIssueIds: string[]) => void
 }
 
-const BILLING_MODE_LABELS: Record<string, string> = {
-  HOURLY: "Hourly",
-  DAILY: "Daily",
-  FIXED: "Fixed",
-  FREE: "Free",
+const BILLING_MODE_KEYS: Record<string, string> = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  FIXED: "fixed",
+  FREE: "free",
 }
 
 function formatAmount(amount: number): string {
@@ -36,6 +37,8 @@ export function BillingGroupList({
   onToggleGroup,
 }: BillingGroupListProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const t = useTranslations("billingTable")
+  const tc = useTranslations("common.billingModes")
 
   function toggleCollapse(clientId: string) {
     setCollapsed((prev) => {
@@ -102,11 +105,12 @@ export function BillingGroupList({
                     )}
                   </div>
                   <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
-                    {BILLING_MODE_LABELS[group.client.billingMode] ??
-                      group.client.billingMode}
+                    {tc(
+                      BILLING_MODE_KEYS[group.client.billingMode] ?? "hourly",
+                    )}
                   </span>
                   <span className="text-xs text-text-secondary">
-                    {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
+                    {t("taskCount", { count: group.taskCount })}
                   </span>
                 </div>
                 <div className="text-sm font-semibold tabular-nums text-text-primary">
@@ -123,19 +127,19 @@ export function BillingGroupList({
                       <tr className="border-b border-border">
                         <th className="w-10 px-3 py-2" />
                         <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                          ID
+                          {t("id")}
                         </th>
                         <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                          Title
+                          {t("title")}
                         </th>
                         <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                          Status
+                          {t("status")}
                         </th>
                         <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                          Estimate
+                          {t("estimate")}
                         </th>
                         <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                          Amount
+                          {t("amount")}
                         </th>
                       </tr>
                     </thead>

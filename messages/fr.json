@@ -331,5 +331,196 @@
       "removed": "Photo supprimée",
       "error": "Erreur lors de la mise à jour de la photo"
     }
+  },
+
+  "taskTable": {
+    "searchPlaceholder": "Rechercher par titre ou ID...",
+    "bill": "Fact.",
+    "id": "ID",
+    "titleCol": "Titre",
+    "project": "Projet",
+    "status": "Statut",
+    "estimate": "Estimation",
+    "rate": "Tarif",
+    "amount": "Montant",
+    "invoiced": "Facturé",
+    "notInvoiced": "Non facturé",
+    "paid": "Payé",
+    "noStatus": "Sans statut",
+    "noTasks": "Aucune tâche trouvée pour ce client.",
+    "noMatch": "Aucune tâche ne correspond à \"{search}\"",
+    "taskCount": "{count, plural, one {# tâche} other {# tâches}}",
+    "overriddenRate": "Surchargé (défaut : {rate} EUR)",
+    "resetRate": "Réinitialiser au tarif client"
+  },
+
+  "billingTable": {
+    "clients": "Clients",
+    "tasks": "Tâches",
+    "grandTotal": "Total général",
+    "id": "ID",
+    "title": "Titre",
+    "status": "Statut",
+    "estimate": "Estimation",
+    "amount": "Montant"
+  },
+
+  "clientsTable": {
+    "name": "Nom",
+    "company": "Entreprise",
+    "category": "Catégorie",
+    "billing": "Facturation",
+    "rate": "Tarif",
+    "revenue": "Revenu",
+    "lastActivity": "Dernière activité",
+    "edit": "Modifier"
+  },
+
+  "archiveModal": {
+    "archiveTitle": "Archiver le client",
+    "unarchiveTitle": "Désarchiver le client",
+    "archiveDesc": "Êtes-vous sûr de vouloir archiver \"{name}\" ? Le client sera masqué de la liste active mais toutes les données seront conservées. Vous pouvez le désarchiver à tout moment.",
+    "unarchiveDesc": "Êtes-vous sûr de vouloir désarchiver \"{name}\" ? Le client reviendra dans votre liste active.",
+    "archiveButton": "Archiver",
+    "unarchiveButton": "Désarchiver"
+  },
+
+  "deleteClientModal": {
+    "title": "Supprimer le client",
+    "description": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible. Toutes les données associées seront définitivement supprimées.",
+    "deleteButton": "Supprimer"
+  },
+
+  "emptyStates": {
+    "clientsFiltered": "Aucun client ne correspond à vos filtres.",
+    "clientsFilteredHint": "Essayez d'ajuster votre recherche ou filtre de catégorie.",
+    "clientsEmpty": "Aucun client pour le moment",
+    "clientsEmptyHint": "Créez votre premier client pour commencer.",
+    "tasksFiltered": "Aucune tâche ne correspond à vos filtres",
+    "tasksFilteredHint": "Essayez d'ajuster ou de réinitialiser vos filtres.",
+    "tasksEmpty": "Aucun mapping Linear configuré",
+    "tasksEmptyHint": "Configurez des mappings de projets Linear sur vos clients pour voir les tâches ici.",
+    "goToClients": "Aller aux clients",
+    "goToTasks": "Aller aux tâches",
+    "billingFiltered": "Aucune tâche non facturée ne correspond à vos filtres",
+    "billingFilteredHint": "Essayez d'ajuster ou de réinitialiser vos filtres.",
+    "billingEmpty": "Rien à facturer",
+    "billingEmptyHint": "Marquez des tâches comme facturables depuis la page Tâches pour les voir ici.",
+    "dashboardEmpty": "Pas encore de données",
+    "dashboardEmptyHint": "Commencez par ajouter des clients et marquer des tâches comme facturables.",
+    "historyEmpty": "Aucune tâche facturée trouvée pour la période sélectionnée."
+  },
+
+  "categoryFilter": {
+    "clear": "Effacer"
+  },
+
+  "syncBar": {
+    "justNow": "À l'instant",
+    "minAgo": "il y a {min} min",
+    "hoursAgo": "il y a {hours}h",
+    "daysAgo": "il y a {days}j",
+    "neverSynced": "Jamais synchronisé",
+    "lastSynced": "Dernière sync : {time}",
+    "refresh": "Rafraîchir"
+  },
+
+  "onboarding": {
+    "title": "Premiers pas",
+    "description": "Complétez ces étapes pour configurer votre espace",
+    "progress": "{completed} sur {total} terminé(s)",
+    "steps": {
+      "createClient": "Créer votre premier client",
+      "createClientDesc": "Ajoutez un client avec son mode de facturation et son tarif",
+      "createClientAction": "Ajouter un client",
+      "setDefaults": "Configurer vos paramètres de facturation",
+      "setDefaultsDesc": "Configurez vos heures de travail et votre objectif de revenu",
+      "setDefaultsAction": "Aller aux paramètres",
+      "connectLinear": "Connecter un projet Linear",
+      "connectLinearDesc": "Liez une équipe ou un projet Linear à un client",
+      "connectLinearAction": "Aller aux clients",
+      "importTasks": "Importer vos premières tâches",
+      "importTasksDesc": "Synchronisez les tâches depuis Linear pour suivre le travail facturable",
+      "importTasksAction": "Aller aux tâches",
+      "markInvoice": "Marquer votre première facture",
+      "markInvoiceDesc": "Marquez les tâches terminées comme facturées pour suivre vos revenus",
+      "markInvoiceAction": "Aller à la facturation"
+    }
+  },
+
+  "welcome": {
+    "slide1Title": "Suivez vos clients",
+    "slide1Desc": "Gérez vos clients, définissez des tarifs et organisez vos projets en un seul endroit.",
+    "slide2Title": "Importez les tâches depuis Linear",
+    "slide2Desc": "Connectez vos projets Linear et suivez automatiquement le travail facturable.",
+    "slide3Title": "Facturez en toute confiance",
+    "slide3Desc": "Marquez les tâches comme facturées et suivez votre revenu mensuel.",
+    "skip": "Passer",
+    "next": "Suivant",
+    "getStarted": "Commencer"
+  },
+
+  "revenueChart": {
+    "title": "Revenus (6 mois)",
+    "description": "Revenus des 6 derniers mois",
+    "label": "Revenus"
+  },
+
+  "editClient": {
+    "title": "Modifier le client",
+    "archivedOn": "Ce client a été archivé le {date}.",
+    "unarchive": "Désarchiver",
+    "notFound": "Client introuvable",
+    "notFoundDesc": "Le client que vous recherchez n'existe pas.",
+    "unarchiveSuccess": "Client désarchivé",
+    "unarchiveError": "Erreur lors du désarchivage",
+    "updateError": "Erreur lors de la mise à jour du client"
+  },
+
+  "newClient": {
+    "title": "Nouveau client"
+  },
+
+  "billingHistory": {
+    "title": "Historique de facturation",
+    "backToInvoice": "Retour à la facturation"
+  },
+
+  "newTask": {
+    "title": "Nouvelle tâche",
+    "loadingProjects": "Chargement des projets...",
+    "noProjects": "Aucun projet Linear mappé trouvé. Veuillez d'abord mapper un projet Linear à un client.",
+    "titleLabel": "Titre",
+    "titlePlaceholder": "Titre de l'issue",
+    "projectLabel": "Projet",
+    "selectProject": "Sélectionner un projet",
+    "estimateLabel": "Estimation (points)",
+    "estimatePlaceholder": "ex. 3",
+    "linearOptions": "Options Linear",
+    "loadingTeamOptions": "Chargement des options d'équipe...",
+    "failedToLoadTeamOptions": "Échec du chargement des options d'équipe",
+    "assigneeLabel": "Assigné à",
+    "unassigned": "Non assigné",
+    "statusLabel": "Statut",
+    "defaultStatus": "Statut par défaut",
+    "labelsLabel": "Labels",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Décrivez la tâche...",
+    "createButton": "Créer la tâche",
+    "failedToCreate": "Échec de la création de la tâche"
+  },
+
+  "commandPalette": {
+    "placeholder": "Tapez une commande ou recherchez...",
+    "noResults": "Aucun résultat trouvé.",
+    "comingSoon": "Bientôt disponible"
+  },
+
+  "activityIndicator": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "daysAgo": "il y a {days}j",
+    "monthsAgo": "il y a {months} mois",
+    "yearsAgo": "il y a {years} an(s)"
   }
 }

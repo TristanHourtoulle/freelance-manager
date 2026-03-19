@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 
 interface BillingEmptyStateProps {
@@ -11,14 +12,16 @@ interface BillingEmptyStateProps {
  * @param hasFilters - Whether active filters are narrowing the result set.
  */
 export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
+  const t = useTranslations("emptyStates")
+
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
         <p className="text-sm font-medium text-text-primary">
-          No uninvoiced tasks match your filters
+          {t("billingFiltered")}
         </p>
         <p className="mt-1 text-sm text-text-secondary">
-          Try adjusting or clearing your filters.
+          {t("billingFilteredHint")}
         </p>
       </div>
     )
@@ -27,13 +30,13 @@ export function BillingEmptyState({ hasFilters }: BillingEmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border-input py-16">
       <p className="text-sm font-medium text-text-primary">
-        Nothing to invoice
+        {t("billingEmpty")}
       </p>
       <p className="mt-1 text-sm text-text-secondary">
-        Mark tasks as billable from the Tasks page to see them here.
+        {t("billingEmptyHint")}
       </p>
       <Link href="/tasks" className="mt-4">
-        <Button variant="outline">Go to Tasks</Button>
+        <Button variant="outline">{t("goToTasks")}</Button>
       </Link>
     </div>
   )

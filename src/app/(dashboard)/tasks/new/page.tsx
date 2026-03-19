@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import {
   CreateTaskForm,
   type MappedProject,
@@ -20,6 +21,7 @@ interface ClientWithMappings {
 export default function NewTaskPage() {
   const [mappedProjects, setMappedProjects] = useState<MappedProject[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const t = useTranslations("newTask")
 
   useEffect(() => {
     async function load() {
@@ -64,9 +66,9 @@ export default function NewTaskPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6">New Task</h1>
+        <h1 className="mb-6">{t("title")}</h1>
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">Loading projects...</p>
+          <p className="text-sm text-text-secondary">{t("loadingProjects")}</p>
         </div>
       </div>
     )
@@ -75,12 +77,9 @@ export default function NewTaskPage() {
   if (mappedProjects.length === 0) {
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6">New Task</h1>
+        <h1 className="mb-6">{t("title")}</h1>
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <p className="text-sm text-text-secondary">
-            No mapped Linear projects found. Please map a Linear project to a
-            client first.
-          </p>
+          <p className="text-sm text-text-secondary">{t("noProjects")}</p>
         </div>
       </div>
     )
@@ -88,7 +87,7 @@ export default function NewTaskPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6">New Task</h1>
+      <h1 className="mb-6">{t("title")}</h1>
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <CreateTaskForm mappedProjects={mappedProjects} />
       </div>

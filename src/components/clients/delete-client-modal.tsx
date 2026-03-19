@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Modal } from "@/components/ui/modal"
 
 interface DeleteClientModalProps {
@@ -17,14 +18,16 @@ export function DeleteClientModal({
   onConfirm,
   isDeleting,
 }: DeleteClientModalProps) {
+  const t = useTranslations("deleteClientModal")
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       onConfirm={onConfirm}
-      title="Delete client"
-      description={`Are you sure you want to delete "${clientName}"? This action cannot be undone. All associated data (mappings, overrides, invoices) will be permanently removed.`}
-      confirmLabel="Delete"
+      title={t("title")}
+      description={t("description", { name: clientName })}
+      confirmLabel={t("deleteButton")}
       variant="danger"
       isLoading={isDeleting}
     />

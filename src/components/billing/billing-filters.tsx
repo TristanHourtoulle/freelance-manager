@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ export function BillingFilters({ clients }: BillingFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const t = useTranslations("billingTable")
 
   usePersistedFilters("billing", ["clientId", "category", "dateFrom", "dateTo"])
 
@@ -51,10 +53,10 @@ export function BillingFilters({ clients }: BillingFiltersProps) {
             className="h-[38px] w-auto border-border bg-surface px-5 text-sm font-medium text-text-secondary"
             style={{ borderRadius: "19px 12px 12px 19px" }}
           >
-            <SelectValue placeholder="All clients" />
+            <SelectValue placeholder={t("allClients")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All clients</SelectItem>
+            <SelectItem value="__all__">{t("allClients")}</SelectItem>
             {clients.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.company ? `${c.name} (${c.company})` : c.name}

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 
 interface ClientEmptyStateProps {
@@ -10,14 +11,15 @@ interface ClientEmptyStateProps {
  * @param hasFilters - Whether active filters are narrowing the result set.
  */
 export function ClientEmptyState({ hasFilters }: ClientEmptyStateProps) {
+  const t = useTranslations("emptyStates")
+  const tc = useTranslations("clients")
+
   if (hasFilters) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-input py-16">
-        <p className="text-sm text-text-secondary">
-          No clients match your filters.
-        </p>
+        <p className="text-sm text-text-secondary">{t("clientsFiltered")}</p>
         <p className="mt-1 text-sm text-text-muted">
-          Try adjusting your search or category filter.
+          {t("clientsFilteredHint")}
         </p>
       </div>
     )
@@ -25,12 +27,14 @@ export function ClientEmptyState({ hasFilters }: ClientEmptyStateProps) {
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-input py-16">
-      <p className="text-sm font-medium text-text-primary">No clients yet</p>
+      <p className="text-sm font-medium text-text-primary">
+        {t("clientsEmpty")}
+      </p>
       <p className="mt-1 text-sm text-text-secondary">
-        Create your first client to get started.
+        {t("clientsEmptyHint")}
       </p>
       <Link href="/clients/new" className="mt-4">
-        <Button>New Client</Button>
+        <Button>{tc("newClient")}</Button>
       </Link>
     </div>
   )

@@ -37,6 +37,7 @@
   "settingsNav": {
     "title": "Settings",
     "description": "Manage your workspace",
+    "backToApp": "Back to app",
     "account": "Account",
     "profile": "Profile",
     "appearance": "Appearance",
@@ -97,6 +98,7 @@
       "logo": "Logo",
       "billingMode": "Billing Mode",
       "selectBillingMode": "Select billing mode",
+      "rate": "Rate",
       "ratePlaceholder": "0.00",
       "category": "Category",
       "selectCategory": "Select category",
@@ -331,5 +333,213 @@
       "removed": "Photo removed",
       "error": "Failed to update photo"
     }
+  },
+
+  "taskTable": {
+    "searchPlaceholder": "Search by title or ID...",
+    "bill": "Bill",
+    "id": "ID",
+    "titleCol": "Title",
+    "project": "Project",
+    "status": "Status",
+    "estimate": "Estimate",
+    "rate": "Rate",
+    "amount": "Amount",
+    "invoiced": "Invoiced",
+    "notInvoiced": "Not invoiced",
+    "paid": "Paid",
+    "noStatus": "No Status",
+    "noTasks": "No tasks found for this client.",
+    "noMatch": "No tasks match \"{search}\"",
+    "taskCount": "{count, plural, one {# task} other {# tasks}}",
+    "overriddenRate": "Overridden (default: {rate} EUR)",
+    "resetRate": "Reset to client default"
+  },
+
+  "billingTable": {
+    "clients": "Clients",
+    "tasks": "Tasks",
+    "grandTotal": "Grand Total",
+    "id": "ID",
+    "title": "Title",
+    "status": "Status",
+    "estimate": "Estimate",
+    "amount": "Amount",
+    "taskCount": "{count, plural, one {# task} other {# tasks}}",
+    "allClients": "All clients"
+  },
+
+  "clientsTable": {
+    "name": "Name",
+    "company": "Company",
+    "category": "Category",
+    "billing": "Billing",
+    "rate": "Rate",
+    "revenue": "Revenue",
+    "lastActivity": "Last Activity",
+    "edit": "Edit"
+  },
+
+  "archiveModal": {
+    "archiveTitle": "Archive client",
+    "unarchiveTitle": "Unarchive client",
+    "archiveDesc": "Are you sure you want to archive \"{name}\"? The client will be hidden from the active list but all data will be preserved. You can unarchive at any time.",
+    "unarchiveDesc": "Are you sure you want to unarchive \"{name}\"? The client will return to your active list.",
+    "archiveButton": "Archive",
+    "unarchiveButton": "Unarchive"
+  },
+
+  "deleteClientModal": {
+    "title": "Delete client",
+    "description": "Are you sure you want to delete \"{name}\"? This action cannot be undone. All associated data will be permanently removed.",
+    "deleteButton": "Delete"
+  },
+
+  "emptyStates": {
+    "clientsFiltered": "No clients match your filters.",
+    "clientsFilteredHint": "Try adjusting your search or category filter.",
+    "clientsEmpty": "No clients yet",
+    "clientsEmptyHint": "Create your first client to get started.",
+    "tasksFiltered": "No tasks match your filters",
+    "tasksFilteredHint": "Try adjusting or clearing your filters.",
+    "tasksEmpty": "No Linear mappings configured",
+    "tasksEmptyHint": "Set up Linear project mappings on your clients to see tasks here.",
+    "goToClients": "Go to Clients",
+    "goToTasks": "Go to Tasks",
+    "billingFiltered": "No uninvoiced tasks match your filters",
+    "billingFilteredHint": "Try adjusting or clearing your filters.",
+    "billingEmpty": "Nothing to invoice",
+    "billingEmptyHint": "Mark tasks as billable from the Tasks page to see them here.",
+    "dashboardEmpty": "No data yet",
+    "dashboardEmptyHint": "Start by adding clients and marking tasks as billable.",
+    "historyEmpty": "No invoiced tasks found for the selected period."
+  },
+
+  "categoryFilter": {
+    "clear": "Clear"
+  },
+
+  "syncBar": {
+    "justNow": "Just now",
+    "minAgo": "{min} min ago",
+    "hoursAgo": "{hours}h ago",
+    "daysAgo": "{days}d ago",
+    "neverSynced": "Never synced",
+    "lastSynced": "Last synced: {time}",
+    "refresh": "Refresh"
+  },
+
+  "onboarding": {
+    "title": "Getting Started",
+    "description": "Complete these steps to set up your workspace",
+    "progress": "{completed} of {total} completed",
+    "steps": {
+      "createClient": "Create your first client",
+      "createClientDesc": "Add a client with their billing mode and rate",
+      "createClientAction": "Add client",
+      "setDefaults": "Set your billing defaults",
+      "setDefaultsDesc": "Configure your working hours and revenue target",
+      "setDefaultsAction": "Go to settings",
+      "connectLinear": "Connect a Linear project",
+      "connectLinearDesc": "Link a Linear team or project to a client",
+      "connectLinearAction": "Go to clients",
+      "importTasks": "Import your first tasks",
+      "importTasksDesc": "Sync tasks from Linear to start tracking billable work",
+      "importTasksAction": "Go to tasks",
+      "markInvoice": "Mark your first invoice",
+      "markInvoiceDesc": "Mark completed tasks as invoiced to track revenue",
+      "markInvoiceAction": "Go to billing"
+    }
+  },
+
+  "welcome": {
+    "slide1Title": "Track your clients",
+    "slide1Desc": "Manage clients, set rates, and organize projects in one place.",
+    "slide2Title": "Import tasks from Linear",
+    "slide2Desc": "Connect your Linear projects and track billable work automatically.",
+    "slide3Title": "Invoice with confidence",
+    "slide3Desc": "Mark tasks as invoiced and track your monthly revenue.",
+    "skip": "Skip",
+    "next": "Next",
+    "getStarted": "Get Started"
+  },
+
+  "revenueChart": {
+    "title": "Revenue (6 months)",
+    "description": "Last 6 months of revenue",
+    "label": "Revenue"
+  },
+
+  "editClient": {
+    "title": "Edit Client",
+    "archivedOn": "This client was archived on {date}.",
+    "unarchive": "Unarchive",
+    "notFound": "Client not found",
+    "notFoundDesc": "The client you are looking for does not exist.",
+    "unarchiveSuccess": "Client unarchived",
+    "unarchiveError": "Failed to unarchive client",
+    "updateError": "Failed to update client"
+  },
+
+  "newClient": {
+    "title": "New Client"
+  },
+
+  "billingHistory": {
+    "title": "Invoiced History",
+    "backToInvoice": "To Invoice",
+    "taskCount": "{count, plural, one {# task} other {# tasks}}",
+    "paid": "Paid",
+    "sent": "Sent",
+    "markAsPaid": "Mark as paid",
+    "dueIn": "Due in {days}d",
+    "overdue": "Overdue {days}d",
+    "uploadPdf": "Upload PDF",
+    "uploading": "Uploading...",
+    "pdfUploaded": "PDF uploaded",
+    "uploadFailed": "Upload failed",
+    "deleteFailed": "Failed to delete file",
+    "allClients": "All clients",
+    "clientLabel": "Client",
+    "fromLabel": "From",
+    "toLabel": "To"
+  },
+
+  "newTask": {
+    "title": "New Task",
+    "loadingProjects": "Loading projects...",
+    "noProjects": "No mapped Linear projects found. Please map a Linear project to a client first.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Issue title",
+    "projectLabel": "Project",
+    "selectProject": "Select a project",
+    "estimateLabel": "Estimate (points)",
+    "estimatePlaceholder": "e.g. 3",
+    "linearOptions": "Linear Options",
+    "loadingTeamOptions": "Loading team options...",
+    "failedToLoadTeamOptions": "Failed to load team options",
+    "assigneeLabel": "Assignee",
+    "unassigned": "Unassigned",
+    "statusLabel": "Status",
+    "defaultStatus": "Default status",
+    "labelsLabel": "Labels",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe the task...",
+    "createButton": "Create Task",
+    "failedToCreate": "Failed to create task"
+  },
+
+  "commandPalette": {
+    "placeholder": "Type a command or search...",
+    "noResults": "No results found.",
+    "comingSoon": "Coming soon"
+  },
+
+  "activityIndicator": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{days}d ago",
+    "monthsAgo": "{months}mo ago",
+    "yearsAgo": "{years}y ago"
   }
 }

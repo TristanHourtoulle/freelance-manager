@@ -18,34 +18,80 @@ import {
 } from "@heroicons/react/24/outline"
 
 export interface NavItem {
+  /** Translation key used to look up the label at render time */
+  translationKey: string
+  /** Fallback label (used for fuzzy search in command palette) */
   label: string
   href: string
   icon: React.ComponentType<{ className?: string }>
 }
 
 export interface NavSection {
-  title?: string
+  titleKey?: string
   items: NavItem[]
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: Squares2X2Icon },
-  { label: "Clients", href: "/clients", icon: UsersIcon },
-  { label: "Tasks", href: "/tasks", icon: CheckCircleIcon },
-  { label: "Billing", href: "/billing", icon: DocumentTextIcon },
-  { label: "Analytics", href: "/analytics", icon: ChartBarIcon },
-  { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
+  {
+    translationKey: "dashboard",
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: Squares2X2Icon,
+  },
+  {
+    translationKey: "clients",
+    label: "Clients",
+    href: "/clients",
+    icon: UsersIcon,
+  },
+  {
+    translationKey: "tasks",
+    label: "Tasks",
+    href: "/tasks",
+    icon: CheckCircleIcon,
+  },
+  {
+    translationKey: "billing",
+    label: "Billing",
+    href: "/billing",
+    icon: DocumentTextIcon,
+  },
+  {
+    translationKey: "analytics",
+    label: "Analytics",
+    href: "/analytics",
+    icon: ChartBarIcon,
+  },
+  {
+    translationKey: "settings",
+    label: "Settings",
+    href: "/settings",
+    icon: Cog6ToothIcon,
+  },
 ]
 
 export const SETTINGS_NAV_SECTIONS: NavSection[] = [
   {
-    items: [{ label: "Back to app", href: "/dashboard", icon: ArrowLeftIcon }],
+    items: [
+      {
+        translationKey: "backToApp",
+        label: "Back to app",
+        href: "/dashboard",
+        icon: ArrowLeftIcon,
+      },
+    ],
   },
   {
-    title: "Account",
+    titleKey: "account",
     items: [
-      { label: "Profile", href: "/settings", icon: UserCircleIcon },
       {
+        translationKey: "profile",
+        label: "Profile",
+        href: "/settings",
+        icon: UserCircleIcon,
+      },
+      {
+        translationKey: "appearance",
         label: "Appearance",
         href: "/settings/appearance",
         icon: PaintBrushIcon,
@@ -53,25 +99,37 @@ export const SETTINGS_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "Workspace",
+    titleKey: "workspace",
     items: [
       {
+        translationKey: "billingInvoicing",
         label: "Billing & Invoicing",
         href: "/settings/billing",
         icon: WalletIcon,
       },
       {
+        translationKey: "notifications",
         label: "Notifications",
         href: "/settings/notifications",
         icon: BellIcon,
       },
-      { label: "Integrations", href: "/settings/integrations", icon: LinkIcon },
+      {
+        translationKey: "integrations",
+        label: "Integrations",
+        href: "/settings/integrations",
+        icon: LinkIcon,
+      },
     ],
   },
   {
-    title: "Advanced",
+    titleKey: "advanced",
     items: [
-      { label: "Data & Export", href: "/settings/data", icon: ServerStackIcon },
+      {
+        translationKey: "dataExport",
+        label: "Data & Export",
+        href: "/settings/data",
+        icon: ServerStackIcon,
+      },
     ],
   },
 ]

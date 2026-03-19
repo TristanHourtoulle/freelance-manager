@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import {
   DndContext,
   DragOverlay,
@@ -40,13 +41,14 @@ export function TaskKanbanBoard({
   tasks,
   onStatusChange,
 }: TaskKanbanBoardProps) {
+  const t = useTranslations("taskTable")
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   const columns = useMemo(() => {
     const columnMap = new Map<string, StatusColumn>()
 
     for (const task of tasks) {
-      const statusName = task.status?.name ?? "No Status"
+      const statusName = task.status?.name ?? t("noStatus")
       const existing = columnMap.get(statusName)
 
       if (existing) {
@@ -55,7 +57,7 @@ export function TaskKanbanBoard({
         columnMap.set(statusName, {
           status: task.status ?? {
             id: "",
-            name: "No Status",
+            name: t("noStatus"),
             type: "backlog",
             color: "#95a2b3",
           },
@@ -69,7 +71,7 @@ export function TaskKanbanBoard({
       const orderB = STATUS_TYPE_ORDER[b.status.type] ?? 999
       return orderA - orderB
     })
-  }, [tasks])
+  }, [tasks, t])
 
   /** Set of all column droppable IDs (status names). */
   const columnNames = useMemo(
@@ -100,7 +102,7 @@ export function TaskKanbanBoard({
   }, [columns])
 
   const activeTask = useMemo(
-    () => tasks.find((t) => t.linearIssueId === activeTaskId) ?? null,
+    () => tasks.find((tk) => tk.linearIssueId === activeTaskId) ?? null,
     [tasks, activeTaskId],
   )
 
@@ -125,10 +127,10 @@ export function TaskKanbanBoard({
 
       if (!targetColumnName) return
 
-      const draggedTask = tasks.find((t) => t.linearIssueId === taskId)
+      const draggedTask = tasks.find((tk) => tk.linearIssueId === taskId)
       if (!draggedTask) return
 
-      const currentStatus = draggedTask.status?.name ?? "No Status"
+      const currentStatus = draggedTask.status?.name ?? t("noStatus")
       if (currentStatus === targetColumnName) return
 
       const targetStatus = statusByName.get(targetColumnName)
@@ -136,7 +138,7 @@ export function TaskKanbanBoard({
 
       onStatusChange(taskId, targetStatus)
     },
-    [tasks, onStatusChange, statusByName, columnNames, taskColumnMap],
+    [tasks, onStatusChange, statusByName, columnNames, taskColumnMap, t],
   )
 
   return (

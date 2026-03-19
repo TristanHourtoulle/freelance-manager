@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import {
   ArchiveBoxIcon,
   ArchiveBoxArrowDownIcon,
@@ -17,18 +18,18 @@ const CATEGORY_BADGES: Record<string, string> = {
   SIDE_PROJECT: "bg-amber-100 text-amber-800",
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  FREELANCE: "Freelance",
-  STUDY: "Study",
-  PERSONAL: "Personal",
-  SIDE_PROJECT: "Side Project",
+const CATEGORY_KEYS: Record<string, string> = {
+  FREELANCE: "freelance",
+  STUDY: "study",
+  PERSONAL: "personal",
+  SIDE_PROJECT: "sideProject",
 }
 
-const BILLING_LABELS: Record<string, string> = {
-  HOURLY: "Hourly",
-  DAILY: "Daily",
-  FIXED: "Fixed",
-  FREE: "Free",
+const BILLING_KEYS: Record<string, string> = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  FIXED: "fixed",
+  FREE: "free",
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -43,6 +44,11 @@ interface ClientRowProps {
 
 /** Table row displaying a single client in list view. Used by ClientList in list mode. */
 export function ClientRow({ client, onArchive }: ClientRowProps) {
+  const t = useTranslations("clientsTable")
+  const tc = useTranslations("common.categories")
+  const tb = useTranslations("common.billingModes")
+  const tl = useTranslations("clients")
+
   const isArchived = Boolean(client.archivedAt)
   const rateDisplay =
     client.billingMode !== "FREE" && client.rate > 0
@@ -64,7 +70,7 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
           <span className="font-medium text-text-primary">{client.name}</span>
           {isArchived && (
             <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
-              Archived
+              {tl("archived")}
             </span>
           )}
         </div>
@@ -76,11 +82,11 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
         <span
           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_BADGES[client.category] ?? ""}`}
         >
-          {CATEGORY_LABELS[client.category] ?? client.category}
+          {tc(CATEGORY_KEYS[client.category] ?? "freelance")}
         </span>
       </td>
       <td className="px-3 py-3 text-sm text-text-secondary">
-        {BILLING_LABELS[client.billingMode] ?? client.billingMode}
+        {tb(BILLING_KEYS[client.billingMode] ?? "hourly")}
       </td>
       <td className="px-3 py-3 text-sm font-medium text-text-primary">
         {rateDisplay}
@@ -97,13 +103,13 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
         <div className="flex items-center justify-end gap-1">
           <Link href={`/clients/${client.id}/edit`}>
             <Button variant="ghost" className="text-xs">
-              Edit
+              {t("edit")}
             </Button>
           </Link>
           <button
             className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary"
             onClick={() => onArchive(client.id)}
-            title={isArchived ? "Unarchive client" : "Archive client"}
+            title={isArchived ? tl("unarchiveClient") : tl("archiveClient")}
           >
             {isArchived ? (
               <ArchiveBoxArrowDownIcon className="h-4 w-4" />

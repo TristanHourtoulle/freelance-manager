@@ -1,6 +1,7 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -15,23 +16,25 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-const chartConfig = {
-  amount: {
-    label: "Revenue",
-    color: "var(--chart-1)",
-  },
-} satisfies ChartConfig
-
 interface RevenueChartProps {
   data: Array<{ month: string; label: string; amount: number }>
 }
 
 export function RevenueChart({ data }: RevenueChartProps) {
+  const t = useTranslations("revenueChart")
+
+  const chartConfig = {
+    amount: {
+      label: t("label"),
+      color: "var(--chart-1)",
+    },
+  } satisfies ChartConfig
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Revenue (6 months)</CardTitle>
-        <CardDescription>Last 6 months of revenue</CardDescription>
+        <CardTitle>{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer

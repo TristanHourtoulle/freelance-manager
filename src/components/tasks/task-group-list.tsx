@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { ChevronRightIcon } from "@heroicons/react/20/solid"
 
 import { Badge } from "@/components/ui/badge"
@@ -35,11 +36,11 @@ interface TaskGroupListProps {
   onStatusChange: (linearIssueId: string, newStatus: TaskStatusDTO) => void
 }
 
-const BILLING_MODE_LABELS: Record<string, string> = {
-  HOURLY: "Hourly",
-  DAILY: "Daily",
-  FIXED: "Fixed",
-  FREE: "Free",
+const BILLING_MODE_KEYS: Record<string, string> = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  FIXED: "fixed",
+  FREE: "free",
 }
 
 function formatAmount(amount: number): string {
@@ -63,6 +64,8 @@ export function TaskGroupList({
   onUpdateRate,
   onStatusChange,
 }: TaskGroupListProps) {
+  const t = useTranslations("taskTable")
+  const tc = useTranslations("common.billingModes")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   function toggleCollapse(clientId: string) {
@@ -106,11 +109,18 @@ export function TaskGroupList({
                   )}
                 </div>
                 <Badge variant="secondary">
-                  {BILLING_MODE_LABELS[group.client.billingMode] ??
-                    group.client.billingMode}
+                  {BILLING_MODE_KEYS[group.client.billingMode]
+                    ? tc(
+                        BILLING_MODE_KEYS[group.client.billingMode] as
+                          | "hourly"
+                          | "daily"
+                          | "fixed"
+                          | "free",
+                      )
+                    : group.client.billingMode}
                 </Badge>
                 <Badge variant="outline">
-                  {group.taskCount} task{group.taskCount !== 1 ? "s" : ""}
+                  {t("taskCount", { count: group.taskCount })}
                 </Badge>
               </div>
               <div className="text-sm font-semibold tabular-nums text-text-primary">

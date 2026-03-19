@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { FormField } from "@/components/ui/form-field"
 import {
@@ -51,6 +52,8 @@ interface CreateTaskFormProps {
 export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useTranslations("newTask")
+  const tc = useTranslations("common")
   const [apiError, setApiError] = useState("")
   const [metadata, setMetadata] = useState<TeamMetadata | null>(null)
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(false)
@@ -97,7 +100,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
         if (!res.ok) {
           toast({
             variant: "error",
-            title: "Failed to load team options",
+            title: t("failedToLoadTeamOptions"),
           })
           return
         }
@@ -107,7 +110,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
         setIsLoadingMetadata(false)
       }
     },
-    [toast],
+    [toast, t],
   )
 
   useEffect(() => {
@@ -159,7 +162,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
 
       if (!res.ok) {
         const body = await res.json()
-        throw new Error(body.error?.message ?? "Failed to create task")
+        throw new Error(body.error?.message ?? t("failedToCreate"))
       }
 
       router.push("/tasks")
@@ -195,8 +198,8 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       noValidate
     >
       <FormField
-        label="Title"
-        placeholder="Issue title"
+        label={t("titleLabel")}
+        placeholder={t("titlePlaceholder")}
         {...register("title")}
         error={errors.title?.message}
       />
@@ -206,7 +209,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-muted-foreground">
-          Project
+          {t("projectLabel")}
         </label>
         <Select
           onValueChange={(val: string | null) => {
@@ -214,7 +217,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a project" />
+            <SelectValue placeholder={t("selectProject")} />
           </SelectTrigger>
           <SelectContent>
             {projectOptions.map((opt) => (
@@ -232,10 +235,10 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       </div>
 
       <FormField
-        label="Estimate (points)"
+        label={t("estimateLabel")}
         type="number"
         min="1"
-        placeholder="e.g. 3"
+        placeholder={t("estimatePlaceholder")}
         {...register("estimate", {
           setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
         })}
@@ -245,19 +248,19 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       {selectedTeamId && (
         <div className="space-y-6 rounded-lg border border-border-light bg-surface-secondary/30 p-4">
           <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-            Linear Options
+            {t("linearOptions")}
           </p>
 
           {isLoadingMetadata ? (
             <p className="text-sm text-text-secondary">
-              Loading team options...
+              {t("loadingTeamOptions")}
             </p>
           ) : metadata ? (
             <>
               {memberOptions.length > 0 && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Assignee
+                    {t("assigneeLabel")}
                   </label>
                   <Select
                     onValueChange={(val: string | null) =>
@@ -265,7 +268,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Unassigned" />
+                      <SelectValue placeholder={t("unassigned")} />
                     </SelectTrigger>
                     <SelectContent>
                       {memberOptions.map((opt) => (
@@ -281,7 +284,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
               {stateOptions.length > 0 && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Status
+                    {t("statusLabel")}
                   </label>
                   <Select
                     onValueChange={(val: string | null) =>
@@ -289,7 +292,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Default status" />
+                      <SelectValue placeholder={t("defaultStatus")} />
                     </SelectTrigger>
                     <SelectContent>
                       {stateOptions.map((opt) => (
@@ -305,7 +308,7 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
               {metadata.labels.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">
-                    Labels
+                    {t("labelsLabel")}
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {metadata.labels.map((label) => {
@@ -339,9 +342,9 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
       )}
 
       <div className="space-y-2">
-        <label>Description</label>
+        <label>{t("descriptionLabel")}</label>
         <RichTextEditor
-          placeholder="Describe the task..."
+          placeholder={t("descriptionPlaceholder")}
           onChange={(md) => setValue("description", md || undefined)}
         />
         {errors.description?.message && (
@@ -359,10 +362,10 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
           variant="outline"
           onClick={() => router.push("/tasks")}
         >
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button type="submit" isLoading={isSubmitting}>
-          Create Task
+          {t("createButton")}
         </Button>
       </div>
     </form>

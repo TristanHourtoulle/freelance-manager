@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Modal } from "@/components/ui/modal"
 
 interface ArchiveClientModalProps {
@@ -20,10 +21,12 @@ export function ArchiveClientModal({
   onConfirm,
   isLoading,
 }: ArchiveClientModalProps) {
-  const title = isArchived ? "Unarchive client" : "Archive client"
+  const t = useTranslations("archiveModal")
+
+  const title = isArchived ? t("unarchiveTitle") : t("archiveTitle")
   const description = isArchived
-    ? `Are you sure you want to unarchive "${clientName}"? The client will return to your active list.`
-    : `Are you sure you want to archive "${clientName}"? The client will be hidden from the active list but all data (mappings, invoices) will be preserved. You can unarchive at any time.`
+    ? t("unarchiveDesc", { name: clientName })
+    : t("archiveDesc", { name: clientName })
 
   return (
     <Modal
@@ -32,7 +35,7 @@ export function ArchiveClientModal({
       onConfirm={onConfirm}
       title={title}
       description={description}
-      confirmLabel={isArchived ? "Unarchive" : "Archive"}
+      confirmLabel={isArchived ? t("unarchiveButton") : t("archiveButton")}
       variant="default"
       isLoading={isLoading}
     />

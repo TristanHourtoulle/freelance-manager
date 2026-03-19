@@ -6,28 +6,21 @@ import {
   ClipboardDocumentCheckIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { WelcomeSlide } from "./welcome-slide"
 
-const SLIDES = [
-  {
-    icon: UserGroupIcon,
-    title: "Track your clients",
-    description:
-      "Manage clients, set rates, and organize projects in one place.",
-  },
-  {
-    icon: ClipboardDocumentCheckIcon,
-    title: "Import tasks from Linear",
-    description:
-      "Connect your Linear projects and track billable work automatically.",
-  },
-  {
-    icon: BanknotesIcon,
-    title: "Invoice with confidence",
-    description: "Mark tasks as invoiced and track your monthly revenue.",
-  },
-]
+const SLIDE_ICONS = [
+  UserGroupIcon,
+  ClipboardDocumentCheckIcon,
+  BanknotesIcon,
+] as const
+
+const SLIDE_KEYS = [
+  { titleKey: "slide1Title", descKey: "slide1Desc" },
+  { titleKey: "slide2Title", descKey: "slide2Desc" },
+  { titleKey: "slide3Title", descKey: "slide3Desc" },
+] as const
 
 const STORAGE_KEY = "fm:welcome-dismissed"
 
@@ -46,7 +39,8 @@ interface WelcomeModalProps {
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const overlayRef = useRef<HTMLDivElement>(null)
-  const isLastSlide = currentSlide === SLIDES.length - 1
+  const isLastSlide = currentSlide === SLIDE_KEYS.length - 1
+  const t = useTranslations("welcome")
 
   const handleDismiss = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, "1")
@@ -85,6 +79,8 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
     }
   }
 
+  const currentKey = SLIDE_KEYS[currentSlide]!
+
   return (
     <div
       ref={overlayRef}
@@ -92,11 +88,15 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
     >
       <div className="w-full max-w-lg rounded-xl border border-border bg-surface p-6 shadow-lg">
-        <WelcomeSlide {...SLIDES[currentSlide]!} />
+        <WelcomeSlide
+          icon={SLIDE_ICONS[currentSlide]!}
+          title={t(currentKey.titleKey)}
+          description={t(currentKey.descKey)}
+        />
 
         {/* Dot indicators */}
         <div className="mt-4 flex items-center justify-center gap-2">
-          {SLIDES.map((_, index) => (
+          {SLIDE_KEYS.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
@@ -114,10 +114,10 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
             onClick={handleDismiss}
             className="text-sm text-text-muted hover:text-text-secondary transition-colors"
           >
-            Skip
+            {t("skip")}
           </button>
           <Button onClick={handleNext}>
-            {isLastSlide ? "Get Started" : "Next"}
+            {isLastSlide ? t("getStarted") : t("next")}
           </Button>
         </div>
       </div>

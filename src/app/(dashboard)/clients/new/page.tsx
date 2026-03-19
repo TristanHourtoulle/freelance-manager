@@ -1,12 +1,14 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { ClientForm } from "@/components/clients/client-form"
 
 import type { CreateClientInput } from "@/lib/schemas/client"
 
 export default function NewClientPage() {
   const router = useRouter()
+  const t = useTranslations("newClient")
 
   async function handleSubmit(data: CreateClientInput): Promise<void> {
     const res = await fetch("/api/clients", {
@@ -26,7 +28,7 @@ export default function NewClientPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6">New Client</h1>
+      <h1 className="mb-6">{t("title")}</h1>
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <ClientForm onSubmit={handleSubmit} />
       </div>

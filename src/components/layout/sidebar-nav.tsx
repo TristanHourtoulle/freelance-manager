@@ -41,7 +41,6 @@ function AppNav({
   const router = useRouter()
   const { image: userImage } = useUserImage()
   const t = useTranslations("nav")
-  const ts = useTranslations("settingsNav")
 
   function isActive(href: string): boolean {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -175,9 +174,9 @@ function SettingsNav() {
       <nav className="flex-1 overflow-y-auto p-3 pt-2">
         {SETTINGS_NAV_SECTIONS.map((section, sIdx) => (
           <div key={sIdx} className={sIdx > 0 ? "mt-4" : "mt-1"}>
-            {section.title && (
+            {section.titleKey && (
               <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {section.title}
+                {t(section.titleKey)}
               </p>
             )}
             <div className="space-y-0.5">
@@ -197,7 +196,7 @@ function SettingsNav() {
                     }`}
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
-                    {item.label}
+                    {t(item.translationKey)}
                   </Link>
                 )
               })}

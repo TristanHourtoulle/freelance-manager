@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 
 import type { KanbanTask } from "../types"
@@ -24,6 +25,7 @@ function formatEur(value: number): string {
  * Shows identifier, title, client name, estimate, and billing amount.
  */
 export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
+  const t = useTranslations("taskTable")
   const {
     attributes,
     listeners,
@@ -72,7 +74,7 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
           )}
           {task.paid && (
             <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
-              Paid
+              {t("paid")}
             </span>
           )}
         </div>

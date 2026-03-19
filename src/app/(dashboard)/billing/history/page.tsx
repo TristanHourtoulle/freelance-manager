@@ -3,6 +3,7 @@
 import { useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { HistoryFilters } from "@/components/billing/history-filters"
 import { HistorySummary } from "@/components/billing/history-summary"
 import { HistoryMonthList } from "@/components/billing/history-month-list"
@@ -17,6 +18,8 @@ import type { ClientSummary } from "@/components/tasks/types"
 export default function BillingHistoryPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const t = useTranslations("billingHistory")
+  const tEmpty = useTranslations("emptyStates")
 
   const { data, isLoading } = useBillingHistory(searchParams.toString())
   const updateStatusMutation = useUpdateInvoiceStatus()
@@ -73,9 +76,9 @@ export default function BillingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Invoiced History">
+      <PageHeader title={t("title")}>
         <Link href="/billing">
-          <Button variant="outline">To Invoice</Button>
+          <Button variant="outline">{t("backToInvoice")}</Button>
         </Link>
       </PageHeader>
 
@@ -92,7 +95,7 @@ export default function BillingHistoryPage() {
       ) : months.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface px-6 py-16 text-center">
           <p className="text-sm text-text-secondary">
-            No invoiced tasks found for the selected period.
+            {tEmpty("historyEmpty")}
           </p>
         </div>
       ) : (

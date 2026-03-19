@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
+import { useTranslations } from "next-intl"
 import {
   ArrowUpTrayIcon,
   DocumentIcon,
@@ -22,11 +23,11 @@ interface HistoryMonthListProps {
   onMarkAsPaid?: (invoiceId: string) => void
 }
 
-const BILLING_MODE_LABELS: Record<string, string> = {
-  HOURLY: "Hourly",
-  DAILY: "Daily",
-  FIXED: "Fixed",
-  FREE: "Free",
+const BILLING_MODE_KEYS: Record<string, string> = {
+  HOURLY: "hourly",
+  DAILY: "daily",
+  FIXED: "fixed",
+  FREE: "free",
 }
 
 function formatAmount(amount: number): string {
@@ -49,6 +50,8 @@ function PaymentDeadlineBadge({
   paymentDueDate: string | null
   status: string
 }) {
+  const t = useTranslations("billingHistory")
+
   if (status === "PAID") return null
   if (!paymentDueDate) return null
 
@@ -60,7 +63,7 @@ function PaymentDeadlineBadge({
   if (diffDays > 0) {
     return (
       <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
-        Due in {diffDays}d
+        {t("dueIn", { days: diffDays })}
       </span>
     )
   }
@@ -68,7 +71,7 @@ function PaymentDeadlineBadge({
   const overdueDays = Math.abs(diffDays)
   return (
     <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
-      Overdue {overdueDays}d
+      {t("overdue", { days: overdueDays })}
     </span>
   )
 }
@@ -80,6 +83,8 @@ function InvoiceStatusBadge({
   group: HistoryClientGroup
   onMarkAsPaid?: (invoiceId: string) => void
 }) {
+  const t = useTranslations("billingHistory")
+
   if (!group.invoice) return null
 
   const { status, id, paymentDueDate } = group.invoice
@@ -87,7 +92,7 @@ function InvoiceStatusBadge({
   if (status === "PAID") {
     return (
       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        Paid
+        {t("paid")}
       </span>
     )
   }
@@ -95,7 +100,7 @@ function InvoiceStatusBadge({
   return (
     <div className="flex items-center gap-2">
       <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-        Sent
+        {t("sent")}
       </span>
       <PaymentDeadlineBadge paymentDueDate={paymentDueDate} status={status} />
       {onMarkAsPaid && (
@@ -106,7 +111,7 @@ function InvoiceStatusBadge({
           }}
           className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100"
         >
-          Mark as paid
+          {t("markAsPaid")}
         </button>
       )}
     </div>
@@ -118,6 +123,7 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
   const uploadMutation = useUploadInvoiceFile()
   const deleteMutation = useDeleteInvoiceFile()
   const { toast } = useToast()
+  const t = useTranslations("billingHistory")
 
   const invoiceId = group.invoice?.id
   const files = group.invoice?.files ?? []
@@ -131,12 +137,12 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
         { invoiceId, file },
         {
           onSuccess: () => {
-            toast({ variant: "success", title: "PDF uploaded" })
+            toast({ variant: "success", title: t("pdfUploaded") })
           },
           onError: (error) => {
             toast({
               variant: "error",
-              title: error.message || "Upload failed",
+              title: error.message || t("uploadFailed"),
             })
           },
         },
@@ -147,7 +153,7 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
         fileInputRef.current.value = ""
       }
     },
-    [invoiceId, uploadMutation, toast],
+    [invoiceId, uploadMutation, toast, t],
   )
 
   const handleDelete = useCallback(
@@ -157,12 +163,12 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
         { invoiceId, fileId },
         {
           onError: () => {
-            toast({ variant: "error", title: "Failed to delete file" })
+            toast({ variant: "error", title: t("deleteFailed") })
           },
         },
       )
     },
-    [invoiceId, deleteMutation, toast],
+    [invoiceId, deleteMutation, toast, t],
   )
 
   if (!group.invoice) return null
@@ -185,7 +191,7 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
         className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-surface-muted px-2 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-border disabled:opacity-50"
       >
         <ArrowUpTrayIcon className="h-3.5 w-3.5" />
-        {uploadMutation.isPending ? "Uploading..." : "Upload PDF"}
+        {uploadMutation.isPending ? t("uploading") : t("uploadPdf")}
       </button>
 
       {files.map((file) => (
@@ -230,6 +236,9 @@ export function HistoryMonthList({
   const [collapsedClients, setCollapsedClients] = useState<Set<string>>(
     new Set(),
   )
+  const t = useTranslations("billingHistory")
+  const tt = useTranslations("billingTable")
+  const tc = useTranslations("common.billingModes")
 
   function toggleMonth(monthKey: string) {
     setCollapsedMonths((prev) => {
@@ -281,7 +290,7 @@ export function HistoryMonthList({
                   {month.label}
                 </h2>
                 <span className="text-sm text-text-secondary">
-                  {month.taskCount} task{month.taskCount !== 1 ? "s" : ""}
+                  {t("taskCount", { count: month.taskCount })}
                 </span>
               </div>
               <span className="text-base font-semibold tabular-nums text-text-primary">
@@ -329,12 +338,13 @@ export function HistoryMonthList({
                             )}
                           </div>
                           <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary">
-                            {BILLING_MODE_LABELS[group.client.billingMode] ??
-                              group.client.billingMode}
+                            {tc(
+                              BILLING_MODE_KEYS[group.client.billingMode] ??
+                                "hourly",
+                            )}
                           </span>
                           <span className="text-xs text-text-secondary">
-                            {group.taskCount} task
-                            {group.taskCount !== 1 ? "s" : ""}
+                            {t("taskCount", { count: group.taskCount })}
                           </span>
                           <InvoiceStatusBadge
                             group={group}
@@ -355,19 +365,19 @@ export function HistoryMonthList({
                               <thead>
                                 <tr className="border-b border-border">
                                   <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                                    ID
+                                    {tt("id")}
                                   </th>
                                   <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                                    Title
+                                    {tt("title")}
                                   </th>
                                   <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-text-secondary">
-                                    Status
+                                    {tt("status")}
                                   </th>
                                   <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                                    Estimate
+                                    {tt("estimate")}
                                   </th>
                                   <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                                    Amount
+                                    {tt("amount")}
                                   </th>
                                 </tr>
                               </thead>

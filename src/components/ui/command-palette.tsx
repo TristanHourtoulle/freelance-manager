@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
 import {
   useCommandPalette,
   type CommandItem,
@@ -26,6 +27,8 @@ export function CommandPalette() {
     handleKeyDown,
     inputRef,
   } = useCommandPalette()
+
+  const t = useTranslations("commandPalette")
 
   const overlayRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -83,7 +86,7 @@ export function CommandPalette() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search pages, actions, clients, tasks..."
+            placeholder={t("placeholder")}
             className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-secondary"
             role="combobox"
             aria-expanded={allItems.length > 0}
@@ -107,7 +110,7 @@ export function CommandPalette() {
         >
           {sections.length === 0 && query.length > 0 ? (
             <p className="px-3 py-6 text-center text-sm text-text-secondary">
-              No results found
+              {t("noResults")}
             </p>
           ) : (
             sections.map((section) => (
@@ -126,6 +129,7 @@ export function CommandPalette() {
                       index={itemIndex}
                       onSelect={() => void executeItem(item)}
                       onHover={() => setActiveIndex(itemIndex)}
+                      comingSoonLabel={t("comingSoon")}
                     />
                   )
                 })}
@@ -150,6 +154,7 @@ interface CommandPaletteItemProps {
   index: number
   onSelect: () => void
   onHover: () => void
+  comingSoonLabel: string
 }
 
 function CommandPaletteItem({
@@ -158,6 +163,7 @@ function CommandPaletteItem({
   index,
   onSelect,
   onHover,
+  comingSoonLabel,
 }: CommandPaletteItemProps) {
   const Icon = item.icon
 
@@ -189,7 +195,7 @@ function CommandPaletteItem({
               : "bg-surface-secondary text-text-secondary"
           }`}
         >
-          Coming soon
+          {comingSoonLabel}
         </span>
       )}
     </div>

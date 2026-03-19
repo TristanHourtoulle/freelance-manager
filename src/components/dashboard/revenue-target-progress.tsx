@@ -1,3 +1,6 @@
+"use client"
+
+import { useTranslations } from "next-intl"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatCurrency } from "@/lib/format"
 
@@ -14,6 +17,8 @@ export function RevenueTargetProgress({
   currentRevenue,
   target,
 }: RevenueTargetProgressProps) {
+  const t = useTranslations("dashboard")
+
   if (target <= 0) return null
 
   const rawPercentage = Math.round((currentRevenue / target) * 100)
@@ -29,7 +34,7 @@ export function RevenueTargetProgress({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Revenue Target</CardTitle>
+        <CardTitle>{t("revenueTarget")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">

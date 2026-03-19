@@ -2,13 +2,14 @@
 
 import { useCallback, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Chip } from "@/components/ui/chip-group"
 
 const CATEGORIES = [
-  { value: "FREELANCE", label: "Freelance" },
-  { value: "STUDY", label: "Study" },
-  { value: "PERSONAL", label: "Personal" },
-  { value: "SIDE_PROJECT", label: "Side Project" },
+  { value: "FREELANCE", labelKey: "freelance" },
+  { value: "STUDY", labelKey: "study" },
+  { value: "PERSONAL", labelKey: "personal" },
+  { value: "SIDE_PROJECT", labelKey: "sideProject" },
 ] as const
 
 /**
@@ -19,6 +20,8 @@ export function CategoryFilter() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const tCategories = useTranslations("common.categories")
+  const tFilter = useTranslations("categoryFilter")
 
   const selected = useMemo(
     () => searchParams.get("category")?.split(",") ?? [],
@@ -60,7 +63,7 @@ export function CategoryFilter() {
         return (
           <Chip
             key={cat.value}
-            label={cat.label}
+            label={tCategories(cat.labelKey)}
             isActive={isActive}
             onClick={() => toggle(cat.value)}
             position={
@@ -79,7 +82,7 @@ export function CategoryFilter() {
           onClick={clear}
           className="cursor-pointer text-sm text-text-secondary underline hover:text-primary"
         >
-          Clear
+          {tFilter("clear")}
         </button>
       )}
     </div>
