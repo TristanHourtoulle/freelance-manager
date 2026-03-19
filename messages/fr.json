@@ -21,7 +21,6 @@
       "free": "Gratuit"
     }
   },
-
   "nav": {
     "dashboard": "Tableau de bord",
     "clients": "Clients",
@@ -33,7 +32,6 @@
     "search": "Rechercher...",
     "backToApp": "Retour à l'app"
   },
-
   "settingsNav": {
     "title": "Paramètres",
     "description": "Gérer votre espace de travail",
@@ -45,9 +43,9 @@
     "notifications": "Notifications",
     "integrations": "Intégrations",
     "advanced": "Avancé",
-    "dataExport": "Données & Export"
+    "dataExport": "Données & Export",
+    "backToApp": "Retour à l'app"
   },
-
   "dashboard": {
     "title": "Tableau de bord",
     "pipeline": "Pipeline",
@@ -61,7 +59,6 @@
     "refresh": "Rafraîchir",
     "lastSynced": "Dernière sync : {time}"
   },
-
   "clients": {
     "title": "Clients",
     "newClient": "Nouveau client",
@@ -117,7 +114,6 @@
     "previous": "Précédent",
     "next": "Suivant"
   },
-
   "tasks": {
     "title": "Tâches",
     "syncWithLinear": "Synchroniser avec Linear",
@@ -143,7 +139,6 @@
       "updateStatusError": "Erreur lors de la mise à jour du statut"
     }
   },
-
   "billing": {
     "title": "À facturer",
     "history": "Historique",
@@ -156,7 +151,6 @@
       "error": "Erreur lors du marquage des tâches"
     }
   },
-
   "analytics": {
     "title": "Analyses",
     "periods": {
@@ -166,7 +160,6 @@
       "thisYear": "Cette année"
     }
   },
-
   "notifications": {
     "title": "Notifications",
     "markAllAsRead": "Tout marquer comme lu",
@@ -177,7 +170,6 @@
     "noNotifications": "Aucune notification pour le moment",
     "markAsRead": "Marquer comme lu"
   },
-
   "settingsProfile": {
     "title": "Profil",
     "personalInfo": "Informations personnelles",
@@ -191,7 +183,6 @@
       "error": "Erreur lors de la mise à jour du profil"
     }
   },
-
   "settingsBilling": {
     "title": "Facturation",
     "workingHours": "Heures de travail",
@@ -208,7 +199,6 @@
       "error": "Erreur lors de l'enregistrement"
     }
   },
-
   "settingsNotifications": {
     "title": "Notifications",
     "saving": "Enregistrement...",
@@ -229,7 +219,6 @@
       "error": "Erreur lors de l'enregistrement des préférences"
     }
   },
-
   "settingsIntegrations": {
     "title": "Intégrations",
     "apiToken": "Jeton API",
@@ -265,7 +254,6 @@
       "refreshed": "Données Linear rafraîchies"
     }
   },
-
   "settingsAppearance": {
     "title": "Apparence",
     "themeTitle": "Thème",
@@ -292,7 +280,6 @@
       "themeSet": "Thème défini sur {theme}"
     }
   },
-
   "settingsData": {
     "title": "Données & Export",
     "clientsExport": "Clients",
@@ -314,14 +301,12 @@
       "deleteError": "Erreur lors de la suppression du compte"
     }
   },
-
   "imageUpload": {
     "invalidType": "Seuls les fichiers PNG, JPEG ou WebP sont acceptés",
     "tooLarge": "L'image doit faire moins de 5 Mo",
     "processingError": "Erreur lors du traitement de l'image",
     "compressing": "Compression..."
   },
-
   "profilePhoto": {
     "title": "Photo de profil",
     "description": "Téléchargez une photo de profil. PNG, JPEG ou WebP — max 5 Mo (compression auto).",
@@ -332,7 +317,6 @@
       "error": "Erreur lors de la mise à jour de la photo"
     }
   },
-
   "taskTable": {
     "searchPlaceholder": "Rechercher par titre ou ID...",
     "bill": "Fact.",
@@ -353,7 +337,6 @@
     "overriddenRate": "Surchargé (défaut : {rate} EUR)",
     "resetRate": "Réinitialiser au tarif client"
   },
-
   "billingTable": {
     "clients": "Clients",
     "tasks": "Tâches",
@@ -364,7 +347,6 @@
     "estimate": "Estimation",
     "amount": "Montant"
   },
-
   "clientsTable": {
     "name": "Nom",
     "company": "Entreprise",
@@ -375,7 +357,6 @@
     "lastActivity": "Dernière activité",
     "edit": "Modifier"
   },
-
   "archiveModal": {
     "archiveTitle": "Archiver le client",
     "unarchiveTitle": "Désarchiver le client",
@@ -384,13 +365,11 @@
     "archiveButton": "Archiver",
     "unarchiveButton": "Désarchiver"
   },
-
   "deleteClientModal": {
     "title": "Supprimer le client",
     "description": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible. Toutes les données associées seront définitivement supprimées.",
     "deleteButton": "Supprimer"
   },
-
   "emptyStates": {
     "clientsFiltered": "Aucun client ne correspond à vos filtres.",
     "clientsFilteredHint": "Essayez d'ajuster votre recherche ou filtre de catégorie.",
@@ -410,11 +389,9 @@
     "dashboardEmptyHint": "Commencez par ajouter des clients et marquer des tâches comme facturables.",
     "historyEmpty": "Aucune tâche facturée trouvée pour la période sélectionnée."
   },
-
   "categoryFilter": {
     "clear": "Effacer"
   },
-
   "syncBar": {
     "justNow": "À l'instant",
     "minAgo": "il y a {min} min",
@@ -424,7 +401,6 @@
     "lastSynced": "Dernière sync : {time}",
     "refresh": "Rafraîchir"
   },
-
   "onboarding": {
     "title": "Premiers pas",
     "description": "Complétez ces étapes pour configurer votre espace",
@@ -447,7 +423,6 @@
       "markInvoiceAction": "Aller à la facturation"
     }
   },
-
   "welcome": {
     "slide1Title": "Suivez vos clients",
     "slide1Desc": "Gérez vos clients, définissez des tarifs et organisez vos projets en un seul endroit.",
@@ -459,13 +434,11 @@
     "next": "Suivant",
     "getStarted": "Commencer"
   },
-
   "revenueChart": {
     "title": "Revenus (6 mois)",
     "description": "Revenus des 6 derniers mois",
     "label": "Revenus"
   },
-
   "editClient": {
     "title": "Modifier le client",
     "archivedOn": "Ce client a été archivé le {date}.",
@@ -476,16 +449,13 @@
     "unarchiveError": "Erreur lors du désarchivage",
     "updateError": "Erreur lors de la mise à jour du client"
   },
-
   "newClient": {
     "title": "Nouveau client"
   },
-
   "billingHistory": {
     "title": "Historique de facturation",
     "backToInvoice": "Retour à la facturation"
   },
-
   "newTask": {
     "title": "Nouvelle tâche",
     "loadingProjects": "Chargement des projets...",
@@ -509,13 +479,11 @@
     "createButton": "Créer la tâche",
     "failedToCreate": "Échec de la création de la tâche"
   },
-
   "commandPalette": {
     "placeholder": "Tapez une commande ou recherchez...",
     "noResults": "Aucun résultat trouvé.",
     "comingSoon": "Bientôt disponible"
   },
-
   "activityIndicator": {
     "today": "Aujourd'hui",
     "yesterday": "Hier",
