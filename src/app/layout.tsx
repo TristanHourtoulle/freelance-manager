@@ -29,7 +29,18 @@ export default async function RootLayout({
   const messages = await getMessages()
 
   return (
-    <html lang={locale} className={cn("font-sans", inter.variable)}>
+    <html
+      lang={locale}
+      className={cn("font-sans", inter.variable)}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("fm:theme");if(t==="dark"||(!t||t==="system")&&matchMedia("(prefers-color-scheme:dark)").matches){document.documentElement.classList.add("dark")}var c=localStorage.getItem("fm:accentColor");if(c){document.documentElement.style.setProperty("--color-primary",c);document.documentElement.style.setProperty("--primary",c)}}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className={`${geistMono.variable} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
