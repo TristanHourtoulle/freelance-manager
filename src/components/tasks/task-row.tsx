@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { memo, useState, useRef, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
@@ -41,7 +41,7 @@ function formatAmount(amount: number): string {
  * billable/invoiced toggles, and a link to the task detail page.
  * Used inside TaskTable.
  */
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   clientRate,
   billingMode,
@@ -286,4 +286,4 @@ export function TaskRow({
       )}
     </TableRow>
   )
-}
+})

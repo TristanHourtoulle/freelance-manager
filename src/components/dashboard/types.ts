@@ -12,6 +12,7 @@ export interface DashboardKPIs {
     label: string
     amount: number
   }>
+  dashboardKpis: string[] | null
   lastSyncedAt: number | null
   isStale: boolean
 }

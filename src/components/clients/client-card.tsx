@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import {
@@ -60,7 +61,10 @@ interface ClientCardProps {
   onArchive: (id: string) => void
 }
 
-export function ClientCard({ client, onArchive }: ClientCardProps) {
+export const ClientCard = memo(function ClientCard({
+  client,
+  onArchive,
+}: ClientCardProps) {
   const t = useTranslations("clients.card")
   const tc = useTranslations("common")
   const tClients = useTranslations("clients")
@@ -177,4 +181,4 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
       </div>
     </div>
   )
-}
+})

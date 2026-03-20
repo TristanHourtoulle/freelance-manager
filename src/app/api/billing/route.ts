@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { billingFilterSchema } from "@/lib/schemas/billing"
 import { fetchLinearIssues } from "@/lib/linear-service"
+import type { LinearIssueDTO } from "@/lib/linear-service"
 import { calculateBilling } from "@/lib/billing"
 import { NextResponse } from "next/server"
 
@@ -85,26 +86,40 @@ export async function GET(request: Request) {
       overridesByClient.set(override.clientId, list)
     }
 
+    // Fetch all Linear issues in parallel across all clients (avoid N+1)
+    const clientEntries = [...overridesByClient.entries()].filter(
+      ([, overrides]) => overrides.length > 0,
+    )
+
+    const allIssueFetches = clientEntries.flatMap(
+      ([clientId, clientOverrides]) => {
+        const client = clientOverrides[0]!.client
+        return client.linearMappings.map(async (mapping) => ({
+          clientId,
+          issues: await fetchLinearIssues({
+            teamId: mapping.linearTeamId ?? undefined,
+            projectId: mapping.linearProjectId ?? undefined,
+          }).catch(() => []),
+        }))
+      },
+    )
+
+    const fetchResults = await Promise.all(allIssueFetches)
+
+    const issuesByClient = new Map<string, Map<string, LinearIssueDTO>>()
+    for (const { clientId, issues } of fetchResults) {
+      const existing = issuesByClient.get(clientId) ?? new Map()
+      for (const issue of issues) {
+        existing.set(issue.id, issue)
+      }
+      issuesByClient.set(clientId, existing)
+    }
+
     const allGroups: ClientTaskGroup[] = []
 
-    for (const [clientId, clientOverrides] of overridesByClient) {
-      const firstOverride = clientOverrides[0]
-      if (!firstOverride) continue
-      const client = firstOverride.client
-
-      const issuePromises = client.linearMappings.map((mapping) =>
-        fetchLinearIssues({
-          teamId: mapping.linearTeamId ?? undefined,
-          projectId: mapping.linearProjectId ?? undefined,
-        }),
-      )
-
-      const issueResults = await Promise.allSettled(issuePromises)
-      const allIssues = issueResults.flatMap((r) =>
-        r.status === "fulfilled" ? r.value : [],
-      )
-
-      const issueMap = new Map(allIssues.map((i) => [i.id, i]))
+    for (const [clientId, clientOverrides] of clientEntries) {
+      const client = clientOverrides[0]!.client
+      const issueMap = issuesByClient.get(clientId) ?? new Map()
 
       const billingMode = client.billingMode as BillingMode
       const rate = Number(client.rate)

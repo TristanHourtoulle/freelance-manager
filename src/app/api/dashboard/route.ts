@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       }),
       prisma.userSettings.findUnique({
         where: { userId: userOrError.id },
-        select: { monthlyRevenueTarget: true },
+        select: { monthlyRevenueTarget: true, dashboardKpis: true },
       }),
       prisma.client.count({
         where: baseClientWhere,
@@ -193,6 +193,7 @@ export async function GET(request: Request) {
       monthlyExpenses:
         Math.round(Number(monthlyExpensesAgg._sum.amount ?? 0) * 100) / 100,
       overdueInvoices: overdueInvoicesCount,
+      dashboardKpis: userSettings?.dashboardKpis ?? null,
       revenueByMonth,
       ...getLinearSyncStatus(),
     })

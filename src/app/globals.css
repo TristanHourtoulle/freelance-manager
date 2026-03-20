@@ -121,6 +121,12 @@
 }
 
 @layer base {
+  button,
+  a,
+  [role="button"] {
+    cursor: pointer;
+  }
+
   html {
     overflow-y: scroll;
     scrollbar-gutter: stable;

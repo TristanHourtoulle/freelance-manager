@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { lazy, Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
@@ -12,7 +12,11 @@ import { PageHeader } from "@/components/ui/page-header"
 import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
-import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
+const TaskKanbanBoard = lazy(() =>
+  import("@/components/tasks/kanban/task-kanban-board").then((m) => ({
+    default: m.TaskKanbanBoard,
+  })),
+)
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
 import { useToast } from "@/components/providers/toast-provider"
 import {
@@ -243,10 +247,12 @@ export default function TasksPage() {
             <>
               {/* Kanban hidden on mobile, fallback to list */}
               <div className="hidden md:block">
-                <TaskKanbanBoard
-                  tasks={kanbanTasks}
-                  onStatusChange={handleStatusChange}
-                />
+                <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
+                  <TaskKanbanBoard
+                    tasks={kanbanTasks}
+                    onStatusChange={handleStatusChange}
+                  />
+                </Suspense>
               </div>
               <div className="block md:hidden">
                 <TaskGroupList
