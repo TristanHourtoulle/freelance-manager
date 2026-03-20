@@ -34,15 +34,17 @@ interface RateLimitResult {
  * Falls back to a static key when no forwarding headers are present.
  */
 function getClientKey(request: Request): string {
+  // Prefer x-real-ip (set by trusted reverse proxy / Vercel) over
+  // x-forwarded-for which can be spoofed by the client.
+  const realIp = request.headers.get("x-real-ip")
+  if (realIp) {
+    return realIp.trim()
+  }
+
   const forwarded = request.headers.get("x-forwarded-for")
   if (forwarded) {
     const first = forwarded.split(",")[0]
     return first ? first.trim() : "unknown"
-  }
-
-  const realIp = request.headers.get("x-real-ip")
-  if (realIp) {
-    return realIp.trim()
   }
 
   return "unknown"

@@ -99,7 +99,7 @@ export async function PUT(request: Request, context: RouteContext) {
     const validated = updateExpenseSchema.parse(body)
 
     const expense = await prisma.expense.update({
-      where: { id },
+      where: { id, userId: userOrError.id },
       data: validated,
       include: { client: { select: { id: true, name: true } } },
     })
@@ -151,7 +151,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     await prisma.expense.update({
-      where: { id },
+      where: { id, userId: userOrError.id },
       data: { deletedAt: new Date() },
     })
 

@@ -1,9 +1,10 @@
+import { timingSafeEqual } from "crypto"
 import { prisma } from "@/lib/db"
 import { apiError, handleApiError } from "@/lib/api-utils"
 import { computeAllNotifications } from "@/lib/notification-service"
 import { NextResponse } from "next/server"
 
-/** Verifies the cron secret and returns an error response if invalid. */
+/** Verifies the cron secret using a timing-safe comparison. Returns an error response if invalid. */
 function verifyCronSecret(request: Request): NextResponse | null {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -14,7 +15,18 @@ function verifyCronSecret(request: Request): NextResponse | null {
   const authHeader = request.headers.get("authorization")
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
 
-  if (token !== cronSecret) {
+  if (!token) {
+    return apiError("CRON_UNAUTHORIZED", "Invalid cron secret", 401)
+  }
+
+  // Use timing-safe comparison to prevent timing-based side-channel attacks
+  const tokenBuf = Buffer.from(token)
+  const secretBuf = Buffer.from(cronSecret)
+
+  if (
+    tokenBuf.length !== secretBuf.length ||
+    !timingSafeEqual(tokenBuf, secretBuf)
+  ) {
     return apiError("CRON_UNAUTHORIZED", "Invalid cron secret", 401)
   }
 
@@ -51,22 +63,6 @@ async function runNotificationCron(): Promise<NextResponse> {
  * @throws 401 - Missing or invalid CRON_SECRET
  */
 export async function GET(request: Request) {
-  try {
-    const authError = verifyCronSecret(request)
-    if (authError) return authError
-
-    return await runNotificationCron()
-  } catch (error) {
-    return handleApiError(error)
-  }
-}
-
-/**
- * POST /api/cron/notifications
- * Alternative method for external cron services that prefer POST.
- * Same behavior as GET.
- */
-export async function POST(request: Request) {
   try {
     const authError = verifyCronSecret(request)
     if (authError) return authError

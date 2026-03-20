@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit-log"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
 /**
@@ -13,6 +14,19 @@ import { NextResponse } from "next/server"
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request, { limit: 5, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -42,7 +56,28 @@ export async function GET(request: Request) {
           updatedAt: true,
         },
       }),
-      prisma.userSettings.findUnique({ where: { userId } }),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: {
+          id: true,
+          userId: true,
+          availableHoursPerMonth: true,
+          monthlyRevenueTarget: true,
+          defaultCurrency: true,
+          defaultPaymentDays: true,
+          defaultRate: true,
+          notificationPrefs: true,
+          dashboardKpis: true,
+          taxRegime: true,
+          tvaRate: true,
+          activityType: true,
+          acreEligible: true,
+          theme: true,
+          accentColor: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
       prisma.client.findMany({
         where: { userId },
         include: {
