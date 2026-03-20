@@ -84,6 +84,20 @@
       "revenueHighToLow": "Revenue (high to low)",
       "recentActivity": "Recent activity first"
     },
+    "detail": {
+      "backToClients": "Back to clients",
+      "memberSince": "Member since",
+      "totalRevenue": "Total Revenue",
+      "totalInvoices": "Invoices",
+      "totalTasks": "Tasks",
+      "totalExpenses": "Expenses",
+      "revenueOverTime": "Revenue Over Time",
+      "recentInvoices": "Recent Invoices",
+      "recentExpenses": "Recent Expenses",
+      "noInvoices": "No invoices yet",
+      "noExpenses": "No expenses yet",
+      "edit": "Edit"
+    },
     "card": {
       "billing": "Billing",
       "rate": "Rate",

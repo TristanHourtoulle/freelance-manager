@@ -80,6 +80,20 @@
       "revenueHighToLow": "Revenu (décroissant)",
       "recentActivity": "Activité récente"
     },
+    "detail": {
+      "backToClients": "Retour aux clients",
+      "memberSince": "Membre depuis",
+      "totalRevenue": "Revenu total",
+      "totalInvoices": "Factures",
+      "totalTasks": "T\u00e2ches",
+      "totalExpenses": "D\u00e9penses",
+      "revenueOverTime": "Revenu dans le temps",
+      "recentInvoices": "Factures r\u00e9centes",
+      "recentExpenses": "D\u00e9penses r\u00e9centes",
+      "noInvoices": "Aucune facture",
+      "noExpenses": "Aucune d\u00e9pense",
+      "edit": "Modifier"
+    },
     "card": {
       "billing": "Facturation",
       "rate": "Tarif",

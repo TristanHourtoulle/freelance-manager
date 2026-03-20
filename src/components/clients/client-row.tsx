@@ -70,7 +70,11 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
       </td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-text-primary">{client.name}</span>
+          <Link href={`/clients/${client.id}`}>
+            <span className="font-medium text-text-primary hover:underline">
+              {client.name}
+            </span>
+          </Link>
           {isArchived && (
             <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-500/10 dark:text-gray-400">
               {tl("archived")}

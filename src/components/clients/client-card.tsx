@@ -85,9 +85,11 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-foreground">
-            {client.name}
-          </h3>
+          <Link href={`/clients/${client.id}`}>
+            <h3 className="truncate text-sm font-semibold text-foreground hover:underline">
+              {client.name}
+            </h3>
+          </Link>
           <p className="truncate text-xs text-muted-foreground">
             {client.company || tc("noCompany")}
           </p>
