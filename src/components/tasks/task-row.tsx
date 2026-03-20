@@ -224,7 +224,7 @@ export function TaskRow({
             <span className="inline-flex items-center gap-1">
               <button
                 onClick={startEditingRate}
-                className="cursor-pointer rounded px-1.5 py-0.5 font-medium text-amber-600 hover:bg-surface-muted"
+                className="cursor-pointer rounded px-1.5 py-0.5 font-medium text-amber-600 hover:bg-surface-muted dark:text-amber-400"
                 title={t("overriddenRate", { rate: String(clientRate) })}
               >
                 {task.rateOverride}
@@ -264,7 +264,7 @@ export function TaskRow({
             {task.invoiced ? (
               <button
                 onClick={() => onToggleInvoiced(task.linearIssueId, false)}
-                className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
+                className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20"
               >
                 {t("invoiced")}
               </button>
@@ -277,7 +277,7 @@ export function TaskRow({
               </button>
             )}
             {task.paid && (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                 {t("paid")}
               </span>
             )}

@@ -1,44 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import {
-  ArrowDownTrayIcon,
-  ClockIcon,
-  CurrencyEuroIcon,
-  ExclamationTriangleIcon,
-  UserIcon,
-} from "@heroicons/react/24/outline"
 
-import type { Notification, NotificationType } from "@/generated/prisma/client"
+import { NOTIFICATION_TYPE_CONFIG } from "@/lib/notification-colors"
+
+import type { Notification } from "@/generated/prisma/client"
 
 interface NotificationPanelProps {
   notifications: Notification[]
   onMarkAsRead: (id: string) => void
   onDismissAll: () => void
   onClose?: () => void
-}
-
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { icon: React.ComponentType<{ className?: string }>; color: string }
-> = {
-  BILLING_REMINDER: {
-    icon: CurrencyEuroIcon,
-    color: "text-amber-500 bg-amber-50",
-  },
-  INACTIVE_CLIENT: { icon: UserIcon, color: "text-blue-500 bg-blue-50" },
-  SYNC_ALERT: {
-    icon: ExclamationTriangleIcon,
-    color: "text-red-500 bg-red-50",
-  },
-  IMPORT_SUMMARY: {
-    icon: ArrowDownTrayIcon,
-    color: "text-emerald-500 bg-emerald-50",
-  },
-  PAYMENT_OVERDUE: {
-    icon: ClockIcon,
-    color: "text-orange-500 bg-orange-50",
-  },
 }
 
 function formatRelativeTime(date: string | Date): string {
@@ -91,9 +63,9 @@ export function NotificationPanel({
           No notifications
         </div>
       ) : (
-        <ul className="max-h-80 overflow-y-auto">
+        <ul className="max-h-80 overflow-y-auto" aria-live="polite">
           {notifications.map((notification) => {
-            const config = TYPE_CONFIG[notification.type]
+            const config = NOTIFICATION_TYPE_CONFIG[notification.type]
             const Icon = config.icon
             const isUnread = !notification.readAt
 

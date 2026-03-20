@@ -62,7 +62,7 @@ function PaymentDeadlineBadge({
 
   if (diffDays > 0) {
     return (
-      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
         {t("dueIn", { days: diffDays })}
       </span>
     )
@@ -70,7 +70,7 @@ function PaymentDeadlineBadge({
 
   const overdueDays = Math.abs(diffDays)
   return (
-    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 dark:bg-red-500/10 dark:text-red-400">
       {t("overdue", { days: overdueDays })}
     </span>
   )
@@ -91,7 +91,7 @@ function InvoiceStatusBadge({
 
   if (status === "PAID") {
     return (
-      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
         {t("paid")}
       </span>
     )
@@ -99,7 +99,7 @@ function InvoiceStatusBadge({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
         {t("sent")}
       </span>
       <PaymentDeadlineBadge paymentDueDate={paymentDueDate} status={status} />
@@ -109,7 +109,7 @@ function InvoiceStatusBadge({
             e.stopPropagation()
             onMarkAsPaid(id)
           }}
-          className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100"
+          className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
         >
           {t("markAsPaid")}
         </button>
@@ -270,6 +270,7 @@ export function HistoryMonthList({
           >
             <button
               onClick={() => toggleMonth(month.month)}
+              aria-expanded={!isMonthCollapsed}
               className="flex w-full items-center justify-between px-5 py-4 text-left"
             >
               <div className="flex items-center gap-3">
@@ -311,6 +312,7 @@ export function HistoryMonthList({
                     >
                       <button
                         onClick={() => toggleClient(clientKey)}
+                        aria-expanded={!isClientCollapsed}
                         className="flex w-full items-center justify-between px-4 py-3 text-left"
                       >
                         <div className="flex items-center gap-3">

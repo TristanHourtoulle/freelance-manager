@@ -47,6 +47,8 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
       style={isDragOverlay ? undefined : style}
       {...(isDragOverlay ? {} : attributes)}
       {...(isDragOverlay ? {} : listeners)}
+      role="listitem"
+      aria-roledescription="draggable task"
       className={`
         bg-card rounded-lg border border-border p-3
         hover:shadow-md transition-shadow cursor-grab
@@ -73,7 +75,7 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
             <span />
           )}
           {task.paid && (
-            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
               {t("paid")}
             </span>
           )}

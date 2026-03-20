@@ -12,10 +12,13 @@ import { ActivityIndicator } from "@/components/clients/activity-indicator"
 import type { SerializedClient } from "@/components/clients/types"
 
 const CATEGORY_BADGES: Record<string, string> = {
-  FREELANCE: "bg-blue-100 text-blue-800",
-  STUDY: "bg-purple-100 text-purple-800",
-  PERSONAL: "bg-green-100 text-green-800",
-  SIDE_PROJECT: "bg-amber-100 text-amber-800",
+  FREELANCE: "bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400",
+  STUDY:
+    "bg-purple-100 text-purple-800 dark:bg-purple-500/10 dark:text-purple-400",
+  PERSONAL:
+    "bg-green-100 text-green-800 dark:bg-green-500/10 dark:text-green-400",
+  SIDE_PROJECT:
+    "bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400",
 }
 
 const CATEGORY_KEYS: Record<string, string> = {
@@ -69,7 +72,7 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
         <div className="flex items-center gap-2">
           <span className="font-medium text-text-primary">{client.name}</span>
           {isArchived && (
-            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">
+            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 dark:bg-gray-500/10 dark:text-gray-400">
               {tl("archived")}
             </span>
           )}
@@ -107,7 +110,7 @@ export function ClientRow({ client, onArchive }: ClientRowProps) {
             </Button>
           </Link>
           <button
-            className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary"
+            className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
             onClick={() => onArchive(client.id)}
             title={isArchived ? tl("unarchiveClient") : tl("archiveClient")}
           >

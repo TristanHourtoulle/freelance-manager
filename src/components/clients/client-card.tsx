@@ -146,7 +146,7 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
 
         <div className="ml-auto flex items-center gap-1">
           <Link href={`/clients/${client.id}/edit`}>
-            <Button variant="ghost" size="icon-sm">
+            <Button variant="ghost" size="icon-sm" aria-label={t("edit")}>
               <PencilSquareIcon className="size-4" />
             </Button>
           </Link>
@@ -154,6 +154,11 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
             variant="ghost"
             size="icon-sm"
             onClick={() => onArchive(client.id)}
+            aria-label={
+              isArchived
+                ? tClients("unarchiveClient")
+                : tClients("archiveClient")
+            }
             title={
               isArchived
                 ? tClients("unarchiveClient")

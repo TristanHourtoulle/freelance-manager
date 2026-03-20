@@ -2,43 +2,15 @@
 
 import { useState, useMemo } from "react"
 import { useTranslations } from "next-intl"
-import {
-  ArrowDownTrayIcon,
-  ClockIcon,
-  CurrencyEuroIcon,
-  ExclamationTriangleIcon,
-  UserIcon,
-  CheckIcon,
-} from "@heroicons/react/24/outline"
+import { CheckIcon } from "@heroicons/react/24/outline"
 import { useNotifications } from "@/components/notifications/use-notifications"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip-group"
 import { PageHeader } from "@/components/ui/page-header"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { NOTIFICATION_TYPE_CONFIG } from "@/lib/notification-colors"
 
-import type { Notification, NotificationType } from "@/generated/prisma/client"
-
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { icon: React.ComponentType<{ className?: string }>; color: string }
-> = {
-  BILLING_REMINDER: {
-    icon: CurrencyEuroIcon,
-    color: "text-amber-500 bg-amber-50",
-  },
-  INACTIVE_CLIENT: { icon: UserIcon, color: "text-blue-500 bg-blue-50" },
-  SYNC_ALERT: {
-    icon: ExclamationTriangleIcon,
-    color: "text-red-500 bg-red-50",
-  },
-  IMPORT_SUMMARY: {
-    icon: ArrowDownTrayIcon,
-    color: "text-emerald-500 bg-emerald-50",
-  },
-  PAYMENT_OVERDUE: {
-    icon: ClockIcon,
-    color: "text-orange-500 bg-orange-50",
-  },
-}
+import type { Notification } from "@/generated/prisma/client"
 
 type FilterTab = "all" | "unread"
 
@@ -58,7 +30,7 @@ function NotificationRow({
   notification: Notification
   onMarkAsRead: (id: string) => void
 }) {
-  const config = TYPE_CONFIG[notification.type]
+  const config = NOTIFICATION_TYPE_CONFIG[notification.type]
   const Icon = config.icon
   const isUnread = !notification.readAt
 
@@ -148,9 +120,7 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-16 text-center text-sm text-text-secondary">
-          {tc("loading")}
-        </div>
+        <PageSkeleton variant="list" />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface py-16 text-center">
           <p className="text-sm text-text-secondary">
