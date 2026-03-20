@@ -306,14 +306,18 @@ model Notification {
 }
 
 // --- Audit Log ---
+// NOTE: action and entity are kept as String for now to avoid a migration.
+// Valid actions: CREATE, UPDATE, DELETE, ARCHIVE, UNARCHIVE, EXPORT, LOGIN
+// Valid entities: Client, Expense, Invoice, TaskOverride, UserSettings, UserData, Tag, BankTransaction
+// Enforced at application layer via AUDIT_ACTIONS in src/lib/audit-log.ts.
 
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String
-  action     String   // CREATE, UPDATE, DELETE, ARCHIVE, UNARCHIVE, EXPORT, LOGIN, etc.
-  entity     String   // Client, Expense, Invoice, TaskOverride, UserSettings, etc.
+  action     String
+  entity     String
   entityId   String?
-  metadata   Json?    // Extra context: changed fields, old/new values
+  metadata   Json?
   ipAddress  String?
   createdAt  DateTime @default(now())
 

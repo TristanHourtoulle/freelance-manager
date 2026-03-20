@@ -50,19 +50,36 @@ function generatePeriodLabels(year: number, period: FinancialPeriod): string[] {
 /**
  * Computes the next period label for projection.
  */
-function getNextPeriodLabel(year: number, period: FinancialPeriod): string {
+function getNextPeriodLabel(
+  year: number,
+  period: FinancialPeriod,
+  periods: Array<{ label: string }>,
+): string {
   switch (period) {
     case "month": {
-      const now = new Date()
-      const nextMonth = now.getMonth() + 2 // +1 for 0-index, +1 for next
-      if (nextMonth > 12) return `${year + 1}-01`
-      return `${year}-${String(nextMonth).padStart(2, "0")}`
+      // Use the last period in the list to determine the next month
+      const lastLabel = periods.at(-1)?.label
+      if (lastLabel) {
+        const [y, m] = lastLabel.split("-").map(Number)
+        if (y !== undefined && m !== undefined) {
+          if (m >= 12) return `${y + 1}-01`
+          return `${y}-${String(m + 1).padStart(2, "0")}`
+        }
+      }
+      return `${year + 1}-01`
     }
     case "quarter": {
-      const now = new Date()
-      const currentQuarter = Math.ceil((now.getMonth() + 1) / 3)
-      if (currentQuarter >= 4) return `Q1 ${year + 1}`
-      return `Q${currentQuarter + 1} ${year}`
+      const lastLabel = periods.at(-1)?.label
+      if (lastLabel) {
+        const match = lastLabel.match(/Q(\d)\s(\d{4})/)
+        if (match) {
+          const q = Number(match[1])
+          const y = Number(match[2])
+          if (q >= 4) return `Q1 ${y + 1}`
+          return `Q${q + 1} ${y}`
+        }
+      }
+      return `Q1 ${year + 1}`
     }
     case "year":
       return String(year + 1)
@@ -171,7 +188,7 @@ export async function GET(request: Request) {
     let projection: FinancialProjection
     if (recentPeriods.length === 0) {
       projection = {
-        nextPeriod: getNextPeriodLabel(year, period),
+        nextPeriod: getNextPeriodLabel(year, period, periods),
         estimatedRevenue: 0,
         estimatedExpenses: 0,
         estimatedProfit: 0,
@@ -188,7 +205,7 @@ export async function GET(request: Request) {
         ) / 100
 
       projection = {
-        nextPeriod: getNextPeriodLabel(year, period),
+        nextPeriod: getNextPeriodLabel(year, period, periods),
         estimatedRevenue: avgRevenue,
         estimatedExpenses: avgExpenses,
         estimatedProfit: Math.round((avgRevenue - avgExpenses) * 100) / 100,
