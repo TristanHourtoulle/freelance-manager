@@ -33,9 +33,11 @@ function getInitials(name: string): string {
 function AppNav({
   userName,
   userEmail,
+  onLinkClick,
 }: {
   userName: string
   userEmail: string
+  onLinkClick?: () => void
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -125,6 +127,7 @@ function AppNav({
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onLinkClick}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       active
                         ? "bg-primary text-white"
@@ -155,7 +158,7 @@ function AppNav({
   )
 }
 
-function SettingsNav() {
+function SettingsNav({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
   const t = useTranslations("settingsNav")
 
@@ -198,6 +201,7 @@ function SettingsNav() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onLinkClick}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       isBack
                         ? "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -222,15 +226,23 @@ function SettingsNav() {
 function NavContent({
   userName,
   userEmail,
+  onLinkClick,
 }: {
   userName: string
   userEmail: string
+  onLinkClick?: () => void
 }) {
   const pathname = usePathname()
   const isSettings = pathname.startsWith("/settings")
 
-  if (isSettings) return <SettingsNav />
-  return <AppNav userName={userName} userEmail={userEmail} />
+  if (isSettings) return <SettingsNav onLinkClick={onLinkClick} />
+  return (
+    <AppNav
+      userName={userName}
+      userEmail={userEmail}
+      onLinkClick={onLinkClick}
+    />
+  )
 }
 
 export function SidebarNav({
@@ -268,7 +280,11 @@ export function SidebarNav({
               <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
-          <NavContent userName={userName} userEmail={userEmail} />
+          <NavContent
+            userName={userName}
+            userEmail={userEmail}
+            onLinkClick={onClose}
+          />
         </aside>
       </div>
     </>
