@@ -1,18 +1,20 @@
 /**
- * Formats a numeric amount as a EUR currency string using French locale.
+ * Formats a numeric amount as a currency string using French locale.
  *
  * @param amount - The amount to format
+ * @param currency - ISO 4217 currency code (defaults to "EUR")
  * @returns Formatted currency string (e.g. "1 500,00 €")
  *
  * @example
  * ```ts
- * formatCurrency(1500) // => "1 500,00 €"
+ * formatCurrency(1500)        // => "1 500,00 €"
+ * formatCurrency(1500, "USD") // => "1 500,00 $US"
  * ```
  */
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
-    currency: "EUR",
+    currency,
   }).format(amount)
 }
 
