@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { memo, useState, useRef, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 
@@ -40,7 +41,7 @@ function formatAmount(amount: number): string {
  * billable/invoiced toggles, and a link to the task detail page.
  * Used inside TaskTable.
  */
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   clientRate,
   billingMode,
@@ -51,6 +52,7 @@ export function TaskRow({
   onUpdateRate,
   onStatusChange,
 }: TaskRowProps) {
+  const t = useTranslations("taskTable")
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [editValue, setEditValue] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -222,14 +224,14 @@ export function TaskRow({
             <span className="inline-flex items-center gap-1">
               <button
                 onClick={startEditingRate}
-                className="cursor-pointer rounded px-1.5 py-0.5 font-medium text-amber-600 hover:bg-surface-muted"
-                title={`Overridden (default: ${clientRate} EUR)`}
+                className="cursor-pointer rounded px-1.5 py-0.5 font-medium text-amber-600 hover:bg-surface-muted dark:text-amber-400"
+                title={t("overriddenRate", { rate: String(clientRate) })}
               >
                 {task.rateOverride}
               </button>
               <button
                 onClick={resetRate}
-                title="Reset to client default"
+                title={t("resetRate")}
                 className="rounded p-0.5 text-text-muted hover:text-red-500"
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -258,23 +260,30 @@ export function TaskRow({
       </TableCell>
       {onToggleInvoiced && (
         <TableCell className="text-center">
-          {task.invoiced ? (
-            <button
-              onClick={() => onToggleInvoiced(task.linearIssueId, false)}
-              className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200"
-            >
-              Invoiced
-            </button>
-          ) : (
-            <button
-              onClick={() => onToggleInvoiced(task.linearIssueId, true)}
-              className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
-            >
-              Not invoiced
-            </button>
-          )}
+          <div className="flex items-center justify-center gap-1.5">
+            {task.invoiced ? (
+              <button
+                onClick={() => onToggleInvoiced(task.linearIssueId, false)}
+                className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 hover:bg-green-200 dark:bg-green-500/10 dark:text-green-400 dark:hover:bg-green-500/20"
+              >
+                {t("invoiced")}
+              </button>
+            ) : (
+              <button
+                onClick={() => onToggleInvoiced(task.linearIssueId, true)}
+                className="inline-flex items-center rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-border"
+              >
+                {t("notInvoiced")}
+              </button>
+            )}
+            {task.paid && (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                {t("paid")}
+              </span>
+            )}
+          </div>
         </TableCell>
       )}
     </TableRow>
   )
-}
+})

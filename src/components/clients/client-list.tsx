@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { ClientCard } from "@/components/clients/client-card"
 import { ClientRow } from "@/components/clients/client-row"
 import { ClientEmptyState } from "@/components/clients/client-empty-state"
@@ -29,6 +30,9 @@ export function ClientList({
   onArchive,
   onPageChange,
 }: ClientListProps) {
+  const t = useTranslations("clientsTable")
+  const tc = useTranslations("clients")
+
   if (clients.length === 0) {
     return <ClientEmptyState hasFilters={hasFilters} />
   }
@@ -36,7 +40,7 @@ export function ClientList({
   return (
     <div className="space-y-4">
       {view === "grid" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {clients.map((client) => (
             <ClientCard key={client.id} client={client} onArchive={onArchive} />
           ))}
@@ -48,25 +52,25 @@ export function ClientList({
               <tr>
                 <th className="px-3 py-2 font-medium text-text-secondary" />
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Name
+                  {t("name")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Company
+                  {t("company")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Category
+                  {t("category")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Billing
+                  {t("billing")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Rate
+                  {t("rate")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Revenue
+                  {t("revenue")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary">
-                  Last Activity
+                  {t("lastActivity")}
                 </th>
                 <th className="px-3 py-2 font-medium text-text-secondary" />
               </tr>
@@ -87,7 +91,7 @@ export function ClientList({
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between pt-4">
           <p className="text-sm text-text-secondary">
-            {pagination.total} client{pagination.total !== 1 ? "s" : ""} total
+            {tc("total", { count: pagination.total })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -96,7 +100,7 @@ export function ClientList({
               disabled={pagination.page <= 1}
               className="text-xs"
             >
-              Previous
+              {tc("previous")}
             </Button>
             <span className="text-sm text-text-secondary">
               {pagination.page} / {pagination.totalPages}
@@ -107,7 +111,7 @@ export function ClientList({
               disabled={pagination.page >= pagination.totalPages}
               className="text-xs"
             >
-              Next
+              {tc("next")}
             </Button>
           </div>
         </div>

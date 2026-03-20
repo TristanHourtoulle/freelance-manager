@@ -68,4 +68,81 @@ describe("TTLCache", () => {
     cache.set("key", "new")
     expect(cache.get("key")).toBe("new")
   })
+
+  describe("getMetadata", () => {
+    it("returns undefined for a missing key", () => {
+      const cache = new TTLCache<string>(1000)
+      expect(cache.getMetadata("nonexistent")).toBeUndefined()
+    })
+
+    it("returns metadata with correct timestamps for a valid entry", () => {
+      const cache = new TTLCache<string>(5000)
+      const now = Date.now()
+
+      cache.set("key", "value")
+
+      const metadata = cache.getMetadata("key")
+      expect(metadata).toBeDefined()
+      expect(metadata!.setAt).toBe(now)
+      expect(metadata!.expiresAt).toBe(now + 5000)
+      expect(metadata!.isExpired).toBe(false)
+    })
+
+    it("reports isExpired=true after TTL expires", () => {
+      const cache = new TTLCache<string>(1000)
+      cache.set("key", "value")
+
+      vi.advanceTimersByTime(1000)
+
+      const metadata = cache.getMetadata("key")
+      expect(metadata).toBeDefined()
+      expect(metadata!.isExpired).toBe(true)
+    })
+
+    it("reports isExpired=false just before TTL expires", () => {
+      const cache = new TTLCache<string>(1000)
+      cache.set("key", "value")
+
+      vi.advanceTimersByTime(999)
+
+      const metadata = cache.getMetadata("key")
+      expect(metadata).toBeDefined()
+      expect(metadata!.isExpired).toBe(false)
+    })
+
+    it("returns metadata with custom TTL", () => {
+      const cache = new TTLCache<string>(1000)
+      const now = Date.now()
+
+      cache.set("key", "value", 3000)
+
+      const metadata = cache.getMetadata("key")
+      expect(metadata).toBeDefined()
+      expect(metadata!.expiresAt).toBe(now + 3000)
+    })
+  })
+
+  describe("edge cases", () => {
+    it("treats exact expiry boundary as expired for get", () => {
+      const cache = new TTLCache<string>(1000)
+      cache.set("key", "value")
+
+      vi.advanceTimersByTime(1000)
+
+      // At exactly expiresAt, the entry should be considered expired
+      expect(cache.get("key")).toBeUndefined()
+    })
+
+    it("deletes expired entry on get and subsequent get returns undefined", () => {
+      const cache = new TTLCache<string>(500)
+      cache.set("key", "value")
+
+      vi.advanceTimersByTime(500)
+
+      // First get deletes it
+      expect(cache.get("key")).toBeUndefined()
+      // Metadata also reflects removal
+      expect(cache.getMetadata("key")).toBeUndefined()
+    })
+  })
 })

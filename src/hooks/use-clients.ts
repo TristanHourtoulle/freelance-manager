@@ -20,7 +20,7 @@ export function useClients(searchParams: string) {
       if (!res.ok) throw new Error("Failed to fetch clients")
       return res.json()
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   })
 }
 

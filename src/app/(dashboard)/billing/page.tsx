@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
+import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { BillingFilters } from "@/components/billing/billing-filters"
@@ -10,8 +11,8 @@ import { BillingEmptyState } from "@/components/billing/billing-empty-state"
 import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
-import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import { useBilling, useMarkInvoiced } from "@/hooks/use-billing"
 import { formatCurrency } from "@/lib/format"
@@ -19,6 +20,8 @@ import { formatCurrency } from "@/lib/format"
 import type { ClientSummary } from "@/components/tasks/types"
 
 export default function BillingPage() {
+  const t = useTranslations("billing")
+  const tc = useTranslations("common")
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
@@ -64,16 +67,16 @@ export default function BillingPage() {
       onSuccess: (data) => {
         toast({
           variant: "success",
-          title: `${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} marked as invoiced`,
+          title: t("toasts.success", { count: selectedIds.size }),
         })
         setIsConfirmOpen(false)
         setSelectedIds(new Set())
       },
       onError: () => {
-        toast({ variant: "error", title: "Failed to mark tasks as invoiced" })
+        toast({ variant: "error", title: t("toasts.error") })
       },
     })
-  }, [selectedIds, markInvoicedMutation, toast])
+  }, [selectedIds, markInvoicedMutation, toast, t])
 
   const allClients: ClientSummary[] = useMemo(
     () => groups.map((g) => g.client),
@@ -117,27 +120,25 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="To Invoice">
+      <PageHeader title={t("title")}>
         <Link href="/billing/history">
-          <Button variant="outline">History</Button>
+          <Button variant="outline" shape="pill-left" size="lg">
+            {t("history")}
+          </Button>
         </Link>
         <Link href="/tasks">
-          <Button variant="outline">View Tasks</Button>
+          <Button variant="outline" shape="pill-right" size="lg">
+            {t("viewTasks")}
+          </Button>
         </Link>
       </PageHeader>
 
-      <TooltipHint storageKey="billing-page">
-        Flag tasks to invoice, then mark them as invoiced to track your revenue.
-      </TooltipHint>
+      <TooltipHint storageKey="billing-page">{t("hint")}</TooltipHint>
 
-      <PageToolbar>
-        <BillingFilters clients={allClients} />
-      </PageToolbar>
+      <BillingFilters clients={allClients} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">Loading billing data...</p>
-        </div>
+        <PageSkeleton variant="list" />
       ) : groups.length === 0 ? (
         <BillingEmptyState hasFilters={hasFilters} />
       ) : (
@@ -164,9 +165,9 @@ export default function BillingPage() {
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleMarkInvoiced}
-        title="Mark as invoiced"
+        title={t("markAsInvoiced")}
         description={`You are about to mark ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} across ${selectedClientCount} client${selectedClientCount !== 1 ? "s" : ""} as invoiced (${formatCurrency(selectedTotal)}). This action can be undone from the Tasks page.`}
-        confirmLabel="Mark as invoiced"
+        confirmLabel={t("markAsInvoiced")}
         isLoading={markInvoicedMutation.isPending}
       />
     </div>

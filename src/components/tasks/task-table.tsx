@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { ChevronUpIcon, ChevronDownIcon } from "@heroicons/react/20/solid"
 
 import { Input } from "@/components/ui/input"
@@ -71,6 +72,7 @@ export function TaskTable({
   onUpdateRate,
   onStatusChange,
 }: TaskTableProps) {
+  const t = useTranslations("taskTable")
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [search, setSearch] = useState("")
@@ -113,7 +115,7 @@ export function TaskTable({
   if (tasks.length === 0) {
     return (
       <p className="py-4 text-center text-sm text-text-secondary">
-        No tasks found for this client.
+        {t("noTasks")}
       </p>
     )
   }
@@ -139,7 +141,7 @@ export function TaskTable({
       <div className="px-3 py-2">
         <Input
           type="text"
-          placeholder="Search by title or ID..."
+          placeholder={t("searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
@@ -150,47 +152,51 @@ export function TaskTable({
           <TableRow className="border-b border-border">
             {onToggleToInvoice && (
               <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-                Bill
+                {t("bill")}
               </TableHead>
             )}
             <TableHead
               className={sortableHeadClass}
               onClick={() => handleSort("identifier")}
             >
-              ID{renderSortIcon("identifier")}
+              {t("id")}
+              {renderSortIcon("identifier")}
             </TableHead>
             <TableHead
               className={sortableHeadClass}
               onClick={() => handleSort("title")}
             >
-              Title{renderSortIcon("title")}
+              {t("titleCol")}
+              {renderSortIcon("title")}
             </TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-              Project
+              {t("project")}
             </TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-              Status
+              {t("status")}
             </TableHead>
             <TableHead
               className={`text-right ${sortableHeadClass}`}
               onClick={() => handleSort("estimate")}
             >
-              Estimate{renderSortIcon("estimate")}
+              {t("estimate")}
+              {renderSortIcon("estimate")}
             </TableHead>
             {showRateColumn && (
               <TableHead className="text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
-                Rate
+                {t("rate")}
               </TableHead>
             )}
             <TableHead
               className={`text-right ${sortableHeadClass}`}
               onClick={() => handleSort("amount")}
             >
-              Amount{renderSortIcon("amount")}
+              {t("amount")}
+              {renderSortIcon("amount")}
             </TableHead>
             {onToggleInvoiced && (
               <TableHead className="text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
-                Invoiced
+                {t("invoiced")}
               </TableHead>
             )}
           </TableRow>
@@ -216,7 +222,7 @@ export function TaskTable({
                 colSpan={99}
                 className="py-4 text-center text-sm text-text-secondary"
               >
-                No tasks match &quot;{search}&quot;
+                {t("noMatch", { search })}
               </td>
             </TableRow>
           )}

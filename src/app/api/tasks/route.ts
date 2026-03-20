@@ -7,6 +7,7 @@ import {
   getLinearSyncStatus,
 } from "@/lib/linear-service"
 import { calculateBilling } from "@/lib/billing"
+import { getMonthKey } from "@/lib/analytics-helpers"
 import { NextResponse } from "next/server"
 
 import type { BillingMode, TaskOverride } from "@/generated/prisma/client"
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
     const params = Object.fromEntries(url.searchParams)
     const filters = taskFilterSchema.parse(params)
 
+    // Filtered clients for task grouping
     const clients = await prisma.client.findMany({
       where: {
         userId: userOrError.id,
@@ -44,6 +46,21 @@ export async function GET(request: Request) {
       include: { linearMappings: true },
     })
 
+    // All clients with Linear mappings (unfiltered) for the client dropdown
+    const allClientsRaw = await prisma.client.findMany({
+      where: { userId: userOrError.id, archivedAt: null },
+      include: { linearMappings: true },
+    })
+    const allClients: ClientSummary[] = allClientsRaw
+      .filter((c) => c.linearMappings.length > 0)
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        company: c.company,
+        billingMode: c.billingMode,
+        rate: Number(c.rate),
+      }))
+
     const clientsWithMappings = clients.filter(
       (c) => c.linearMappings.length > 0,
     )
@@ -53,11 +70,23 @@ export async function GET(request: Request) {
     }
 
     const clientIds = clientsWithMappings.map((c) => c.id)
-    const allOverrides = await prisma.taskOverride.findMany({
-      where: { clientId: { in: clientIds } },
-    })
+    const [allOverrides, allInvoices] = await Promise.all([
+      prisma.taskOverride.findMany({
+        where: { clientId: { in: clientIds } },
+      }),
+      prisma.invoice.findMany({
+        where: { clientId: { in: clientIds } },
+        select: { clientId: true, month: true, status: true },
+      }),
+    ])
     const overrideMap = new Map<string, TaskOverride>(
       allOverrides.map((o) => [o.linearIssueId, o]),
+    )
+    const invoiceStatusMap = new Map<string, string>(
+      allInvoices.map((inv) => [
+        `${inv.clientId}-${getMonthKey(inv.month)}`,
+        inv.status,
+      ]),
     )
 
     // Collect unique team IDs to fetch workflow states in parallel
@@ -159,6 +188,14 @@ export async function GET(request: Request) {
           rateOverride,
         })
 
+        const invoiced = override?.invoiced ?? false
+        let paid = false
+        if (invoiced && override?.invoicedAt) {
+          const monthKey = getMonthKey(override.invoicedAt)
+          const invoiceKey = `${client.id}-${monthKey}`
+          paid = invoiceStatusMap.get(invoiceKey) === "PAID"
+        }
+
         return {
           linearIssueId: issue.id,
           identifier: issue.identifier,
@@ -178,7 +215,8 @@ export async function GET(request: Request) {
           billingFormula: billing.formula,
           projectName: issue.projectName,
           toInvoice: override?.toInvoice ?? false,
-          invoiced: override?.invoiced ?? false,
+          invoiced,
+          paid,
           rateOverride,
         }
       })
@@ -214,7 +252,25 @@ export async function GET(request: Request) {
 
     groups.sort((a, b) => b.taskCount - a.taskCount)
 
-    return NextResponse.json({ groups, allStatuses, ...getLinearSyncStatus() })
+    const total = groups.length
+    const totalPages = Math.ceil(total / filters.limit)
+    const pagedGroups = groups.slice(
+      (filters.page - 1) * filters.limit,
+      filters.page * filters.limit,
+    )
+
+    return NextResponse.json({
+      groups: pagedGroups,
+      pagination: {
+        page: filters.page,
+        limit: filters.limit,
+        total,
+        totalPages,
+      },
+      allStatuses,
+      allClients,
+      ...getLinearSyncStatus(),
+    })
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(

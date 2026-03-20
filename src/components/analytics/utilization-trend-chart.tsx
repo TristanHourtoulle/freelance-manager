@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -36,16 +37,18 @@ interface UtilizationTrendChartProps {
 }
 
 export function UtilizationTrendChart({ data }: UtilizationTrendChartProps) {
+  const t = useTranslations("analyticsCharts")
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Monthly Utilization</CardTitle>
-        <CardDescription>Utilization rate over time</CardDescription>
+        <CardTitle>{t("monthlyUtilization")}</CardTitle>
+        <CardDescription>{t("utilizationOverTime")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-64 w-full"
+          className="aspect-auto h-48 w-full sm:h-56 md:h-64"
         >
           <BarChart accessibilityLayer data={data}>
             <CartesianGrid vertical={false} />

@@ -2,17 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { ViewToggle } from "@/components/clients/view-toggle"
+import { Checkbox } from "@/components/ui/checkbox"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
-const SORT_OPTIONS = [
-  { value: "createdAt:desc", label: "Newest first" },
-  { value: "createdAt:asc", label: "Oldest first" },
-  { value: "name:asc", label: "Name A-Z" },
-  { value: "name:desc", label: "Name Z-A" },
-  { value: "revenue:desc", label: "Revenue (high to low)" },
-  { value: "lastActivity:desc", label: "Recent activity first" },
+const SORT_OPTION_KEYS = [
+  { value: "createdAt:desc", key: "newestFirst" },
+  { value: "createdAt:asc", key: "oldestFirst" },
+  { value: "name:asc", key: "nameAZ" },
+  { value: "name:desc", key: "nameZA" },
+  { value: "revenue:desc", key: "revenueHighToLow" },
+  { value: "lastActivity:desc", key: "recentActivity" },
 ] as const
 
 interface ClientFiltersProps {
@@ -20,12 +31,8 @@ interface ClientFiltersProps {
   onViewChange: (view: "grid" | "list") => void
 }
 
-/**
- * Filter toolbar for the clients page.
- * Provides search, sort, category, archived toggle, and grid/list view switch.
- * All filter state is synced to URL search params.
- */
 export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
+  const t = useTranslations("clients")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -88,47 +95,44 @@ export function ClientFilters({ view, onViewChange }: ClientFiltersProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-2">
-          <label htmlFor="search">Search</label>
-          <input
-            id="search"
-            type="text"
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative max-w-xs flex-1">
+          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             value={searchValue}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by name or company..."
+            placeholder={t("searchPlaceholder")}
+            className="h-[38px] pl-8"
           />
         </div>
-        <div className="flex items-end gap-3 self-end">
-          <div className="space-y-2">
-            <label htmlFor="sort" className="text-sm text-text-secondary">
-              Sort
-            </label>
-            <select
-              id="sort"
-              value={currentSort}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-sm hover:border-primary"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
+        <div className="flex items-center gap-2.5">
+          <Select
+            value={currentSort}
+            onValueChange={(val) => {
+              if (val) handleSortChange(val)
+            }}
+          >
+            <SelectTrigger className="h-[38px] w-auto border-border bg-surface px-4 text-sm font-medium text-text-secondary">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTION_KEYS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {t(`sortOptions.${opt.key}`)}
+                </SelectItem>
               ))}
-            </select>
-          </div>
-          <ViewToggle view={view} onViewChange={onViewChange} />
-          <label className="flex cursor-pointer items-center gap-2 pb-1 text-sm text-text-secondary">
-            <input
-              type="checkbox"
+            </SelectContent>
+          </Select>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
               checked={searchParams.get("archived") === "true"}
-              onChange={(e) =>
-                updateParams("archived", e.target.checked ? "true" : "")
+              onCheckedChange={(checked) =>
+                updateParams("archived", checked ? "true" : "")
               }
-              className="rounded border-border"
             />
-            Show archived
+            {t("archived")}
           </label>
+          <ViewToggle view={view} onViewChange={onViewChange} />
         </div>
       </div>
       <CategoryFilter />

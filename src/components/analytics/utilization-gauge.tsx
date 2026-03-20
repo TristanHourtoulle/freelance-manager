@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 import type { Utilization } from "@/components/analytics/types"
@@ -22,12 +23,13 @@ function getBarColor(rate: number): string {
 
 /** Gauge card displaying the overall utilization rate as a percentage with a progress bar. Used on the analytics page. */
 export function UtilizationGauge({ utilization }: UtilizationGaugeProps) {
+  const t = useTranslations("analyticsCharts")
   const clampedWidth = Math.min(utilization.rate, 100)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Utilization Rate</CardTitle>
+        <CardTitle>{t("utilizationRate")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

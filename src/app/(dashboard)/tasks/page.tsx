@@ -1,19 +1,23 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { lazy, Suspense, useCallback, useMemo, useState } from "react"
+import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
+import { ArrowPathIcon, PlusIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/ui/page-header"
-import { PageToolbar } from "@/components/ui/page-toolbar"
 import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
 import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
-import { TaskKanbanBoard } from "@/components/tasks/kanban/task-kanban-board"
+const TaskKanbanBoard = lazy(() =>
+  import("@/components/tasks/kanban/task-kanban-board").then((m) => ({
+    default: m.TaskKanbanBoard,
+  })),
+)
 import { TaskEmptyState } from "@/components/tasks/task-empty-state"
-import { SyncStatusBar } from "@/components/ui/sync-status-bar"
 import { useToast } from "@/components/providers/toast-provider"
 import {
   useTasks,
@@ -22,6 +26,7 @@ import {
   useUpdateEstimate,
   useUpdateTaskStatus,
 } from "@/hooks/use-tasks"
+import { useHiddenStatuses } from "@/hooks/use-hidden-statuses"
 
 import type {
   ClientSummary,
@@ -31,6 +36,7 @@ import type {
 } from "@/components/tasks/types"
 
 export default function TasksPage() {
+  const t = useTranslations("tasks")
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -42,10 +48,24 @@ export default function TasksPage() {
   })
 
   const { data, isLoading, isFetching } = useTasks(searchParams.toString())
+  const { hiddenStatusIds, toggleStatus, showAll } = useHiddenStatuses()
 
   const refreshMutation = useRefreshLinear()
 
-  const groups = data?.groups ?? []
+  const rawGroups = data?.groups ?? []
+
+  const groups = useMemo(
+    () =>
+      rawGroups
+        .map((g) => ({
+          ...g,
+          tasks: g.tasks.filter(
+            (t) => !t.status || !hiddenStatusIds.has(t.status.id),
+          ),
+        }))
+        .filter((g) => g.tasks.length > 0),
+    [rawGroups, hiddenStatusIds],
+  )
   const lastSyncedAt = data?.lastSyncedAt ?? null
   const isStale = data?.isStale ?? false
 
@@ -67,11 +87,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { toInvoice: value } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update task" }),
+            toast({ variant: "error", title: t("toasts.updateTaskError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const handleToggleInvoiced = useCallback(
@@ -80,11 +100,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { invoiced: value } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update task" }),
+            toast({ variant: "error", title: t("toasts.updateTaskError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const handleUpdateEstimate = useCallback(
@@ -93,11 +113,11 @@ export default function TasksPage() {
         { linearIssueId, estimate },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update estimate" }),
+            toast({ variant: "error", title: t("toasts.updateEstimateError") }),
         },
       )
     },
-    [estimateMutation, toast],
+    [estimateMutation, toast, t],
   )
 
   const handleUpdateRate = useCallback(
@@ -106,11 +126,11 @@ export default function TasksPage() {
         { linearIssueId, clientId, payload: { rateOverride: rate } },
         {
           onError: () =>
-            toast({ variant: "error", title: "Failed to update rate" }),
+            toast({ variant: "error", title: t("toasts.updateRateError") }),
         },
       )
     },
-    [overrideMutation, toast],
+    [overrideMutation, toast, t],
   )
 
   const statusMutation = useUpdateTaskStatus()
@@ -141,17 +161,17 @@ export default function TasksPage() {
             if (previous) {
               queryClient.setQueryData(queryKey, previous)
             }
-            toast({ variant: "error", title: "Failed to update status" })
+            toast({ variant: "error", title: t("toasts.updateStatusError") })
           },
         },
       )
     },
-    [searchParams, queryClient, statusMutation, toast],
+    [searchParams, queryClient, statusMutation, toast, t],
   )
 
   const availableStatuses: TaskStatusDTO[] = data?.allStatuses ?? []
 
-  const allClients: ClientSummary[] = groups.map((g) => g.client)
+  const allClients: ClientSummary[] = data?.allClients ?? []
   const hasFilters = Boolean(
     searchParams.get("clientId") || searchParams.get("preset"),
   )
@@ -171,28 +191,26 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Tasks">
+      <PageHeader title={t("title")}>
+        <Button
+          variant="outline"
+          shape="pill-left"
+          size="lg"
+          onClick={handleRefresh}
+          disabled={isLoading || isFetching}
+        >
+          <ArrowPathIcon
+            className={`size-4 ${isFetching ? "animate-spin" : ""}`}
+          />
+          {t("syncWithLinear")}
+        </Button>
         <Link href="/tasks/new">
-          <Button>New Task</Button>
-        </Link>
-        <Link href="/billing">
-          <Button variant="outline">To Invoice</Button>
+          <Button variant="gradient" shape="pill-right" size="lg">
+            <PlusIcon className="size-4" />
+            {t("newTasks")}
+          </Button>
         </Link>
       </PageHeader>
-
-      <PageToolbar>
-        <SyncStatusBar
-          lastSyncedAt={lastSyncedAt}
-          isStale={isStale}
-          onRefresh={handleRefresh}
-          isRefreshing={isLoading || isFetching}
-        />
-        <TaskFilters
-          clients={allClients}
-          view={view}
-          onViewChange={handleViewChange}
-        />
-      </PageToolbar>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -209,6 +227,12 @@ export default function TasksPage() {
         <>
           <TaskKpiCards groups={groups} />
 
+          <TaskFilters
+            clients={allClients}
+            view={view}
+            onViewChange={handleViewChange}
+          />
+
           {view === "list" ? (
             <TaskGroupList
               groups={groups}
@@ -220,10 +244,28 @@ export default function TasksPage() {
               onStatusChange={handleStatusChange}
             />
           ) : (
-            <TaskKanbanBoard
-              tasks={kanbanTasks}
-              onStatusChange={handleStatusChange}
-            />
+            <>
+              {/* Kanban hidden on mobile, fallback to list */}
+              <div className="hidden md:block">
+                <Suspense fallback={<Skeleton className="h-96 rounded-xl" />}>
+                  <TaskKanbanBoard
+                    tasks={kanbanTasks}
+                    onStatusChange={handleStatusChange}
+                  />
+                </Suspense>
+              </div>
+              <div className="block md:hidden">
+                <TaskGroupList
+                  groups={groups}
+                  availableStatuses={availableStatuses}
+                  onToggleToInvoice={handleToggleToInvoice}
+                  onToggleInvoiced={handleToggleInvoiced}
+                  onUpdateEstimate={handleUpdateEstimate}
+                  onUpdateRate={handleUpdateRate}
+                  onStatusChange={handleStatusChange}
+                />
+              </div>
+            </>
           )}
         </>
       )}

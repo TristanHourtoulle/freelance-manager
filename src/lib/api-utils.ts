@@ -71,7 +71,14 @@ export function handleApiError(error: unknown): NextResponse {
     return apiError("VAL_INVALID_INPUT", "Validation failed", 400, error.issues)
   }
 
-  return apiError("SYS_INTERNAL_ERROR", "Internal server error", 500)
+  const message =
+    error instanceof Error ? error.message : "Internal server error"
+  console.error("[API Error]", error)
+  return apiError(
+    "SYS_INTERNAL_ERROR",
+    process.env.NODE_ENV === "development" ? message : "Internal server error",
+    500,
+  )
 }
 
 /**

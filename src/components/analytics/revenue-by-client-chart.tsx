@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { Bar, BarChart, XAxis, YAxis } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ interface RevenueByClientChartProps {
 }
 
 export function RevenueByClientChart({ data }: RevenueByClientChartProps) {
+  const t = useTranslations("analyticsCharts")
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {}
     for (const [i, entry] of data.entries()) {
@@ -45,8 +47,8 @@ export function RevenueByClientChart({ data }: RevenueByClientChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Revenue by Client</CardTitle>
-        <CardDescription>Total revenue per client</CardDescription>
+        <CardTitle>{t("revenueByClient")}</CardTitle>
+        <CardDescription>{t("totalRevenuePerClient")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer

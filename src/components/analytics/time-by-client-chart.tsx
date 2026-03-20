@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { Label, Pie, PieChart } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ export function TimeByClientChart({
   data,
   onClientClick,
 }: TimeByClientChartProps) {
+  const t = useTranslations("analyticsCharts")
   const chartConfig = useMemo(() => {
     const config: ChartConfig = {
       hours: { label: "Hours" },
@@ -55,8 +57,8 @@ export function TimeByClientChart({
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Time by Client</CardTitle>
-        <CardDescription>Billed hours per client</CardDescription>
+        <CardTitle>{t("timeByClient")}</CardTitle>
+        <CardDescription>{t("billedHoursPerClient")}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer

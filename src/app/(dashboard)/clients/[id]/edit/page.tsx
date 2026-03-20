@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { ClientForm } from "@/components/clients/client-form"
 import { LinearMappingsSection } from "@/components/clients/linear-mappings-section"
 import { Button } from "@/components/ui/button"
@@ -13,6 +14,8 @@ import type { CreateClientInput } from "@/lib/schemas/client"
 export default function EditClientPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const t = useTranslations("editClient")
+  const tCommon = useTranslations("common")
 
   const [client, setClient] = useState<SerializedClient | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -42,7 +45,7 @@ export default function EditClientPage() {
 
     if (!res.ok) {
       const body = await res.json()
-      throw new Error(body.error?.message ?? "Failed to update client")
+      throw new Error(body.error?.message ?? t("updateError"))
     }
 
     router.push("/clients")
@@ -56,9 +59,9 @@ export default function EditClientPage() {
     if (res.ok) {
       const updated = await res.json()
       setClient(updated)
-      toast({ variant: "success", title: "Client unarchived" })
+      toast({ variant: "success", title: t("unarchiveSuccess") })
     } else {
-      toast({ variant: "error", title: "Failed to unarchive client" })
+      toast({ variant: "error", title: t("unarchiveError") })
     }
     setIsUnarchiving(false)
   }
@@ -66,7 +69,7 @@ export default function EditClientPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-text-secondary">Loading...</p>
+        <p className="text-sm text-text-secondary">{tCommon("loading")}</p>
       </div>
     )
   }
@@ -74,12 +77,8 @@ export default function EditClientPage() {
   if (error || !client) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-sm font-medium text-text-primary">
-          Client not found
-        </p>
-        <p className="mt-1 text-sm text-text-secondary">
-          The client you are looking for does not exist.
-        </p>
+        <p className="text-sm font-medium text-text-primary">{t("notFound")}</p>
+        <p className="mt-1 text-sm text-text-secondary">{t("notFoundDesc")}</p>
       </div>
     )
   }
@@ -88,6 +87,7 @@ export default function EditClientPage() {
     name: client.name,
     email: client.email ?? undefined,
     company: client.company ?? undefined,
+    logo: client.logo ?? undefined,
     billingMode: client.billingMode as CreateClientInput["billingMode"],
     rate: client.rate,
     category: client.category as CreateClientInput["category"],
@@ -96,13 +96,14 @@ export default function EditClientPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6">Edit Client</h1>
+      <h1 className="mb-6">{t("title")}</h1>
 
       {client.archivedAt && (
         <div className="mb-6 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm text-amber-800">
-            This client was archived on{" "}
-            {new Date(client.archivedAt).toLocaleDateString()}.
+            {t("archivedOn", {
+              date: new Date(client.archivedAt).toLocaleDateString(),
+            })}
           </p>
           <Button
             variant="outline"
@@ -110,7 +111,7 @@ export default function EditClientPage() {
             isLoading={isUnarchiving}
             className="text-xs"
           >
-            Unarchive
+            {t("unarchive")}
           </Button>
         </div>
       )}

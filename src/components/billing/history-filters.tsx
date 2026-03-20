@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   Select,
   SelectContent,
@@ -24,6 +25,7 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const t = useTranslations("billingHistory")
 
   usePersistedFilters("billing-history", ["clientId", "dateFrom", "dateTo"])
 
@@ -43,7 +45,7 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
     <div className="flex flex-wrap items-end gap-3">
       <div className="space-y-1.5">
         <label className="text-sm font-medium text-muted-foreground">
-          Client
+          {t("clientLabel")}
         </label>
         <Select
           value={clientId || undefined}
@@ -52,10 +54,10 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="All clients" />
+            <SelectValue placeholder={t("allClients")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">All clients</SelectItem>
+            <SelectItem value="__all__">{t("allClients")}</SelectItem>
             {clients.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.company ? `${c.name} (${c.company})` : c.name}
@@ -65,7 +67,7 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
         </Select>
       </div>
       <div className="space-y-2">
-        <label htmlFor="dateFrom">From</label>
+        <label htmlFor="dateFrom">{t("fromLabel")}</label>
         <input
           type="date"
           id="dateFrom"
@@ -74,7 +76,7 @@ export function HistoryFilters({ clients }: HistoryFiltersProps) {
         />
       </div>
       <div className="space-y-2">
-        <label htmlFor="dateTo">To</label>
+        <label htmlFor="dateTo">{t("toLabel")}</label>
         <input
           type="date"
           id="dateTo"

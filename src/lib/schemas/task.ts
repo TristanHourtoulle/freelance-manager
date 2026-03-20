@@ -27,6 +27,8 @@ export const taskFilterSchema = z.object({
   clientId: z.string().optional(),
   preset: z.enum(TASK_PRESETS).default("active"),
   category: categoryFilterField,
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
 })
 
 export type TaskFilterInput = z.infer<typeof taskFilterSchema>

@@ -1,15 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { PlusIcon } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
-import { PageToolbar } from "@/components/ui/page-toolbar"
 import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import { useClients, useArchiveClient } from "@/hooks/use-clients"
 
@@ -22,6 +24,8 @@ function getInitialView(): "grid" | "list" {
 }
 
 export default function ClientsPage() {
+  const t = useTranslations("clients")
+  const tc = useTranslations("common")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -70,7 +74,7 @@ export default function ClientsPage() {
         onSuccess: () => {
           toast({
             variant: "success",
-            title: isArchived ? "Client unarchived" : "Client archived",
+            title: isArchived ? t("toasts.unarchived") : t("toasts.archived"),
           })
           setArchiveTarget(null)
         },
@@ -78,8 +82,8 @@ export default function ClientsPage() {
           toast({
             variant: "error",
             title: isArchived
-              ? "Failed to unarchive client"
-              : "Failed to archive client",
+              ? t("toasts.unarchiveError")
+              : t("toasts.archiveError"),
           })
         },
       },
@@ -94,25 +98,21 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Clients">
+      <PageHeader title={t("title")}>
         <Link href="/clients/new">
-          <Button>New Client</Button>
+          <Button variant="gradient" shape="pill" size="lg">
+            <PlusIcon className="size-5" />
+            {t("newClient")}
+          </Button>
         </Link>
       </PageHeader>
 
-      <TooltipHint storageKey="clients-page">
-        Add your clients here. Set their billing mode and rate, then connect a
-        Linear project from the client edit page.
-      </TooltipHint>
+      <TooltipHint storageKey="clients-page">{t("hint")}</TooltipHint>
 
-      <PageToolbar>
-        <ClientFilters view={view} onViewChange={handleViewChange} />
-      </PageToolbar>
+      <ClientFilters view={view} onViewChange={handleViewChange} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">Loading clients...</p>
-        </div>
+        <PageSkeleton variant={view === "grid" ? "grid" : "list"} />
       ) : (
         <ClientList
           clients={clients}

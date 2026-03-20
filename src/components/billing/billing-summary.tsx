@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 
 interface BillingSummaryProps {
@@ -30,12 +31,15 @@ export function BillingSummary({
   onMarkInvoiced,
   isMarking,
 }: BillingSummaryProps) {
+  const t = useTranslations("billingTable")
+  const tb = useTranslations("billing")
+
   return (
     <div className="flex items-center justify-between rounded-lg border border-border bg-surface px-5 py-4">
       <div className="flex items-center gap-6">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-            Clients
+            {t("clients")}
           </p>
           <p className="text-lg font-semibold tabular-nums text-text-primary">
             {groupCount}
@@ -43,7 +47,7 @@ export function BillingSummary({
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-            Tasks
+            {t("tasks")}
           </p>
           <p className="text-lg font-semibold tabular-nums text-text-primary">
             {taskCount}
@@ -51,7 +55,7 @@ export function BillingSummary({
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-            Grand Total
+            {t("grandTotal")}
           </p>
           <p className="text-2xl font-bold tabular-nums text-text-primary">
             {formatAmount(grandTotal)}
@@ -63,7 +67,7 @@ export function BillingSummary({
         disabled={selectedCount === 0}
         isLoading={isMarking}
       >
-        Mark as invoiced ({selectedCount})
+        {tb("markAsInvoicedCount", { count: selectedCount })}
       </Button>
     </div>
   )

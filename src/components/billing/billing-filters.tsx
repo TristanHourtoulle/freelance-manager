@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import {
   Select,
   SelectContent,
@@ -8,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
@@ -17,14 +19,11 @@ interface BillingFiltersProps {
   clients: ClientSummary[]
 }
 
-/**
- * Filter bar for the uninvoiced billing page.
- * Provides client, date-range, and category filters synced to URL search params.
- */
 export function BillingFilters({ clients }: BillingFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const t = useTranslations("billingTable")
 
   usePersistedFilters("billing", ["clientId", "category", "dateFrom", "dateTo"])
 
@@ -43,48 +42,42 @@ export function BillingFilters({ clients }: BillingFiltersProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-muted-foreground">
-            Client
-          </label>
-          <Select
-            value={clientId || undefined}
-            onValueChange={(val) =>
-              updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
-            }
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Select
+          value={clientId || undefined}
+          onValueChange={(val) =>
+            updateParam("clientId", val === "__all__" ? "" : (val ?? ""))
+          }
+        >
+          <SelectTrigger
+            className="h-[38px] w-auto border-border bg-surface px-5 text-sm font-medium text-text-secondary"
+            style={{ borderRadius: "19px 12px 12px 19px" }}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="All clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">All clients</SelectItem>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.company ? `${c.name} (${c.company})` : c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="dateFrom">From</label>
-          <input
-            type="date"
-            id="dateFrom"
-            value={searchParams.get("dateFrom") ?? ""}
-            onChange={(e) => updateParam("dateFrom", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="dateTo">To</label>
-          <input
-            type="date"
-            id="dateTo"
-            value={searchParams.get("dateTo") ?? ""}
-            onChange={(e) => updateParam("dateTo", e.target.value)}
-          />
-        </div>
+            <SelectValue placeholder={t("allClients")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{t("allClients")}</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.company ? `${c.name} (${c.company})` : c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          value={searchParams.get("dateFrom") ?? ""}
+          onChange={(e) => updateParam("dateFrom", e.target.value)}
+          className="h-[38px] w-auto"
+          style={{ borderRadius: "12px" }}
+        />
+        <Input
+          type="date"
+          value={searchParams.get("dateTo") ?? ""}
+          onChange={(e) => updateParam("dateTo", e.target.value)}
+          className="h-[38px] w-auto"
+          style={{ borderRadius: "12px 19px 19px 12px" }}
+        />
       </div>
       <CategoryFilter />
     </div>

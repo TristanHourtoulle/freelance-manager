@@ -58,8 +58,19 @@ describe("updateSettingsSchema", () => {
     expect(result.success).toBe(false)
   })
 
-  it("rejects missing field", () => {
+  it("accepts empty object (no-op update)", () => {
     const result = updateSettingsSchema.safeParse({})
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
+  })
+
+  it("accepts new settings fields", () => {
+    const result = updateSettingsSchema.safeParse({
+      defaultCurrency: "USD",
+      defaultPaymentDays: 14,
+      defaultRate: 75,
+      theme: "dark",
+      accentColor: "#7c3aed",
+    })
+    expect(result.success).toBe(true)
   })
 })

@@ -1,36 +1,16 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import {
-  ArrowDownTrayIcon,
-  CurrencyEuroIcon,
-  ExclamationTriangleIcon,
-  UserIcon,
-  CheckIcon,
-} from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
+import { CheckIcon } from "@heroicons/react/24/outline"
 import { useNotifications } from "@/components/notifications/use-notifications"
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip-group"
+import { PageHeader } from "@/components/ui/page-header"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { NOTIFICATION_TYPE_CONFIG } from "@/lib/notification-colors"
 
-import type { Notification, NotificationType } from "@/generated/prisma/client"
-
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { icon: React.ComponentType<{ className?: string }>; color: string }
-> = {
-  BILLING_REMINDER: {
-    icon: CurrencyEuroIcon,
-    color: "text-amber-500 bg-amber-50",
-  },
-  INACTIVE_CLIENT: { icon: UserIcon, color: "text-blue-500 bg-blue-50" },
-  SYNC_ALERT: {
-    icon: ExclamationTriangleIcon,
-    color: "text-red-500 bg-red-50",
-  },
-  IMPORT_SUMMARY: {
-    icon: ArrowDownTrayIcon,
-    color: "text-emerald-500 bg-emerald-50",
-  },
-}
+import type { Notification } from "@/generated/prisma/client"
 
 type FilterTab = "all" | "unread"
 
@@ -50,9 +30,11 @@ function NotificationRow({
   notification: Notification
   onMarkAsRead: (id: string) => void
 }) {
-  const config = TYPE_CONFIG[notification.type]
+  const config = NOTIFICATION_TYPE_CONFIG[notification.type]
   const Icon = config.icon
   const isUnread = !notification.readAt
+
+  const t = useTranslations("notifications")
 
   return (
     <div
@@ -85,7 +67,7 @@ function NotificationRow({
         <button
           onClick={() => onMarkAsRead(notification.id)}
           className="shrink-0 rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary"
-          title="Mark as read"
+          title={t("markAsRead")}
         >
           <CheckIcon className="h-4 w-4" />
         </button>
@@ -95,6 +77,8 @@ function NotificationRow({
 }
 
 export default function NotificationsPage() {
+  const t = useTranslations("notifications")
+  const tc = useTranslations("common")
   const { notifications, unreadCount, isLoading, markAsRead, dismissAll } =
     useNotifications()
   const [filter, setFilter] = useState<FilterTab>("all")
@@ -108,52 +92,39 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1>Notifications</h1>
+      <PageHeader title={t("title")}>
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={dismissAll}>
-            Mark all as read
+          <Button variant="outline" shape="pill" size="lg" onClick={dismissAll}>
+            {t("markAllAsRead")}
           </Button>
         )}
-      </div>
+      </PageHeader>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Chip
+          label={t("allTab")}
+          isActive={filter === "all"}
           onClick={() => setFilter("all")}
-          aria-pressed={filter === "all"}
-          className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            filter === "all"
-              ? "bg-primary text-white"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
-          }`}
-        >
-          All
-        </button>
-        <button
-          type="button"
+          position="first"
+        />
+        <Chip
+          label={
+            unreadCount > 0
+              ? t("unreadCount", { count: unreadCount })
+              : t("unreadTab")
+          }
+          isActive={filter === "unread"}
           onClick={() => setFilter("unread")}
-          aria-pressed={filter === "unread"}
-          className={`cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            filter === "unread"
-              ? "bg-primary text-white"
-              : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
-          }`}
-        >
-          Unread {unreadCount > 0 && `(${unreadCount})`}
-        </button>
+          position="last"
+        />
       </div>
 
       {isLoading ? (
-        <div className="py-16 text-center text-sm text-text-secondary">
-          Loading notifications...
-        </div>
+        <PageSkeleton variant="list" />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface py-16 text-center">
           <p className="text-sm text-text-secondary">
-            {filter === "unread"
-              ? "No unread notifications"
-              : "No notifications yet"}
+            {filter === "unread" ? t("noUnread") : t("noNotifications")}
           </p>
         </div>
       ) : (

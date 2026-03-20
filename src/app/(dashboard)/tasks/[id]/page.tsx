@@ -1,10 +1,14 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import "@/app/linear-markdown.css"
+import { useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkBreaks from "remark-breaks"
+import { useQueryClient } from "@tanstack/react-query"
+import { useTranslations } from "next-intl"
 
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge"
 import {
@@ -17,6 +21,10 @@ import {
   TagIcon,
   CalendarDaysIcon,
   CheckCircleIcon,
+  ChatBubbleLeftIcon,
+  PaperClipIcon,
+  ArrowsRightLeftIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/20/solid"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,26 +32,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { normalizeLineBreaks } from "@/lib/format"
+import { useTaskDetail } from "@/hooks/use-task-detail"
+import {
+  SidebarRow,
+  CommentCard,
+  AttachmentRow,
+  HistoryRow,
+  AddCommentForm,
+  formatDate,
+  formatAmount,
+} from "@/components/tasks/task-detail"
 
 import type { TaskDetailResponse } from "@/components/tasks/types"
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount)
-}
-
-/** Priority label to visual style mapping. */
 const PRIORITY_STYLES: Record<string, string> = {
   Urgent: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   High: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
@@ -56,102 +57,45 @@ const PRIORITY_STYLES: Record<string, string> = {
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const t = useTranslations("taskDetail")
 
-  const [data, setData] = useState<TaskDetailResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useTaskDetail(id)
 
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [estimateValue, setEstimateValue] = useState("")
   const estimateInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      setError(null)
-
-      const res = await fetch(`/api/linear/issues/${id}`, {
-        cache: "no-store",
-      })
-
-      if (cancelled) return
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        setError(body?.error?.message ?? "Failed to load task")
-        setIsLoading(false)
-        return
-      }
-
-      const json: TaskDetailResponse = await res.json()
-      setData(json)
-      setIsLoading(false)
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
-  const handleToggleToInvoice = useCallback(
-    async (value: boolean) => {
+  const handleToggleOverride = useCallback(
+    async (field: "toInvoice" | "invoiced", value: boolean) => {
       if (!data?.client) return
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              override: prev.override
-                ? { ...prev.override, toInvoice: value }
-                : {
-                    linearIssueId: id,
-                    toInvoice: value,
-                    invoiced: false,
-                    invoicedAt: null,
-                    rateOverride: null,
-                  },
-            }
-          : prev,
+
+      queryClient.setQueryData<TaskDetailResponse>(
+        ["task-detail", id],
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                override: prev.override
+                  ? { ...prev.override, [field]: value }
+                  : {
+                      linearIssueId: id,
+                      toInvoice: field === "toInvoice" ? value : false,
+                      invoiced: field === "invoiced" ? value : false,
+                      invoicedAt: null,
+                      rateOverride: null,
+                    },
+              }
+            : prev,
       )
 
       await fetch(`/api/tasks/${id}/override`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: data.client.id, toInvoice: value }),
+        body: JSON.stringify({ clientId: data.client.id, [field]: value }),
       })
     },
-    [data, id],
-  )
-
-  const handleToggleInvoiced = useCallback(
-    async (value: boolean) => {
-      if (!data?.client) return
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              override: prev.override
-                ? { ...prev.override, invoiced: value }
-                : {
-                    linearIssueId: id,
-                    toInvoice: false,
-                    invoiced: value,
-                    invoicedAt: null,
-                    rateOverride: null,
-                  },
-            }
-          : prev,
-      )
-
-      await fetch(`/api/tasks/${id}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: data.client.id, invoiced: value }),
-      })
-    },
-    [data, id],
+    [data, id, queryClient],
   )
 
   const startEditingEstimate = useCallback(() => {
@@ -169,7 +113,7 @@ export default function TaskDetailPage() {
     if (isNaN(parsed) || parsed < 0) return
     if (parsed === data?.issue.estimate) return
 
-    setData((prev) =>
+    queryClient.setQueryData<TaskDetailResponse>(["task-detail", id], (prev) =>
       prev ? { ...prev, issue: { ...prev.issue, estimate: parsed } } : prev,
     )
 
@@ -178,7 +122,7 @@ export default function TaskDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estimate: parsed }),
     })
-  }, [estimateValue, data?.issue.estimate, id])
+  }, [estimateValue, data?.issue.estimate, id, queryClient])
 
   const handleEstimateKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -213,17 +157,19 @@ export default function TaskDetailPage() {
           className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          Back
+          {t("back")}
         </button>
-        <Card>
+        <Card className="py-0">
           <CardContent>
             <div className="py-8 text-center">
-              <p className="text-text-secondary">{error ?? "Task not found"}</p>
+              <p className="text-text-secondary">
+                {error instanceof Error ? error.message : t("taskNotFound")}
+              </p>
               <Link
                 href="/tasks"
                 className="mt-4 inline-block text-sm text-primary hover:underline"
               >
-                Return to tasks
+                {t("returnToTasks")}
               </Link>
             </div>
           </CardContent>
@@ -247,7 +193,7 @@ export default function TaskDetailPage() {
           className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          Back to tasks
+          {t("backToTasks")}
         </button>
         <a
           href={issue.url}
@@ -255,7 +201,7 @@ export default function TaskDetailPage() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-accent hover:text-text-primary"
         >
-          Open in Linear
+          {t("openInLinear")}
           <ArrowTopRightOnSquareIcon className="h-4 w-4" />
         </a>
       </div>
@@ -297,79 +243,136 @@ export default function TaskDetailPage() {
         {/* Left column: Description */}
         <div className="space-y-6 lg:col-span-2">
           {/* Description */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
-                Description
+                {t("description")}
               </h3>
               {issue.description ? (
-                <div
-                  className={[
-                    "prose max-w-none",
-                    "text-text-primary text-[0.9rem] leading-7",
-                    // Headings
-                    "prose-headings:text-text-primary prose-headings:font-semibold",
-                    "prose-h1:text-xl prose-h1:mt-10 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border",
-                    "prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-3 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/50",
-                    "prose-h3:text-base prose-h3:mt-6 prose-h3:mb-2",
-                    // Paragraphs and lists
-                    "prose-p:my-4 prose-p:leading-7",
-                    "prose-ul:my-4 prose-ul:space-y-2 prose-ul:pl-5",
-                    "prose-ol:my-4 prose-ol:space-y-2 prose-ol:pl-5",
-                    "prose-li:leading-7",
-                    // Links
-                    "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-                    // Code
-                    "prose-code:rounded prose-code:bg-surface-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:font-mono prose-code:before:content-none prose-code:after:content-none",
-                    "prose-pre:bg-surface-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-5 prose-pre:overflow-x-auto prose-pre:text-sm prose-pre:leading-6",
-                    // Blockquotes
-                    "prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-text-secondary prose-blockquote:my-5",
-                    // Horizontal rules
-                    "prose-hr:my-8 prose-hr:border-border",
-                    // Tables
-                    "prose-table:my-5 prose-th:text-left prose-th:px-3 prose-th:py-2.5 prose-th:text-xs prose-th:font-semibold prose-th:uppercase prose-th:tracking-wider prose-th:text-text-secondary prose-th:border-b prose-th:border-border prose-th:bg-surface-muted/50",
-                    "prose-td:px-3 prose-td:py-2 prose-td:text-sm prose-td:border-b prose-td:border-border/50",
-                    // Images
-                    "prose-img:rounded-lg prose-img:my-5",
-                    // Strong/emphasis
-                    "prose-strong:text-text-primary prose-strong:font-semibold",
-                  ].join(" ")}
-                >
-                  <Markdown remarkPlugins={[remarkGfm]}>
-                    {normalizeLineBreaks(issue.description)}
+                <div className="linear-markdown">
+                  <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    {issue.description}
                   </Markdown>
                 </div>
               ) : (
                 <p className="text-sm italic text-text-muted">
-                  No description provided.
+                  {t("noDescription")}
                 </p>
               )}
             </CardContent>
           </Card>
+
+          {/* Attachments */}
+          {issue.attachments.length > 0 && (
+            <Card className="py-0">
+              <CardContent className="p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                  <PaperClipIcon className="h-4 w-4" />
+                  {t("attachments")} ({issue.attachments.length})
+                </h3>
+                <div className="space-y-2">
+                  {issue.attachments.map((attachment) => (
+                    <AttachmentRow
+                      key={attachment.id}
+                      attachment={attachment}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments */}
+          <Card className="py-0">
+            <CardContent className="p-6">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                <ChatBubbleLeftIcon className="h-4 w-4" />
+                {t("comments")} ({issue.comments.length})
+              </h3>
+              {issue.comments.length > 0 && (
+                <div className="space-y-4 mb-5">
+                  {issue.comments.map((comment) => (
+                    <CommentCard key={comment.id} comment={comment} />
+                  ))}
+                </div>
+              )}
+              <AddCommentForm issueId={id} />
+            </CardContent>
+          </Card>
+
+          {/* Activity / History */}
+          {issue.history.length > 0 && (
+            <Card className="py-0">
+              <CardContent className="p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                  <ArrowsRightLeftIcon className="h-4 w-4" />
+                  {t("activity")} ({issue.history.length})
+                </h3>
+                <div className="space-y-0">
+                  {issue.history.map((entry, i) => (
+                    <HistoryRow
+                      key={entry.id}
+                      entry={entry}
+                      isLast={i === issue.history.length - 1}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right column: Sidebar */}
         <div className="space-y-4">
+          {/* Priority card */}
+          <Card className="py-0">
+            <CardContent className="p-5">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-3">
+                {t("priority")}
+              </h3>
+              <div className="flex items-center gap-2.5">
+                <ExclamationCircleIcon
+                  className={`h-5 w-5 ${
+                    issue.priority <= 1
+                      ? "text-red-500"
+                      : issue.priority === 2
+                        ? "text-orange-500"
+                        : issue.priority === 3
+                          ? "text-yellow-500"
+                          : "text-blue-500"
+                  }`}
+                />
+                <span
+                  className={`inline-flex items-center rounded-md px-2.5 py-1 text-sm font-medium ${priorityStyle}`}
+                >
+                  {issue.priorityLabel}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Details card */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
-                Details
+                {t("details")}
               </h3>
               <div className="space-y-3.5">
                 <SidebarRow
                   icon={<UserIcon className="h-4 w-4" />}
-                  label="Assignee"
-                  value={issue.assignee?.name ?? "Unassigned"}
+                  label={t("assignee")}
+                  value={issue.assignee?.name ?? t("unassigned")}
                 />
                 <SidebarRow
                   icon={<FolderIcon className="h-4 w-4" />}
-                  label="Project"
+                  label={t("project")}
                   value={issue.projectName ?? "-"}
                 />
                 <div className="flex items-center gap-3">
                   <ClockIcon className="h-4 w-4 shrink-0 text-text-muted" />
-                  <span className="text-sm text-text-secondary">Estimate</span>
+                  <span className="text-sm text-text-secondary">
+                    {t("estimate")}
+                  </span>
                   <span className="ml-auto text-sm text-text-primary">
                     {isEditingEstimate ? (
                       <input
@@ -398,7 +401,7 @@ export default function TaskDetailPage() {
                 {issue.dueDate && (
                   <SidebarRow
                     icon={<CalendarDaysIcon className="h-4 w-4" />}
-                    label="Due date"
+                    label={t("dueDate")}
                     value={formatDate(issue.dueDate)}
                   />
                 )}
@@ -407,18 +410,18 @@ export default function TaskDetailPage() {
 
                 <SidebarRow
                   icon={<CalendarDaysIcon className="h-4 w-4" />}
-                  label="Created"
+                  label={t("created")}
                   value={formatDate(issue.createdAt)}
                 />
                 <SidebarRow
                   icon={<CalendarDaysIcon className="h-4 w-4" />}
-                  label="Updated"
+                  label={t("updated")}
                   value={formatDate(issue.updatedAt)}
                 />
                 {issue.completedAt && (
                   <SidebarRow
                     icon={<CheckCircleIcon className="h-4 w-4" />}
-                    label="Completed"
+                    label={t("completed")}
                     value={formatDate(issue.completedAt)}
                   />
                 )}
@@ -427,26 +430,26 @@ export default function TaskDetailPage() {
           </Card>
 
           {/* Billing card */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
-                Billing
+                {t("billing")}
               </h3>
               {client ? (
                 <div className="space-y-3.5">
                   <SidebarRow
                     icon={<UserIcon className="h-4 w-4" />}
-                    label="Client"
+                    label={t("client")}
                     value={client.name}
                   />
                   <SidebarRow
                     icon={<TagIcon className="h-4 w-4" />}
-                    label="Mode"
+                    label={t("billingMode")}
                     value={client.billingMode}
                   />
                   <SidebarRow
                     icon={<CurrencyEuroIcon className="h-4 w-4" />}
-                    label="Rate"
+                    label={t("rate")}
                     value={`${client.rate} EUR`}
                   />
 
@@ -456,7 +459,7 @@ export default function TaskDetailPage() {
                       <div className="rounded-lg bg-surface-muted/50 p-3">
                         <div className="flex items-baseline justify-between">
                           <span className="text-sm text-text-secondary">
-                            Amount
+                            {t("amount")}
                           </span>
                           <span className="text-lg font-bold tabular-nums text-text-primary">
                             {formatAmount(billing.amount)}
@@ -473,66 +476,46 @@ export default function TaskDetailPage() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-text-secondary">
-                      To invoice
+                      {t("toInvoice")}
                     </span>
                     <Checkbox
                       checked={toInvoice}
                       onCheckedChange={(checked) =>
-                        handleToggleToInvoice(!!checked)
+                        handleToggleOverride("toInvoice", !!checked)
                       }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-text-secondary">
-                      Invoiced
+                      {t("invoicedLabel")}
                     </span>
                     {invoiced ? (
                       <button
-                        onClick={() => handleToggleInvoiced(false)}
+                        onClick={() => handleToggleOverride("invoiced", false)}
                         className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                       >
                         <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Invoiced
+                        {t("invoicedStatus")}
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleToggleInvoiced(true)}
+                        onClick={() => handleToggleOverride("invoiced", true)}
                         className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-border"
                       >
-                        Not invoiced
+                        {t("notInvoiced")}
                       </button>
                     )}
                   </div>
                 </div>
               ) : (
                 <p className="text-sm italic text-text-muted">
-                  No client mapped to this task.
+                  {t("noClientMapped")}
                 </p>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
-  )
-}
-
-function SidebarRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="shrink-0 text-text-muted">{icon}</span>
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className="ml-auto text-sm font-medium text-text-primary truncate max-w-[140px]">
-        {value}
-      </span>
     </div>
   )
 }

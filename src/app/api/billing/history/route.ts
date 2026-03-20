@@ -138,6 +138,17 @@ export async function GET(request: Request) {
         month: { gte: dateFrom, lte: dateTo },
         ...(filters.clientId ? { clientId: filters.clientId } : {}),
       },
+      include: {
+        files: {
+          select: {
+            id: true,
+            fileName: true,
+            fileSize: true,
+            uploadedAt: true,
+          },
+          orderBy: { uploadedAt: "desc" },
+        },
+      },
     })
     const invoiceMap = new Map(
       invoices.map((inv) => [
@@ -146,6 +157,15 @@ export async function GET(request: Request) {
           id: inv.id,
           status: inv.status,
           totalAmount: Number(inv.totalAmount),
+          paymentDueDate: inv.paymentDueDate
+            ? inv.paymentDueDate.toISOString()
+            : null,
+          files: inv.files.map((f) => ({
+            id: f.id,
+            fileName: f.fileName,
+            fileSize: f.fileSize,
+            uploadedAt: f.uploadedAt.toISOString(),
+          })),
         },
       ]),
     )
@@ -175,6 +195,10 @@ export async function GET(request: Request) {
         const billingMode = client.billingMode as BillingMode
         const rate = Number(client.rate)
 
+        const invoiceKey = `${clientId}-${monthKey}`
+        const invoiceData = invoiceMap.get(invoiceKey)
+        const isPaid = invoiceData?.status === "PAID"
+
         const tasks: EnrichedTask[] = clientOverrides.map((override) => {
           const issue = issueMap.get(override.linearIssueId)
           const rateOverride = override.rateOverride
@@ -195,6 +219,7 @@ export async function GET(request: Request) {
               projectName: undefined,
               toInvoice: true,
               invoiced: true,
+              paid: isPaid,
               rateOverride,
             }
           }
@@ -219,6 +244,7 @@ export async function GET(request: Request) {
             projectName: issue.projectName,
             toInvoice: true,
             invoiced: true,
+            paid: isPaid,
             rateOverride,
           }
         })
@@ -236,15 +262,12 @@ export async function GET(request: Request) {
           rate,
         }
 
-        const invoiceKey = `${clientId}-${monthKey}`
-        const invoice = invoiceMap.get(invoiceKey)
-
         clientGroups.push({
           client: clientSummary,
           tasks,
           totalBilling: Math.round(totalBilling * 100) / 100,
           taskCount: tasks.length,
-          invoice,
+          invoice: invoiceData,
         })
       }
 

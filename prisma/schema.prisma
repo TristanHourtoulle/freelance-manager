@@ -8,18 +8,20 @@ generator client {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  clients       Client[]
-  settings      UserSettings?
-  notifications Notification[]
+  id               String            @id @default(cuid())
+  name             String
+  email            String            @unique
+  emailVerified    Boolean           @default(false)
+  image            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  clients          Client[]
+  settings         UserSettings?
+  notifications    Notification[]
+  expenses         Expense[]
+  bankTransactions BankTransaction[]
 
   @@map("users")
 }
@@ -72,8 +74,34 @@ model UserSettings {
   id                     String   @id @default(cuid())
   userId                 String   @unique
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Billing defaults
   availableHoursPerMonth Int      @default(140)
   monthlyRevenueTarget   Decimal  @default(0) @db.Decimal(10, 2)
+  defaultCurrency        String   @default("EUR")
+  defaultPaymentDays     Int      @default(30)
+  defaultRate            Decimal  @default(0) @db.Decimal(10, 2)
+
+  // Notification preferences (JSON: { billingReminder: true, inactiveClient: true, ... })
+  notificationPrefs      Json?
+
+  // Linear integration (AES-256-GCM encrypted)
+  linearApiTokenEncrypted Bytes?
+  linearApiTokenIv        Bytes?
+
+  // Dashboard KPI preferences (JSON: string[] of enabled KPI ids)
+  dashboardKpis          Json?
+
+  // Tax settings
+  taxRegime              String   @default("micro")
+  tvaRate                Decimal  @default(0) @db.Decimal(5, 2)
+  activityType           String   @default("services")
+  acreEligible           Boolean  @default(false)
+
+  // Appearance
+  theme                  String   @default("system")
+  accentColor            String   @default("#2563eb")
+
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -107,6 +135,21 @@ enum NotificationType {
   INACTIVE_CLIENT
   SYNC_ALERT
   IMPORT_SUMMARY
+  PAYMENT_OVERDUE
+}
+
+enum ExpenseCategory {
+  SUBSCRIPTION
+  SOFTWARE
+  HARDWARE
+  TRAVEL
+  OFFICE
+  MARKETING
+  LEGAL
+  PROFESSIONAL
+  PERSONAL
+  ENTERTAINMENT
+  OTHER
 }
 
 model Client {
@@ -116,6 +159,7 @@ model Client {
   name        String
   email       String?
   company     String?
+  logo        String?
   billingMode BillingMode  @default(HOURLY)
   rate        Decimal      @default(0) @db.Decimal(10, 2)
   category    Category     @default(FREELANCE)
@@ -127,10 +171,27 @@ model Client {
   linearMappings LinearMapping[]
   taskOverrides  TaskOverride[]
   invoices       Invoice[]
+  expenses       Expense[]
+  tags           Tag[]
+  journal        ClientNote[]
 
   @@index([userId])
   @@index([category])
   @@map("clients")
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([clientId, createdAt])
+  @@map("client_notes")
 }
 
 model LinearMapping {
@@ -144,6 +205,8 @@ model LinearMapping {
   updatedAt       DateTime @updatedAt
 
   @@unique([clientId, linearProjectId])
+  @@index([linearTeamId])
+  @@index([linearProjectId])
   @@map("linear_mappings")
 }
 
@@ -164,18 +227,65 @@ model TaskOverride {
 }
 
 model Invoice {
-  id          String        @id @default(cuid())
-  clientId    String
-  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  month       DateTime
-  totalAmount Decimal       @default(0) @db.Decimal(10, 2)
-  status      InvoiceStatus @default(DRAFT)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  month          DateTime
+  totalAmount    Decimal       @default(0) @db.Decimal(10, 2)
+  status         InvoiceStatus @default(DRAFT)
+  paymentDueDate DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  files InvoiceFile[]
 
   @@unique([clientId, month])
   @@index([clientId])
+  @@index([status])
+  @@index([month])
   @@map("invoices")
+}
+
+model InvoiceFile {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileSize   Int
+  mimeType   String   @default("application/pdf")
+  fileData   Bytes
+  uploadedAt DateTime @default(now())
+
+  @@index([invoiceId])
+  @@map("invoice_files")
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  category    ExpenseCategory @default(OTHER)
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  date        DateTime
+  recurring   Boolean         @default(false)
+  receiptUrl  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  tags            Tag[]
+  bankTransaction BankTransaction?
+
+  @@index([userId])
+  @@index([userId, category])
+  @@index([userId, date])
+  @@index([clientId])
+  @@index([date])
+  @@index([deletedAt])
+  @@map("expenses")
 }
 
 model Notification {
@@ -191,5 +301,92 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, type])
+  @@index([createdAt])
   @@map("notifications")
+}
+
+// --- Audit Log ---
+// NOTE: action and entity are kept as String for now to avoid a migration.
+// Valid actions: CREATE, UPDATE, DELETE, ARCHIVE, UNARCHIVE, EXPORT, LOGIN
+// Valid entities: Client, Expense, Invoice, TaskOverride, UserSettings, UserData, Tag, BankTransaction
+// Enforced at application layer via AUDIT_ACTIONS in src/lib/audit-log.ts.
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entity     String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// --- Local Task Cache (reduces Linear API dependency) ---
+
+model TaskCache {
+  linearIssueId String   @id
+  userId        String
+  data          Json     // Full serialized Linear issue data
+  syncedAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([syncedAt])
+  @@map("task_cache")
+}
+
+// --- Usage Metrics ---
+
+model UsageMetric {
+  id        String   @id @default(cuid())
+  userId    String
+  event     String   // page_view, action, feature_used, etc.
+  page      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([event])
+  @@map("usage_metrics")
+}
+
+// --- Tags (custom labels for clients and expenses) ---
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String   @default("#6b7280")
+  createdAt DateTime @default(now())
+
+  clients  Client[]
+  expenses Expense[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+// --- Bank Transactions (imported from CSV) ---
+
+model BankTransaction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  description      String
+  amount           Decimal  @db.Decimal(10, 2)
+  bankName         String?
+  matchedExpenseId String?  @unique
+  matchedExpense   Expense? @relation(fields: [matchedExpenseId], references: [id], onDelete: SetNull)
+  importedAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, date])
+  @@map("bank_transactions")
 }

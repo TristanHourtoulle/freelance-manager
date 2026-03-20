@@ -3,11 +3,13 @@
 import { useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { HistoryFilters } from "@/components/billing/history-filters"
 import { HistorySummary } from "@/components/billing/history-summary"
 import { HistoryMonthList } from "@/components/billing/history-month-list"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { PageToolbar } from "@/components/ui/page-toolbar"
 import { useToast } from "@/components/providers/toast-provider"
 import { useBillingHistory, useUpdateInvoiceStatus } from "@/hooks/use-billing"
@@ -17,6 +19,8 @@ import type { ClientSummary } from "@/components/tasks/types"
 export default function BillingHistoryPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const t = useTranslations("billingHistory")
+  const tEmpty = useTranslations("emptyStates")
 
   const { data, isLoading } = useBillingHistory(searchParams.toString())
   const updateStatusMutation = useUpdateInvoiceStatus()
@@ -24,24 +28,34 @@ export default function BillingHistoryPage() {
   const months = data?.months ?? []
   const grandTotal = data?.grandTotal ?? 0
 
-  const handleMarkAsPaid = useCallback(
-    (invoiceId: string) => {
+  const handleUpdateStatus = useCallback(
+    (invoiceId: string, status: "DRAFT" | "SENT" | "PAID") => {
       updateStatusMutation.mutate(
-        { invoiceId, status: "PAID" },
+        { invoiceId, status },
         {
           onSuccess: () => {
-            toast({ variant: "success", title: "Invoice marked as paid" })
+            toast({
+              variant: "success",
+              title: t("statusUpdated"),
+            })
           },
           onError: () => {
             toast({
               variant: "error",
-              title: "Failed to update invoice status",
+              title: t("statusUpdateError"),
             })
           },
         },
       )
     },
-    [updateStatusMutation, toast],
+    [updateStatusMutation, toast, t],
+  )
+
+  const handleMarkAsPaid = useCallback(
+    (invoiceId: string) => {
+      handleUpdateStatus(invoiceId, "PAID")
+    },
+    [handleUpdateStatus],
   )
 
   const allClients: ClientSummary[] = useMemo(() => {
@@ -73,9 +87,9 @@ export default function BillingHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Invoiced History">
+      <PageHeader title={t("title")}>
         <Link href="/billing">
-          <Button variant="outline">To Invoice</Button>
+          <Button variant="outline">{t("backToInvoice")}</Button>
         </Link>
       </PageHeader>
 
@@ -84,15 +98,11 @@ export default function BillingHistoryPage() {
       </PageToolbar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">
-            Loading invoiced history...
-          </p>
-        </div>
+        <PageSkeleton variant="list" />
       ) : months.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface px-6 py-16 text-center">
           <p className="text-sm text-text-secondary">
-            No invoiced tasks found for the selected period.
+            {tEmpty("historyEmpty")}
           </p>
         </div>
       ) : (
@@ -103,7 +113,11 @@ export default function BillingHistoryPage() {
             taskCount={totalTaskCount}
             grandTotal={grandTotal}
           />
-          <HistoryMonthList months={months} onMarkAsPaid={handleMarkAsPaid} />
+          <HistoryMonthList
+            months={months}
+            onMarkAsPaid={handleMarkAsPaid}
+            onUpdateStatus={handleUpdateStatus}
+          />
         </>
       )}
     </div>

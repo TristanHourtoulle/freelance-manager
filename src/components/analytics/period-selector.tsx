@@ -1,100 +1,51 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { useTranslations } from "next-intl"
+import { Chip } from "@/components/ui/chip-group"
 
-const PERIOD_OPTIONS = [
-  { value: "1m", label: "This month" },
-  { value: "3m", label: "Last 3 months" },
-  { value: "6m", label: "Last 6 months" },
-  { value: "1y", label: "This year" },
-  { value: "custom", label: "Custom range" },
+const PERIOD_OPTION_KEYS: readonly { value: string; key: string }[] = [
+  { value: "1m", key: "thisMonth" },
+  { value: "3m", key: "threeMonths" },
+  { value: "6m", key: "sixMonths" },
+  { value: "1y", key: "thisYear" },
 ]
 
-/**
- * Dropdown selector for choosing an analytics time period.
- * Syncs the selected period (and optional custom date range) to URL search params.
- * Used on the analytics page.
- */
 export function PeriodSelector() {
+  const t = useTranslations("analytics.periods")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const period = searchParams.get("period") ?? "3m"
 
-  function updateParam(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) {
-      params.set(key, value)
-    } else {
-      params.delete(key)
-    }
-    router.push(`${pathname}?${params.toString()}`, { scroll: false })
-  }
-
   function handlePeriodChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())
     params.set("period", value)
-    if (value !== "custom") {
-      params.delete("from")
-      params.delete("to")
-    }
+    params.delete("from")
+    params.delete("to")
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-muted-foreground">
-          Period
-        </label>
-        <Select
-          value={period}
-          onValueChange={(val) => {
-            if (val) handlePeriodChange(val)
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select period" />
-          </SelectTrigger>
-          <SelectContent>
-            {PERIOD_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {period === "custom" && (
-        <>
-          <div className="space-y-2">
-            <label htmlFor="dateFrom">From</label>
-            <input
-              type="date"
-              id="dateFrom"
-              value={searchParams.get("from") ?? ""}
-              onChange={(e) => updateParam("from", e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="dateTo">To</label>
-            <input
-              type="date"
-              id="dateTo"
-              value={searchParams.get("to") ?? ""}
-              onChange={(e) => updateParam("to", e.target.value)}
-            />
-          </div>
-        </>
-      )}
+    <div className="flex flex-wrap items-center gap-2.5">
+      {PERIOD_OPTION_KEYS.map((opt, index) => (
+        <Chip
+          key={opt.value}
+          label={t(opt.key)}
+          isActive={period === opt.value}
+          onClick={() => handlePeriodChange(opt.value)}
+          position={
+            PERIOD_OPTION_KEYS.length === 1
+              ? "only"
+              : index === 0
+                ? "first"
+                : index === PERIOD_OPTION_KEYS.length - 1
+                  ? "last"
+                  : "middle"
+          }
+        />
+      ))}
     </div>
   )
 }

@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo } from "react"
+import { useTranslations } from "next-intl"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { StatCard, StatCardGroup } from "@/components/ui/stat-card"
 
 import type { ClientTaskGroup } from "./types"
 
@@ -10,7 +11,6 @@ interface TaskKpiCardsProps {
   groups: ClientTaskGroup[]
 }
 
-/** Formats a number as EUR currency using fr-FR locale. */
 function formatEur(value: number): string {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -18,11 +18,8 @@ function formatEur(value: number): string {
   }).format(value)
 }
 
-/**
- * Displays a grid of KPI stat cards summarizing task metrics
- * across all client groups: total tasks, hours, billable amount, and completed count.
- */
 export function TaskKpiCards({ groups }: TaskKpiCardsProps) {
+  const t = useTranslations("tasks.kpi")
   const stats = useMemo(() => {
     let totalTasks = 0
     let totalHours = 0
@@ -48,25 +45,18 @@ export function TaskKpiCards({ groups }: TaskKpiCardsProps) {
     return { totalTasks, totalHours, billableAmount, completedTasks }
   }, [groups])
 
-  const cards = [
-    { label: "Total Tasks", value: String(stats.totalTasks) },
-    { label: "Total Hours", value: `${stats.totalHours}h` },
-    { label: "Billable Amount", value: formatEur(stats.billableAmount) },
-    { label: "Completed Tasks", value: String(stats.completedTasks) },
-  ]
-
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card) => (
-        <Card key={card.label} size="sm">
-          <CardContent>
-            <p className="text-xs uppercase text-muted-foreground">
-              {card.label}
-            </p>
-            <p className="text-2xl font-bold tracking-tight">{card.value}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <StatCardGroup>
+      <StatCard
+        label={t("billableAmount")}
+        value={formatEur(stats.billableAmount)}
+      />
+      <StatCard
+        label={t("completedTasks")}
+        value={String(stats.completedTasks)}
+      />
+      <StatCard label={t("totalTasks")} value={String(stats.totalTasks)} />
+      <StatCard label={t("totalHours")} value={`${stats.totalHours} h`} />
+    </StatCardGroup>
   )
 }

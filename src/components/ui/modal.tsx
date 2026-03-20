@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -32,7 +33,7 @@ interface ModalProps {
  * @param onConfirm - Callback invoked when the user clicks the confirm button
  * @param title - Heading displayed in the dialog
  * @param description - Explanatory text below the title
- * @param confirmLabel - Label for the confirm button (defaults to "Confirm")
+ * @param confirmLabel - Label for the confirm button (defaults to translated "Confirm")
  * @param variant - "default" or "danger"; controls confirm button styling
  * @param isLoading - Disables interactions and shows a loading state on confirm
  */
@@ -42,10 +43,12 @@ export function Modal({
   onConfirm,
   title,
   description,
-  confirmLabel = "Confirm",
+  confirmLabel,
   variant = "default",
   isLoading = false,
 }: ModalProps) {
+  const t = useTranslations("common")
+
   return (
     <Dialog
       open={isOpen}
@@ -62,14 +65,14 @@ export function Modal({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             variant={variant === "danger" ? "destructive" : "default"}
             onClick={onConfirm}
             isLoading={isLoading}
           >
-            {confirmLabel}
+            {confirmLabel ?? "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>

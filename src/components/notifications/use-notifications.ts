@@ -1,89 +1,125 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import type { Notification } from "@/generated/prisma/client"
+
+interface NotificationsResponse {
+  items: Notification[]
+  unreadCount: number
+}
 
 interface UseNotificationsReturn {
   notifications: Notification[]
   unreadCount: number
   isLoading: boolean
-  markAsRead: (id: string) => Promise<void>
-  dismissAll: () => Promise<void>
-  refetch: () => Promise<void>
+  markAsRead: (id: string) => void
+  dismissAll: () => void
+  refetch: () => void
 }
 
 /**
- * Fetches and manages user notifications with auto-refresh on tab focus.
- * Provides methods to mark as read, dismiss all, and refetch.
- *
- * @returns Object with `notifications`, `unreadCount`, `isLoading`, `markAsRead`, `dismissAll`, and `refetch`
+ * Fetches and manages user notifications with React Query caching.
+ * Shared across NotificationBell and NotificationsPage via query key deduplication.
  */
 export function useNotifications(): UseNotificationsReturn {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
 
-  const fetchNotifications = useCallback(async () => {
-    try {
+  const { data, isLoading } = useQuery<NotificationsResponse>({
+    queryKey: ["notifications"],
+    queryFn: async () => {
       const response = await fetch(
         "/api/notifications?unreadOnly=false&limit=20",
       )
-      if (!response.ok) return
+      if (!response.ok) throw new Error("Failed to fetch notifications")
+      return response.json()
+    },
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
+  })
 
-      const data = await response.json()
-      setNotifications(data.items)
-      setUnreadCount(data.unreadCount)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const markAsReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/notifications/${id}/read`, {
+        method: "PATCH",
+      })
+      if (!response.ok) throw new Error("Failed to mark as read")
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] })
+      const previous = queryClient.getQueryData<NotificationsResponse>([
+        "notifications",
+      ])
 
-  useEffect(() => {
-    fetchNotifications()
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        fetchNotifications()
+      if (previous) {
+        queryClient.setQueryData<NotificationsResponse>(["notifications"], {
+          items: previous.items.map((n) =>
+            n.id === id ? { ...n, readAt: new Date() } : n,
+          ),
+          unreadCount: Math.max(0, previous.unreadCount - 1),
+        })
       }
-    }
+      return { previous }
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notifications"], context.previous)
+      }
+    },
+  })
 
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [fetchNotifications])
+  const dismissAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/notifications/dismiss-all", {
+        method: "POST",
+      })
+      if (!response.ok) throw new Error("Failed to dismiss all")
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["notifications"] })
+      const previous = queryClient.getQueryData<NotificationsResponse>([
+        "notifications",
+      ])
 
-  const markAsRead = useCallback(async (id: string) => {
-    const response = await fetch(`/api/notifications/${id}/read`, {
-      method: "PATCH",
-    })
-    if (!response.ok) return
+      if (previous) {
+        queryClient.setQueryData<NotificationsResponse>(["notifications"], {
+          items: previous.items.map((n) =>
+            n.readAt ? n : { ...n, readAt: new Date() },
+          ),
+          unreadCount: 0,
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["notifications"], context.previous)
+      }
+    },
+  })
 
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, readAt: new Date() } : n)),
-    )
-    setUnreadCount((prev) => Math.max(0, prev - 1))
-  }, [])
+  const markAsRead = useCallback(
+    (id: string) => markAsReadMutation.mutate(id),
+    [markAsReadMutation],
+  )
 
-  const dismissAll = useCallback(async () => {
-    const response = await fetch("/api/notifications/dismiss-all", {
-      method: "POST",
-    })
-    if (!response.ok) return
+  const dismissAll = useCallback(
+    () => dismissAllMutation.mutate(),
+    [dismissAllMutation],
+  )
 
-    setNotifications((prev) =>
-      prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date() })),
-    )
-    setUnreadCount(0)
-  }, [])
+  const refetch = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    [queryClient],
+  )
 
   return {
-    notifications,
-    unreadCount,
+    notifications: data?.items ?? [],
+    unreadCount: data?.unreadCount ?? 0,
     isLoading,
     markAsRead,
     dismissAll,
-    refetch: fetchNotifications,
+    refetch,
   }
 }

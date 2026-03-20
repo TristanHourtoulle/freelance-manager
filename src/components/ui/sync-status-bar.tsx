@@ -1,25 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { ArrowPathIcon } from "@heroicons/react/24/outline"
+import { useTranslations } from "next-intl"
 
 interface SyncStatusBarProps {
   lastSyncedAt: number | null
   isStale: boolean
   onRefresh: () => void
   isRefreshing: boolean
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const diffMs = Date.now() - timestamp
-  const diffMin = Math.floor(diffMs / 60_000)
-
-  if (diffMin < 1) return "Just now"
-  if (diffMin < 60) return `${diffMin} min ago`
-
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-
-  return `${Math.floor(diffHours / 24)}d ago`
 }
 
 /**
@@ -38,19 +27,41 @@ export function SyncStatusBar({
   onRefresh,
   isRefreshing,
 }: SyncStatusBarProps) {
+  const t = useTranslations("syncBar")
+  const [now] = useState(() => Date.now())
+
+  function formatRelativeTime(timestamp: number): string {
+    const diffMs = now - timestamp
+    const diffMin = Math.floor(diffMs / 60_000)
+
+    if (diffMin < 1) return t("justNow")
+    if (diffMin < 60) return t("minAgo", { min: diffMin })
+
+    const diffHours = Math.floor(diffMin / 60)
+    if (diffHours < 24) return t("hoursAgo", { hours: diffHours })
+
+    return t("daysAgo", { days: Math.floor(diffHours / 24) })
+  }
+
   const label =
     lastSyncedAt === null
-      ? "Never synced"
-      : `Last synced: ${formatRelativeTime(lastSyncedAt)}`
+      ? t("neverSynced")
+      : t("lastSynced", { time: formatRelativeTime(lastSyncedAt) })
 
   return (
     <div className="flex items-center gap-3">
       <span
         className={`inline-block h-2 w-2 rounded-full ${
-          isStale ? "bg-amber-400" : "bg-emerald-400"
+          isRefreshing
+            ? "animate-pulse bg-blue-400"
+            : isStale
+              ? "bg-amber-400"
+              : "bg-emerald-400"
         }`}
       />
-      <span className="text-sm text-text-secondary">{label}</span>
+      <span className="text-sm text-text-secondary">
+        {isRefreshing ? t("syncing") : label}
+      </span>
       <button
         type="button"
         onClick={onRefresh}
@@ -60,7 +71,7 @@ export function SyncStatusBar({
         <ArrowPathIcon
           className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
         />
-        Refresh
+        {isRefreshing ? t("syncing") : t("refresh")}
       </button>
     </div>
   )

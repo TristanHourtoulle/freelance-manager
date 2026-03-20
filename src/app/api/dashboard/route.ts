@@ -8,6 +8,8 @@ import {
   computeGroupAmount,
 } from "@/lib/analytics-helpers"
 import { getLinearSyncStatus } from "@/lib/linear-service"
+import { rateLimit } from "@/lib/rate-limit"
+import { dashboardCache } from "@/lib/dashboard-cache"
 
 import type { OverrideWithClient } from "@/lib/analytics-helpers"
 import type { Client, LinearMapping } from "@/generated/prisma/client"
@@ -21,8 +23,26 @@ import type { Client, LinearMapping } from "@/generated/prisma/client"
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
+
+    const cached = dashboardCache.get(`dashboard:${userOrError.id}`)
+    if (cached) {
+      return NextResponse.json(cached)
+    }
 
     const now = new Date()
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -35,33 +55,57 @@ export async function GET(request: Request) {
       archivedAt: null,
     }
 
-    const [pipelineOverrides, invoicedOverrides, userSettings] =
-      await Promise.all([
-        prisma.taskOverride.findMany({
-          where: {
-            toInvoice: true,
-            invoiced: false,
-            client: baseClientWhere,
-          },
-          include: {
-            client: { include: { linearMappings: true } },
-          },
-        }),
-        prisma.taskOverride.findMany({
-          where: {
-            invoiced: true,
-            invoicedAt: { not: null, gte: sixMonthsAgo },
-            client: baseClientWhere,
-          },
-          include: {
-            client: { include: { linearMappings: true } },
-          },
-        }),
-        prisma.userSettings.findUnique({
-          where: { userId: userOrError.id },
-          select: { monthlyRevenueTarget: true },
-        }),
-      ])
+    const [
+      pipelineOverrides,
+      invoicedOverrides,
+      userSettings,
+      activeClientsCount,
+      monthlyExpensesAgg,
+      overdueInvoicesCount,
+    ] = await Promise.all([
+      prisma.taskOverride.findMany({
+        where: {
+          toInvoice: true,
+          invoiced: false,
+          client: baseClientWhere,
+        },
+        include: {
+          client: { include: { linearMappings: true } },
+        },
+      }),
+      prisma.taskOverride.findMany({
+        where: {
+          invoiced: true,
+          invoicedAt: { not: null, gte: sixMonthsAgo },
+          client: baseClientWhere,
+        },
+        include: {
+          client: { include: { linearMappings: true } },
+        },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: userOrError.id },
+        select: { monthlyRevenueTarget: true, dashboardKpis: true },
+      }),
+      prisma.client.count({
+        where: baseClientWhere,
+      }),
+      prisma.expense.aggregate({
+        where: {
+          userId: userOrError.id,
+          deletedAt: null,
+          date: { gte: firstOfMonth, lt: firstOfNextMonth },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.count({
+        where: {
+          client: { userId: userOrError.id },
+          status: "SENT",
+          paymentDueDate: { lt: now },
+        },
+      }),
+    ])
 
     // Collect all unique clients that need Linear issue fetching
     const clientMap = new Map<
@@ -161,14 +205,23 @@ export async function GET(request: Request) {
         Math.round((monthAmounts.get(entry.month) ?? 0) * 100) / 100
     }
 
-    return NextResponse.json({
+    const responseData = {
       pipeline: Math.round(pipeline * 100) / 100,
       monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
       billedHours,
       monthlyRevenueTarget: Number(userSettings?.monthlyRevenueTarget ?? 0),
+      activeClients: activeClientsCount,
+      monthlyExpenses:
+        Math.round(Number(monthlyExpensesAgg._sum.amount ?? 0) * 100) / 100,
+      overdueInvoices: overdueInvoicesCount,
+      dashboardKpis: userSettings?.dashboardKpis ?? null,
       revenueByMonth,
       ...getLinearSyncStatus(),
-    })
+    }
+
+    dashboardCache.set(`dashboard:${userOrError.id}`, responseData)
+
+    return NextResponse.json(responseData)
   } catch (error) {
     if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
       return apiError(

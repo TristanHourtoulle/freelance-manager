@@ -4,11 +4,15 @@ export interface DashboardKPIs {
   monthlyRevenue: number
   billedHours: number
   monthlyRevenueTarget: number
+  activeClients: number
+  monthlyExpenses: number
+  overdueInvoices: number
   revenueByMonth: Array<{
     month: string
     label: string
     amount: number
   }>
+  dashboardKpis: string[] | null
   lastSyncedAt: number | null
   isStale: boolean
 }
