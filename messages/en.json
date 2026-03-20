@@ -922,5 +922,36 @@
     "cancel": "Cancel",
     "createButton": "Create",
     "deleteConfirm": "Delete tag \"{name}\"? It will be removed from all clients and expenses."
+  },
+
+  "landing": {
+    "heroTitle": "Everything you need to ",
+    "heroAccent": "run your freelance business",
+    "heroSubtitle": "Clients, invoices, tasks and analytics in one clean dashboard. Stop juggling spreadsheets.",
+    "featureClients": "Client management",
+    "featureClientsDesc": "Track clients, contacts and project history in one place.",
+    "featureBilling": "Invoicing & billing",
+    "featureBillingDesc": "Create invoices, log expenses and monitor cash flow.",
+    "featureTasks": "Task tracking",
+    "featureTasksDesc": "Kanban boards, time logging and Linear integration.",
+    "featureAnalytics": "Analytics",
+    "featureAnalyticsDesc": "Revenue charts, KPIs and financial insights at a glance.",
+    "welcomeBack": "Welcome back",
+    "getStarted": "Get started",
+    "signInSubtitle": "Sign in to your account",
+    "signUpSubtitle": "Create your free account",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "signingIn": "Signing in...",
+    "creatingAccount": "Creating account...",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "namePlaceholder": "John Doe",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "Enter your password",
+    "passwordMinPlaceholder": "At least 8 characters",
+    "confirmPasswordPlaceholder": "Repeat your password"
   }
 }

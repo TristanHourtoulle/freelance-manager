@@ -896,5 +896,36 @@
     "cancel": "Annuler",
     "createButton": "Créer",
     "deleteConfirm": "Supprimer le tag \"{name}\" ? Il sera retiré de tous les clients et dépenses."
+  },
+
+  "landing": {
+    "heroTitle": "Tout ce qu'il vous faut pour ",
+    "heroAccent": "gérer votre activité freelance",
+    "heroSubtitle": "Clients, factures, tâches et analyses dans un tableau de bord clair. Fini les tableurs.",
+    "featureClients": "Gestion des clients",
+    "featureClientsDesc": "Suivez vos clients, contacts et historique de projets en un seul endroit.",
+    "featureBilling": "Facturation",
+    "featureBillingDesc": "Créez des factures, suivez vos dépenses et votre trésorerie.",
+    "featureTasks": "Suivi des tâches",
+    "featureTasksDesc": "Kanban, suivi du temps et intégration Linear.",
+    "featureAnalytics": "Analyses",
+    "featureAnalyticsDesc": "Graphiques de revenus, KPIs et aperçu financier.",
+    "welcomeBack": "Bon retour",
+    "getStarted": "Commencer",
+    "signInSubtitle": "Connectez-vous à votre compte",
+    "signUpSubtitle": "Créez votre compte gratuitement",
+    "signIn": "Se connecter",
+    "createAccount": "Créer un compte",
+    "signingIn": "Connexion...",
+    "creatingAccount": "Création du compte...",
+    "name": "Nom",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "namePlaceholder": "Jean Dupont",
+    "emailPlaceholder": "vous@exemple.com",
+    "passwordPlaceholder": "Entrez votre mot de passe",
+    "passwordMinPlaceholder": "Au moins 8 caractères",
+    "confirmPasswordPlaceholder": "Répétez votre mot de passe"
   }
 }
