@@ -1,5 +1,6 @@
 "use client"
 
+import "@/app/linear-markdown.css"
 import { useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
@@ -32,28 +33,17 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { useTaskDetail } from "@/hooks/use-task-detail"
+import {
+  SidebarRow,
+  CommentCard,
+  AttachmentRow,
+  HistoryRow,
+  AddCommentForm,
+  formatDate,
+  formatAmount,
+} from "@/components/tasks/task-detail"
 
-import type {
-  TaskDetailResponse,
-  CommentDTO,
-  AttachmentDTO,
-  HistoryEntryDTO,
-} from "@/components/tasks/types"
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount)
-}
+import type { TaskDetailResponse } from "@/components/tasks/types"
 
 const PRIORITY_STYLES: Record<string, string> = {
   Urgent: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -76,8 +66,8 @@ export default function TaskDetailPage() {
   const [estimateValue, setEstimateValue] = useState("")
   const estimateInputRef = useRef<HTMLInputElement>(null)
 
-  const handleToggleToInvoice = useCallback(
-    async (value: boolean) => {
+  const handleToggleOverride = useCallback(
+    async (field: "toInvoice" | "invoiced", value: boolean) => {
       if (!data?.client) return
 
       queryClient.setQueryData<TaskDetailResponse>(
@@ -87,11 +77,11 @@ export default function TaskDetailPage() {
             ? {
                 ...prev,
                 override: prev.override
-                  ? { ...prev.override, toInvoice: value }
+                  ? { ...prev.override, [field]: value }
                   : {
                       linearIssueId: id,
-                      toInvoice: value,
-                      invoiced: false,
+                      toInvoice: field === "toInvoice" ? value : false,
+                      invoiced: field === "invoiced" ? value : false,
                       invoicedAt: null,
                       rateOverride: null,
                     },
@@ -102,39 +92,7 @@ export default function TaskDetailPage() {
       await fetch(`/api/tasks/${id}/override`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: data.client.id, toInvoice: value }),
-      })
-    },
-    [data, id, queryClient],
-  )
-
-  const handleToggleInvoiced = useCallback(
-    async (value: boolean) => {
-      if (!data?.client) return
-
-      queryClient.setQueryData<TaskDetailResponse>(
-        ["task-detail", id],
-        (prev) =>
-          prev
-            ? {
-                ...prev,
-                override: prev.override
-                  ? { ...prev.override, invoiced: value }
-                  : {
-                      linearIssueId: id,
-                      toInvoice: false,
-                      invoiced: value,
-                      invoicedAt: null,
-                      rateOverride: null,
-                    },
-              }
-            : prev,
-      )
-
-      await fetch(`/api/tasks/${id}/override`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: data.client.id, invoiced: value }),
+        body: JSON.stringify({ clientId: data.client.id, [field]: value }),
       })
     },
     [data, id, queryClient],
@@ -523,7 +481,7 @@ export default function TaskDetailPage() {
                     <Checkbox
                       checked={toInvoice}
                       onCheckedChange={(checked) =>
-                        handleToggleToInvoice(!!checked)
+                        handleToggleOverride("toInvoice", !!checked)
                       }
                     />
                   </div>
@@ -533,7 +491,7 @@ export default function TaskDetailPage() {
                     </span>
                     {invoiced ? (
                       <button
-                        onClick={() => handleToggleInvoiced(false)}
+                        onClick={() => handleToggleOverride("invoiced", false)}
                         className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
                       >
                         <CheckCircleIcon className="h-3.5 w-3.5" />
@@ -541,7 +499,7 @@ export default function TaskDetailPage() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleToggleInvoiced(true)}
+                        onClick={() => handleToggleOverride("invoiced", true)}
                         className="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-text-secondary transition-colors hover:bg-border"
                       >
                         {t("notInvoiced")}
@@ -559,262 +517,5 @@ export default function TaskDetailPage() {
         </div>
       </div>
     </div>
-  )
-}
-
-function SidebarRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="shrink-0 text-text-muted">{icon}</span>
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className="ml-auto text-sm font-medium text-text-primary truncate max-w-[140px]">
-        {value}
-      </span>
-    </div>
-  )
-}
-
-function CommentCard({ comment }: { comment: CommentDTO }) {
-  const t = useTranslations("taskDetail")
-
-  return (
-    <div className="rounded-lg border border-border/50 p-3.5">
-      <div className="flex items-center gap-2 mb-2">
-        {comment.user?.avatarUrl ? (
-          <img
-            src={comment.user.avatarUrl}
-            alt={comment.user.name}
-            className="h-6 w-6 rounded-full"
-          />
-        ) : (
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-            {comment.user?.name?.charAt(0) ?? "?"}
-          </div>
-        )}
-        <span className="text-sm font-medium text-text-primary">
-          {comment.user?.name ?? t("unknown")}
-        </span>
-        <span className="text-xs text-text-muted">
-          {formatDate(comment.createdAt)}
-        </span>
-      </div>
-      <div className="linear-markdown text-[0.85rem]">
-        <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-          {comment.body}
-        </Markdown>
-      </div>
-    </div>
-  )
-}
-
-function AttachmentRow({ attachment }: { attachment: AttachmentDTO }) {
-  return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-surface-muted/50"
-    >
-      <PaperClipIcon className="h-4 w-4 shrink-0 text-text-muted" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-text-primary">
-          {attachment.title}
-        </p>
-        {attachment.subtitle && (
-          <p className="truncate text-xs text-text-muted">
-            {attachment.subtitle}
-          </p>
-        )}
-      </div>
-      <span className="text-xs text-text-muted">
-        {formatDate(attachment.createdAt)}
-      </span>
-    </a>
-  )
-}
-
-function HistoryRow({
-  entry,
-  isLast,
-}: {
-  entry: HistoryEntryDTO
-  isLast: boolean
-}) {
-  const t = useTranslations("taskDetail")
-
-  const PRIORITY_LABELS: Record<number, string> = {
-    0: t("priorities.noPriority"),
-    1: t("priorities.urgent"),
-    2: t("priorities.high"),
-    3: t("priorities.medium"),
-    4: t("priorities.low"),
-  }
-
-  const parts: string[] = []
-  const actorName = entry.actor?.name ?? t("someone")
-
-  if (entry.fromState && entry.toState) {
-    parts.push(
-      t("history.movedFromTo", {
-        from: entry.fromState.name,
-        to: entry.toState.name,
-      }),
-    )
-  } else if (entry.toState) {
-    parts.push(t("history.setStatusTo", { to: entry.toState.name }))
-  }
-
-  if (entry.fromAssignee && entry.toAssignee) {
-    parts.push(
-      t("history.reassignedFromTo", {
-        from: entry.fromAssignee.name,
-        to: entry.toAssignee.name,
-      }),
-    )
-  } else if (entry.toAssignee) {
-    parts.push(t("history.assignedTo", { to: entry.toAssignee.name }))
-  } else if (entry.fromAssignee && !entry.toAssignee) {
-    parts.push(t("history.unassigned", { from: entry.fromAssignee.name }))
-  }
-
-  if (
-    entry.fromPriority !== undefined &&
-    entry.toPriority !== undefined &&
-    entry.fromPriority !== entry.toPriority
-  ) {
-    parts.push(
-      t("history.changedPriority", {
-        from: PRIORITY_LABELS[entry.fromPriority] ?? String(entry.fromPriority),
-        to: PRIORITY_LABELS[entry.toPriority] ?? String(entry.toPriority),
-      }),
-    )
-  }
-
-  if (parts.length === 0) return null
-
-  return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center">
-        <div className="mt-1.5 h-2 w-2 rounded-full bg-border" />
-        {!isLast && <div className="w-px flex-1 bg-border/50" />}
-      </div>
-      <div className={`pb-4 ${isLast ? "" : ""}`}>
-        <p className="text-sm text-text-primary">
-          <span className="font-medium">{actorName}</span>{" "}
-          <span className="text-text-secondary">{parts.join(", ")}</span>
-        </p>
-        <p className="mt-0.5 text-xs text-text-muted">
-          {formatDate(entry.createdAt)}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function AddCommentForm({ issueId }: { issueId: string }) {
-  const t = useTranslations("taskDetail")
-  const [body, setBody] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const queryClient = useQueryClient()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      const trimmed = body.trim()
-      if (!trimmed) return
-
-      setIsSubmitting(true)
-      try {
-        const res = await fetch(`/api/linear/issues/${issueId}/comments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: trimmed }),
-        })
-
-        if (!res.ok) throw new Error(t("failedToComment"))
-
-        const newComment = await res.json()
-
-        queryClient.setQueryData<TaskDetailResponse>(
-          ["task-detail", issueId],
-          (prev) =>
-            prev
-              ? {
-                  ...prev,
-                  issue: {
-                    ...prev.issue,
-                    comments: [...prev.issue.comments, newComment],
-                  },
-                }
-              : prev,
-        )
-
-        setBody("")
-        if (textareaRef.current) {
-          textareaRef.current.style.height = "auto"
-        }
-      } finally {
-        setIsSubmitting(false)
-      }
-    },
-    [body, issueId, queryClient, t],
-  )
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        handleSubmit(e)
-      }
-    },
-    [handleSubmit],
-  )
-
-  const handleInput = useCallback(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = "auto"
-    el.style.height = `${el.scrollHeight}px`
-  }, [])
-
-  const modKey =
-    typeof navigator !== "undefined" && navigator.platform?.includes("Mac")
-      ? "Cmd"
-      : "Ctrl"
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-2">
-      <textarea
-        ref={textareaRef}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onInput={handleInput}
-        placeholder={t("addComment")}
-        rows={2}
-        className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-      />
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-text-muted">
-          {t("sendShortcut", { key: modKey })}
-        </span>
-        <button
-          type="submit"
-          disabled={!body.trim() || isSubmitting}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? t("sending") : t("comment")}
-        </button>
-      </div>
-    </form>
   )
 }
