@@ -28,6 +28,7 @@
     "tasks": "Tasks",
     "billing": "Billing",
     "expenses": "Expenses",
+    "calendar": "Calendar",
     "analytics": "Analytics",
     "settings": "Settings",
     "logout": "Logout",
@@ -61,7 +62,14 @@
     "revenueChart": "Revenue (6 months)",
     "revenueChartDesc": "Last 6 months of revenue",
     "refresh": "Refresh",
-    "lastSynced": "Last synced: {time}"
+    "lastSynced": "Last synced: {time}",
+    "customizeKpis": "Customize",
+    "kpiSettings": "Dashboard KPIs",
+    "kpiSettingsDesc": "Choose which KPIs to display",
+    "activeClients": "Active Clients",
+    "overdueInvoices": "Overdue Invoices",
+    "monthlyExpenses": "Monthly Expenses",
+    "save": "Save"
   },
 
   "clients": {
@@ -234,6 +242,19 @@
       "updateError": "Failed to update expense",
       "deleteError": "Failed to delete expense"
     }
+  },
+
+  "calendar": {
+    "title": "Deadlines",
+    "invoiceDue": "Invoice due",
+    "overdue": "Overdue",
+    "dueSoon": "Due soon",
+    "upcoming": "Upcoming",
+    "noDeadlines": "No upcoming deadlines",
+    "noDeadlinesHint": "All your invoices are paid up!",
+    "daysOverdue": "{days}d overdue",
+    "daysUntil": "In {days}d",
+    "today": "Today"
   },
 
   "analytics": {

@@ -4,6 +4,7 @@ import {
   ArrowPathIcon,
   BanknotesIcon,
   BellIcon,
+  CalendarDaysIcon,
   ChartBarIcon,
   CheckCircleIcon,
   Cog6ToothIcon,
@@ -62,6 +63,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Expenses",
     href: "/expenses",
     icon: BanknotesIcon,
+  },
+  {
+    translationKey: "calendar",
+    label: "Calendar",
+    href: "/calendar",
+    icon: CalendarDaysIcon,
   },
   {
     translationKey: "analytics",

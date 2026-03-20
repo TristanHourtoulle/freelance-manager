@@ -27,6 +27,7 @@
     "tasks": "Tâches",
     "billing": "Facturation",
     "expenses": "Dépenses",
+    "calendar": "Calendrier",
     "analytics": "Analyses",
     "settings": "Paramètres",
     "logout": "Déconnexion",
@@ -58,7 +59,14 @@
     "revenueChart": "Revenus (6 mois)",
     "revenueChartDesc": "Revenus des 6 derniers mois",
     "refresh": "Rafraîchir",
-    "lastSynced": "Dernière sync : {time}"
+    "lastSynced": "Dernière sync : {time}",
+    "customizeKpis": "Personnaliser",
+    "kpiSettings": "KPIs du tableau de bord",
+    "kpiSettingsDesc": "Choisissez les KPIs à afficher",
+    "activeClients": "Clients actifs",
+    "overdueInvoices": "Factures en retard",
+    "monthlyExpenses": "Dépenses mensuelles",
+    "save": "Enregistrer"
   },
   "clients": {
     "title": "Clients",
@@ -226,6 +234,19 @@
       "updateError": "Erreur lors de la mise à jour",
       "deleteError": "Erreur lors de la suppression"
     }
+  },
+
+  "calendar": {
+    "title": "Échéances",
+    "invoiceDue": "Facture à payer",
+    "overdue": "En retard",
+    "dueSoon": "Échéance proche",
+    "upcoming": "À venir",
+    "noDeadlines": "Aucune échéance à venir",
+    "noDeadlinesHint": "Toutes vos factures sont réglées !",
+    "daysOverdue": "{days}j de retard",
+    "daysUntil": "Dans {days}j",
+    "today": "Aujourd'hui"
   },
 
   "analytics": {
