@@ -47,15 +47,16 @@ export default function DashboardPage() {
       ? (data.dashboardKpis as DashboardKpiId[])
       : DEFAULT_DASHBOARD_KPIS
 
-  // Show welcome modal for first-time users
+  // Show welcome modal on every visit until onboarding is complete,
+  // unless the user permanently dismissed it or already saw it this session
   if (
     onboardingData &&
     !onboardingData.allCompleted &&
     !isWelcomeOpen &&
     typeof window !== "undefined" &&
-    !localStorage.getItem("fm:welcome-dismissed")
+    !localStorage.getItem("fm:welcome-permanently-dismissed") &&
+    !sessionStorage.getItem("fm:welcome-session-dismissed")
   ) {
-    // Trigger in a microtask to avoid setting state during render
     queueMicrotask(() => setIsWelcomeOpen(true))
   }
 

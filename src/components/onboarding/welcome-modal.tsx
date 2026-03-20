@@ -22,7 +22,8 @@ const SLIDE_KEYS = [
   { titleKey: "slide3Title", descKey: "slide3Desc" },
 ] as const
 
-const STORAGE_KEY = "fm:welcome-dismissed"
+const SESSION_KEY = "fm:welcome-session-dismissed"
+const PERMANENT_KEY = "fm:welcome-permanently-dismissed"
 
 interface WelcomeModalProps {
   isOpen: boolean
@@ -42,24 +43,29 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
   const isLastSlide = currentSlide === SLIDE_KEYS.length - 1
   const t = useTranslations("welcome")
 
-  const handleDismiss = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, "1")
+  const handleDismissSession = useCallback(() => {
+    sessionStorage.setItem(SESSION_KEY, "1")
+    onClose()
+  }, [onClose])
+
+  const handleDismissPermanent = useCallback(() => {
+    localStorage.setItem(PERMANENT_KEY, "1")
     onClose()
   }, [onClose])
 
   const handleNext = useCallback(() => {
     if (isLastSlide) {
-      handleDismiss()
+      handleDismissSession()
     } else {
       setCurrentSlide((s) => s + 1)
     }
-  }, [isLastSlide, handleDismiss])
+  }, [isLastSlide, handleDismissSession])
 
   useEffect(() => {
     if (!isOpen) return
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") handleDismiss()
+      if (e.key === "Escape") handleDismissSession()
     }
 
     document.addEventListener("keydown", handleKeyDown)
@@ -69,13 +75,13 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
       document.removeEventListener("keydown", handleKeyDown)
       document.body.style.overflow = ""
     }
-  }, [isOpen, handleDismiss])
+  }, [isOpen, handleDismissSession])
 
   if (!isOpen) return null
 
   function handleBackdropClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) {
-      handleDismiss()
+      handleDismissSession()
     }
   }
 
@@ -110,12 +116,20 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
 
         {/* Actions */}
         <div className="mt-6 flex items-center justify-between">
-          <button
-            onClick={handleDismiss}
-            className="text-sm text-text-muted hover:text-text-secondary transition-colors"
-          >
-            {t("skip")}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleDismissSession}
+              className="text-sm text-text-muted hover:text-text-secondary transition-colors"
+            >
+              {t("skip")}
+            </button>
+            <button
+              onClick={handleDismissPermanent}
+              className="text-xs text-text-muted/60 hover:text-text-secondary transition-colors"
+            >
+              {t("dontShowAgain")}
+            </button>
+          </div>
           <Button onClick={handleNext}>
             {isLastSlide ? t("getStarted") : t("next")}
           </Button>
