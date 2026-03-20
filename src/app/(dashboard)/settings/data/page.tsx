@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline"
 import { useTranslations } from "next-intl"
@@ -92,6 +93,89 @@ function ExportCard({
   )
 }
 
+function ImportCard({
+  titleKey,
+  descriptionKey,
+  endpoint,
+}: {
+  titleKey: string
+  descriptionKey: string
+  endpoint: string
+}) {
+  const { toast } = useToast()
+  const t = useTranslations("settingsData")
+  const ti = useTranslations("import")
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [isImporting, setIsImporting] = useState(false)
+
+  const handleImport = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      setIsImporting(true)
+      try {
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        })
+        if (!res.ok) throw new Error("Import failed")
+
+        const result = await res.json()
+        toast({
+          variant: "success",
+          title: ti("success", { count: result.imported }),
+        })
+        if (result.errors?.length > 0) {
+          toast({
+            variant: "error",
+            title: ti("errors", { count: result.errors.length }),
+          })
+        }
+      } catch {
+        toast({ variant: "error", title: t("exportError") })
+      } finally {
+        setIsImporting(false)
+        if (fileRef.current) fileRef.current.value = ""
+      }
+    },
+    [endpoint, toast, t, ti],
+  )
+
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-5">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{t(titleKey)}</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {t(descriptionKey)}
+        </p>
+      </div>
+      <div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          onChange={handleImport}
+          className="hidden"
+        />
+        <Button
+          variant="outline"
+          shape="pill"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+          isLoading={isImporting}
+        >
+          <ArrowUpTrayIcon className="size-3.5" />
+          {ti("button")}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function DataSettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -131,6 +215,30 @@ export default function DataSettingsPage() {
           titleKey="invoicesExport"
           descriptionKey="invoicesExportDesc"
           endpoint="/api/export/invoices"
+        />
+        <ExportCard
+          titleKey="expensesExport"
+          descriptionKey="expensesExportDesc"
+          endpoint="/api/export/expenses"
+        />
+        <ExportCard
+          titleKey="analyticsExport"
+          descriptionKey="analyticsExportDesc"
+          endpoint="/api/export/analytics"
+        />
+      </div>
+
+      {/* Import */}
+      <div className="space-y-3">
+        <ImportCard
+          titleKey="clientsExport"
+          descriptionKey="clientsExportDesc"
+          endpoint="/api/import/clients"
+        />
+        <ImportCard
+          titleKey="expensesExport"
+          descriptionKey="expensesExportDesc"
+          endpoint="/api/import/expenses"
         />
       </div>
 

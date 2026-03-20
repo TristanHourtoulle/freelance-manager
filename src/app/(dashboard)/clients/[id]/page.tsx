@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
+import { useQuery } from "@tanstack/react-query"
 import {
   ArrowLeftIcon,
   BanknotesIcon,
@@ -17,6 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ClientDetailHeader } from "@/components/clients/client-detail-header"
 import { formatCurrency } from "@/lib/format"
 import { useClientDashboard } from "@/hooks/use-client-detail"
+
+import type { EnrichedTask, ClientTaskGroup } from "@/components/tasks/types"
 
 const ClientRevenueChart = lazy(() =>
   import("@/components/clients/client-revenue-chart").then((mod) => ({
@@ -126,6 +129,9 @@ export default function ClientDetailPage() {
           </Suspense>
         </CardContent>
       </Card>
+
+      {/* Active tasks */}
+      <ActiveTasksSection clientId={params.id} />
 
       {/* Two-column grid: invoices + expenses */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -250,6 +256,99 @@ function KpiCard({ icon, label, value }: KpiCardProps) {
             {value}
           </p>
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface TasksApiResponse {
+  groups: ClientTaskGroup[]
+}
+
+function ActiveTasksSection({ clientId }: { clientId: string }) {
+  const t = useTranslations("clients.detail")
+
+  const { data, isLoading } = useQuery<TasksApiResponse>({
+    queryKey: ["client-tasks", clientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks?clientId=${clientId}&preset=active`)
+      if (!res.ok) throw new Error("Failed to fetch tasks")
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const tasks: EnrichedTask[] =
+    data?.groups?.flatMap((g) => g.tasks).slice(0, 10) ?? []
+
+  if (isLoading) {
+    return <Skeleton className="h-48 rounded-xl" />
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("activeTasks")}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {tasks.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {t("noTasks")}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="pb-2 font-medium">{t("taskIdentifier")}</th>
+                  <th className="pb-2 font-medium">{t("taskTitle")}</th>
+                  <th className="pb-2 font-medium">{t("taskStatus")}</th>
+                  <th className="pb-2 text-right font-medium">
+                    {t("taskEstimate")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((task) => (
+                  <tr
+                    key={task.linearIssueId}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="py-2.5">
+                      <a
+                        href={task.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {task.identifier}
+                      </a>
+                    </td>
+                    <td className="max-w-[300px] truncate py-2.5 text-foreground">
+                      {task.title}
+                    </td>
+                    <td className="py-2.5">
+                      {task.status ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs">
+                          <span
+                            className="inline-block size-2 rounded-full"
+                            style={{ backgroundColor: task.status.color }}
+                          />
+                          {task.status.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-foreground">
+                      {task.estimate != null ? `${task.estimate}pt` : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
