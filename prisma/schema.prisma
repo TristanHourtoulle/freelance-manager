@@ -182,6 +182,8 @@ model LinearMapping {
   updatedAt       DateTime @updatedAt
 
   @@unique([clientId, linearProjectId])
+  @@index([linearTeamId])
+  @@index([linearProjectId])
   @@map("linear_mappings")
 }
 
@@ -216,6 +218,8 @@ model Invoice {
 
   @@unique([clientId, month])
   @@index([clientId])
+  @@index([status])
+  @@index([month])
   @@map("invoices")
 }
 
@@ -249,6 +253,9 @@ model Expense {
   updatedAt   DateTime        @updatedAt
 
   @@index([userId])
+  @@index([userId, category])
+  @@index([userId, date])
+  @@index([clientId])
   @@index([date])
   @@map("expenses")
 }
@@ -266,5 +273,52 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, type])
+  @@index([createdAt])
   @@map("notifications")
+}
+
+// --- Audit Log ---
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // CREATE, UPDATE, DELETE, ARCHIVE, UNARCHIVE, EXPORT, LOGIN, etc.
+  entity     String   // Client, Expense, Invoice, TaskOverride, UserSettings, etc.
+  entityId   String?
+  metadata   Json?    // Extra context: changed fields, old/new values
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// --- Local Task Cache (reduces Linear API dependency) ---
+
+model TaskCache {
+  linearIssueId String   @id
+  userId        String
+  data          Json     // Full serialized Linear issue data
+  syncedAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([syncedAt])
+  @@map("task_cache")
+}
+
+// --- Usage Metrics ---
+
+model UsageMetric {
+  id        String   @id @default(cuid())
+  userId    String
+  event     String   // page_view, action, feature_used, etc.
+  page      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([event])
+  @@map("usage_metrics")
 }
