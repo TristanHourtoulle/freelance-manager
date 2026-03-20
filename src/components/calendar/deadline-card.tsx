@@ -43,7 +43,7 @@ export function DeadlineCard({ deadline }: DeadlineCardProps) {
     day: "numeric",
   })
 
-  const amount = deadline.metadata.amount
+  const amount = deadline.metadata.amount ?? 0
 
   function getUrgencyLabel(): string {
     if (daysDiff === 0) return t("today")
