@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FreelanceDash",
   description: "Freelance management dashboard — clients, billing, analytics",
+  manifest: "/manifest.json",
+  themeColor: "#2563eb",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FreelanceDash",
+  },
 }
 
 export default async function RootLayout({

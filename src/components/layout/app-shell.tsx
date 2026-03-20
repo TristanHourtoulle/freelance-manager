@@ -5,6 +5,7 @@ import { AppHeader } from "./app-header"
 import { SidebarNav } from "./sidebar-nav"
 import { CommandPalette } from "@/components/ui/command-palette"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { OfflineBanner } from "@/components/ui/offline-banner"
 import { ToastProvider } from "@/components/providers/toast-provider"
 import { QueryProvider } from "@/components/providers/query-provider"
@@ -59,9 +60,11 @@ export function AppShell({
               />
               <div className="lg:pl-72">
                 <AppHeader onMenuToggle={handleToggle} />
-                <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
-                  <ErrorBoundary>{children}</ErrorBoundary>
-                </main>
+                <PullToRefresh>
+                  <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
+                    <ErrorBoundary>{children}</ErrorBoundary>
+                  </main>
+                </PullToRefresh>
               </div>
             </div>
           </UserProvider>
