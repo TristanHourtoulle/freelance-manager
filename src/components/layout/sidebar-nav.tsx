@@ -65,7 +65,7 @@ function AppNav({
               className="size-12 shrink-0 rounded-full object-cover"
             />
           ) : (
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-normal text-white bg-linear-to-r from-[#2563eb] to-[#1442a9]">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full text-sm font-normal text-white bg-linear-to-r from-[var(--color-primary)] to-[color-mix(in_srgb,var(--color-primary),#000_30%)]">
               {getInitials(userName)}
             </div>
           )}

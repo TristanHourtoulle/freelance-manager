@@ -38,7 +38,7 @@ export function Chip({
       className={cn(
         "inline-flex shrink-0 cursor-pointer items-center gap-1.5 border px-3.5 py-1.5 text-xs font-medium transition-colors",
         isActive
-          ? "bg-linear-to-r from-[#2563eb] to-[#1442a9] border-transparent text-white dark:from-primary dark:to-primary/70"
+          ? "bg-linear-to-r from-[var(--color-primary)] to-[color-mix(in_srgb,var(--color-primary),#000_30%)] border-transparent text-white"
           : "bg-transparent border-border text-text-secondary hover:border-primary/40 hover:text-text-primary",
         className,
       )}

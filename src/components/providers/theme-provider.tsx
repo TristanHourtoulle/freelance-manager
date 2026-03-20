@@ -38,8 +38,8 @@ function applyThemeClass(theme: ThemeOption) {
 function applyAccentColor(color: string) {
   const root = document.documentElement
   root.style.setProperty("--color-primary", color)
-  // Also update shadcn --primary so Tailwind `bg-primary` / `dark:from-primary` works
   root.style.setProperty("--primary", color)
+  root.style.setProperty("--ring", color)
 }
 
 interface ThemeProviderProps {
