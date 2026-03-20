@@ -86,7 +86,8 @@
     "card": {
       "billing": "Billing",
       "rate": "Rate",
-      "revenue": "Revenue"
+      "revenue": "Revenue",
+      "edit": "Edit"
     },
     "form": {
       "name": "Name",

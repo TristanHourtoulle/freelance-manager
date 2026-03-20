@@ -82,7 +82,8 @@
     "card": {
       "billing": "Facturation",
       "rate": "Tarif",
-      "revenue": "Revenu"
+      "revenue": "Revenu",
+      "edit": "Modifier"
     },
     "form": {
       "name": "Nom",
@@ -345,7 +346,9 @@
     "title": "Titre",
     "status": "Statut",
     "estimate": "Estimation",
-    "amount": "Montant"
+    "amount": "Montant",
+    "taskCount": "{count, plural, one {# tâche} other {# tâches}}",
+    "allClients": "Tous les clients"
   },
   "clientsTable": {
     "name": "Nom",
