@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ClientDetailHeader } from "@/components/clients/client-detail-header"
+import { ClientNotes } from "@/components/clients/client-notes"
 import { formatCurrency } from "@/lib/format"
 import { useClientDashboard } from "@/hooks/use-client-detail"
 
@@ -132,6 +133,9 @@ export default function ClientDetailPage() {
 
       {/* Active tasks */}
       <ActiveTasksSection clientId={params.id} />
+
+      {/* Client notes / journal */}
+      <ClientNotes clientId={params.id} />
 
       {/* Two-column grid: invoices + expenses */}
       <div className="grid gap-6 lg:grid-cols-2">

@@ -173,10 +173,25 @@ model Client {
   invoices       Invoice[]
   expenses       Expense[]
   tags           Tag[]
+  journal        ClientNote[]
 
   @@index([userId])
   @@index([category])
   @@map("clients")
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([clientId, createdAt])
+  @@map("client_notes")
 }
 
 model LinearMapping {
@@ -259,6 +274,7 @@ model Expense {
   receiptUrl  String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
 
   tags            Tag[]
   bankTransaction BankTransaction?
@@ -268,6 +284,7 @@ model Expense {
   @@index([userId, date])
   @@index([clientId])
   @@index([date])
+  @@index([deletedAt])
   @@map("expenses")
 }
 
