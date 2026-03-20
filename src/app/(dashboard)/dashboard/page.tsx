@@ -3,6 +3,7 @@
 import { lazy, Suspense, useState, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTranslations } from "next-intl"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCustomizer } from "@/components/dashboard/kpi-customizer"
 import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
@@ -120,16 +121,22 @@ export default function DashboardPage() {
             <div />
             <KpiCustomizer enabledKpis={resolvedKpis} onSave={handleSaveKpis} />
           </div>
-          <KpiCardsGrid data={data} enabledKpis={resolvedKpis} />
+          <ErrorBoundary>
+            <KpiCardsGrid data={data} enabledKpis={resolvedKpis} />
+          </ErrorBoundary>
           {data.monthlyRevenueTarget > 0 && (
-            <RevenueTargetProgress
-              currentRevenue={data.monthlyRevenue}
-              target={data.monthlyRevenueTarget}
-            />
+            <ErrorBoundary>
+              <RevenueTargetProgress
+                currentRevenue={data.monthlyRevenue}
+                target={data.monthlyRevenueTarget}
+              />
+            </ErrorBoundary>
           )}
-          <Suspense fallback={<RevenueChartSkeleton />}>
-            <RevenueChart data={data.revenueByMonth} />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<RevenueChartSkeleton />}>
+              <RevenueChart data={data.revenueByMonth} />
+            </Suspense>
+          </ErrorBoundary>
         </>
       ) : null}
     </div>
@@ -148,37 +155,43 @@ function KpiCardsGrid({
 
   const kpiDefinitions: Record<
     DashboardKpiId,
-    { title: string; value: string; subtitle: string }
+    { title: string; value: string; subtitle: string; href: string }
   > = {
     monthlyRevenue: {
       title: t("monthlyRevenue"),
       value: formatCurrency(data.monthlyRevenue),
       subtitle: t("currentMonth"),
+      href: "/billing/history",
     },
     pipeline: {
       title: t("pipeline"),
       value: formatCurrency(data.pipeline),
       subtitle: t("toInvoice"),
+      href: "/billing",
     },
     billedHours: {
       title: t("billedHours"),
       value: `${data.billedHours}h`,
       subtitle: t("currentMonth"),
+      href: "/tasks",
     },
     activeClients: {
       title: t("activeClients"),
       value: String(data.activeClients),
       subtitle: t("currentMonth"),
+      href: "/clients",
     },
     overdueInvoices: {
       title: t("overdueInvoices"),
       value: String(data.overdueInvoices),
       subtitle: t("currentMonth"),
+      href: "/billing/history",
     },
     monthlyExpenses: {
       title: t("monthlyExpenses"),
       value: formatCurrency(data.monthlyExpenses),
       subtitle: t("currentMonth"),
+      href: "/expenses",
     },
   }
 
@@ -203,6 +216,7 @@ function KpiCardsGrid({
             title={kpi.title}
             value={kpi.value}
             subtitle={kpi.subtitle}
+            href={kpi.href}
           />
         )
       })}
