@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
 interface CalendarDeadline {
@@ -25,6 +26,19 @@ interface CalendarDeadline {
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 

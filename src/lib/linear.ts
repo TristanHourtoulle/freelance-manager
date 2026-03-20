@@ -32,6 +32,11 @@ export async function getLinearClient(userId: string): Promise<LinearClient> {
   // Fallback to env var
   if (!apiKey) {
     apiKey = process.env.LINEAR_API_TOKEN
+    if (apiKey) {
+      console.warn(
+        "[Linear] Using shared LINEAR_API_TOKEN env var. Consider configuring per-user tokens for tenant isolation.",
+      )
+    }
   }
 
   if (!apiKey) {

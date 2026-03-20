@@ -14,10 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { createLinearIssueSchema } from "@/lib/schemas/linear"
 import { useToast } from "@/components/providers/toast-provider"
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react"
+
+const RichTextEditor = lazy(() =>
+  import("@/components/ui/rich-text-editor").then((m) => ({
+    default: m.RichTextEditor,
+  })),
+)
 
 import type { Resolver } from "react-hook-form"
 import type { CreateLinearIssueInput } from "@/lib/schemas/linear"
@@ -421,10 +434,12 @@ export function CreateTaskForm({ mappedProjects }: CreateTaskFormProps) {
 
         <div className="space-y-2">
           <label>{t("descriptionLabel")}</label>
-          <RichTextEditor
-            placeholder={t("descriptionPlaceholder")}
-            onChange={(md) => setValue("description", md || undefined)}
-          />
+          <Suspense fallback={<Skeleton className="h-32 w-full rounded-xl" />}>
+            <RichTextEditor
+              placeholder={t("descriptionPlaceholder")}
+              onChange={(md) => setValue("description", md || undefined)}
+            />
+          </Suspense>
           {errors.description?.message && (
             <p className="text-sm text-destructive">
               {errors.description.message}

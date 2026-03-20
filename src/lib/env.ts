@@ -8,6 +8,7 @@ const envSchema = z.object({
   LINEAR_CACHE_TTL_SECONDS: z.coerce.number().positive().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   ENCRYPTION_KEY: z.string().length(64).optional(),
+  CRON_SECRET: z.string().min(1).optional(),
 })
 
 /** Validated environment variables. Throws at startup if any required variable is missing. */

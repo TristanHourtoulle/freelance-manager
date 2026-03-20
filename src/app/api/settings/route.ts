@@ -5,6 +5,8 @@ import {
   DEFAULT_NOTIFICATION_PREFS,
   DEFAULT_DASHBOARD_KPIS,
 } from "@/lib/schemas/settings"
+import { logAudit } from "@/lib/audit-log"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
 import type { NotificationPrefs, DashboardKpiId } from "@/lib/schemas/settings"
@@ -43,6 +45,19 @@ function serializeSettings(settings: {
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -64,6 +79,19 @@ export async function GET(request: Request) {
  */
 export async function PUT(request: Request) {
   try {
+    const rl = rateLimit(request, { limit: 30, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -81,6 +109,12 @@ export async function PUT(request: Request) {
       where: { userId: userOrError.id },
       create: { userId: userOrError.id, ...updateData },
       update: updateData,
+    })
+
+    logAudit({
+      userId: userOrError.id,
+      action: "UPDATE",
+      entity: "UserSettings",
     })
 
     return NextResponse.json(serializeSettings(settings))
