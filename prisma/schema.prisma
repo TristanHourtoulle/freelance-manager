@@ -8,19 +8,20 @@ generator client {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  clients       Client[]
-  settings      UserSettings?
-  notifications Notification[]
-  expenses      Expense[]
+  id               String            @id @default(cuid())
+  name             String
+  email            String            @unique
+  emailVerified    Boolean           @default(false)
+  image            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  clients          Client[]
+  settings         UserSettings?
+  notifications    Notification[]
+  expenses         Expense[]
+  bankTransactions BankTransaction[]
 
   @@map("users")
 }
@@ -90,6 +91,12 @@ model UserSettings {
 
   // Dashboard KPI preferences (JSON: string[] of enabled KPI ids)
   dashboardKpis          Json?
+
+  // Tax settings
+  taxRegime              String   @default("micro")
+  tvaRate                Decimal  @default(0) @db.Decimal(5, 2)
+  activityType           String   @default("services")
+  acreEligible           Boolean  @default(false)
 
   // Appearance
   theme                  String   @default("system")
@@ -165,6 +172,7 @@ model Client {
   taskOverrides  TaskOverride[]
   invoices       Invoice[]
   expenses       Expense[]
+  tags           Tag[]
 
   @@index([userId])
   @@index([category])
@@ -252,6 +260,9 @@ model Expense {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  tags            Tag[]
+  bankTransaction BankTransaction?
+
   @@index([userId])
   @@index([userId, category])
   @@index([userId, date])
@@ -321,4 +332,40 @@ model UsageMetric {
   @@index([userId, createdAt])
   @@index([event])
   @@map("usage_metrics")
+}
+
+// --- Tags (custom labels for clients and expenses) ---
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String   @default("#6b7280")
+  createdAt DateTime @default(now())
+
+  clients  Client[]
+  expenses Expense[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
+}
+
+// --- Bank Transactions (imported from CSV) ---
+
+model BankTransaction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  description      String
+  amount           Decimal  @db.Decimal(10, 2)
+  bankName         String?
+  matchedExpenseId String?  @unique
+  matchedExpense   Expense? @relation(fields: [matchedExpenseId], references: [id], onDelete: SetNull)
+  importedAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, date])
+  @@map("bank_transactions")
 }
