@@ -27,6 +27,9 @@ export const createClientSchema = z.object({
   rate: z.number().min(0).default(0),
   category: CategorySchema.default("FREELANCE"),
   notes: z.string().max(2000).trim().optional(),
+  phone: z.string().max(20).trim().optional(),
+  website: z.url().optional(),
+  paymentTerms: z.number().int().positive().optional(),
 })
 
 /** Validates the request body when updating an existing client (all fields optional). */
@@ -39,6 +42,9 @@ export const updateClientSchema = z.object({
   rate: z.number().min(0).optional(),
   category: CategorySchema.optional(),
   notes: z.string().max(2000).trim().optional(),
+  phone: z.string().max(20).trim().optional(),
+  website: z.url().optional(),
+  paymentTerms: z.number().int().positive().optional(),
 })
 
 /** Allowed sort-by columns for the client list. */

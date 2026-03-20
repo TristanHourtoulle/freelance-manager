@@ -24,6 +24,7 @@ export const createExpenseSchema = z.object({
   clientId: z.string().optional(),
   recurring: z.boolean().default(false),
   receiptUrl: z.url().optional(),
+  taxDeductible: z.boolean().default(false),
 })
 
 /** Validates the request body when updating an existing expense (all fields optional). */
@@ -35,6 +36,7 @@ export const updateExpenseSchema = z.object({
   clientId: z.string().nullable().optional(),
   recurring: z.boolean().optional(),
   receiptUrl: z.url().nullable().optional(),
+  taxDeductible: z.boolean().optional(),
 })
 
 /** Sortable columns for the expense list endpoint. */

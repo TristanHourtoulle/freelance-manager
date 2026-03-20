@@ -1,6 +1,6 @@
 export interface CalendarDeadline {
   id: string
-  type: "INVOICE_DUE" | "TASK_DUE"
+  type: "INVOICE_DUE" | "TASK_DUE" | "RECURRING_EXPENSE"
   title: string
   date: string
   clientName: string
@@ -8,6 +8,7 @@ export interface CalendarDeadline {
   metadata: {
     invoiceId?: string
     taskId?: string
+    expenseId?: string
     amount?: number
     status?: string
   }

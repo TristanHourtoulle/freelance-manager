@@ -136,6 +136,7 @@ enum NotificationType {
   SYNC_ALERT
   IMPORT_SUMMARY
   PAYMENT_OVERDUE
+  RECURRING_EXPENSE
 }
 
 enum ExpenseCategory {
@@ -153,20 +154,23 @@ enum ExpenseCategory {
 }
 
 model Client {
-  id          String       @id @default(cuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  email       String?
-  company     String?
-  logo        String?
-  billingMode BillingMode  @default(HOURLY)
-  rate        Decimal      @default(0) @db.Decimal(10, 2)
-  category    Category     @default(FREELANCE)
-  notes       String?
-  archivedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  email        String?
+  phone        String?
+  website      String?
+  company      String?
+  logo         String?
+  billingMode  BillingMode  @default(HOURLY)
+  rate         Decimal      @default(0) @db.Decimal(10, 2)
+  paymentTerms Int?
+  category     Category     @default(FREELANCE)
+  notes        String?
+  archivedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   linearMappings LinearMapping[]
   taskOverrides  TaskOverride[]
@@ -234,6 +238,7 @@ model Invoice {
   totalAmount    Decimal       @default(0) @db.Decimal(10, 2)
   status         InvoiceStatus @default(DRAFT)
   paymentDueDate DateTime?
+  paidAt         DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -270,9 +275,10 @@ model Expense {
   description String
   amount      Decimal         @db.Decimal(10, 2)
   date        DateTime
-  recurring   Boolean         @default(false)
-  receiptUrl  String?
-  createdAt   DateTime        @default(now())
+  recurring      Boolean         @default(false)
+  receiptUrl     String?
+  taxDeductible  Boolean         @default(false)
+  createdAt      DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   deletedAt   DateTime?
 

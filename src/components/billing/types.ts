@@ -25,6 +25,7 @@ export interface InvoiceInfo {
   id: string
   status: "DRAFT" | "SENT" | "PAID"
   totalAmount: number
+  paidAt: string | null
   paymentDueDate: string | null
   files: InvoiceFileInfo[]
 }
