@@ -65,8 +65,44 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     clearLinearCaches()
 
+    if (payload.action === "create" || payload.action === "update") {
+      const mapping = await prisma.linearMapping.findFirst({
+        where: {
+          OR: [
+            ...(payload.data.projectId
+              ? [{ linearProjectId: payload.data.projectId as string }]
+              : []),
+            ...(payload.data.teamId
+              ? [{ linearTeamId: payload.data.teamId as string }]
+              : []),
+          ],
+        },
+        include: { client: { select: { userId: true } } },
+      })
+
+      if (mapping) {
+        await prisma.taskCache.upsert({
+          where: { linearIssueId: payload.data.id },
+          create: {
+            linearIssueId: payload.data.id,
+            userId: mapping.client.userId,
+            data: JSON.parse(JSON.stringify(payload.data)),
+            syncedAt: new Date(),
+          },
+          update: {
+            data: JSON.parse(JSON.stringify(payload.data)),
+            syncedAt: new Date(),
+          },
+        })
+      }
+    }
+
     if (payload.action === "remove") {
       await prisma.taskOverride.deleteMany({
+        where: { linearIssueId: payload.data.id },
+      })
+
+      await prisma.taskCache.deleteMany({
         where: { linearIssueId: payload.data.id },
       })
     }
