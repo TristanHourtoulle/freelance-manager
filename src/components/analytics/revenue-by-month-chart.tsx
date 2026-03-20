@@ -40,7 +40,7 @@ export function RevenueByMonthChart({ data }: RevenueByMonthChartProps) {
       <CardContent>
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-64 w-full"
+          className="aspect-auto h-48 w-full sm:h-56 md:h-64"
         >
           <BarChart accessibilityLayer data={data}>
             <CartesianGrid vertical={false} />

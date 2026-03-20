@@ -240,10 +240,26 @@ export default function TasksPage() {
               onStatusChange={handleStatusChange}
             />
           ) : (
-            <TaskKanbanBoard
-              tasks={kanbanTasks}
-              onStatusChange={handleStatusChange}
-            />
+            <>
+              {/* Kanban hidden on mobile, fallback to list */}
+              <div className="hidden md:block">
+                <TaskKanbanBoard
+                  tasks={kanbanTasks}
+                  onStatusChange={handleStatusChange}
+                />
+              </div>
+              <div className="block md:hidden">
+                <TaskGroupList
+                  groups={groups}
+                  availableStatuses={availableStatuses}
+                  onToggleToInvoice={handleToggleToInvoice}
+                  onToggleInvoiced={handleToggleInvoiced}
+                  onUpdateEstimate={handleUpdateEstimate}
+                  onUpdateRate={handleUpdateRate}
+                  onStatusChange={handleStatusChange}
+                />
+              </div>
+            </>
           )}
         </>
       )}

@@ -40,7 +40,7 @@ export function ClientList({
   return (
     <div className="space-y-4">
       {view === "grid" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {clients.map((client) => (
             <ClientCard key={client.id} client={client} onArchive={onArchive} />
           ))}
