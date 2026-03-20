@@ -38,14 +38,12 @@ export async function GET(request: Request) {
       where: {
         client: {
           userId: userOrError.id,
-          archivedAt: null,
         },
         paymentDueDate: {
-          not: null,
           gte: pastBound,
           lte: futureBound,
         },
-        status: { not: "PAID" },
+        NOT: { status: "PAID" },
       },
       include: {
         client: {
