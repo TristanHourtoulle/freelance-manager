@@ -100,6 +100,12 @@
       "recentExpenses": "D\u00e9penses r\u00e9centes",
       "noInvoices": "Aucune facture",
       "noExpenses": "Aucune d\u00e9pense",
+      "activeTasks": "T\u00e2ches actives",
+      "noTasks": "Aucune t\u00e2che active",
+      "taskIdentifier": "ID",
+      "taskTitle": "Titre",
+      "taskStatus": "Statut",
+      "taskEstimate": "Estimation",
       "edit": "Modifier"
     },
     "card": {
@@ -118,6 +124,7 @@
       "logo": "Logo",
       "billingMode": "Mode de facturation",
       "selectBillingMode": "Sélectionner un mode",
+      "rate": "Tarif",
       "ratePlaceholder": "0,00",
       "category": "Catégorie",
       "selectCategory": "Sélectionner une catégorie",
@@ -173,6 +180,13 @@
     "toasts": {
       "success": "{count, plural, one {# tâche marquée} other {# tâches marquées}} comme facturée(s)",
       "error": "Erreur lors du marquage des tâches"
+    },
+    "files": {
+      "title": "Fichiers joints",
+      "upload": "Importer",
+      "empty": "Aucun fichier joint",
+      "download": "T\u00e9l\u00e9charger le fichier",
+      "delete": "Supprimer le fichier"
     }
   },
   "expenses": {
@@ -225,6 +239,13 @@
       "cancel": "Annuler",
       "createButton": "Créer la dépense",
       "updateButton": "Mettre à jour"
+    },
+    "import": {
+      "title": "Importer des dépenses",
+      "description": "Importez des dépenses depuis un fichier CSV.",
+      "button": "Importer CSV",
+      "success": "{count} dépense(s) importée(s)",
+      "errors": "{count} erreur(s) lors de l'import"
     },
     "toasts": {
       "created": "Dépense créée",
@@ -388,6 +409,10 @@
     "jsonButton": "JSON",
     "exportSuccess": "{title} exporté en {format}",
     "exportError": "Erreur lors de l'export",
+    "expensesExport": "Dépenses",
+    "expensesExportDesc": "Exportez toutes vos données de dépenses.",
+    "analyticsExport": "Analyses",
+    "analyticsExportDesc": "Exportez vos données de revenus et d'heures.",
     "deleteAccount": "Supprimer le compte",
     "deleteAccountDesc": "Supprimez définitivement votre compte et toutes les données associées. Cette action est irréversible.",
     "deleteButton": "Supprimer mon compte",
@@ -555,6 +580,10 @@
   "billingHistory": {
     "title": "Historique de facturation",
     "backToInvoice": "Retour à la facturation",
+    "allClients": "Tous les clients",
+    "clientLabel": "Client",
+    "fromLabel": "Du",
+    "toLabel": "Au",
     "taskCount": "{count, plural, one {# tâche} other {# tâches}}",
     "paid": "Payé",
     "sent": "Envoyé",
@@ -607,5 +636,59 @@
     "daysAgo": "il y a {days}j",
     "monthsAgo": "il y a {months} mois",
     "yearsAgo": "il y a {years} an(s)"
+  },
+
+  "import": {
+    "clientsTitle": "Importer des clients",
+    "clientsDesc": "Importez des clients depuis un fichier CSV.",
+    "expensesTitle": "Importer des dépenses",
+    "expensesDesc": "Importez des dépenses depuis un fichier CSV.",
+    "button": "Importer CSV",
+    "dropzone": "Glissez un fichier CSV ou cliquez pour parcourir",
+    "success": "{count} élément(s) importé(s)",
+    "errors": "{count} erreur(s) lors de l'import",
+    "row": "Ligne {row}",
+    "templateDownload": "Télécharger le modèle CSV"
+  },
+
+  "demo": {
+    "loadData": "Charger des données de démonstration",
+    "loadDataDesc": "Créer des clients, dépenses et factures fictifs pour découvrir l'application.",
+    "loading": "Création des données...",
+    "success": "Données de démonstration créées",
+    "alreadyHasData": "Vous avez déjà des données. Les données de démonstration ne sont disponibles que pour les nouveaux comptes."
+  },
+
+  "invoiceFiles": {
+    "title": "Fichiers joints",
+    "upload": "Joindre un fichier",
+    "noFiles": "Aucun fichier joint",
+    "download": "Télécharger",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer ce fichier ?",
+    "uploadSuccess": "Fichier joint",
+    "uploadError": "Erreur lors de l'envoi",
+    "deleteSuccess": "Fichier supprimé",
+    "deleteError": "Erreur lors de la suppression"
+  },
+
+  "errorBoundary": {
+    "title": "Quelque chose s'est mal passé",
+    "description": "Une erreur inattendue est survenue. Essayez de rafraîchir la page.",
+    "tryAgain": "Réessayer",
+    "goHome": "Retour à l'accueil"
+  },
+
+  "usageStats": {
+    "title": "Statistiques d'utilisation",
+    "pageViews": "Pages vues",
+    "last30Days": "30 derniers jours",
+    "topPages": "Pages les plus visitées"
+  },
+
+  "clientDetail": {
+    "activeTasks": "Tâches en cours",
+    "noActiveTasks": "Aucune tâche en cours",
+    "viewAllTasks": "Voir toutes les tâches"
   }
 }

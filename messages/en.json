@@ -104,6 +104,12 @@
       "recentExpenses": "Recent Expenses",
       "noInvoices": "No invoices yet",
       "noExpenses": "No expenses yet",
+      "activeTasks": "Active Tasks",
+      "noTasks": "No active tasks",
+      "taskIdentifier": "ID",
+      "taskTitle": "Title",
+      "taskStatus": "Status",
+      "taskEstimate": "Estimate",
       "edit": "Edit"
     },
     "card": {
@@ -180,6 +186,13 @@
     "toasts": {
       "success": "{count, plural, one {# task} other {# tasks}} marked as invoiced",
       "error": "Failed to mark tasks as invoiced"
+    },
+    "files": {
+      "title": "Attached Files",
+      "upload": "Upload",
+      "empty": "No files attached",
+      "download": "Download file",
+      "delete": "Delete file"
     }
   },
 
@@ -403,6 +416,10 @@
     "jsonButton": "JSON",
     "exportSuccess": "{title} exported as {format}",
     "exportError": "Export failed",
+    "expensesExport": "Expenses",
+    "expensesExportDesc": "Export all your expense data.",
+    "analyticsExport": "Analytics",
+    "analyticsExportDesc": "Export your revenue and hours analytics.",
     "deleteAccount": "Delete Account",
     "deleteAccountDesc": "Permanently delete your account and all associated data. This action cannot be undone.",
     "deleteButton": "Delete my account",
@@ -645,5 +662,59 @@
     "daysAgo": "{days}d ago",
     "monthsAgo": "{months}mo ago",
     "yearsAgo": "{years}y ago"
+  },
+
+  "import": {
+    "clientsTitle": "Import Clients",
+    "clientsDesc": "Import clients from a CSV file.",
+    "expensesTitle": "Import Expenses",
+    "expensesDesc": "Import expenses from a CSV file.",
+    "button": "Import CSV",
+    "dropzone": "Drop a CSV file or click to browse",
+    "success": "{count} item(s) imported",
+    "errors": "{count} error(s) during import",
+    "row": "Row {row}",
+    "templateDownload": "Download CSV template"
+  },
+
+  "demo": {
+    "loadData": "Load demo data",
+    "loadDataDesc": "Create sample clients, expenses, and invoices to explore the app.",
+    "loading": "Creating demo data...",
+    "success": "Demo data created",
+    "alreadyHasData": "You already have data. Demo data is only available for new accounts."
+  },
+
+  "invoiceFiles": {
+    "title": "Attached Files",
+    "upload": "Attach file",
+    "noFiles": "No files attached",
+    "download": "Download",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this file?",
+    "uploadSuccess": "File attached",
+    "uploadError": "Upload failed",
+    "deleteSuccess": "File deleted",
+    "deleteError": "Failed to delete file"
+  },
+
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Try refreshing the page.",
+    "tryAgain": "Try again",
+    "goHome": "Go to dashboard"
+  },
+
+  "usageStats": {
+    "title": "Usage Statistics",
+    "pageViews": "Page Views",
+    "last30Days": "Last 30 days",
+    "topPages": "Most Visited Pages"
+  },
+
+  "clientDetail": {
+    "activeTasks": "Active Tasks",
+    "noActiveTasks": "No active tasks",
+    "viewAllTasks": "View all tasks"
   }
 }
