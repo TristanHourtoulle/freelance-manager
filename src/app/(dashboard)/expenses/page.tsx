@@ -27,6 +27,7 @@ import {
   useDeleteExpense,
 } from "@/hooks/use-expenses"
 import { useClients } from "@/hooks/use-clients"
+import { usePageShortcuts } from "@/hooks/use-page-shortcuts"
 
 import type { SerializedExpense } from "@/hooks/use-expenses"
 import type { CreateExpenseInput } from "@/lib/schemas/expense"
@@ -37,6 +38,8 @@ export default function ExpensesPage() {
   const { toast } = useToast()
 
   const [formOpen, setFormOpen] = useState(false)
+
+  usePageShortcuts({ onNew: useCallback(() => setFormOpen(true), []) })
   const [editTarget, setEditTarget] = useState<SerializedExpense | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<SerializedExpense | null>(
     null,

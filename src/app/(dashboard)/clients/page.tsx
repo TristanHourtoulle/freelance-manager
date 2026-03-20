@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -14,6 +14,7 @@ import { TooltipHint } from "@/components/ui/tooltip-hint"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import { useClients, useArchiveClient } from "@/hooks/use-clients"
+import { usePageShortcuts } from "@/hooks/use-page-shortcuts"
 
 import type { SerializedClient } from "@/components/clients/types"
 
@@ -30,6 +31,10 @@ export default function ClientsPage() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+
+  usePageShortcuts({
+    onNew: useCallback(() => router.push("/clients/new"), [router]),
+  })
 
   const [view, setView] = useState<"grid" | "list">(getInitialView)
   const [archiveTarget, setArchiveTarget] = useState<SerializedClient | null>(

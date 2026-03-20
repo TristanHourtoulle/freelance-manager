@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { ArrowPathIcon, PlusIcon } from "@heroicons/react/24/outline"
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/ui/page-header"
 import { TaskFilters, type TaskView } from "@/components/tasks/task-filters"
 import { TaskGroupList } from "@/components/tasks/task-group-list"
+import { usePageShortcuts } from "@/hooks/use-page-shortcuts"
 import { TaskKpiCards } from "@/components/tasks/task-kpi-cards"
 const TaskKanbanBoard = lazy(() =>
   import("@/components/tasks/kanban/task-kanban-board").then((m) => ({
@@ -38,8 +39,13 @@ import type {
 export default function TasksPage() {
   const t = useTranslations("tasks")
   const searchParams = useSearchParams()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { toast } = useToast()
+
+  usePageShortcuts({
+    onNew: useCallback(() => router.push("/tasks/new"), [router]),
+  })
   const [view, setView] = useState<TaskView>(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem("tasks-view") as TaskView) || "list"
