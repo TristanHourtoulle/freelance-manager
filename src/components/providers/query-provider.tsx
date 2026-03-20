@@ -20,7 +20,22 @@ export function QueryProvider({ children }: QueryProviderProps) {
             staleTime: 2 * 60 * 1000,
             gcTime: 10 * 60 * 1000,
             refetchOnWindowFocus: true,
-            retry: 1,
+            retry: (failureCount, error) => {
+              if (error instanceof Error && error.message.includes("401"))
+                return false
+              return failureCount < 1
+            },
+          },
+          mutations: {
+            onError: (error) => {
+              if (
+                error instanceof Error &&
+                error.message.includes("401") &&
+                typeof window !== "undefined"
+              ) {
+                window.location.href = "/"
+              }
+            },
           },
         },
       }),
