@@ -6,6 +6,7 @@ import {
   type PeriodPnL,
   type FinancialProjection,
 } from "@/lib/schemas/financial"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
 /**
@@ -81,6 +82,19 @@ function getNextPeriodLabel(year: number, period: FinancialPeriod): string {
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -104,6 +118,7 @@ export async function GET(request: Request) {
       prisma.expense.findMany({
         where: {
           userId: userOrError.id,
+          deletedAt: null,
           date: { gte: yearStart, lt: yearEnd },
         },
         select: { amount: true, date: true },

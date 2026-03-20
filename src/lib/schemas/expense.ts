@@ -37,6 +37,14 @@ export const updateExpenseSchema = z.object({
   receiptUrl: z.url().nullable().optional(),
 })
 
+/** Sortable columns for the expense list endpoint. */
+export const ExpenseSortBySchema = z.enum([
+  "date",
+  "amount",
+  "category",
+  "description",
+])
+
 /** Validates query parameters for the expense list endpoint. */
 export const expenseFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -46,6 +54,8 @@ export const expenseFilterSchema = z.object({
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
   recurring: z.coerce.boolean().optional(),
+  sortBy: ExpenseSortBySchema.optional().default("date"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
 })
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>

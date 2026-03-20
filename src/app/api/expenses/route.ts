@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { createExpenseSchema, expenseFilterSchema } from "@/lib/schemas/expense"
+import { logAudit } from "@/lib/audit-log"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
 import type { Prisma } from "@/generated/prisma/client"
@@ -19,11 +21,24 @@ function serializeExpense(
 
 /**
  * GET /api/expenses
- * Lists expenses with filtering and pagination. Sorted by date descending.
+ * Lists expenses with filtering, sorting, and pagination.
  * @returns 200 - `{ items: SerializedExpense[], pagination: { page, limit, total, totalPages } }`
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -33,6 +48,7 @@ export async function GET(request: Request) {
 
     const where: Prisma.ExpenseWhereInput = {
       userId: userOrError.id,
+      deletedAt: null,
       ...(filters.category ? { category: filters.category } : {}),
       ...(filters.clientId ? { clientId: filters.clientId } : {}),
       ...(filters.recurring !== undefined
@@ -55,7 +71,7 @@ export async function GET(request: Request) {
         where,
         skip,
         take: filters.limit,
-        orderBy: { date: "desc" },
+        orderBy: { [filters.sortBy]: filters.sortOrder },
         include: { client: { select: { id: true, name: true } } },
       }),
       prisma.expense.count({ where }),
@@ -82,6 +98,19 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    const rl = rateLimit(request, { limit: 30, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -94,6 +123,13 @@ export async function POST(request: Request) {
         userId: userOrError.id,
       },
       include: { client: { select: { id: true, name: true } } },
+    })
+
+    logAudit({
+      userId: userOrError.id,
+      action: "CREATE",
+      entity: "Expense",
+      entityId: expense.id,
     })
 
     return NextResponse.json(serializeExpense(expense), { status: 201 })
