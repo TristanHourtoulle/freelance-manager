@@ -6,6 +6,7 @@ import {
   CreateTaskForm,
   type MappedProject,
 } from "@/components/tasks/create-task-form"
+import { TaskPreviewCard } from "@/components/tasks/task-preview-card"
 
 import type { LinearProjectDTO } from "@/lib/linear-service"
 
@@ -65,7 +66,7 @@ export default function NewTaskPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-5xl">
         <h1 className="mb-6">{t("title")}</h1>
         <div className="flex items-center justify-center py-16">
           <p className="text-sm text-text-secondary">{t("loadingProjects")}</p>
@@ -76,7 +77,7 @@ export default function NewTaskPage() {
 
   if (mappedProjects.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-5xl">
         <h1 className="mb-6">{t("title")}</h1>
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <p className="text-sm text-text-secondary">{t("noProjects")}</p>
@@ -85,11 +86,35 @@ export default function NewTaskPage() {
     )
   }
 
+  return <NewTaskPageContent mappedProjects={mappedProjects} />
+}
+
+function NewTaskPageContent({
+  mappedProjects,
+}: {
+  mappedProjects: MappedProject[]
+}) {
+  const t = useTranslations("newTask")
+  const { form, watchedValues } = CreateTaskForm({ mappedProjects })
+
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-5xl">
       <h1 className="mb-6">{t("title")}</h1>
-      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <CreateTaskForm mappedProjects={mappedProjects} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Left: form */}
+        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+          {form}
+        </div>
+
+        {/* Right: live preview */}
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <TaskPreviewCard
+            title={watchedValues.title}
+            projectName={watchedValues.projectName}
+            estimate={watchedValues.estimate}
+            description={watchedValues.description}
+          />
+        </div>
       </div>
     </div>
   )

@@ -8,6 +8,7 @@ import {
   pointerWithin,
   type DragEndEvent,
   type DragStartEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core"
 
 import { KanbanColumn } from "./kanban-column"
@@ -36,6 +37,7 @@ interface TaskKanbanBoardProps {
 /**
  * Kanban board that groups tasks by workflow status into draggable columns.
  * Supports drag-and-drop to change task status via the onStatusChange callback.
+ * Tracks hover state for improved visual feedback during drag operations.
  */
 export function TaskKanbanBoard({
   tasks,
@@ -43,6 +45,7 @@ export function TaskKanbanBoard({
 }: TaskKanbanBoardProps) {
   const t = useTranslations("taskTable")
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [_hoveredColumnId, setHoveredColumnId] = useState<string | null>(null)
 
   const columns = useMemo(() => {
     const columnMap = new Map<string, StatusColumn>()
@@ -110,9 +113,28 @@ export function TaskKanbanBoard({
     setActiveTaskId(event.active.id as string)
   }, [])
 
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { over } = event
+      if (!over) {
+        setHoveredColumnId(null)
+        return
+      }
+
+      const overId = over.id as string
+      const targetColumn = columnNames.has(overId)
+        ? overId
+        : (taskColumnMap.get(overId) ?? null)
+
+      setHoveredColumnId(targetColumn)
+    },
+    [columnNames, taskColumnMap],
+  )
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setActiveTaskId(null)
+      setHoveredColumnId(null)
 
       const { active, over } = event
       if (!over) return
@@ -145,10 +167,11 @@ export function TaskKanbanBoard({
     <DndContext
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4">
+        <div className="flex gap-4 min-w-[280px]">
           {columns.map((column) => (
             <KanbanColumn
               key={column.status.name}

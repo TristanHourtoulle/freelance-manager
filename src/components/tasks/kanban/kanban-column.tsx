@@ -17,6 +17,7 @@ interface KanbanColumnProps {
 /**
  * A single status column in the Kanban board.
  * Acts as a droppable zone and renders a sorted list of task cards.
+ * Shows a pulsing dashed border when a card is being dragged over.
  */
 export function KanbanColumn({ status, tasks }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status.name })
@@ -36,8 +37,12 @@ export function KanbanColumn({ status, tasks }: KanbanColumnProps) {
         aria-label={status.name}
         className={`
           flex-1 flex flex-col gap-2 p-2 rounded-lg min-h-[200px]
-          transition-colors
-          ${isOver ? "bg-accent/50" : "bg-muted/30"}
+          transition-all duration-200
+          ${
+            isOver
+              ? "bg-primary/5 border-2 border-dashed border-primary/50"
+              : "bg-muted/30 border-2 border-transparent"
+          }
         `}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>

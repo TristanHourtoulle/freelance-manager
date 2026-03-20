@@ -23,6 +23,8 @@ function formatEur(value: number): string {
 /**
  * A compact, draggable card representing a single task in the Kanban board.
  * Shows identifier, title, client name, estimate, and billing amount.
+ * When dragging, shows a dashed border ghost placeholder.
+ * The overlay version has elevated shadow and slight rotation.
  */
 export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
   const t = useTranslations("taskTable")
@@ -38,7 +40,18 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+  }
+
+  // Ghost placeholder when dragging (dashed border, empty)
+  if (isDragging && !isDragOverlay) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-3 min-h-[88px]"
+        aria-hidden="true"
+      />
+    )
   }
 
   const cardContent = (
@@ -51,8 +64,8 @@ export function KanbanTaskCard({ task, isDragOverlay }: KanbanTaskCardProps) {
       aria-roledescription="draggable task"
       className={`
         bg-card rounded-lg border border-border p-3
-        hover:shadow-md transition-shadow cursor-grab
-        ${isDragOverlay ? "shadow-lg rotate-2" : ""}
+        hover:shadow-md transition-all cursor-grab
+        ${isDragOverlay ? "shadow-2xl scale-105 rotate-1 ring-2 ring-primary/20" : ""}
       `}
     >
       <p className="text-xs text-muted-foreground font-mono">
