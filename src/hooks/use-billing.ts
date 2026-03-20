@@ -1,6 +1,11 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query"
 
 import type {
   BillingApiResponse,
@@ -19,6 +24,7 @@ export function useBilling(searchParams: string) {
       return res.json()
     },
     staleTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -34,6 +40,7 @@ export function useBillingHistory(searchParams: string) {
       return res.json()
     },
     staleTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }
 

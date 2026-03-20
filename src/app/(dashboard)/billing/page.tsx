@@ -25,7 +25,7 @@ export default function BillingPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  const { data, isLoading } = useBilling(searchParams.toString())
+  const { data, isLoading, isFetching } = useBilling(searchParams.toString())
   const markInvoicedMutation = useMarkInvoiced()
 
   const groups = data?.groups ?? []
@@ -142,7 +142,11 @@ export default function BillingPage() {
       ) : groups.length === 0 ? (
         <BillingEmptyState hasFilters={hasFilters} />
       ) : (
-        <>
+        <div
+          className={
+            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
+        >
           <BillingSummary
             groupCount={groups.length}
             taskCount={totalTaskCount}
@@ -158,7 +162,7 @@ export default function BillingPage() {
             onToggleTask={handleToggleTask}
             onToggleGroup={handleToggleGroup}
           />
-        </>
+        </div>
       )}
 
       <Modal

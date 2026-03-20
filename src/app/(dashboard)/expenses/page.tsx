@@ -42,7 +42,7 @@ export default function ExpensesPage() {
     null,
   )
 
-  const { data, isLoading } = useExpenses(searchParams.toString())
+  const { data, isLoading, isFetching } = useExpenses(searchParams.toString())
   const { data: clientsData } = useClients("")
   const createMutation = useCreateExpense()
   const updateMutation = useUpdateExpense()
@@ -119,14 +119,18 @@ export default function ExpensesPage() {
       {isLoading ? (
         <PageSkeleton variant="list" />
       ) : (
-        <>
+        <div
+          className={
+            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
+        >
           <ExpenseSummary expenses={expenses} />
           <ExpenseList
             expenses={expenses}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-        </>
+        </div>
       )}
 
       {/* Create dialog */}

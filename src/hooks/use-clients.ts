@@ -1,6 +1,11 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query"
 
 import type { SerializedClient, Pagination } from "@/components/clients/types"
 
@@ -21,6 +26,7 @@ export function useClients(searchParams: string) {
       return res.json()
     },
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -224,7 +224,11 @@ export default function TasksPage() {
       ) : groups.length === 0 ? (
         <TaskEmptyState hasFilters={hasFilters} />
       ) : (
-        <>
+        <div
+          className={
+            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
+        >
           <TaskKpiCards groups={groups} />
 
           <TaskFilters
@@ -267,7 +271,7 @@ export default function TasksPage() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   )

@@ -36,7 +36,7 @@ export default function ClientsPage() {
     null,
   )
 
-  const { data, isLoading } = useClients(searchParams.toString())
+  const { data, isLoading, isFetching } = useClients(searchParams.toString())
   const archiveMutation = useArchiveClient()
 
   const clients = data?.items ?? []
@@ -114,14 +114,20 @@ export default function ClientsPage() {
       {isLoading ? (
         <PageSkeleton variant={view === "grid" ? "grid" : "list"} />
       ) : (
-        <ClientList
-          clients={clients}
-          pagination={pagination}
-          hasFilters={hasFilters}
-          view={view}
-          onArchive={handleArchiveClick}
-          onPageChange={handlePageChange}
-        />
+        <div
+          className={
+            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
+        >
+          <ClientList
+            clients={clients}
+            pagination={pagination}
+            hasFilters={hasFilters}
+            view={view}
+            onArchive={handleArchiveClick}
+            onPageChange={handlePageChange}
+          />
+        </div>
       )}
 
       {archiveTarget && (

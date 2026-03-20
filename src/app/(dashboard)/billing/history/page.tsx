@@ -22,7 +22,9 @@ export default function BillingHistoryPage() {
   const t = useTranslations("billingHistory")
   const tEmpty = useTranslations("emptyStates")
 
-  const { data, isLoading } = useBillingHistory(searchParams.toString())
+  const { data, isLoading, isFetching } = useBillingHistory(
+    searchParams.toString(),
+  )
   const updateStatusMutation = useUpdateInvoiceStatus()
 
   const months = data?.months ?? []
@@ -106,7 +108,11 @@ export default function BillingHistoryPage() {
           </p>
         </div>
       ) : (
-        <>
+        <div
+          className={
+            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
+          }
+        >
           <HistorySummary
             monthCount={months.length}
             clientCount={totalClientCount}
@@ -118,7 +124,7 @@ export default function BillingHistoryPage() {
             onMarkAsPaid={handleMarkAsPaid}
             onUpdateStatus={handleUpdateStatus}
           />
-        </>
+        </div>
       )}
     </div>
   )
