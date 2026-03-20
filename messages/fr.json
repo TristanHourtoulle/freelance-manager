@@ -426,6 +426,9 @@
     "expensesExportDesc": "Exportez toutes vos données de dépenses.",
     "analyticsExport": "Analyses",
     "analyticsExportDesc": "Exportez vos données de revenus et d'heures.",
+    "gdprExport": "Export complet (RGPD)",
+    "gdprExportDesc": "Téléchargez toutes vos données personnelles dans un fichier JSON. Inclut clients, factures, dépenses, paramètres et journaux d'activité.",
+    "gdprExportButton": "Télécharger toutes les données",
     "deleteAccount": "Supprimer le compte",
     "deleteAccountDesc": "Supprimez définitivement votre compte et toutes les données associées. Cette action est irréversible.",
     "deleteButton": "Supprimer mon compte",
@@ -537,7 +540,8 @@
     "daysAgo": "il y a {days}j",
     "neverSynced": "Jamais synchronisé",
     "lastSynced": "Dernière sync : {time}",
-    "refresh": "Rafraîchir"
+    "refresh": "Rafraîchir",
+    "syncing": "Synchronisation..."
   },
   "onboarding": {
     "title": "Premiers pas",
@@ -856,6 +860,22 @@
     "bankName": "Banque",
     "importSuccess": "{count} transaction(s) importée(s)",
     "importError": "Échec de l'import"
+  },
+
+  "clientNotes": {
+    "title": "Notes",
+    "newNote": "Nouvelle note",
+    "editNote": "Modifier la note",
+    "deleteNote": "Supprimer la note",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette note ?",
+    "noteTitle": "Titre",
+    "noteContent": "Contenu",
+    "noNotes": "Aucune note",
+    "noNotesHint": "Ajoutez des notes pour garder une trace des réunions, décisions, et plus.",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "created": "Créé le",
+    "updated": "Modifié le"
   },
 
   "tags": {

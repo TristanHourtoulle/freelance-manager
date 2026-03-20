@@ -433,6 +433,9 @@
     "expensesExportDesc": "Export all your expense data.",
     "analyticsExport": "Analytics",
     "analyticsExportDesc": "Export your revenue and hours analytics.",
+    "gdprExport": "Full Data Export (GDPR)",
+    "gdprExportDesc": "Download all your personal data in a single JSON file. Includes clients, invoices, expenses, settings, and activity logs.",
+    "gdprExportButton": "Download all data",
     "deleteAccount": "Delete Account",
     "deleteAccountDesc": "Permanently delete your account and all associated data. This action cannot be undone.",
     "deleteButton": "Delete my account",
@@ -554,7 +557,8 @@
     "daysAgo": "{days}d ago",
     "neverSynced": "Never synced",
     "lastSynced": "Last synced: {time}",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "syncing": "Syncing..."
   },
 
   "onboarding": {
@@ -882,6 +886,22 @@
     "bankName": "Bank",
     "importSuccess": "{count} transaction(s) imported",
     "importError": "Import failed"
+  },
+
+  "clientNotes": {
+    "title": "Notes",
+    "newNote": "New note",
+    "editNote": "Edit note",
+    "deleteNote": "Delete note",
+    "deleteConfirm": "Are you sure you want to delete this note?",
+    "noteTitle": "Title",
+    "noteContent": "Content",
+    "noNotes": "No notes yet",
+    "noNotesHint": "Add notes to keep track of meetings, decisions, and more.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "created": "Created",
+    "updated": "Updated"
   },
 
   "tags": {

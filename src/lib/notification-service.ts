@@ -251,6 +251,153 @@ export async function computePaymentOverdueAlerts(
 }
 
 /**
+ * Creates a notification when monthly revenue is below the user's target.
+ * Only checks after the 15th of the month. Alerts if revenue is below 70%
+ * of expected linear progress. Cooldown: 7 days.
+ *
+ * @param userId - The authenticated user ID
+ */
+export async function computeRevenueTargetAlert(userId: string): Promise<void> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { monthlyRevenueTarget: true },
+  })
+
+  if (!settings || Number(settings.monthlyRevenueTarget) <= 0) return
+
+  const target = Number(settings.monthlyRevenueTarget)
+  const now = new Date()
+  const dayOfMonth = now.getDate()
+
+  // Only alert after the 15th of the month (mid-month check)
+  if (dayOfMonth < 15) return
+
+  // Calculate current month revenue from invoiced task overrides
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const invoicedOverrides = await prisma.taskOverride.findMany({
+    where: {
+      invoiced: true,
+      invoicedAt: { gte: firstOfMonth, lt: firstOfNextMonth },
+      client: { userId, archivedAt: null },
+    },
+    include: {
+      client: { select: { rate: true } },
+    },
+  })
+
+  let monthlyRevenue = 0
+  for (const override of invoicedOverrides) {
+    const rate = Number(override.rateOverride ?? override.client.rate)
+    monthlyRevenue += rate
+  }
+
+  // Calculate expected progress (linear projection)
+  const daysInMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+  ).getDate()
+  const expectedProgress = (dayOfMonth / daysInMonth) * target
+
+  // Alert if below 70% of expected progress
+  if (monthlyRevenue >= expectedProgress * 0.7) return
+
+  const alreadyNotified = await hasRecentNotification(
+    userId,
+    "BILLING_REMINDER",
+    SEVEN_DAYS_MS,
+    { key: "alertType", value: "revenue_target" },
+  )
+  if (alreadyNotified) return
+
+  const percentage = Math.round((monthlyRevenue / target) * 100)
+
+  await createNotification({
+    userId,
+    type: "BILLING_REMINDER",
+    title: "Revenue below target",
+    message: `Monthly revenue is at ${percentage}% of target (${monthlyRevenue.toFixed(2)}EUR / ${target.toFixed(2)}EUR). Consider reviewing pending invoices.`,
+    metadata: {
+      alertType: "revenue_target",
+      currentRevenue: monthlyRevenue,
+      target,
+      percentage,
+    },
+  })
+}
+
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000
+const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000
+
+/**
+ * Creates notifications for active (non-free) clients that have not been
+ * invoiced in the last 60 days. Cooldown: 14 days per client.
+ *
+ * @param userId - The authenticated user ID
+ */
+export async function computeUnbilledClientAlerts(
+  userId: string,
+): Promise<void> {
+  const sixtyDaysAgo = new Date(Date.now() - SIXTY_DAYS_MS)
+
+  const activeClients = await prisma.client.findMany({
+    where: {
+      userId,
+      archivedAt: null,
+      billingMode: { not: "FREE" },
+    },
+    select: {
+      id: true,
+      name: true,
+      taskOverrides: {
+        where: { invoiced: true },
+        orderBy: { invoicedAt: "desc" },
+        take: 1,
+        select: { invoicedAt: true },
+      },
+    },
+  })
+
+  for (const client of activeClients) {
+    const lastInvoiced = client.taskOverrides[0]?.invoicedAt
+
+    // Skip if recently invoiced
+    if (lastInvoiced && lastInvoiced > sixtyDaysAgo) continue
+
+    const alreadyNotified = await hasRecentNotification(
+      userId,
+      "BILLING_REMINDER",
+      FOURTEEN_DAYS_MS,
+      { key: "clientId", value: client.id },
+    )
+    if (alreadyNotified) continue
+
+    const daysSince = lastInvoiced
+      ? Math.floor(
+          (Date.now() - lastInvoiced.getTime()) / (24 * 60 * 60 * 1000),
+        )
+      : null
+
+    await createNotification({
+      userId,
+      type: "BILLING_REMINDER",
+      title: "Client not billed recently",
+      message: daysSince
+        ? `${client.name} hasn't been billed in ${daysSince} days`
+        : `${client.name} has never been billed`,
+      metadata: {
+        alertType: "unbilled_client",
+        clientId: client.id,
+        clientName: client.name,
+        daysSinceLastInvoice: daysSince,
+      },
+    })
+  }
+}
+
+/**
  * Runs all notification computations in parallel.
  *
  * @param userId - The authenticated user ID
@@ -261,5 +408,7 @@ export async function computeAllNotifications(userId: string): Promise<void> {
     computeInactiveClientAlerts(userId),
     computeSyncAlerts(userId),
     computePaymentOverdueAlerts(userId),
+    computeRevenueTargetAlert(userId),
+    computeUnbilledClientAlerts(userId),
   ])
 }

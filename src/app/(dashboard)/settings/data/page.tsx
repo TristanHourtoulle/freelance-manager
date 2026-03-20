@@ -67,10 +67,10 @@ function ExportCard({
           {t(descriptionKey)}
         </p>
       </div>
-      <div className="flex items-center gap-0">
+      <div className="flex items-center gap-2.5">
         <Button
           variant="outline"
-          shape="pill-left"
+          shape="pill"
           size="sm"
           onClick={() => handleExport("csv")}
           isLoading={isExporting === "csv"}
@@ -80,7 +80,7 @@ function ExportCard({
         </Button>
         <Button
           variant="outline"
-          shape="pill-right"
+          shape="pill"
           size="sm"
           onClick={() => handleExport("json")}
           isLoading={isExporting === "json"}
@@ -226,6 +226,34 @@ export default function DataSettingsPage() {
           descriptionKey="analyticsExportDesc"
           endpoint="/api/export/analytics"
         />
+      </div>
+
+      {/* GDPR Full Data Export */}
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("gdprExport")}
+            </h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {t("gdprExportDesc")}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            shape="pill"
+            size="sm"
+            onClick={() => {
+              const a = document.createElement("a")
+              a.href = "/api/user/data-export"
+              a.download = ""
+              a.click()
+            }}
+          >
+            <ArrowDownTrayIcon className="size-3.5" />
+            {t("gdprExportButton")}
+          </Button>
+        </div>
       </div>
 
       {/* Import */}
