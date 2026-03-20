@@ -25,7 +25,7 @@ export function KanbanColumn({ status, tasks }: KanbanColumnProps) {
   const taskIds = tasks.map((t) => t.linearIssueId)
 
   return (
-    <div className="min-w-[280px] w-[280px] flex flex-col">
+    <div className="min-w-[280px] w-[280px] flex-shrink-0 flex flex-col lg:w-auto lg:min-w-0 lg:flex-1">
       <div className="flex items-center gap-2 mb-3 px-1">
         <TaskStatusBadge status={status} />
         <Badge variant="secondary">{tasks.length}</Badge>

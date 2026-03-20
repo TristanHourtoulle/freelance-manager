@@ -247,28 +247,30 @@ export function SidebarNav({
       </aside>
 
       {/* Mobile overlay */}
-      {isOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={onClose}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") onClose()
-            }}
-          />
-          <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-surface">
-            <div className="flex items-center justify-end p-2">
-              <button
-                onClick={onClose}
-                className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-muted"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <NavContent userName={userName} userEmail={userEmail} />
-          </aside>
-        </div>
-      )}
+      <div
+        className={`fixed inset-0 z-40 lg:hidden ${isOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+      >
+        <div
+          className={`fixed inset-0 bg-black/50 transition-opacity duration-200 ${isOpen ? "opacity-100" : "opacity-0"}`}
+          onClick={onClose}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose()
+          }}
+        />
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-72 bg-surface transition-transform duration-200 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <div className="flex items-center justify-end p-2">
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-muted"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <NavContent userName={userName} userEmail={userEmail} />
+        </aside>
+      </div>
     </>
   )
 }

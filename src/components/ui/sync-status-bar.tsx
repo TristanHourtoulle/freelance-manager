@@ -52,10 +52,16 @@ export function SyncStatusBar({
     <div className="flex items-center gap-3">
       <span
         className={`inline-block h-2 w-2 rounded-full ${
-          isStale ? "bg-amber-400" : "bg-emerald-400"
+          isRefreshing
+            ? "animate-pulse bg-blue-400"
+            : isStale
+              ? "bg-amber-400"
+              : "bg-emerald-400"
         }`}
       />
-      <span className="text-sm text-text-secondary">{label}</span>
+      <span className="text-sm text-text-secondary">
+        {isRefreshing ? t("syncing") : label}
+      </span>
       <button
         type="button"
         onClick={onRefresh}
@@ -65,7 +71,7 @@ export function SyncStatusBar({
         <ArrowPathIcon
           className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
         />
-        {t("refresh")}
+        {isRefreshing ? t("syncing") : t("refresh")}
       </button>
     </div>
   )

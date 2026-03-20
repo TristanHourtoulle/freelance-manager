@@ -4,6 +4,8 @@ import { useCallback, useState } from "react"
 import { AppHeader } from "./app-header"
 import { SidebarNav } from "./sidebar-nav"
 import { CommandPalette } from "@/components/ui/command-palette"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
+import { OfflineBanner } from "@/components/ui/offline-banner"
 import { ToastProvider } from "@/components/providers/toast-provider"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { UserProvider } from "@/components/providers/user-provider"
@@ -47,6 +49,7 @@ export function AppShell({
         >
           <UserProvider initialImage={userImage}>
             <div className="min-h-screen bg-surface-secondary">
+              <OfflineBanner />
               <CommandPalette />
               <SidebarNav
                 userName={userName}
@@ -57,7 +60,7 @@ export function AppShell({
               <div className="lg:pl-72">
                 <AppHeader onMenuToggle={handleToggle} />
                 <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
-                  {children}
+                  <ErrorBoundary>{children}</ErrorBoundary>
                 </main>
               </div>
             </div>
