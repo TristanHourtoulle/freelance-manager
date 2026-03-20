@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { z } from "zod/v4"
+
+// Mock auth to avoid pulling in the full Prisma/pg dependency chain
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession: vi.fn() } },
+}))
+
 import { apiError, handleApiError } from "@/lib/api-utils"
 
 describe("apiError", () => {
