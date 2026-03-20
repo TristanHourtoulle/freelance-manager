@@ -33,6 +33,37 @@ export interface EnrichedTask {
   rateOverride: number | null
 }
 
+/** A comment on a Linear issue. */
+export interface CommentDTO {
+  id: string
+  body: string
+  createdAt: string
+  updatedAt: string
+  user: { id: string; name: string; avatarUrl: string | undefined } | undefined
+}
+
+/** An attachment on a Linear issue. */
+export interface AttachmentDTO {
+  id: string
+  title: string
+  url: string
+  subtitle: string | undefined
+  createdAt: string
+}
+
+/** A history entry on a Linear issue. */
+export interface HistoryEntryDTO {
+  id: string
+  createdAt: string
+  fromState: { name: string; color: string } | undefined
+  toState: { name: string; color: string } | undefined
+  fromAssignee: { name: string } | undefined
+  toAssignee: { name: string } | undefined
+  fromPriority: number | undefined
+  toPriority: number | undefined
+  actor: { name: string } | undefined
+}
+
 /** Full detail payload for a single task, returned by the task detail API. */
 export interface TaskDetailResponse {
   issue: {
@@ -56,6 +87,9 @@ export interface TaskDetailResponse {
     projectId: string | undefined
     projectName: string | undefined
     teamId: string | undefined
+    comments: CommentDTO[]
+    attachments: AttachmentDTO[]
+    history: HistoryEntryDTO[]
   }
   override: TaskOverrideDTO | null
   billing: { amount: number; formula: string } | null

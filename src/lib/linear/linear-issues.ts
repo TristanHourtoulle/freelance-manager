@@ -36,6 +36,41 @@ interface RawIssueDetailResponse {
     }
     project: { id: string; name: string } | null
     team: { id: string } | null
+    comments: {
+      nodes: Array<{
+        id: string
+        body: string
+        createdAt: string
+        updatedAt: string
+        user: {
+          id: string
+          name: string
+          avatarUrl: string | null
+        } | null
+      }>
+    }
+    attachments: {
+      nodes: Array<{
+        id: string
+        title: string
+        url: string
+        subtitle: string | null
+        createdAt: string
+      }>
+    }
+    history: {
+      nodes: Array<{
+        id: string
+        createdAt: string
+        fromState: { name: string; color: string } | null
+        toState: { name: string; color: string } | null
+        fromAssignee: { name: string } | null
+        toAssignee: { name: string } | null
+        fromPriority: number | null
+        toPriority: number | null
+        actor: { name: string } | null
+      }>
+    }
   }
 }
 
@@ -233,6 +268,41 @@ export async function fetchLinearIssueById(
         team {
           id
         }
+        comments(first: 50, orderBy: createdAt) {
+          nodes {
+            id
+            body
+            createdAt
+            updatedAt
+            user {
+              id
+              name
+              avatarUrl
+            }
+          }
+        }
+        attachments(first: 20) {
+          nodes {
+            id
+            title
+            url
+            subtitle
+            createdAt
+          }
+        }
+        history(first: 30, orderBy: createdAt) {
+          nodes {
+            id
+            createdAt
+            fromState { name color }
+            toState { name color }
+            fromAssignee { name }
+            toAssignee { name }
+            fromPriority
+            toPriority
+            actor { name }
+          }
+        }
       }
     }
   `
@@ -284,6 +354,53 @@ export async function fetchLinearIssueById(
     projectId: node.project?.id ?? undefined,
     projectName: node.project?.name ?? undefined,
     teamId: node.team?.id ?? undefined,
+    comments: (node.comments?.nodes ?? []).map((c) => ({
+      id: c.id,
+      body: c.body,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      user: c.user
+        ? {
+            id: c.user.id,
+            name: c.user.name,
+            avatarUrl: c.user.avatarUrl ?? undefined,
+          }
+        : undefined,
+    })),
+    attachments: (node.attachments?.nodes ?? []).map((a) => ({
+      id: a.id,
+      title: a.title,
+      url: a.url,
+      subtitle: a.subtitle ?? undefined,
+      createdAt: a.createdAt,
+    })),
+    history: (node.history?.nodes ?? [])
+      .filter(
+        (h) =>
+          h.fromState ||
+          h.toState ||
+          h.fromAssignee ||
+          h.toAssignee ||
+          h.fromPriority !== null ||
+          h.toPriority !== null,
+      )
+      .map((h) => ({
+        id: h.id,
+        createdAt: h.createdAt,
+        fromState: h.fromState
+          ? { name: h.fromState.name, color: h.fromState.color }
+          : undefined,
+        toState: h.toState
+          ? { name: h.toState.name, color: h.toState.color }
+          : undefined,
+        fromAssignee: h.fromAssignee
+          ? { name: h.fromAssignee.name }
+          : undefined,
+        toAssignee: h.toAssignee ? { name: h.toAssignee.name } : undefined,
+        fromPriority: h.fromPriority ?? undefined,
+        toPriority: h.toPriority ?? undefined,
+        actor: h.actor ? { name: h.actor.name } : undefined,
+      })),
   }
 }
 

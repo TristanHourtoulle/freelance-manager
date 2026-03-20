@@ -68,6 +68,9 @@ export interface LinearIssueDetailDTO extends LinearIssueDTO {
   updatedAt: string
   dueDate: string | undefined
   projectName: string | undefined
+  comments: LinearCommentDTO[]
+  attachments: LinearAttachmentDTO[]
+  history: LinearHistoryEntryDTO[]
 }
 
 /** Normalized team member for assignment. */
@@ -83,6 +86,43 @@ export interface LinearWorkflowStateDTO {
   name: string
   type: string
   color: string
+}
+
+/** A comment on a Linear issue. */
+export interface LinearCommentDTO {
+  id: string
+  body: string
+  createdAt: string
+  updatedAt: string
+  user:
+    | {
+        id: string
+        name: string
+        avatarUrl: string | undefined
+      }
+    | undefined
+}
+
+/** An attachment on a Linear issue. */
+export interface LinearAttachmentDTO {
+  id: string
+  title: string
+  url: string
+  subtitle: string | undefined
+  createdAt: string
+}
+
+/** A history entry on a Linear issue. */
+export interface LinearHistoryEntryDTO {
+  id: string
+  createdAt: string
+  fromState: { name: string; color: string } | undefined
+  toState: { name: string; color: string } | undefined
+  fromAssignee: { name: string } | undefined
+  toAssignee: { name: string } | undefined
+  fromPriority: number | undefined
+  toPriority: number | undefined
+  actor: { name: string } | undefined
 }
 
 /** Lightweight issue representation returned by search queries. */

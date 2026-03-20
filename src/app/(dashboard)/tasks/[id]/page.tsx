@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkBreaks from "remark-breaks"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge"
@@ -18,6 +19,10 @@ import {
   TagIcon,
   CalendarDaysIcon,
   CheckCircleIcon,
+  ChatBubbleLeftIcon,
+  PaperClipIcon,
+  ArrowsRightLeftIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/20/solid"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,10 +30,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { normalizeLineBreaks } from "@/lib/format"
 import { useTaskDetail } from "@/hooks/use-task-detail"
 
-import type { TaskDetailResponse } from "@/components/tasks/types"
+import type {
+  TaskDetailResponse,
+  CommentDTO,
+  AttachmentDTO,
+  HistoryEntryDTO,
+} from "@/components/tasks/types"
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -194,7 +203,7 @@ export default function TaskDetailPage() {
           <ArrowLeftIcon className="h-4 w-4" />
           Back
         </button>
-        <Card>
+        <Card className="py-0">
           <CardContent>
             <div className="py-8 text-center">
               <p className="text-text-secondary">
@@ -278,46 +287,15 @@ export default function TaskDetailPage() {
         {/* Left column: Description */}
         <div className="space-y-6 lg:col-span-2">
           {/* Description */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
                 Description
               </h3>
               {issue.description ? (
-                <div
-                  className={[
-                    "prose max-w-none",
-                    "text-text-primary text-[0.9rem] leading-7",
-                    // Headings
-                    "prose-headings:text-text-primary prose-headings:font-semibold",
-                    "prose-h1:text-xl prose-h1:mt-10 prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-border",
-                    "prose-h2:text-lg prose-h2:mt-8 prose-h2:mb-3 prose-h2:pb-1.5 prose-h2:border-b prose-h2:border-border/50",
-                    "prose-h3:text-base prose-h3:mt-6 prose-h3:mb-2",
-                    // Paragraphs and lists
-                    "prose-p:my-4 prose-p:leading-7",
-                    "prose-ul:my-4 prose-ul:space-y-2 prose-ul:pl-5",
-                    "prose-ol:my-4 prose-ol:space-y-2 prose-ol:pl-5",
-                    "prose-li:leading-7",
-                    // Links
-                    "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
-                    // Code
-                    "prose-code:rounded prose-code:bg-surface-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:font-mono prose-code:before:content-none prose-code:after:content-none",
-                    "prose-pre:bg-surface-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-5 prose-pre:overflow-x-auto prose-pre:text-sm prose-pre:leading-6",
-                    // Blockquotes
-                    "prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-text-secondary prose-blockquote:my-5",
-                    // Horizontal rules
-                    "prose-hr:my-8 prose-hr:border-border",
-                    // Tables
-                    "prose-table:my-5 prose-th:text-left prose-th:px-3 prose-th:py-2.5 prose-th:text-xs prose-th:font-semibold prose-th:uppercase prose-th:tracking-wider prose-th:text-text-secondary prose-th:border-b prose-th:border-border prose-th:bg-surface-muted/50",
-                    "prose-td:px-3 prose-td:py-2 prose-td:text-sm prose-td:border-b prose-td:border-border/50",
-                    // Images
-                    "prose-img:rounded-lg prose-img:my-5",
-                    // Strong/emphasis
-                    "prose-strong:text-text-primary prose-strong:font-semibold",
-                  ].join(" ")}
-                >
-                  <Markdown remarkPlugins={[remarkGfm]}>
-                    {normalizeLineBreaks(issue.description)}
+                <div className="linear-markdown">
+                  <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                    {issue.description}
                   </Markdown>
                 </div>
               ) : (
@@ -327,12 +305,98 @@ export default function TaskDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Attachments */}
+          {issue.attachments.length > 0 && (
+            <Card className="py-0">
+              <CardContent className="p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                  <PaperClipIcon className="h-4 w-4" />
+                  Attachments ({issue.attachments.length})
+                </h3>
+                <div className="space-y-2">
+                  {issue.attachments.map((attachment) => (
+                    <AttachmentRow
+                      key={attachment.id}
+                      attachment={attachment}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments */}
+          <Card className="py-0">
+            <CardContent className="p-6">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                <ChatBubbleLeftIcon className="h-4 w-4" />
+                Comments ({issue.comments.length})
+              </h3>
+              {issue.comments.length > 0 && (
+                <div className="space-y-4 mb-5">
+                  {issue.comments.map((comment) => (
+                    <CommentCard key={comment.id} comment={comment} />
+                  ))}
+                </div>
+              )}
+              <AddCommentForm issueId={id} />
+            </CardContent>
+          </Card>
+
+          {/* Activity / History */}
+          {issue.history.length > 0 && (
+            <Card className="py-0">
+              <CardContent className="p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2">
+                  <ArrowsRightLeftIcon className="h-4 w-4" />
+                  Activity ({issue.history.length})
+                </h3>
+                <div className="space-y-0">
+                  {issue.history.map((entry, i) => (
+                    <HistoryRow
+                      key={entry.id}
+                      entry={entry}
+                      isLast={i === issue.history.length - 1}
+                    />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right column: Sidebar */}
         <div className="space-y-4">
+          {/* Priority card */}
+          <Card className="py-0">
+            <CardContent className="p-5">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-3">
+                Priority
+              </h3>
+              <div className="flex items-center gap-2.5">
+                <ExclamationCircleIcon
+                  className={`h-5 w-5 ${
+                    issue.priority <= 1
+                      ? "text-red-500"
+                      : issue.priority === 2
+                        ? "text-orange-500"
+                        : issue.priority === 3
+                          ? "text-yellow-500"
+                          : "text-blue-500"
+                  }`}
+                />
+                <span
+                  className={`inline-flex items-center rounded-md px-2.5 py-1 text-sm font-medium ${priorityStyle}`}
+                >
+                  {issue.priorityLabel}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Details card */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
                 Details
@@ -408,7 +472,7 @@ export default function TaskDetailPage() {
           </Card>
 
           {/* Billing card */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-5">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-4">
                 Billing
@@ -515,5 +579,223 @@ function SidebarRow({
         {value}
       </span>
     </div>
+  )
+}
+
+function CommentCard({ comment }: { comment: CommentDTO }) {
+  return (
+    <div className="rounded-lg border border-border/50 p-3.5">
+      <div className="flex items-center gap-2 mb-2">
+        {comment.user?.avatarUrl ? (
+          <img
+            src={comment.user.avatarUrl}
+            alt={comment.user.name}
+            className="h-6 w-6 rounded-full"
+          />
+        ) : (
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+            {comment.user?.name?.charAt(0) ?? "?"}
+          </div>
+        )}
+        <span className="text-sm font-medium text-text-primary">
+          {comment.user?.name ?? "Unknown"}
+        </span>
+        <span className="text-xs text-text-muted">
+          {formatDate(comment.createdAt)}
+        </span>
+      </div>
+      <div className="linear-markdown text-[0.85rem]">
+        <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+          {comment.body}
+        </Markdown>
+      </div>
+    </div>
+  )
+}
+
+function AttachmentRow({ attachment }: { attachment: AttachmentDTO }) {
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-surface-muted/50"
+    >
+      <PaperClipIcon className="h-4 w-4 shrink-0 text-text-muted" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-text-primary">
+          {attachment.title}
+        </p>
+        {attachment.subtitle && (
+          <p className="truncate text-xs text-text-muted">
+            {attachment.subtitle}
+          </p>
+        )}
+      </div>
+      <span className="text-xs text-text-muted">
+        {formatDate(attachment.createdAt)}
+      </span>
+    </a>
+  )
+}
+
+const PRIORITY_LABELS: Record<number, string> = {
+  0: "No priority",
+  1: "Urgent",
+  2: "High",
+  3: "Medium",
+  4: "Low",
+}
+
+function HistoryRow({
+  entry,
+  isLast,
+}: {
+  entry: HistoryEntryDTO
+  isLast: boolean
+}) {
+  const parts: string[] = []
+  const actorName = entry.actor?.name ?? "Someone"
+
+  if (entry.fromState && entry.toState) {
+    parts.push(`moved from ${entry.fromState.name} to ${entry.toState.name}`)
+  } else if (entry.toState) {
+    parts.push(`set status to ${entry.toState.name}`)
+  }
+
+  if (entry.fromAssignee && entry.toAssignee) {
+    parts.push(
+      `reassigned from ${entry.fromAssignee.name} to ${entry.toAssignee.name}`,
+    )
+  } else if (entry.toAssignee) {
+    parts.push(`assigned to ${entry.toAssignee.name}`)
+  } else if (entry.fromAssignee && !entry.toAssignee) {
+    parts.push(`unassigned ${entry.fromAssignee.name}`)
+  }
+
+  if (
+    entry.fromPriority !== undefined &&
+    entry.toPriority !== undefined &&
+    entry.fromPriority !== entry.toPriority
+  ) {
+    parts.push(
+      `changed priority from ${PRIORITY_LABELS[entry.fromPriority] ?? entry.fromPriority} to ${PRIORITY_LABELS[entry.toPriority] ?? entry.toPriority}`,
+    )
+  }
+
+  if (parts.length === 0) return null
+
+  return (
+    <div className="flex gap-3">
+      {/* Timeline line */}
+      <div className="flex flex-col items-center">
+        <div className="mt-1.5 h-2 w-2 rounded-full bg-border" />
+        {!isLast && <div className="w-px flex-1 bg-border/50" />}
+      </div>
+      {/* Content */}
+      <div className={`pb-4 ${isLast ? "" : ""}`}>
+        <p className="text-sm text-text-primary">
+          <span className="font-medium">{actorName}</span>{" "}
+          <span className="text-text-secondary">{parts.join(", ")}</span>
+        </p>
+        <p className="mt-0.5 text-xs text-text-muted">
+          {formatDate(entry.createdAt)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function AddCommentForm({ issueId }: { issueId: string }) {
+  const [body, setBody] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const queryClient = useQueryClient()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      const trimmed = body.trim()
+      if (!trimmed) return
+
+      setIsSubmitting(true)
+      try {
+        const res = await fetch(`/api/linear/issues/${issueId}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: trimmed }),
+        })
+
+        if (!res.ok) throw new Error("Failed to post comment")
+
+        const newComment = await res.json()
+
+        queryClient.setQueryData<TaskDetailResponse>(
+          ["task-detail", issueId],
+          (prev) =>
+            prev
+              ? {
+                  ...prev,
+                  issue: {
+                    ...prev.issue,
+                    comments: [...prev.issue.comments, newComment],
+                  },
+                }
+              : prev,
+        )
+
+        setBody("")
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto"
+        }
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [body, issueId, queryClient],
+  )
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        handleSubmit(e)
+      }
+    },
+    [handleSubmit],
+  )
+
+  const handleInput = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${el.scrollHeight}px`
+  }, [])
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <textarea
+        ref={textareaRef}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onInput={handleInput}
+        placeholder="Add a comment... (Markdown supported)"
+        rows={2}
+        className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-text-muted">
+          {navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter to send
+        </span>
+        <button
+          type="submit"
+          disabled={!body.trim() || isSubmitting}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? "Sending..." : "Comment"}
+        </button>
+      </div>
+    </form>
   )
 }
