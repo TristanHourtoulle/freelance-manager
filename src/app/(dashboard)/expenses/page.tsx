@@ -17,6 +17,7 @@ import { ExpenseSummary } from "@/components/expenses/expense-summary"
 import { ExpenseList } from "@/components/expenses/expense-list"
 import { ExpenseFilters } from "@/components/expenses/expense-filters"
 import { ExpenseForm } from "@/components/expenses/expense-form"
+import { DeleteExpenseModal } from "@/components/expenses/delete-expense-modal"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import {
@@ -167,42 +168,13 @@ export default function ExpensesPage() {
       </Dialog>
 
       {/* Delete confirmation dialog */}
-      <Dialog
+      <DeleteExpenseModal
         open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
-        }}
-      >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("deleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("deleteDescription", {
-                description: deleteTarget?.description ?? "",
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2.5 pt-2">
-            <Button
-              variant="outline"
-              shape="pill-left"
-              size="lg"
-              onClick={() => setDeleteTarget(null)}
-            >
-              {t("form.cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              shape="pill-right"
-              size="lg"
-              isLoading={deleteMutation.isPending}
-              onClick={handleDeleteConfirm}
-            >
-              {t("deleteButton")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        description={deleteTarget?.description ?? ""}
+        isDeleting={deleteMutation.isPending}
+      />
     </div>
   )
 }

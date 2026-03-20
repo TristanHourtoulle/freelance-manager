@@ -252,8 +252,21 @@ export async function GET(request: Request) {
 
     groups.sort((a, b) => b.taskCount - a.taskCount)
 
+    const total = groups.length
+    const totalPages = Math.ceil(total / filters.limit)
+    const pagedGroups = groups.slice(
+      (filters.page - 1) * filters.limit,
+      filters.page * filters.limit,
+    )
+
     return NextResponse.json({
-      groups,
+      groups: pagedGroups,
+      pagination: {
+        page: filters.page,
+        limit: filters.limit,
+        total,
+        totalPages,
+      },
       allStatuses,
       allClients,
       ...getLinearSyncStatus(),
