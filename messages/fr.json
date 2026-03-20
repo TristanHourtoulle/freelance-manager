@@ -192,12 +192,16 @@
     "emptyState": "Aucune dépense pour le moment",
     "emptyStateHint": "Ajoutez votre première dépense pour commencer le suivi.",
     "categories": {
+      "SUBSCRIPTION": "Abonnement",
       "SOFTWARE": "Logiciel",
       "HARDWARE": "Matériel",
       "TRAVEL": "Déplacement",
       "OFFICE": "Bureau",
       "MARKETING": "Marketing",
       "LEGAL": "Juridique",
+      "PROFESSIONAL": "Professionnel",
+      "PERSONAL": "Personnel",
+      "ENTERTAINMENT": "Sortie",
       "OTHER": "Autre"
     },
     "form": {

@@ -200,12 +200,16 @@
     "emptyState": "No expenses yet",
     "emptyStateHint": "Add your first expense to start tracking costs.",
     "categories": {
+      "SUBSCRIPTION": "Subscription",
       "SOFTWARE": "Software",
       "HARDWARE": "Hardware",
       "TRAVEL": "Travel",
       "OFFICE": "Office",
       "MARKETING": "Marketing",
       "LEGAL": "Legal",
+      "PROFESSIONAL": "Professional",
+      "PERSONAL": "Personal",
+      "ENTERTAINMENT": "Entertainment",
       "OTHER": "Other"
     },
     "form": {

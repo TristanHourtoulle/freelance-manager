@@ -129,12 +129,16 @@ enum NotificationType {
 }
 
 enum ExpenseCategory {
+  SUBSCRIPTION
   SOFTWARE
   HARDWARE
   TRAVEL
   OFFICE
   MARKETING
   LEGAL
+  PROFESSIONAL
+  PERSONAL
+  ENTERTAINMENT
   OTHER
 }
 

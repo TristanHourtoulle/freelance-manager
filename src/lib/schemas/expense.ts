@@ -2,12 +2,16 @@ import { z } from "zod/v4"
 
 /** Allowed expense categories. */
 export const ExpenseCategorySchema = z.enum([
+  "SUBSCRIPTION",
   "SOFTWARE",
   "HARDWARE",
   "TRAVEL",
   "OFFICE",
   "MARKETING",
   "LEGAL",
+  "PROFESSIONAL",
+  "PERSONAL",
+  "ENTERTAINMENT",
   "OTHER",
 ])
 
