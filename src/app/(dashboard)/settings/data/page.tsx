@@ -9,6 +9,14 @@ import {
 } from "@heroicons/react/24/outline"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { useToast } from "@/components/providers/toast-provider"
@@ -136,7 +144,7 @@ function ImportCard({
           })
         }
       } catch {
-        toast({ variant: "error", title: t("exportError") })
+        toast({ variant: "error", title: ti("importError") })
       } finally {
         setIsImporting(false)
         if (fileRef.current) fileRef.current.value = ""
@@ -259,13 +267,13 @@ export default function DataSettingsPage() {
       {/* Import */}
       <div className="space-y-3">
         <ImportCard
-          titleKey="clientsExport"
-          descriptionKey="clientsExportDesc"
+          titleKey="clientsImport"
+          descriptionKey="clientsImportDesc"
           endpoint="/api/import/clients"
         />
         <ImportCard
-          titleKey="expensesExport"
-          descriptionKey="expensesExportDesc"
+          titleKey="expensesImport"
+          descriptionKey="expensesImportDesc"
           endpoint="/api/import/expenses"
         />
       </div>
@@ -295,64 +303,59 @@ export default function DataSettingsPage() {
       </div>
 
       {/* Delete confirmation modal */}
-      {isDeleteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={() => {
-              setIsDeleteOpen(false)
-              setConfirmText("")
-            }}
-          />
-          <div className="relative z-50 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg">
-            <h2 className="text-base font-semibold text-foreground">
-              {t("deleteConfirmTitle")}
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("deleteConfirmDesc")}
-            </p>
-            <div className="mt-4 space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                {t.rich("deleteConfirmInstruction", {
-                  keyword: () => (
-                    <span className="font-mono font-bold">DELETE</span>
-                  ),
-                })}
-              </label>
-              <Input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="DELETE"
-                className="h-[38px] px-4 font-mono"
-                style={{ borderRadius: "9999px" }}
-              />
-            </div>
-            <div className="mt-6 flex justify-end gap-2.5">
-              <Button
-                variant="outline"
-                shape="pill-left"
-                size="lg"
-                onClick={() => {
-                  setIsDeleteOpen(false)
-                  setConfirmText("")
-                }}
-              >
-                {tc("cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                shape="pill-right"
-                size="lg"
-                disabled={confirmText !== "DELETE"}
-                onClick={handleDeleteAccount}
-                isLoading={isDeleting}
-              >
-                {t("deleteConfirmButton")}
-              </Button>
-            </div>
+      <Dialog
+        open={isDeleteOpen}
+        onOpenChange={(open) => {
+          setIsDeleteOpen(open)
+          if (!open) setConfirmText("")
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteConfirmTitle")}</DialogTitle>
+            <DialogDescription>{t("deleteConfirmDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">
+              {t.rich("deleteConfirmInstruction", {
+                keyword: () => (
+                  <span className="font-mono font-bold">DELETE</span>
+                ),
+              })}
+            </label>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="h-[38px] px-4 font-mono"
+              style={{ borderRadius: "9999px" }}
+            />
           </div>
-        </div>
-      )}
+          <DialogFooter className="gap-2.5">
+            <Button
+              variant="outline"
+              shape="pill-left"
+              size="lg"
+              onClick={() => {
+                setIsDeleteOpen(false)
+                setConfirmText("")
+              }}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              shape="pill-right"
+              size="lg"
+              disabled={confirmText !== "DELETE"}
+              onClick={handleDeleteAccount}
+              isLoading={isDeleting}
+            >
+              {t("deleteConfirmButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

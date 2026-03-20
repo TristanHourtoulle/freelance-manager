@@ -117,7 +117,9 @@
       "taskTitle": "Title",
       "taskStatus": "Status",
       "taskEstimate": "Estimate",
-      "edit": "Edit"
+      "edit": "Edit",
+      "clientNotFound": "Client not found",
+      "fetchTasksError": "Failed to fetch tasks"
     },
     "card": {
       "billing": "Billing",
@@ -429,6 +431,10 @@
     "jsonButton": "JSON",
     "exportSuccess": "{title} exported as {format}",
     "exportError": "Export failed",
+    "clientsImport": "Clients",
+    "clientsImportDesc": "Import clients from a CSV file.",
+    "expensesImport": "Expenses",
+    "expensesImportDesc": "Import expenses from a CSV file.",
     "expensesExport": "Expenses",
     "expensesExportDesc": "Export all your expense data.",
     "analyticsExport": "Analytics",
@@ -693,7 +699,8 @@
     "success": "{count} item(s) imported",
     "errors": "{count} error(s) during import",
     "row": "Row {row}",
-    "templateDownload": "Download CSV template"
+    "templateDownload": "Download CSV template",
+    "importError": "Import failed"
   },
 
   "demo": {

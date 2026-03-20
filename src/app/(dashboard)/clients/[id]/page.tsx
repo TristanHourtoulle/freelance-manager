@@ -54,7 +54,7 @@ export default function ClientDetailPage() {
         </Link>
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            {error instanceof Error ? error.message : "Client not found"}
+            {error instanceof Error ? error.message : t("clientNotFound")}
           </CardContent>
         </Card>
       </div>
@@ -276,7 +276,7 @@ function ActiveTasksSection({ clientId }: { clientId: string }) {
     queryKey: ["client-tasks", clientId],
     queryFn: async () => {
       const res = await fetch(`/api/tasks?clientId=${clientId}&preset=active`)
-      if (!res.ok) throw new Error("Failed to fetch tasks")
+      if (!res.ok) throw new Error(t("fetchTasksError"))
       return res.json()
     },
     staleTime: 5 * 60 * 1000,

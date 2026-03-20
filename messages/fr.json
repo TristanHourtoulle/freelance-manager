@@ -113,7 +113,9 @@
       "taskTitle": "Titre",
       "taskStatus": "Statut",
       "taskEstimate": "Estimation",
-      "edit": "Modifier"
+      "edit": "Modifier",
+      "clientNotFound": "Client introuvable",
+      "fetchTasksError": "Impossible de charger les taches"
     },
     "card": {
       "billing": "Facturation",
@@ -422,6 +424,10 @@
     "jsonButton": "JSON",
     "exportSuccess": "{title} exporté en {format}",
     "exportError": "Erreur lors de l'export",
+    "clientsImport": "Clients",
+    "clientsImportDesc": "Importez des clients depuis un fichier CSV.",
+    "expensesImport": "Dépenses",
+    "expensesImportDesc": "Importez des dépenses depuis un fichier CSV.",
     "expensesExport": "Dépenses",
     "expensesExportDesc": "Exportez toutes vos données de dépenses.",
     "analyticsExport": "Analyses",
@@ -667,7 +673,8 @@
     "success": "{count} élément(s) importé(s)",
     "errors": "{count} erreur(s) lors de l'import",
     "row": "Ligne {row}",
-    "templateDownload": "Télécharger le modèle CSV"
+    "templateDownload": "Télécharger le modèle CSV",
+    "importError": "Erreur lors de l'import"
   },
 
   "demo": {
