@@ -11,6 +11,7 @@ import { ClientFilters } from "@/components/clients/client-filters"
 import { ClientList } from "@/components/clients/client-list"
 import { ArchiveClientModal } from "@/components/clients/archive-client-modal"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import { useClients, useArchiveClient } from "@/hooks/use-clients"
 
@@ -111,9 +112,7 @@ export default function ClientsPage() {
       <ClientFilters view={view} onViewChange={handleViewChange} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">{tc("loading")}</p>
-        </div>
+        <PageSkeleton variant={view === "grid" ? "grid" : "list"} />
       ) : (
         <ClientList
           clients={clients}

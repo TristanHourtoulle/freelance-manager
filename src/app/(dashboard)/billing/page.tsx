@@ -12,6 +12,7 @@ import { Modal } from "@/components/ui/modal"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
 import { TooltipHint } from "@/components/ui/tooltip-hint"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { useToast } from "@/components/providers/toast-provider"
 import { useBilling, useMarkInvoiced } from "@/hooks/use-billing"
 import { formatCurrency } from "@/lib/format"
@@ -137,9 +138,7 @@ export default function BillingPage() {
       <BillingFilters clients={allClients} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">{tc("loading")}</p>
-        </div>
+        <PageSkeleton variant="list" />
       ) : groups.length === 0 ? (
         <BillingEmptyState hasFilters={hasFilters} />
       ) : (

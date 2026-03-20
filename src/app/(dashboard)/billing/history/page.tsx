@@ -9,6 +9,7 @@ import { HistorySummary } from "@/components/billing/history-summary"
 import { HistoryMonthList } from "@/components/billing/history-month-list"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { PageToolbar } from "@/components/ui/page-toolbar"
 import { useToast } from "@/components/providers/toast-provider"
 import { useBillingHistory, useUpdateInvoiceStatus } from "@/hooks/use-billing"
@@ -87,11 +88,7 @@ export default function BillingHistoryPage() {
       </PageToolbar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-secondary">
-            Loading invoiced history...
-          </p>
-        </div>
+        <PageSkeleton variant="list" />
       ) : months.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-surface px-6 py-16 text-center">
           <p className="text-sm text-text-secondary">
