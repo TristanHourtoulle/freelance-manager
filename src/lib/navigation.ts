@@ -151,10 +151,52 @@ export const ACTION_ITEMS: ActionItem[] = [
     href: "/clients/new",
   },
   {
+    id: "new-task",
+    label: "New task",
+    icon: PlusIcon,
+    href: "/tasks/new",
+  },
+  {
     id: "sync-linear",
     label: "Sync Linear",
     icon: ArrowPathIcon,
     apiCall: "/api/linear/refresh",
+  },
+  {
+    id: "go-billing-history",
+    label: "Billing history",
+    icon: DocumentTextIcon,
+    href: "/billing/history",
+  },
+  {
+    id: "go-settings-appearance",
+    label: "Appearance settings",
+    icon: PaintBrushIcon,
+    href: "/settings/appearance",
+  },
+  {
+    id: "go-settings-integrations",
+    label: "Integrations settings",
+    icon: LinkIcon,
+    href: "/settings/integrations",
+  },
+  {
+    id: "go-settings-billing",
+    label: "Billing settings",
+    icon: WalletIcon,
+    href: "/settings/billing",
+  },
+  {
+    id: "go-settings-notifications",
+    label: "Notification settings",
+    icon: BellIcon,
+    href: "/settings/notifications",
+  },
+  {
+    id: "go-settings-data",
+    label: "Data & Export",
+    icon: ServerStackIcon,
+    href: "/settings/data",
   },
   {
     id: "export-data",

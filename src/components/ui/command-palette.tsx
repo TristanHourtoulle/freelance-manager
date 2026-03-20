@@ -148,6 +148,12 @@ export function CommandPalette() {
   )
 }
 
+const SHORTCUT_HINTS: Record<string, string> = {
+  "new-client": "C",
+  "new-task": "T",
+  "sync-linear": "S",
+}
+
 interface CommandPaletteItemProps {
   item: CommandItem
   isActive: boolean
@@ -187,6 +193,17 @@ function CommandPaletteItem({
         }`}
       />
       <span className="flex-1 truncate">{item.label}</span>
+      {SHORTCUT_HINTS[item.id] && (
+        <kbd
+          className={`rounded border px-1.5 py-0.5 text-xs font-medium ${
+            isActive
+              ? "border-primary/30 text-primary"
+              : "border-border text-text-secondary"
+          }`}
+        >
+          {SHORTCUT_HINTS[item.id]}
+        </kbd>
+      )}
       {item.comingSoon && (
         <span
           className={`rounded px-1.5 py-0.5 text-xs ${
