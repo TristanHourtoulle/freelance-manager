@@ -27,6 +27,7 @@
     "clients": "Clients",
     "tasks": "Tasks",
     "billing": "Billing",
+    "expenses": "Expenses",
     "analytics": "Analytics",
     "settings": "Settings",
     "logout": "Logout",
@@ -157,6 +158,63 @@
     "toasts": {
       "success": "{count, plural, one {# task} other {# tasks}} marked as invoiced",
       "error": "Failed to mark tasks as invoiced"
+    }
+  },
+
+  "expenses": {
+    "title": "Expenses",
+    "newExpense": "New expense",
+    "newExpenseDesc": "Add a new expense to track your costs.",
+    "editExpense": "Edit expense",
+    "editExpenseDesc": "Update expense details.",
+    "deleteTitle": "Delete expense",
+    "deleteDescription": "Are you sure you want to delete \"{description}\"? This action cannot be undone.",
+    "deleteButton": "Delete",
+    "totalExpenses": "Total Expenses",
+    "thisMonth": "This Month",
+    "recurringMonthly": "Recurring Monthly",
+    "recurringBadge": "Recurring",
+    "allCategories": "All categories",
+    "allClients": "All clients",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "dateCol": "Date",
+    "descriptionCol": "Description",
+    "categoryCol": "Category",
+    "clientCol": "Client",
+    "amountCol": "Amount",
+    "emptyState": "No expenses yet",
+    "emptyStateHint": "Add your first expense to start tracking costs.",
+    "categories": {
+      "SOFTWARE": "Software",
+      "HARDWARE": "Hardware",
+      "TRAVEL": "Travel",
+      "OFFICE": "Office",
+      "MARKETING": "Marketing",
+      "LEGAL": "Legal",
+      "OTHER": "Other"
+    },
+    "form": {
+      "description": "Description",
+      "descriptionPlaceholder": "What was this expense for?",
+      "amount": "Amount",
+      "date": "Date",
+      "category": "Category",
+      "selectCategory": "Select category",
+      "client": "Client",
+      "noClient": "No client",
+      "recurring": "This is a recurring expense",
+      "cancel": "Cancel",
+      "createButton": "Create Expense",
+      "updateButton": "Update Expense"
+    },
+    "toasts": {
+      "created": "Expense created",
+      "updated": "Expense updated",
+      "deleted": "Expense deleted",
+      "createError": "Failed to create expense",
+      "updateError": "Failed to update expense",
+      "deleteError": "Failed to delete expense"
     }
   },
 

@@ -20,6 +20,7 @@ model User {
   clients       Client[]
   settings      UserSettings?
   notifications Notification[]
+  expenses      Expense[]
 
   @@map("users")
 }
@@ -127,6 +128,16 @@ enum NotificationType {
   PAYMENT_OVERDUE
 }
 
+enum ExpenseCategory {
+  SOFTWARE
+  HARDWARE
+  TRAVEL
+  OFFICE
+  MARKETING
+  LEGAL
+  OTHER
+}
+
 model Client {
   id          String       @id @default(cuid())
   userId      String
@@ -146,6 +157,7 @@ model Client {
   linearMappings LinearMapping[]
   taskOverrides  TaskOverride[]
   invoices       Invoice[]
+  expenses       Expense[]
 
   @@index([userId])
   @@index([category])
@@ -212,6 +224,26 @@ model InvoiceFile {
 
   @@index([invoiceId])
   @@map("invoice_files")
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  category    ExpenseCategory @default(OTHER)
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  date        DateTime
+  recurring   Boolean         @default(false)
+  receiptUrl  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@map("expenses")
 }
 
 model Notification {

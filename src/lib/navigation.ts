@@ -2,6 +2,7 @@ import {
   ArrowDownTrayIcon,
   ArrowLeftIcon,
   ArrowPathIcon,
+  BanknotesIcon,
   BellIcon,
   ChartBarIcon,
   CheckCircleIcon,
@@ -55,6 +56,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Billing",
     href: "/billing",
     icon: DocumentTextIcon,
+  },
+  {
+    translationKey: "expenses",
+    label: "Expenses",
+    href: "/expenses",
+    icon: BanknotesIcon,
   },
   {
     translationKey: "analytics",

@@ -26,6 +26,7 @@
     "clients": "Clients",
     "tasks": "Tâches",
     "billing": "Facturation",
+    "expenses": "Dépenses",
     "analytics": "Analyses",
     "settings": "Paramètres",
     "logout": "Déconnexion",
@@ -152,6 +153,63 @@
       "error": "Erreur lors du marquage des tâches"
     }
   },
+  "expenses": {
+    "title": "Dépenses",
+    "newExpense": "Nouvelle dépense",
+    "newExpenseDesc": "Ajoutez une nouvelle dépense pour suivre vos coûts.",
+    "editExpense": "Modifier la dépense",
+    "editExpenseDesc": "Mettre à jour les détails de la dépense.",
+    "deleteTitle": "Supprimer la dépense",
+    "deleteDescription": "Êtes-vous sûr de vouloir supprimer \"{description}\" ? Cette action est irréversible.",
+    "deleteButton": "Supprimer",
+    "totalExpenses": "Total des dépenses",
+    "thisMonth": "Ce mois-ci",
+    "recurringMonthly": "Récurrent mensuel",
+    "recurringBadge": "Récurrent",
+    "allCategories": "Toutes les catégories",
+    "allClients": "Tous les clients",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "dateCol": "Date",
+    "descriptionCol": "Description",
+    "categoryCol": "Catégorie",
+    "clientCol": "Client",
+    "amountCol": "Montant",
+    "emptyState": "Aucune dépense pour le moment",
+    "emptyStateHint": "Ajoutez votre première dépense pour commencer le suivi.",
+    "categories": {
+      "SOFTWARE": "Logiciel",
+      "HARDWARE": "Matériel",
+      "TRAVEL": "Déplacement",
+      "OFFICE": "Bureau",
+      "MARKETING": "Marketing",
+      "LEGAL": "Juridique",
+      "OTHER": "Autre"
+    },
+    "form": {
+      "description": "Description",
+      "descriptionPlaceholder": "À quoi correspond cette dépense ?",
+      "amount": "Montant",
+      "date": "Date",
+      "category": "Catégorie",
+      "selectCategory": "Sélectionner une catégorie",
+      "client": "Client",
+      "noClient": "Aucun client",
+      "recurring": "C'est une dépense récurrente",
+      "cancel": "Annuler",
+      "createButton": "Créer la dépense",
+      "updateButton": "Mettre à jour"
+    },
+    "toasts": {
+      "created": "Dépense créée",
+      "updated": "Dépense mise à jour",
+      "deleted": "Dépense supprimée",
+      "createError": "Erreur lors de la création",
+      "updateError": "Erreur lors de la mise à jour",
+      "deleteError": "Erreur lors de la suppression"
+    }
+  },
+
   "analytics": {
     "title": "Analyses",
     "periods": {
