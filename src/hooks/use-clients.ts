@@ -50,7 +50,40 @@ export function useArchiveClient() {
       })
       if (!res.ok) throw new Error("Failed to update client")
     },
-    onSuccess: () => {
+    onMutate: async ({ clientId, archive }) => {
+      await queryClient.cancelQueries({ queryKey: ["clients"] })
+      const previousQueries = queryClient.getQueriesData<ClientsResponse>({
+        queryKey: ["clients"],
+      })
+
+      queryClient.setQueriesData<ClientsResponse>(
+        { queryKey: ["clients"] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.id === clientId
+                ? {
+                    ...item,
+                    archivedAt: archive ? new Date().toISOString() : null,
+                  }
+                : item,
+            ),
+          }
+        },
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] })
     },
   })

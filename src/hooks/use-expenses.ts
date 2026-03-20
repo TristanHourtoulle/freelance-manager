@@ -23,6 +23,7 @@ interface SerializedExpense {
   date: string
   recurring: boolean
   receiptUrl: string | null
+  taxDeductible: boolean
   createdAt: string
   updatedAt: string
 }
@@ -123,6 +124,7 @@ export function useUpdateExpense() {
                       data.amount !== undefined ? data.amount : item.amount,
                     category: data.category ?? item.category,
                     recurring: data.recurring ?? item.recurring,
+                    taxDeductible: data.taxDeductible ?? item.taxDeductible,
                   }
                 : item,
             ),

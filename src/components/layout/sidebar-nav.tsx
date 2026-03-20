@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
@@ -61,9 +62,11 @@ function AppNav({
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3.5">
           {userImage ? (
-            <img
+            <Image
               src={userImage}
               alt={userName}
+              width={48}
+              height={48}
               className="size-12 shrink-0 rounded-full object-cover"
             />
           ) : (
