@@ -15,10 +15,14 @@ import { formatCurrency } from "@/lib/format"
 import type { SerializedClient } from "@/components/clients/types"
 
 const CATEGORY_BADGES: Record<string, string> = {
-  FREELANCE: "bg-blue-50 text-blue-700 ring-blue-600/20",
-  STUDY: "bg-purple-50 text-purple-700 ring-purple-600/20",
-  PERSONAL: "bg-green-50 text-green-700 ring-green-600/20",
-  SIDE_PROJECT: "bg-amber-50 text-amber-700 ring-amber-600/20",
+  FREELANCE:
+    "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20",
+  STUDY:
+    "bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-500/10 dark:text-purple-400 dark:ring-purple-500/20",
+  PERSONAL:
+    "bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-500/10 dark:text-green-400 dark:ring-green-500/20",
+  SIDE_PROJECT:
+    "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20",
 }
 
 const CATEGORY_KEYS: Record<string, string> = {
@@ -89,7 +93,7 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
           </p>
         </div>
         <span
-          className={`inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${CATEGORY_BADGES[client.category] ?? "bg-gray-50 text-gray-700 ring-gray-600/20"}`}
+          className={`inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${CATEGORY_BADGES[client.category] ?? "bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-500/10 dark:text-gray-400 dark:ring-gray-500/20"}`}
         >
           {CATEGORY_KEYS[client.category]
             ? tc(`categories.${CATEGORY_KEYS[client.category]}`)
@@ -98,8 +102,8 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
       </div>
 
       {/* Metrics row */}
-      <div className="grid grid-cols-3 gap-px border-y border-border bg-border">
-        <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
+      <div className="grid grid-cols-3 border-y border-border">
+        <div className="flex flex-col items-center justify-center border-r border-border px-2 py-3">
           <span className="text-xs text-muted-foreground">{t("billing")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
             {BILLING_KEYS[client.billingMode]
@@ -107,13 +111,13 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
               : client.billingMode}
           </span>
         </div>
-        <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
+        <div className="flex flex-col items-center justify-center border-r border-border px-2 py-3">
           <span className="text-xs text-muted-foreground">{t("rate")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
             {formatRate(client.billingMode, client.rate)}
           </span>
         </div>
-        <div className="flex flex-col items-center justify-center bg-surface px-2 py-3">
+        <div className="flex flex-col items-center justify-center px-2 py-3">
           <span className="text-xs text-muted-foreground">{t("revenue")}</span>
           <span className="mt-0.5 text-sm font-medium text-foreground">
             {client.totalRevenue > 0
@@ -128,14 +132,14 @@ export function ClientCard({ client, onArchive }: ClientCardProps) {
         <ActivityIndicator lastActivityAt={client.lastActivityAt} />
 
         {linearCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:ring-indigo-500/20">
             <LinkIcon className="size-3" />
             {linearCount}
           </span>
         )}
 
         {isArchived && (
-          <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+          <span className="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10 dark:bg-gray-500/10 dark:text-gray-400 dark:ring-gray-500/20">
             {tClients("archived")}
           </span>
         )}
