@@ -8,8 +8,9 @@ on:
 
 env:
   DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
-  BETTER_AUTH_SECRET: "ci-secret-not-real"
+  BETTER_AUTH_SECRET: "ci-secret-not-real-but-long-enough-for-validation"
   NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+  LINEAR_API_TOKEN: "lin_ci_fake_token_for_build"
 
 jobs:
   lint-and-typecheck:
