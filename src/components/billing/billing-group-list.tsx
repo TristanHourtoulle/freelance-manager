@@ -78,6 +78,7 @@ export function BillingGroupList({
               />
               <button
                 onClick={() => toggleCollapse(group.client.id)}
+                aria-expanded={!isCollapsed}
                 className="flex flex-1 items-center justify-between text-left"
               >
                 <div className="flex items-center gap-3">

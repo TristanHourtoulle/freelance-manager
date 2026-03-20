@@ -32,6 +32,8 @@ export function KanbanColumn({ status, tasks }: KanbanColumnProps) {
 
       <div
         ref={setNodeRef}
+        role="region"
+        aria-label={status.name}
         className={`
           flex-1 flex flex-col gap-2 p-2 rounded-lg min-h-[200px]
           transition-colors

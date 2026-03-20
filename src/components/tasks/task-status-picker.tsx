@@ -135,6 +135,7 @@ export function TaskStatusPicker({
         onClick={() => (isOpen ? setIsOpen(false) : handleOpen())}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label="Change task status"
         className="cursor-pointer"
       >
         <TaskStatusBadge status={currentStatus} />

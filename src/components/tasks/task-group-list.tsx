@@ -92,6 +92,7 @@ export function TaskGroupList({
           >
             <button
               onClick={() => toggleCollapse(group.client.id)}
+              aria-expanded={!isCollapsed}
               className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-surface-muted/50"
             >
               <div className="flex items-center gap-3">
