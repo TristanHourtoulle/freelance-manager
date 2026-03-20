@@ -3,10 +3,11 @@ import { getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import {
   updateSettingsSchema,
   DEFAULT_NOTIFICATION_PREFS,
+  DEFAULT_DASHBOARD_KPIS,
 } from "@/lib/schemas/settings"
 import { NextResponse } from "next/server"
 
-import type { NotificationPrefs } from "@/lib/schemas/settings"
+import type { NotificationPrefs, DashboardKpiId } from "@/lib/schemas/settings"
 
 function serializeSettings(settings: {
   availableHoursPerMonth: number
@@ -15,6 +16,7 @@ function serializeSettings(settings: {
   defaultPaymentDays: number
   defaultRate: unknown
   notificationPrefs: unknown
+  dashboardKpis: unknown
   theme: string
   accentColor: string
 }) {
@@ -27,6 +29,9 @@ function serializeSettings(settings: {
     notificationPrefs:
       (settings.notificationPrefs as NotificationPrefs | null) ??
       DEFAULT_NOTIFICATION_PREFS,
+    dashboardKpis:
+      (settings.dashboardKpis as DashboardKpiId[] | null) ??
+      DEFAULT_DASHBOARD_KPIS,
     theme: settings.theme,
     accentColor: settings.accentColor,
   }

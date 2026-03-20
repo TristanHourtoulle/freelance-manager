@@ -88,6 +88,9 @@ model UserSettings {
   linearApiTokenEncrypted Bytes?
   linearApiTokenIv        Bytes?
 
+  // Dashboard KPI preferences (JSON: string[] of enabled KPI ids)
+  dashboardKpis          Json?
+
   // Appearance
   theme                  String   @default("system")
   accentColor            String   @default("#2563eb")

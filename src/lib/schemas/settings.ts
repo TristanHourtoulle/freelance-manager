@@ -22,6 +22,27 @@ export const notificationPrefsSchema = z.object({
 
 export type NotificationPrefs = z.infer<typeof notificationPrefsSchema>
 
+/** All available dashboard KPI identifiers. */
+export const DASHBOARD_KPI_IDS = [
+  "monthlyRevenue",
+  "pipeline",
+  "billedHours",
+  "activeClients",
+  "overdueInvoices",
+  "monthlyExpenses",
+] as const
+
+export type DashboardKpiId = (typeof DASHBOARD_KPI_IDS)[number]
+
+/** Default KPIs shown on the dashboard when no preference is set. */
+export const DEFAULT_DASHBOARD_KPIS: DashboardKpiId[] = [
+  "monthlyRevenue",
+  "pipeline",
+  "billedHours",
+]
+
+export const dashboardKpisSchema = z.array(z.enum(DASHBOARD_KPI_IDS))
+
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   billingReminder: { enabled: true, delayDays: 7 },
   inactiveClient: { enabled: true, delayDays: 30 },
@@ -42,6 +63,7 @@ export const updateSettingsSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color")
     .optional(),
+  dashboardKpis: dashboardKpisSchema.optional(),
 })
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>

@@ -35,33 +35,56 @@ export async function GET(request: Request) {
       archivedAt: null,
     }
 
-    const [pipelineOverrides, invoicedOverrides, userSettings] =
-      await Promise.all([
-        prisma.taskOverride.findMany({
-          where: {
-            toInvoice: true,
-            invoiced: false,
-            client: baseClientWhere,
-          },
-          include: {
-            client: { include: { linearMappings: true } },
-          },
-        }),
-        prisma.taskOverride.findMany({
-          where: {
-            invoiced: true,
-            invoicedAt: { not: null, gte: sixMonthsAgo },
-            client: baseClientWhere,
-          },
-          include: {
-            client: { include: { linearMappings: true } },
-          },
-        }),
-        prisma.userSettings.findUnique({
-          where: { userId: userOrError.id },
-          select: { monthlyRevenueTarget: true },
-        }),
-      ])
+    const [
+      pipelineOverrides,
+      invoicedOverrides,
+      userSettings,
+      activeClientsCount,
+      monthlyExpensesAgg,
+      overdueInvoicesCount,
+    ] = await Promise.all([
+      prisma.taskOverride.findMany({
+        where: {
+          toInvoice: true,
+          invoiced: false,
+          client: baseClientWhere,
+        },
+        include: {
+          client: { include: { linearMappings: true } },
+        },
+      }),
+      prisma.taskOverride.findMany({
+        where: {
+          invoiced: true,
+          invoicedAt: { not: null, gte: sixMonthsAgo },
+          client: baseClientWhere,
+        },
+        include: {
+          client: { include: { linearMappings: true } },
+        },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: userOrError.id },
+        select: { monthlyRevenueTarget: true },
+      }),
+      prisma.client.count({
+        where: baseClientWhere,
+      }),
+      prisma.expense.aggregate({
+        where: {
+          userId: userOrError.id,
+          date: { gte: firstOfMonth, lt: firstOfNextMonth },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.count({
+        where: {
+          client: { userId: userOrError.id },
+          status: "SENT",
+          paymentDueDate: { lt: now },
+        },
+      }),
+    ])
 
     // Collect all unique clients that need Linear issue fetching
     const clientMap = new Map<
@@ -166,6 +189,10 @@ export async function GET(request: Request) {
       monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
       billedHours,
       monthlyRevenueTarget: Number(userSettings?.monthlyRevenueTarget ?? 0),
+      activeClients: activeClientsCount,
+      monthlyExpenses:
+        Math.round(Number(monthlyExpensesAgg._sum.amount ?? 0) * 100) / 100,
+      overdueInvoices: overdueInvoicesCount,
       revenueByMonth,
       ...getLinearSyncStatus(),
     })
