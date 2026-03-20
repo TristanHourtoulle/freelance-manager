@@ -66,6 +66,11 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                   {t("recurringBadge")}
                 </Badge>
               )}
+              {expense.taxDeductible && (
+                <Badge variant="outline" className="ml-2">
+                  {t("taxDeductibleCol")}
+                </Badge>
+              )}
             </TableCell>
             <TableCell>
               <Badge

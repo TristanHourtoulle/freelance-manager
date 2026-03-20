@@ -72,6 +72,9 @@ export function ClientForm({
       rate: 0,
       category: "FREELANCE",
       notes: undefined,
+      phone: undefined,
+      website: undefined,
+      paymentTerms: undefined,
       ...defaultValues,
     },
   })
@@ -139,7 +142,24 @@ export function ClientForm({
         error={errors.company?.message}
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          label={t("phone")}
+          type="tel"
+          placeholder={t("phonePlaceholder")}
+          {...register("phone")}
+          error={errors.phone?.message}
+        />
+        <FormField
+          label={t("website")}
+          type="url"
+          placeholder={t("websitePlaceholder")}
+          {...register("website")}
+          error={errors.website?.message}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Controller
           name="billingMode"
           control={control}
@@ -178,6 +198,16 @@ export function ClientForm({
             setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
           })}
           error={errors.rate?.message}
+        />
+        <FormField
+          label={t("paymentTerms")}
+          type="number"
+          min="1"
+          placeholder={t("paymentTermsPlaceholder")}
+          {...register("paymentTerms", {
+            setValueAs: (v) => (v === "" || v === null ? undefined : Number(v)),
+          })}
+          error={errors.paymentTerms?.message}
         />
         <Controller
           name="category"

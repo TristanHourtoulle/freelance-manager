@@ -55,7 +55,8 @@
     "tags": "Tags",
     "bankImport": "Bank Import",
     "advanced": "Advanced",
-    "dataExport": "Data & Export"
+    "dataExport": "Data & Export",
+    "auditLog": "Activity Log"
   },
 
   "dashboard": {
@@ -143,6 +144,12 @@
       "selectCategory": "Select category",
       "notes": "Notes",
       "notesPlaceholder": "Additional notes...",
+      "phone": "Phone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "website": "Website",
+      "websitePlaceholder": "https://example.com",
+      "paymentTerms": "Payment terms (days)",
+      "paymentTermsPlaceholder": "30",
       "createButton": "Create Client",
       "updateButton": "Update Client"
     },
@@ -227,6 +234,7 @@
     "categoryCol": "Category",
     "clientCol": "Client",
     "amountCol": "Amount",
+    "taxDeductibleCol": "Tax Ded.",
     "emptyState": "No expenses yet",
     "emptyStateHint": "Add your first expense to start tracking costs.",
     "categories": {
@@ -252,6 +260,9 @@
       "client": "Client",
       "noClient": "No client",
       "recurring": "This is a recurring expense",
+      "receiptUrl": "Receipt URL",
+      "receiptUrlPlaceholder": "https://...",
+      "taxDeductible": "Tax deductible",
       "cancel": "Cancel",
       "createButton": "Create Expense",
       "updateButton": "Update Expense"
@@ -282,7 +293,9 @@
     "weekView": "Week",
     "timelineView": "Timeline",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "recurringExpense": "Recurring expense",
+    "recurringExpenseDue": "Recurring expense due"
   },
 
   "analytics": {
@@ -451,6 +464,37 @@
     "deleteConfirmButton": "Delete permanently",
     "toasts": {
       "deleteError": "Failed to delete account"
+    }
+  },
+
+  "auditLog": {
+    "title": "Activity Log",
+    "description": "View all actions performed in your workspace.",
+    "dateCol": "Date",
+    "actionCol": "Action",
+    "entityCol": "Entity",
+    "detailsCol": "Details",
+    "allActions": "All actions",
+    "allEntities": "All entities",
+    "noLogs": "No activity logged yet",
+    "actions": {
+      "CREATE": "Created",
+      "UPDATE": "Updated",
+      "DELETE": "Deleted",
+      "ARCHIVE": "Archived",
+      "UNARCHIVE": "Unarchived",
+      "EXPORT": "Exported",
+      "LOGIN": "Logged in"
+    },
+    "entities": {
+      "Client": "Client",
+      "Expense": "Expense",
+      "Invoice": "Invoice",
+      "TaskOverride": "Task",
+      "UserSettings": "Settings",
+      "UserData": "User Data",
+      "Tag": "Tag",
+      "BankTransaction": "Bank Transaction"
     }
   },
 

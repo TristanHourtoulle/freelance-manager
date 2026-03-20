@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { useTranslations } from "next-intl"
+import { ArrowPathIcon } from "@heroicons/react/24/outline"
 import { Badge } from "@/components/ui/badge"
 
 import type { CalendarDeadline, DeadlineUrgency } from "./types"
@@ -44,6 +45,7 @@ export function DeadlineCard({ deadline }: DeadlineCardProps) {
   })
 
   const amount = deadline.metadata.amount ?? 0
+  const isRecurring = deadline.type === "RECURRING_EXPENSE"
 
   function getUrgencyLabel(): string {
     if (daysDiff === 0) return t("today")
@@ -91,10 +93,16 @@ export function DeadlineCard({ deadline }: DeadlineCardProps) {
           <Badge variant="outline" className={getUrgencyBadgeClasses()}>
             {getUrgencyLabel()}
           </Badge>
+          {isRecurring && (
+            <span className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400">
+              <ArrowPathIcon className="h-3.5 w-3.5" />
+              {t("recurringExpense")}
+            </span>
+          )}
         </div>
 
         <Link
-          href={`/billing/history`}
+          href={isRecurring ? "/expenses" : "/billing/history"}
           className="mt-1 block text-sm text-foreground hover:underline"
         >
           {deadline.title}
@@ -110,14 +118,16 @@ export function DeadlineCard({ deadline }: DeadlineCardProps) {
             </span>
           )}
           <Badge variant="outline" className={getStatusBadgeClasses()}>
-            {deadline.metadata.status}
+            {isRecurring ? t("recurringExpenseDue") : deadline.metadata.status}
           </Badge>
-          <Link
-            href={`/clients/${deadline.clientId}`}
-            className="text-xs text-muted-foreground hover:underline"
-          >
-            {deadline.clientName}
-          </Link>
+          {deadline.clientName && (
+            <Link
+              href={`/clients/${deadline.clientId}`}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              {deadline.clientName}
+            </Link>
+          )}
         </div>
       </div>
     </div>

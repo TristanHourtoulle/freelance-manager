@@ -53,6 +53,7 @@
     "bankImport": "Import bancaire",
     "advanced": "Avancé",
     "dataExport": "Données & Export",
+    "auditLog": "Journal d'activité",
     "backToApp": "Retour à l'app"
   },
   "dashboard": {
@@ -139,6 +140,12 @@
       "selectCategory": "Sélectionner une catégorie",
       "notes": "Notes",
       "notesPlaceholder": "Notes supplémentaires...",
+      "phone": "Téléphone",
+      "phonePlaceholder": "+33 6 12 34 56 78",
+      "website": "Site web",
+      "websitePlaceholder": "https://exemple.com",
+      "paymentTerms": "Délai de paiement (jours)",
+      "paymentTermsPlaceholder": "30",
       "createButton": "Créer le client",
       "updateButton": "Mettre à jour"
     },
@@ -220,6 +227,7 @@
     "categoryCol": "Catégorie",
     "clientCol": "Client",
     "amountCol": "Montant",
+    "taxDeductibleCol": "Déd. fiscal",
     "emptyState": "Aucune dépense pour le moment",
     "emptyStateHint": "Ajoutez votre première dépense pour commencer le suivi.",
     "categories": {
@@ -245,6 +253,9 @@
       "client": "Client",
       "noClient": "Aucun client",
       "recurring": "C'est une dépense récurrente",
+      "receiptUrl": "URL du justificatif",
+      "receiptUrlPlaceholder": "https://...",
+      "taxDeductible": "Déductible fiscalement",
       "cancel": "Annuler",
       "createButton": "Créer la dépense",
       "updateButton": "Mettre à jour"
@@ -282,7 +293,9 @@
     "weekView": "Semaine",
     "timelineView": "Timeline",
     "previous": "Précédent",
-    "next": "Suivant"
+    "next": "Suivant",
+    "recurringExpense": "Dépense récurrente",
+    "recurringExpenseDue": "Dépense récurrente à venir"
   },
 
   "analytics": {
@@ -446,6 +459,37 @@
       "deleteError": "Erreur lors de la suppression du compte"
     }
   },
+  "auditLog": {
+    "title": "Journal d'activité",
+    "description": "Consultez toutes les actions effectuées dans votre espace.",
+    "dateCol": "Date",
+    "actionCol": "Action",
+    "entityCol": "Entité",
+    "detailsCol": "Détails",
+    "allActions": "Toutes les actions",
+    "allEntities": "Toutes les entités",
+    "noLogs": "Aucune activité enregistrée",
+    "actions": {
+      "CREATE": "Créé",
+      "UPDATE": "Modifié",
+      "DELETE": "Supprimé",
+      "ARCHIVE": "Archivé",
+      "UNARCHIVE": "Désarchivé",
+      "EXPORT": "Exporté",
+      "LOGIN": "Connecté"
+    },
+    "entities": {
+      "Client": "Client",
+      "Expense": "Dépense",
+      "Invoice": "Facture",
+      "TaskOverride": "Tâche",
+      "UserSettings": "Paramètres",
+      "UserData": "Données utilisateur",
+      "Tag": "Tag",
+      "BankTransaction": "Transaction bancaire"
+    }
+  },
+
   "imageUpload": {
     "invalidType": "Seuls les fichiers PNG, JPEG ou WebP sont acceptés",
     "tooLarge": "L'image doit faire moins de 5 Mo",

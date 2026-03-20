@@ -70,6 +70,8 @@ export function ExpenseForm({
         (defaultValues?.category as CreateExpenseInput["category"]) ?? "OTHER",
       clientId: defaultValues?.clientId ?? undefined,
       recurring: defaultValues?.recurring ?? false,
+      receiptUrl: defaultValues?.receiptUrl ?? "",
+      taxDeductible: defaultValues?.taxDeductible ?? false,
     } as unknown as CreateExpenseInput,
   })
 
@@ -156,21 +158,48 @@ export function ExpenseForm({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Controller
-          name="recurring"
-          control={control}
-          render={({ field }) => (
-            <Checkbox
-              checked={field.value}
-              onCheckedChange={field.onChange}
-              id="recurring"
-            />
-          )}
-        />
-        <Label htmlFor="recurring" className="cursor-pointer">
-          {t("form.recurring")}
-        </Label>
+      <FormField
+        label={t("form.receiptUrl")}
+        type="url"
+        placeholder={t("form.receiptUrlPlaceholder")}
+        error={errors.receiptUrl?.message}
+        {...register("receiptUrl")}
+      />
+
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Controller
+            name="recurring"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                id="recurring"
+              />
+            )}
+          />
+          <Label htmlFor="recurring" className="cursor-pointer">
+            {t("form.recurring")}
+          </Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Controller
+            name="taxDeductible"
+            control={control}
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                id="taxDeductible"
+              />
+            )}
+          />
+          <Label htmlFor="taxDeductible" className="cursor-pointer">
+            {t("form.taxDeductible")}
+          </Label>
+        </div>
       </div>
 
       <div className="flex justify-end gap-2.5 pt-2">
