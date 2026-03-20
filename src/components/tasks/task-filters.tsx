@@ -97,7 +97,7 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* Preset tabs row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2.5">
           {TASK_PRESETS.map((preset, index) => (
             <Chip
@@ -115,7 +115,7 @@ export function TaskFilters({ clients, view, onViewChange }: TaskFiltersProps) {
             />
           ))}
         </div>
-        <div className="flex items-center rounded-lg border border-border">
+        <div className="flex items-center self-end rounded-lg border border-border sm:self-auto">
           <button
             onClick={() => onViewChange("list")}
             className={`cursor-pointer rounded-l-lg p-1.5 transition-colors ${
