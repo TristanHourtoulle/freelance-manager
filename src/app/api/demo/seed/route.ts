@@ -9,6 +9,14 @@ import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
  */
 export async function POST(request: Request) {
   try {
+    if (process.env.NODE_ENV === "production") {
+      return apiError(
+        "DEMO_DISABLED",
+        "Demo seed is not available in production.",
+        403,
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
