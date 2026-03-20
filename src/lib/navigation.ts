@@ -4,16 +4,20 @@ import {
   ArrowPathIcon,
   BanknotesIcon,
   BellIcon,
+  BuildingLibraryIcon,
   CalendarDaysIcon,
   ChartBarIcon,
   CheckCircleIcon,
   Cog6ToothIcon,
+  CurrencyDollarIcon,
   DocumentTextIcon,
   LinkIcon,
   PaintBrushIcon,
   PlusIcon,
+  ReceiptPercentIcon,
   ServerStackIcon,
   Squares2X2Icon,
+  TagIcon,
   UserCircleIcon,
   UsersIcon,
   WalletIcon,
@@ -33,6 +37,7 @@ export interface NavSection {
   items: NavItem[]
 }
 
+/** Flat list of all nav items (used by command palette search). */
 export const NAV_ITEMS: NavItem[] = [
   {
     translationKey: "dashboard",
@@ -71,6 +76,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDaysIcon,
   },
   {
+    translationKey: "financial",
+    label: "Financial",
+    href: "/financial",
+    icon: CurrencyDollarIcon,
+  },
+  {
     translationKey: "analytics",
     label: "Analytics",
     href: "/analytics",
@@ -81,6 +92,83 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Settings",
     href: "/settings",
     icon: Cog6ToothIcon,
+  },
+]
+
+/** Sidebar navigation grouped by sections. */
+export const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      {
+        translationKey: "dashboard",
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: Squares2X2Icon,
+      },
+    ],
+  },
+  {
+    titleKey: "navWork",
+    items: [
+      {
+        translationKey: "clients",
+        label: "Clients",
+        href: "/clients",
+        icon: UsersIcon,
+      },
+      {
+        translationKey: "tasks",
+        label: "Tasks",
+        href: "/tasks",
+        icon: CheckCircleIcon,
+      },
+      {
+        translationKey: "calendar",
+        label: "Calendar",
+        href: "/calendar",
+        icon: CalendarDaysIcon,
+      },
+    ],
+  },
+  {
+    titleKey: "navFinance",
+    items: [
+      {
+        translationKey: "billing",
+        label: "Billing",
+        href: "/billing",
+        icon: DocumentTextIcon,
+      },
+      {
+        translationKey: "expenses",
+        label: "Expenses",
+        href: "/expenses",
+        icon: BanknotesIcon,
+      },
+      {
+        translationKey: "financial",
+        label: "Financial",
+        href: "/financial",
+        icon: CurrencyDollarIcon,
+      },
+      {
+        translationKey: "analytics",
+        label: "Analytics",
+        href: "/analytics",
+        icon: ChartBarIcon,
+      },
+    ],
+  },
+  {
+    titleKey: "navSystem",
+    items: [
+      {
+        translationKey: "settings",
+        label: "Settings",
+        href: "/settings",
+        icon: Cog6ToothIcon,
+      },
+    ],
   },
 ]
 
@@ -122,6 +210,18 @@ export const SETTINGS_NAV_SECTIONS: NavSection[] = [
         icon: WalletIcon,
       },
       {
+        translationKey: "taxSettings",
+        label: "Tax & Fiscal",
+        href: "/settings/tax",
+        icon: ReceiptPercentIcon,
+      },
+      {
+        translationKey: "tags",
+        label: "Tags",
+        href: "/settings/tags",
+        icon: TagIcon,
+      },
+      {
         translationKey: "notifications",
         label: "Notifications",
         href: "/settings/notifications",
@@ -132,6 +232,12 @@ export const SETTINGS_NAV_SECTIONS: NavSection[] = [
         label: "Integrations",
         href: "/settings/integrations",
         icon: LinkIcon,
+      },
+      {
+        translationKey: "bankImport",
+        label: "Bank Import",
+        href: "/settings/bank",
+        icon: BuildingLibraryIcon,
       },
     ],
   },

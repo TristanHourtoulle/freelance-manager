@@ -1,6 +1,7 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -29,13 +30,13 @@ interface RevenueByMonthChartProps {
 }
 
 export function RevenueByMonthChart({ data }: RevenueByMonthChartProps) {
+  const t = useTranslations("analyticsCharts")
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Revenue by Month</CardTitle>
-        <CardDescription>
-          Monthly revenue over the selected period
-        </CardDescription>
+        <CardTitle>{t("revenueByMonth")}</CardTitle>
+        <CardDescription>{t("revenueByMonth")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer

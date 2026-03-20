@@ -28,11 +28,15 @@
     "billing": "Facturation",
     "expenses": "Dépenses",
     "calendar": "Calendrier",
+    "financial": "Finances",
     "analytics": "Analyses",
     "settings": "Paramètres",
     "logout": "Déconnexion",
     "search": "Rechercher...",
-    "backToApp": "Retour à l'app"
+    "backToApp": "Retour à l'app",
+    "navWork": "Travail",
+    "navFinance": "Finance",
+    "navSystem": "Système"
   },
   "settingsNav": {
     "title": "Paramètres",
@@ -44,6 +48,9 @@
     "billingInvoicing": "Facturation",
     "notifications": "Notifications",
     "integrations": "Intégrations",
+    "taxSettings": "Fiscalité",
+    "tags": "Tags",
+    "bankImport": "Import bancaire",
     "advanced": "Avancé",
     "dataExport": "Données & Export",
     "backToApp": "Retour à l'app"
@@ -267,7 +274,13 @@
     "noDeadlinesHint": "Toutes vos factures sont réglées !",
     "daysOverdue": "{days}j de retard",
     "daysUntil": "Dans {days}j",
-    "today": "Aujourd'hui"
+    "today": "Aujourd'hui",
+    "deadlines": "échéances",
+    "monthView": "Mois",
+    "weekView": "Semaine",
+    "timelineView": "Timeline",
+    "previous": "Précédent",
+    "next": "Suivant"
   },
 
   "analytics": {
@@ -623,7 +636,8 @@
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Décrivez la tâche...",
     "createButton": "Créer la tâche",
-    "failedToCreate": "Échec de la création de la tâche"
+    "failedToCreate": "Échec de la création de la tâche",
+    "previewTitle": "Aperçu"
   },
   "commandPalette": {
     "placeholder": "Tapez une commande ou recherchez...",
@@ -690,5 +704,169 @@
     "activeTasks": "Tâches en cours",
     "noActiveTasks": "Aucune tâche en cours",
     "viewAllTasks": "Voir toutes les tâches"
+  },
+
+  "taskDetail": {
+    "back": "Retour",
+    "backToTasks": "Retour aux tâches",
+    "openInLinear": "Ouvrir dans Linear",
+    "taskNotFound": "Tâche introuvable",
+    "returnToTasks": "Retour aux tâches",
+    "description": "Description",
+    "noDescription": "Aucune description fournie.",
+    "attachments": "Pièces jointes",
+    "comments": "Commentaires",
+    "activity": "Activité",
+    "priority": "Priorité",
+    "details": "Détails",
+    "assignee": "Assigné à",
+    "unassigned": "Non assigné",
+    "project": "Projet",
+    "estimate": "Estimation",
+    "dueDate": "Date d'échéance",
+    "created": "Créé le",
+    "updated": "Mis à jour le",
+    "completed": "Terminé le",
+    "billing": "Facturation",
+    "client": "Client",
+    "billingMode": "Mode",
+    "rate": "Tarif",
+    "amount": "Montant",
+    "toInvoice": "À facturer",
+    "invoicedLabel": "Facturé",
+    "invoicedStatus": "Facturé",
+    "notInvoiced": "Non facturé",
+    "noClientMapped": "Aucun client associé à cette tâche.",
+    "unknown": "Inconnu",
+    "someone": "Quelqu'un",
+    "addComment": "Ajouter un commentaire... (Markdown supporté)",
+    "sendShortcut": "{key}+Entrée pour envoyer",
+    "sending": "Envoi...",
+    "comment": "Commenter",
+    "failedToComment": "Échec de l'envoi du commentaire",
+    "priorities": {
+      "noPriority": "Sans priorité",
+      "urgent": "Urgent",
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
+    "history": {
+      "movedFromTo": "a déplacé de {from} vers {to}",
+      "setStatusTo": "a défini le statut à {to}",
+      "reassignedFromTo": "a réassigné de {from} à {to}",
+      "assignedTo": "a assigné à {to}",
+      "unassigned": "a désassigné {from}",
+      "changedPriority": "a changé la priorité de {from} à {to}"
+    }
+  },
+
+  "analyticsCharts": {
+    "utilizationRate": "Taux d'utilisation",
+    "monthlyUtilization": "Utilisation mensuelle",
+    "utilizationOverTime": "Taux d'utilisation dans le temps",
+    "revenueByMonth": "Revenus par mois",
+    "revenueByClient": "Revenus par client",
+    "totalRevenuePerClient": "Revenu total par client",
+    "revenueByCategory": "Revenus par catégorie",
+    "revenueSplitByCategory": "Répartition des revenus par catégorie de client",
+    "timeByClient": "Temps par client",
+    "billedHoursPerClient": "Heures facturées par client",
+    "timeByProject": "Temps par projet",
+    "backToClients": "Retour aux clients",
+    "goToBilling": "Aller à la facturation",
+    "goToTasks": "Aller aux tâches",
+    "noData": "Pas encore de données analytiques",
+    "noDataHint": "Marquez des tâches comme facturées depuis la page Facturation pour voir les analyses ici."
+  },
+
+  "financial": {
+    "title": "Finances",
+    "pnl": "Compte de résultat",
+    "revenue": "Revenus",
+    "expenses": "Dépenses",
+    "profit": "Bénéfice",
+    "margin": "Marge",
+    "period": "Période",
+    "monthly": "Mensuel",
+    "quarterly": "Trimestriel",
+    "yearly": "Annuel",
+    "totals": "Totaux",
+    "projection": "Projection",
+    "projectionHint": "Basé sur la moyenne des 3 dernières périodes",
+    "nextPeriod": "Période suivante",
+    "estimatedRevenue": "Revenus estimés",
+    "estimatedExpenses": "Dépenses estimées",
+    "estimatedProfit": "Bénéfice estimé",
+    "noData": "Pas encore de données financières",
+    "noDataHint": "Commencez à facturer vos clients pour voir votre compte de résultat ici."
+  },
+
+  "settingsTax": {
+    "title": "Fiscalité",
+    "taxConfig": "Configuration fiscale",
+    "taxConfigDesc": "Configurez votre régime fiscal pour le calcul automatique URSSAF et TVA.",
+    "regime": "Régime fiscal",
+    "micro": "Micro-entrepreneur",
+    "reel": "Régime réel",
+    "activityType": "Type d'activité",
+    "services": "Services (BNC)",
+    "sales": "Ventes (BIC)",
+    "mixed": "Mixte",
+    "tvaRate": "Taux de TVA",
+    "tvaRateHint": "Mettez 0 si vous êtes en franchise en base de TVA.",
+    "acreLabel": "Éligible ACRE",
+    "acreHint": "Cochez si vous bénéficiez de la réduction ACRE (première année d'activité).",
+    "toasts": {
+      "success": "Paramètres fiscaux enregistrés",
+      "error": "Erreur lors de l'enregistrement"
+    }
+  },
+
+  "taxReport": {
+    "title": "Déclaration fiscale",
+    "export": "Exporter la déclaration",
+    "year": "Année",
+    "regime": "Régime",
+    "micro": "Micro-entrepreneur",
+    "reel": "Régime réel",
+    "activityType": "Type d'activité",
+    "services": "Services",
+    "sales": "Ventes",
+    "mixed": "Mixte",
+    "quarter": "Trimestre",
+    "urssaf": "URSSAF",
+    "tva": "TVA",
+    "netIncome": "Revenu net",
+    "acreDiscount": "Réduction ACRE appliquée"
+  },
+
+  "bankTransactions": {
+    "title": "Transactions bancaires",
+    "import": "Importer CSV",
+    "importDesc": "Importez des transactions bancaires depuis un fichier CSV.",
+    "matched": "Rapprochées",
+    "unmatched": "Non rapprochées",
+    "matchExpense": "Associer à une dépense",
+    "unmatch": "Dissocier",
+    "noTransactions": "Aucune transaction bancaire",
+    "noTransactionsHint": "Importez un CSV bancaire pour commencer le rapprochement.",
+    "deleteConfirm": "Supprimer cette transaction ?",
+    "bankName": "Banque",
+    "importSuccess": "{count} transaction(s) importée(s)",
+    "importError": "Échec de l'import"
+  },
+
+  "tags": {
+    "title": "Tags",
+    "addTag": "Ajouter un tag",
+    "editTag": "Modifier le tag",
+    "deleteTag": "Supprimer le tag",
+    "tagName": "Nom du tag",
+    "tagColor": "Couleur",
+    "noTags": "Aucun tag",
+    "cancel": "Annuler",
+    "createButton": "Créer",
+    "deleteConfirm": "Supprimer le tag \"{name}\" ? Il sera retiré de tous les clients et dépenses."
   }
 }

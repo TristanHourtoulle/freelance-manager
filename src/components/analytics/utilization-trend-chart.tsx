@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -36,11 +37,13 @@ interface UtilizationTrendChartProps {
 }
 
 export function UtilizationTrendChart({ data }: UtilizationTrendChartProps) {
+  const t = useTranslations("analyticsCharts")
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Monthly Utilization</CardTitle>
-        <CardDescription>Utilization rate over time</CardDescription>
+        <CardTitle>{t("monthlyUtilization")}</CardTitle>
+        <CardDescription>{t("utilizationOverTime")}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer

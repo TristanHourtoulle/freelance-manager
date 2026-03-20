@@ -29,11 +29,15 @@
     "billing": "Billing",
     "expenses": "Expenses",
     "calendar": "Calendar",
+    "financial": "Financial",
     "analytics": "Analytics",
     "settings": "Settings",
     "logout": "Logout",
     "search": "Search...",
-    "backToApp": "Back to app"
+    "backToApp": "Back to app",
+    "navWork": "Work",
+    "navFinance": "Finance",
+    "navSystem": "System"
   },
 
   "settingsNav": {
@@ -47,6 +51,9 @@
     "billingInvoicing": "Billing & Invoicing",
     "notifications": "Notifications",
     "integrations": "Integrations",
+    "taxSettings": "Tax & Fiscal",
+    "tags": "Tags",
+    "bankImport": "Bank Import",
     "advanced": "Advanced",
     "dataExport": "Data & Export"
   },
@@ -267,7 +274,13 @@
     "noDeadlinesHint": "All your invoices are paid up!",
     "daysOverdue": "{days}d overdue",
     "daysUntil": "In {days}d",
-    "today": "Today"
+    "today": "Today",
+    "deadlines": "deadlines",
+    "monthView": "Month",
+    "weekView": "Week",
+    "timelineView": "Timeline",
+    "previous": "Previous",
+    "next": "Next"
   },
 
   "analytics": {
@@ -647,7 +660,8 @@
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Describe the task...",
     "createButton": "Create Task",
-    "failedToCreate": "Failed to create task"
+    "failedToCreate": "Failed to create task",
+    "previewTitle": "Preview"
   },
 
   "commandPalette": {
@@ -716,5 +730,169 @@
     "activeTasks": "Active Tasks",
     "noActiveTasks": "No active tasks",
     "viewAllTasks": "View all tasks"
+  },
+
+  "taskDetail": {
+    "back": "Back",
+    "backToTasks": "Back to tasks",
+    "openInLinear": "Open in Linear",
+    "taskNotFound": "Task not found",
+    "returnToTasks": "Return to tasks",
+    "description": "Description",
+    "noDescription": "No description provided.",
+    "attachments": "Attachments",
+    "comments": "Comments",
+    "activity": "Activity",
+    "priority": "Priority",
+    "details": "Details",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "project": "Project",
+    "estimate": "Estimate",
+    "dueDate": "Due date",
+    "created": "Created",
+    "updated": "Updated",
+    "completed": "Completed",
+    "billing": "Billing",
+    "client": "Client",
+    "billingMode": "Mode",
+    "rate": "Rate",
+    "amount": "Amount",
+    "toInvoice": "To invoice",
+    "invoicedLabel": "Invoiced",
+    "invoicedStatus": "Invoiced",
+    "notInvoiced": "Not invoiced",
+    "noClientMapped": "No client mapped to this task.",
+    "unknown": "Unknown",
+    "someone": "Someone",
+    "addComment": "Add a comment... (Markdown supported)",
+    "sendShortcut": "{key}+Enter to send",
+    "sending": "Sending...",
+    "comment": "Comment",
+    "failedToComment": "Failed to post comment",
+    "priorities": {
+      "noPriority": "No priority",
+      "urgent": "Urgent",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "history": {
+      "movedFromTo": "moved from {from} to {to}",
+      "setStatusTo": "set status to {to}",
+      "reassignedFromTo": "reassigned from {from} to {to}",
+      "assignedTo": "assigned to {to}",
+      "unassigned": "unassigned {from}",
+      "changedPriority": "changed priority from {from} to {to}"
+    }
+  },
+
+  "analyticsCharts": {
+    "utilizationRate": "Utilization Rate",
+    "monthlyUtilization": "Monthly Utilization",
+    "utilizationOverTime": "Utilization rate over time",
+    "revenueByMonth": "Revenue by Month",
+    "revenueByClient": "Revenue by Client",
+    "totalRevenuePerClient": "Total revenue per client",
+    "revenueByCategory": "Revenue by Category",
+    "revenueSplitByCategory": "Revenue split by client category",
+    "timeByClient": "Time by Client",
+    "billedHoursPerClient": "Billed hours per client",
+    "timeByProject": "Time by Project",
+    "backToClients": "Back to clients",
+    "goToBilling": "Go to Billing",
+    "goToTasks": "Go to Tasks",
+    "noData": "No analytics data yet",
+    "noDataHint": "Mark tasks as invoiced from the Billing page to see analytics here."
+  },
+
+  "financial": {
+    "title": "Financial",
+    "pnl": "Profit & Loss",
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "profit": "Profit",
+    "margin": "Margin",
+    "period": "Period",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly",
+    "totals": "Totals",
+    "projection": "Projection",
+    "projectionHint": "Based on the average of the last 3 periods",
+    "nextPeriod": "Next period",
+    "estimatedRevenue": "Est. revenue",
+    "estimatedExpenses": "Est. expenses",
+    "estimatedProfit": "Est. profit",
+    "noData": "No financial data yet",
+    "noDataHint": "Start invoicing clients to see your P&L here."
+  },
+
+  "settingsTax": {
+    "title": "Tax & Fiscal",
+    "taxConfig": "Tax Configuration",
+    "taxConfigDesc": "Configure your tax regime for automatic URSSAF and TVA calculations.",
+    "regime": "Tax regime",
+    "micro": "Micro-entrepreneur",
+    "reel": "Regime reel",
+    "activityType": "Activity type",
+    "services": "Services (BNC)",
+    "sales": "Sales (BIC)",
+    "mixed": "Mixed",
+    "tvaRate": "TVA rate",
+    "tvaRateHint": "Set to 0 if you are below the TVA threshold (franchise en base).",
+    "acreLabel": "ACRE eligible",
+    "acreHint": "Check if you benefit from the ACRE reduction (first year of activity).",
+    "toasts": {
+      "success": "Tax settings saved",
+      "error": "Failed to save tax settings"
+    }
+  },
+
+  "taxReport": {
+    "title": "Tax Report",
+    "export": "Export tax report",
+    "year": "Year",
+    "regime": "Regime",
+    "micro": "Micro-entrepreneur",
+    "reel": "Régime réel",
+    "activityType": "Activity type",
+    "services": "Services",
+    "sales": "Sales",
+    "mixed": "Mixed",
+    "quarter": "Quarter",
+    "urssaf": "URSSAF",
+    "tva": "TVA",
+    "netIncome": "Net income",
+    "acreDiscount": "ACRE discount applied"
+  },
+
+  "bankTransactions": {
+    "title": "Bank Transactions",
+    "import": "Import CSV",
+    "importDesc": "Import bank transactions from a CSV file.",
+    "matched": "Matched",
+    "unmatched": "Unmatched",
+    "matchExpense": "Match to expense",
+    "unmatch": "Unmatch",
+    "noTransactions": "No bank transactions",
+    "noTransactionsHint": "Import a bank CSV to start reconciling.",
+    "deleteConfirm": "Delete this transaction?",
+    "bankName": "Bank",
+    "importSuccess": "{count} transaction(s) imported",
+    "importError": "Import failed"
+  },
+
+  "tags": {
+    "title": "Tags",
+    "addTag": "Add tag",
+    "editTag": "Edit tag",
+    "deleteTag": "Delete tag",
+    "tagName": "Tag name",
+    "tagColor": "Color",
+    "noTags": "No tags yet",
+    "cancel": "Cancel",
+    "createButton": "Create",
+    "deleteConfirm": "Delete tag \"{name}\"? It will be removed from all clients and expenses."
   }
 }

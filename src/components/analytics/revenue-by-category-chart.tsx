@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { Label, Pie, PieChart } from "recharts"
+import { useTranslations } from "next-intl"
 import {
   Card,
   CardContent,
@@ -47,6 +48,7 @@ interface RevenueByCategoryChartProps {
 }
 
 export function RevenueByCategoryChart({ data }: RevenueByCategoryChartProps) {
+  const t = useTranslations("analyticsCharts")
   const totalRevenue = useMemo(
     () => data.reduce((sum, d) => sum + d.amount, 0),
     [data],
@@ -60,8 +62,8 @@ export function RevenueByCategoryChart({ data }: RevenueByCategoryChartProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Revenue by Category</CardTitle>
-        <CardDescription>Revenue split by client category</CardDescription>
+        <CardTitle>{t("revenueByCategory")}</CardTitle>
+        <CardDescription>{t("revenueSplitByCategory")}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer

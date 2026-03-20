@@ -10,7 +10,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline"
 import { authClient } from "@/lib/auth-client"
-import { NAV_ITEMS, SETTINGS_NAV_SECTIONS } from "@/lib/navigation"
+import { NAV_SECTIONS, SETTINGS_NAV_SECTIONS } from "@/lib/navigation"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useUserImage } from "@/components/providers/user-provider"
 
@@ -110,24 +110,35 @@ function AppNav({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3 pt-4">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary text-white"
-                  : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
-              }`}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {t(item.translationKey)}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 overflow-y-auto p-3 pt-4">
+        {NAV_SECTIONS.map((section, sIdx) => (
+          <div key={sIdx} className={sIdx > 0 ? "mt-3" : ""}>
+            {section.titleKey && (
+              <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/50">
+                {t(section.titleKey)}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const active = isActive(item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-primary text-white"
+                        : "text-text-secondary hover:bg-surface-muted hover:text-text-primary"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    {t(item.translationKey)}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Logout */}
@@ -175,7 +186,7 @@ function SettingsNav() {
         {SETTINGS_NAV_SECTIONS.map((section, sIdx) => (
           <div key={sIdx} className={sIdx > 0 ? "mt-4" : "mt-1"}>
             {section.titleKey && (
-              <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/50">
                 {t(section.titleKey)}
               </p>
             )}
@@ -231,7 +242,7 @@ export function SidebarNav({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r-2 border-border bg-surface lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r-2 border-border bg-surface lg:block">
         <NavContent userName={userName} userEmail={userEmail} />
       </aside>
 
@@ -245,7 +256,7 @@ export function SidebarNav({
               if (e.key === "Escape") onClose()
             }}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-surface">
+          <aside className="fixed inset-y-0 left-0 z-50 w-72 bg-surface">
             <div className="flex items-center justify-end p-2">
               <button
                 onClick={onClose}

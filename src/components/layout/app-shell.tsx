@@ -54,7 +54,7 @@ export function AppShell({
                 isOpen={isSidebarOpen}
                 onClose={handleClose}
               />
-              <div className="lg:pl-64">
+              <div className="lg:pl-72">
                 <AppHeader onMenuToggle={handleToggle} />
                 <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
                   {children}
