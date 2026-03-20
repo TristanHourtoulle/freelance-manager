@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main, staging]
 
+env:
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+  BETTER_AUTH_SECRET: "ci-secret-not-real"
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+
 jobs:
   lint-and-typecheck:
     name: Lint & Type Check
@@ -20,6 +25,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
       - run: pnpm run lint
       - run: pnpm exec tsc --noEmit
 
@@ -54,7 +60,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-    env:
-      DATABASE_URL: "postgresql://fake:fake@localhost:5432/fake"
-      BETTER_AUTH_SECRET: "ci-secret-not-real"
-      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
