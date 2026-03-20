@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 interface UserProfile {
   name: string
@@ -8,8 +8,19 @@ interface UserProfile {
 }
 
 interface Settings {
+  availableHoursPerMonth: number
+  monthlyRevenueTarget: number
+  defaultCurrency: string
+  defaultPaymentDays: number
+  defaultRate: number
   dashboardKpis: string[]
-  [key: string]: unknown
+  notificationPrefs: Record<string, unknown> | null
+  theme: string
+  accentColor: string
+  taxRegime: string
+  tvaRate: number
+  activityType: string
+  acreEligible: boolean
 }
 
 interface TokenStatus {
@@ -99,5 +110,27 @@ export function useLinearCacheStatus() {
       return res.json()
     },
     staleTime: 1 * 60 * 1000,
+  })
+}
+
+/**
+ * Updates user settings. Invalidates the settings cache on success.
+ */
+export function useUpdateSettings() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: Partial<Settings>) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error("Failed to update settings")
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
+    },
   })
 }

@@ -8,7 +8,7 @@ import type {
 } from "@/components/billing/types"
 
 /**
- * Fetches uninvoiced billing data. Cached for 2 minutes.
+ * Fetches uninvoiced billing data. Cached for 10 minutes.
  */
 export function useBilling(searchParams: string) {
   return useQuery<BillingApiResponse>({
@@ -23,7 +23,7 @@ export function useBilling(searchParams: string) {
 }
 
 /**
- * Fetches billing history. Cached for 2 minutes.
+ * Fetches billing history. Cached for 10 minutes.
  */
 export function useBillingHistory(searchParams: string) {
   return useQuery<HistoryApiResponse>({
@@ -57,12 +57,13 @@ export function useMarkInvoiced() {
       queryClient.invalidateQueries({ queryKey: ["billing"] })
       queryClient.invalidateQueries({ queryKey: ["billing-history"] })
       queryClient.invalidateQueries({ queryKey: ["tasks"] })
+      queryClient.invalidateQueries({ queryKey: ["financial"] })
     },
   })
 }
 
 /**
- * Updates an invoice status (SENT -> PAID).
+ * Updates an invoice status with optimistic update.
  */
 export function useUpdateInvoiceStatus() {
   const queryClient = useQueryClient()
@@ -83,8 +84,44 @@ export function useUpdateInvoiceStatus() {
       if (!res.ok) throw new Error("Failed to update invoice status")
       return res.json()
     },
-    onSuccess: () => {
+    onMutate: async ({ invoiceId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["billing-history"] })
+      const previousQueries = queryClient.getQueriesData<HistoryApiResponse>({
+        queryKey: ["billing-history"],
+      })
+
+      queryClient.setQueriesData<HistoryApiResponse>(
+        { queryKey: ["billing-history"] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            months: old.months.map((month) => ({
+              ...month,
+              clients: month.clients.map((client) => ({
+                ...client,
+                invoice:
+                  client.invoice?.id === invoiceId
+                    ? { ...client.invoice, status }
+                    : client.invoice,
+              })),
+            })),
+          }
+        },
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["billing-history"] })
+      queryClient.invalidateQueries({ queryKey: ["financial"] })
     },
   })
 }

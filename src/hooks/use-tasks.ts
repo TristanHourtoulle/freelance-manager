@@ -37,7 +37,7 @@ export function useRefreshLinear() {
 }
 
 /**
- * Updates a task override (toInvoice, invoiced, rateOverride).
+ * Updates a task override (toInvoice, invoiced, rateOverride) with optimistic update.
  */
 export function useUpdateTaskOverride() {
   const queryClient = useQueryClient()
@@ -59,7 +59,48 @@ export function useUpdateTaskOverride() {
       })
       if (!res.ok) throw new Error("Failed to update override")
     },
-    onSuccess: () => {
+    onMutate: async ({ linearIssueId, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks"] })
+      const previousQueries = queryClient.getQueriesData<TasksApiResponse>({
+        queryKey: ["tasks"],
+      })
+
+      queryClient.setQueriesData<TasksApiResponse>(
+        { queryKey: ["tasks"] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            groups: old.groups.map((group) => ({
+              ...group,
+              tasks: group.tasks.map((task) =>
+                task.linearIssueId === linearIssueId
+                  ? {
+                      ...task,
+                      ...(payload.toInvoice !== undefined
+                        ? { toInvoice: payload.toInvoice as boolean }
+                        : {}),
+                      ...(payload.invoiced !== undefined
+                        ? { invoiced: payload.invoiced as boolean }
+                        : {}),
+                    }
+                  : task,
+              ),
+            })),
+          }
+        },
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] })
       queryClient.invalidateQueries({ queryKey: ["billing"] })
     },
@@ -67,7 +108,7 @@ export function useUpdateTaskOverride() {
 }
 
 /**
- * Updates a task's workflow status in Linear.
+ * Updates a task's workflow status in Linear with optimistic update.
  */
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient()
@@ -79,6 +120,7 @@ export function useUpdateTaskStatus() {
     }: {
       linearIssueId: string
       stateId: string
+      newStatus?: { id: string; name: string; type: string; color: string }
     }) => {
       const res = await fetch(`/api/linear/issues/${linearIssueId}/status`, {
         method: "PATCH",
@@ -87,9 +129,47 @@ export function useUpdateTaskStatus() {
       })
       if (!res.ok) throw new Error("Failed to update status")
     },
-    // No onSuccess invalidation -- the caller handles optimistic updates.
-    // Immediate refetch would race with Linear's propagation delay and
-    // overwrite the optimistic data with stale server state.
+    onMutate: async ({ linearIssueId, newStatus }) => {
+      if (!newStatus) return
+
+      await queryClient.cancelQueries({ queryKey: ["tasks"] })
+      const previousQueries = queryClient.getQueriesData<TasksApiResponse>({
+        queryKey: ["tasks"],
+      })
+
+      queryClient.setQueriesData<TasksApiResponse>(
+        { queryKey: ["tasks"] },
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            groups: old.groups.map((group) => ({
+              ...group,
+              tasks: group.tasks.map((task) =>
+                task.linearIssueId === linearIssueId
+                  ? { ...task, status: newStatus }
+                  : task,
+              ),
+            })),
+          }
+        },
+      )
+
+      return { previousQueries }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data)
+        }
+      }
+    },
+    // Delay invalidation to let Linear propagate the change
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] })
+      }, 3000)
+    },
   })
 }
 
