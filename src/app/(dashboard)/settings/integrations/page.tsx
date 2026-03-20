@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -10,27 +10,18 @@ import {
   EyeSlashIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/providers/toast-provider"
-
-interface TokenStatus {
-  configured: boolean
-  maskedToken: string | null
-}
-
-interface WebhookStatus {
-  configured: boolean
-  webhookUrl: string | null
-}
-
-interface SyncStatus {
-  lastSyncedAt: number | null
-  isStale: boolean
-}
+import {
+  useLinearTokenStatus,
+  useWebhookStatus,
+  useLinearCacheStatus,
+} from "@/hooks/use-settings"
 
 function formatTimeAgo(ts: number | null): string {
   if (!ts) return "Never"
@@ -44,42 +35,21 @@ function formatTimeAgo(ts: number | null): string {
 export default function IntegrationsSettingsPage() {
   const { toast } = useToast()
   const t = useTranslations("settingsIntegrations")
+  const queryClient = useQueryClient()
 
-  // Token state
-  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null)
+  const { data: tokenStatus, isLoading: isTokenLoading } =
+    useLinearTokenStatus()
+  const { data: webhook, isLoading: isWebhookLoading } = useWebhookStatus()
+  const { data: sync, isLoading: isSyncLoading } = useLinearCacheStatus()
+
+  // Local UI state
   const [token, setToken] = useState("")
   const [showToken, setShowToken] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  // Webhook state
-  const [webhook, setWebhook] = useState<WebhookStatus | null>(null)
-
-  // Sync state
-  const [sync, setSync] = useState<SyncStatus | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      const [tokenRes, webhookRes, syncRes] = await Promise.all([
-        fetch("/api/settings/linear-token", { cache: "no-store" }),
-        fetch("/api/settings/webhook-status", { cache: "no-store" }),
-        fetch("/api/linear/cache-status", { cache: "no-store" }),
-      ])
-      if (cancelled) return
-      if (tokenRes.ok) setTokenStatus(await tokenRes.json())
-      if (webhookRes.ok) setWebhook(await webhookRes.json())
-      if (syncRes.ok) setSync(await syncRes.json())
-      setIsLoading(false)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const isLoading = isTokenLoading || isWebhookLoading || isSyncLoading
 
   const handleSaveToken = useCallback(async () => {
     if (!token.trim()) return
@@ -92,7 +62,7 @@ export default function IntegrationsSettingsPage() {
     const data = await res.json()
     setIsSaving(false)
     if (res.ok) {
-      setTokenStatus(data)
+      queryClient.invalidateQueries({ queryKey: ["linear-token-status"] })
       setToken("")
       setShowToken(false)
       toast({
@@ -105,19 +75,19 @@ export default function IntegrationsSettingsPage() {
         title: data.error?.message ?? "Failed to save token",
       })
     }
-  }, [token, toast, t])
+  }, [token, toast, t, queryClient])
 
   const handleDeleteToken = useCallback(async () => {
     setIsDeleting(true)
     const res = await fetch("/api/settings/linear-token", { method: "DELETE" })
     setIsDeleting(false)
     if (res.ok) {
-      setTokenStatus({ configured: false, maskedToken: null })
+      queryClient.invalidateQueries({ queryKey: ["linear-token-status"] })
       toast({ variant: "success", title: t("toasts.tokenRemoved") })
     } else {
       toast({ variant: "error", title: t("toasts.tokenRemoveError") })
     }
-  }, [toast, t])
+  }, [toast, t, queryClient])
 
   const handleCopyUrl = useCallback(async () => {
     if (!webhook?.webhookUrl) return
@@ -129,15 +99,11 @@ export default function IntegrationsSettingsPage() {
     setIsRefreshing(true)
     const res = await fetch("/api/linear/refresh", { method: "POST" })
     if (res.ok) {
-      const data = await res.json()
-      setSync({
-        lastSyncedAt: data.lastSyncedAt ?? Date.now(),
-        isStale: false,
-      })
+      queryClient.invalidateQueries({ queryKey: ["linear-cache-status"] })
     }
     setIsRefreshing(false)
     toast({ variant: "success", title: t("toasts.refreshed") })
-  }, [toast, t])
+  }, [toast, t, queryClient])
 
   if (isLoading) {
     return (

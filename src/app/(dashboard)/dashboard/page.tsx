@@ -1,6 +1,7 @@
 "use client"
 
-import { lazy, Suspense, useEffect, useState, useCallback } from "react"
+import { lazy, Suspense, useState, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslations } from "next-intl"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCustomizer } from "@/components/dashboard/kpi-customizer"
@@ -23,94 +24,65 @@ import {
   DEFAULT_DASHBOARD_KPIS,
   type DashboardKpiId,
 } from "@/lib/schemas/settings"
+import { useDashboard, useOnboarding } from "@/hooks/use-dashboard"
 
 import type { DashboardKPIs } from "@/components/dashboard/types"
-import type { OnboardingStatus } from "@/components/onboarding/types"
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard")
-  const [data, setData] = useState<DashboardKPIs | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
-  const [isStale, setIsStale] = useState(false)
-  const [enabledKpis, setEnabledKpis] = useState<DashboardKpiId[]>(
-    DEFAULT_DASHBOARD_KPIS,
-  )
+  const queryClient = useQueryClient()
 
-  const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null)
+  const {
+    data,
+    isLoading: isDashboardLoading,
+    isFetching: isDashboardFetching,
+  } = useDashboard()
+  const { data: onboardingData } = useOnboarding()
+
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  // KPI preferences come from the dashboard API response (merged from userSettings)
+  const resolvedKpis: DashboardKpiId[] =
+    data && Array.isArray(data.dashboardKpis) && data.dashboardKpis.length > 0
+      ? (data.dashboardKpis as DashboardKpiId[])
+      : DEFAULT_DASHBOARD_KPIS
 
-    async function load() {
-      setIsLoading(true)
-
-      const [dashRes, onboardingRes, settingsRes] = await Promise.all([
-        fetch("/api/dashboard", { cache: "no-store" }),
-        fetch("/api/onboarding", { cache: "no-store" }),
-        fetch("/api/settings", { cache: "no-store" }),
-      ])
-
-      if (!cancelled) {
-        if (dashRes.ok) {
-          const json: DashboardKPIs = await dashRes.json()
-          setData(json)
-          setLastSyncedAt(json.lastSyncedAt)
-          setIsStale(json.isStale)
-        }
-
-        if (settingsRes.ok) {
-          const settings = await settingsRes.json()
-          if (
-            Array.isArray(settings.dashboardKpis) &&
-            settings.dashboardKpis.length > 0
-          ) {
-            setEnabledKpis(settings.dashboardKpis as DashboardKpiId[])
-          }
-        }
-
-        if (onboardingRes.ok) {
-          const onboardingData: OnboardingStatus = await onboardingRes.json()
-          setOnboarding(onboardingData)
-
-          if (
-            !onboardingData.allCompleted &&
-            !localStorage.getItem("fm:welcome-dismissed")
-          ) {
-            setIsWelcomeOpen(true)
-          }
-        }
-
-        setIsLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [refreshKey])
+  // Show welcome modal for first-time users
+  if (
+    onboardingData &&
+    !onboardingData.allCompleted &&
+    !isWelcomeOpen &&
+    typeof window !== "undefined" &&
+    !localStorage.getItem("fm:welcome-dismissed")
+  ) {
+    // Trigger in a microtask to avoid setting state during render
+    queueMicrotask(() => setIsWelcomeOpen(true))
+  }
 
   const handleRefresh = useCallback(async () => {
     await fetch("/api/linear/refresh", { method: "POST" })
-    setRefreshKey((k) => k + 1)
-  }, [])
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+  }, [queryClient])
 
-  const handleSaveKpis = useCallback(async (kpis: DashboardKpiId[]) => {
-    const res = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dashboardKpis: kpis }),
-    })
-    if (res.ok) {
-      setEnabledKpis(kpis)
-    }
-  }, [])
+  const handleSaveKpis = useCallback(
+    async (kpis: DashboardKpiId[]) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dashboardKpis: kpis }),
+      })
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      }
+    },
+    [queryClient],
+  )
+
+  const isLoading = isDashboardLoading
 
   const isEmpty =
     data !== null &&
+    data !== undefined &&
     data.pipeline === 0 &&
     data.monthlyRevenue === 0 &&
     data.billedHours === 0 &&
@@ -126,13 +98,13 @@ export default function DashboardPage() {
       />
 
       <SyncStatusBar
-        lastSyncedAt={lastSyncedAt}
-        isStale={isStale}
+        lastSyncedAt={data?.lastSyncedAt ?? null}
+        isStale={data?.isStale ?? false}
         onRefresh={handleRefresh}
-        isRefreshing={isLoading}
+        isRefreshing={isDashboardFetching}
       />
 
-      <OnboardingChecklist onboardingStatus={onboarding} />
+      <OnboardingChecklist onboardingStatus={onboardingData ?? null} />
 
       {isLoading ? (
         <>
@@ -145,9 +117,9 @@ export default function DashboardPage() {
         <>
           <div className="flex items-center justify-between">
             <div />
-            <KpiCustomizer enabledKpis={enabledKpis} onSave={handleSaveKpis} />
+            <KpiCustomizer enabledKpis={resolvedKpis} onSave={handleSaveKpis} />
           </div>
-          <KpiCardsGrid data={data} enabledKpis={enabledKpis} />
+          <KpiCardsGrid data={data} enabledKpis={resolvedKpis} />
           {data.monthlyRevenueTarget > 0 && (
             <RevenueTargetProgress
               currentRevenue={data.monthlyRevenue}

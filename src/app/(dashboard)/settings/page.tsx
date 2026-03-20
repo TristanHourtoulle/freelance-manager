@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod/v4"
+import { useQueryClient } from "@tanstack/react-query"
 import { useTranslations } from "next-intl"
 import { ProfilePhotoForm } from "@/components/settings/profile-photo-form"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/providers/toast-provider"
+import { useUserProfile } from "@/hooks/use-settings"
 
 import type { Resolver } from "react-hook-form"
 
@@ -27,26 +29,8 @@ interface UserProfile {
 }
 
 export default function ProfileSettingsPage() {
-  const { toast } = useToast()
   const t = useTranslations("settingsProfile")
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      const res = await fetch("/api/user", { cache: "no-store" })
-      if (!cancelled && res.ok) {
-        const data = await res.json()
-        setProfile({ name: data.name, email: data.email })
-      }
-      if (!cancelled) setIsLoading(false)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data: profile, isLoading } = useUserProfile()
 
   if (isLoading) {
     return (
@@ -62,21 +46,20 @@ export default function ProfileSettingsPage() {
     <div className="space-y-6">
       <PageHeader title={t("title")} />
       <ProfilePhotoForm />
-      {profile && <ProfileForm defaultValues={profile} onSaved={setProfile} />}
+      {profile && (
+        <ProfileForm
+          defaultValues={{ name: profile.name, email: profile.email }}
+        />
+      )}
     </div>
   )
 }
 
-function ProfileForm({
-  defaultValues,
-  onSaved,
-}: {
-  defaultValues: ProfileInput
-  onSaved: (p: UserProfile) => void
-}) {
+function ProfileForm({ defaultValues }: { defaultValues: ProfileInput }) {
   const { toast } = useToast()
   const t = useTranslations("settingsProfile")
   const tc = useTranslations("common")
+  const queryClient = useQueryClient()
   const {
     register,
     handleSubmit,
@@ -94,14 +77,13 @@ function ProfileForm({
         body: JSON.stringify(data),
       })
       if (res.ok) {
-        const user = await res.json()
-        onSaved({ name: user.name, email: user.email })
+        queryClient.invalidateQueries({ queryKey: ["user-profile"] })
         toast({ variant: "success", title: t("toasts.success") })
       } else {
         toast({ variant: "error", title: t("toasts.error") })
       }
     },
-    [onSaved, toast, t],
+    [queryClient, toast, t],
   )
 
   return (

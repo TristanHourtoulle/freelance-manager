@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge"
 import {
@@ -25,6 +26,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { normalizeLineBreaks } from "@/lib/format"
+import { useTaskDetail } from "@/hooks/use-task-detail"
 
 import type { TaskDetailResponse } from "@/components/tasks/types"
 
@@ -56,64 +58,36 @@ const PRIORITY_STYLES: Record<string, string> = {
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
-  const [data, setData] = useState<TaskDetailResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useTaskDetail(id)
 
   const [isEditingEstimate, setIsEditingEstimate] = useState(false)
   const [estimateValue, setEstimateValue] = useState("")
   const estimateInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setIsLoading(true)
-      setError(null)
-
-      const res = await fetch(`/api/linear/issues/${id}`, {
-        cache: "no-store",
-      })
-
-      if (cancelled) return
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        setError(body?.error?.message ?? "Failed to load task")
-        setIsLoading(false)
-        return
-      }
-
-      const json: TaskDetailResponse = await res.json()
-      setData(json)
-      setIsLoading(false)
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [id])
-
   const handleToggleToInvoice = useCallback(
     async (value: boolean) => {
       if (!data?.client) return
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              override: prev.override
-                ? { ...prev.override, toInvoice: value }
-                : {
-                    linearIssueId: id,
-                    toInvoice: value,
-                    invoiced: false,
-                    invoicedAt: null,
-                    rateOverride: null,
-                  },
-            }
-          : prev,
+
+      // Optimistic update
+      queryClient.setQueryData<TaskDetailResponse>(
+        ["task-detail", id],
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                override: prev.override
+                  ? { ...prev.override, toInvoice: value }
+                  : {
+                      linearIssueId: id,
+                      toInvoice: value,
+                      invoiced: false,
+                      invoicedAt: null,
+                      rateOverride: null,
+                    },
+              }
+            : prev,
       )
 
       await fetch(`/api/tasks/${id}/override`, {
@@ -122,27 +96,31 @@ export default function TaskDetailPage() {
         body: JSON.stringify({ clientId: data.client.id, toInvoice: value }),
       })
     },
-    [data, id],
+    [data, id, queryClient],
   )
 
   const handleToggleInvoiced = useCallback(
     async (value: boolean) => {
       if (!data?.client) return
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              override: prev.override
-                ? { ...prev.override, invoiced: value }
-                : {
-                    linearIssueId: id,
-                    toInvoice: false,
-                    invoiced: value,
-                    invoicedAt: null,
-                    rateOverride: null,
-                  },
-            }
-          : prev,
+
+      // Optimistic update
+      queryClient.setQueryData<TaskDetailResponse>(
+        ["task-detail", id],
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                override: prev.override
+                  ? { ...prev.override, invoiced: value }
+                  : {
+                      linearIssueId: id,
+                      toInvoice: false,
+                      invoiced: value,
+                      invoicedAt: null,
+                      rateOverride: null,
+                    },
+              }
+            : prev,
       )
 
       await fetch(`/api/tasks/${id}/override`, {
@@ -151,7 +129,7 @@ export default function TaskDetailPage() {
         body: JSON.stringify({ clientId: data.client.id, invoiced: value }),
       })
     },
-    [data, id],
+    [data, id, queryClient],
   )
 
   const startEditingEstimate = useCallback(() => {
@@ -169,7 +147,8 @@ export default function TaskDetailPage() {
     if (isNaN(parsed) || parsed < 0) return
     if (parsed === data?.issue.estimate) return
 
-    setData((prev) =>
+    // Optimistic update
+    queryClient.setQueryData<TaskDetailResponse>(["task-detail", id], (prev) =>
       prev ? { ...prev, issue: { ...prev.issue, estimate: parsed } } : prev,
     )
 
@@ -178,7 +157,7 @@ export default function TaskDetailPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estimate: parsed }),
     })
-  }, [estimateValue, data?.issue.estimate, id])
+  }, [estimateValue, data?.issue.estimate, id, queryClient])
 
   const handleEstimateKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -218,7 +197,9 @@ export default function TaskDetailPage() {
         <Card>
           <CardContent>
             <div className="py-8 text-center">
-              <p className="text-text-secondary">{error ?? "Task not found"}</p>
+              <p className="text-text-secondary">
+                {error instanceof Error ? error.message : "Task not found"}
+              </p>
               <Link
                 href="/tasks"
                 className="mt-4 inline-block text-sm text-primary hover:underline"

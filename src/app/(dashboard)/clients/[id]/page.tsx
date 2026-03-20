@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, lazy, Suspense } from "react"
+import { lazy, Suspense } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -16,59 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ClientDetailHeader } from "@/components/clients/client-detail-header"
 import { formatCurrency } from "@/lib/format"
+import { useClientDashboard } from "@/hooks/use-client-detail"
 
 const ClientRevenueChart = lazy(() =>
   import("@/components/clients/client-revenue-chart").then((mod) => ({
     default: mod.ClientRevenueChart,
   })),
 )
-
-interface RevenueDataPoint {
-  month: string
-  label: string
-  amount: number
-}
-
-interface RecentInvoice {
-  id: string
-  month: string
-  totalAmount: number
-  status: string
-  paymentDueDate: string | null
-  createdAt: string
-}
-
-interface RecentExpense {
-  id: string
-  description: string
-  amount: number
-  date: string
-  category: string
-}
-
-interface ClientDashboardData {
-  client: {
-    id: string
-    name: string
-    company: string | null
-    category: string
-    billingMode: string
-    rate: number
-    createdAt: string
-    logo: string | null
-  }
-  stats: {
-    totalRevenue: number
-    totalInvoices: number
-    totalTasks: number
-    invoicedTasks: number
-    pendingTasks: number
-    totalExpenses: number
-  }
-  revenueByMonth: RevenueDataPoint[]
-  recentInvoices: RecentInvoice[]
-  recentExpenses: RecentExpense[]
-}
 
 const STATUS_BADGES: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400",
@@ -79,29 +33,7 @@ const STATUS_BADGES: Record<string, string> = {
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>()
   const t = useTranslations("clients.detail")
-  const [data, setData] = useState<ClientDashboardData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        setIsLoading(true)
-        const response = await fetch(`/api/clients/${params.id}/dashboard`)
-        if (!response.ok) {
-          throw new Error("Failed to load client dashboard")
-        }
-        const json = (await response.json()) as ClientDashboardData
-        setData(json)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchDashboard()
-  }, [params.id])
+  const { data, isLoading, error } = useClientDashboard(params.id)
 
   if (isLoading) {
     return <ClientDetailSkeleton />
@@ -118,7 +50,7 @@ export default function ClientDetailPage() {
         </Link>
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            {error ?? "Client not found"}
+            {error instanceof Error ? error.message : "Client not found"}
           </CardContent>
         </Card>
       </div>
