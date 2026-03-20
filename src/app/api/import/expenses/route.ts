@@ -1,16 +1,15 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 import { z } from "zod/v4"
 
 const importRowSchema = z.object({
   description: z.string().min(1),
   amount: z.coerce.number().min(0),
-  date: z
-    .string()
-    .refine((val) => !isNaN(Date.parse(val)), {
-      message: "Invalid date format, expected YYYY-MM-DD",
-    }),
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid date format, expected YYYY-MM-DD",
+  }),
   category: z
     .enum([
       "SUBSCRIPTION",
@@ -100,6 +99,19 @@ function parseCsvLine(line: string): string[] {
  */
 export async function POST(request: Request) {
   try {
+    const rl = rateLimit(request, { limit: 10, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -114,8 +126,23 @@ export async function POST(request: Request) {
       )
     }
 
+    const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
+    const MAX_ROW_COUNT = 5000
+
+    if (file.size > MAX_FILE_SIZE) {
+      return apiError("VAL_FILE_TOO_LARGE", "CSV file must be under 5 MB", 413)
+    }
+
     const text = await file.text()
     const rows = parseCsv(text)
+
+    if (rows.length > MAX_ROW_COUNT) {
+      return apiError(
+        "VAL_TOO_MANY_ROWS",
+        `CSV file exceeds maximum of ${MAX_ROW_COUNT} rows`,
+        413,
+      )
+    }
 
     if (rows.length === 0) {
       return apiError(

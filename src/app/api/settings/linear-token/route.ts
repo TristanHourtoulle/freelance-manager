@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { apiError, getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
 import { encrypt, decrypt, maskToken } from "@/lib/encryption"
 import { clearLinearClientCache } from "@/lib/linear"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 import { z } from "zod/v4"
 
@@ -51,6 +52,19 @@ export async function GET(request: Request) {
  */
 export async function PUT(request: Request) {
   try {
+    const rl = rateLimit(request, { limit: 5, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 

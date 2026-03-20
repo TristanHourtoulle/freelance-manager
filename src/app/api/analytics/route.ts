@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { categoryFilterField } from "@/lib/schemas/category-filter"
+import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 import {
   getMonthKey,
@@ -66,6 +67,19 @@ function shouldCompute(
  */
 export async function GET(request: Request) {
   try {
+    const rl = rateLimit(request)
+    if (!rl.success) {
+      return NextResponse.json(
+        {
+          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
+        },
+      )
+    }
+
     const userOrError = await getAuthenticatedUser(request)
     if (userOrError instanceof NextResponse) return userOrError
 
@@ -128,6 +142,13 @@ export async function GET(request: Request) {
     await Promise.allSettled(fetchPromises)
 
     const result: Record<string, unknown> = {}
+
+    // IMPORTANT: Section evaluation order matters due to data dependencies.
+    // 1. revenue-by-month (also populates monthHours for utilization)
+    // 2. revenue-by-client + hours-by-client (also needed for revenue-by-category)
+    // 3. revenue-by-category (depends on revenueByClient)
+    // 4. utilization (depends on revenueByMonth + monthHours)
+    // Do not reorder the blocks below without updating shouldCompute().
 
     // Revenue by month (also needed for utilization)
     let revenueByMonth: Array<{
