@@ -4,8 +4,14 @@ import { NextResponse } from "next/server"
 import { z } from "zod/v4"
 
 const updateInvoiceStatusSchema = z.object({
-  status: z.enum(["SENT", "PAID"]),
+  status: z.enum(["DRAFT", "SENT", "PAID"]),
 })
+
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ["SENT"],
+  SENT: ["PAID", "DRAFT"],
+  PAID: ["SENT"],
+}
 
 /**
  * PATCH /api/billing/invoices/[id]
@@ -40,6 +46,15 @@ export async function PATCH(
 
     const body = await request.json()
     const validated = updateInvoiceStatusSchema.parse(body)
+
+    const allowed = ALLOWED_TRANSITIONS[invoice.status] ?? []
+    if (!allowed.includes(validated.status)) {
+      return apiError(
+        "INVALID_TRANSITION",
+        `Cannot transition from ${invoice.status} to ${validated.status}`,
+        400,
+      )
+    }
 
     const updated = await prisma.invoice.update({
       where: { id },

@@ -73,7 +73,7 @@ export function useUpdateInvoiceStatus() {
       status,
     }: {
       invoiceId: string
-      status: "SENT" | "PAID"
+      status: "DRAFT" | "SENT" | "PAID"
     }) => {
       const res = await fetch(`/api/billing/invoices/${invoiceId}`, {
         method: "PATCH",

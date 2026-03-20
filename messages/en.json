@@ -492,7 +492,11 @@
     "taskCount": "{count, plural, one {# task} other {# tasks}}",
     "paid": "Paid",
     "sent": "Sent",
+    "draft": "Draft",
     "markAsPaid": "Mark as paid",
+    "markAsSent": "Mark as sent",
+    "revertToSent": "Revert to sent",
+    "revertToDraft": "Revert to draft",
     "dueIn": "Due in {days}d",
     "overdue": "Overdue {days}d",
     "uploadPdf": "Upload PDF",
@@ -503,7 +507,9 @@
     "allClients": "All clients",
     "clientLabel": "Client",
     "fromLabel": "From",
-    "toLabel": "To"
+    "toLabel": "To",
+    "statusUpdated": "Invoice status updated",
+    "statusUpdateError": "Failed to update invoice status"
   },
 
   "newTask": {

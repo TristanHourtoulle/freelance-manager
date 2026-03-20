@@ -457,7 +457,24 @@
   },
   "billingHistory": {
     "title": "Historique de facturation",
-    "backToInvoice": "Retour à la facturation"
+    "backToInvoice": "Retour à la facturation",
+    "taskCount": "{count, plural, one {# tâche} other {# tâches}}",
+    "paid": "Payé",
+    "sent": "Envoyé",
+    "draft": "Brouillon",
+    "dueIn": "Échéance dans {days}j",
+    "overdue": "En retard de {days}j",
+    "markAsPaid": "Marquer payé",
+    "markAsSent": "Marquer envoyé",
+    "revertToSent": "Revenir à envoyé",
+    "revertToDraft": "Revenir à brouillon",
+    "uploadPdf": "Joindre PDF",
+    "uploading": "Envoi...",
+    "pdfUploaded": "PDF joint",
+    "uploadFailed": "Échec de l'envoi",
+    "deleteFailed": "Échec de la suppression",
+    "statusUpdated": "Statut de la facture mis à jour",
+    "statusUpdateError": "Échec de la mise à jour du statut"
   },
   "newTask": {
     "title": "Nouvelle tâche",

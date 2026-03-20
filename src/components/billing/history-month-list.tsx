@@ -21,6 +21,10 @@ import type {
 interface HistoryMonthListProps {
   months: HistoryMonthGroup[]
   onMarkAsPaid?: (invoiceId: string) => void
+  onUpdateStatus?: (
+    invoiceId: string,
+    status: "DRAFT" | "SENT" | "PAID",
+  ) => void
 }
 
 const BILLING_MODE_KEYS: Record<string, string> = {
@@ -79,9 +83,14 @@ function PaymentDeadlineBadge({
 function InvoiceStatusBadge({
   group,
   onMarkAsPaid,
+  onUpdateStatus,
 }: {
   group: HistoryClientGroup
   onMarkAsPaid?: (invoiceId: string) => void
+  onUpdateStatus?: (
+    invoiceId: string,
+    status: "DRAFT" | "SENT" | "PAID",
+  ) => void
 }) {
   const t = useTranslations("billingHistory")
 
@@ -89,11 +98,45 @@ function InvoiceStatusBadge({
 
   const { status, id, paymentDueDate } = group.invoice
 
+  if (status === "DRAFT") {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-500/10 dark:text-gray-400">
+          {t("draft")}
+        </span>
+        {onUpdateStatus && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onUpdateStatus(id, "SENT")
+            }}
+            className="cursor-pointer rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+          >
+            {t("markAsSent")}
+          </button>
+        )}
+      </div>
+    )
+  }
+
   if (status === "PAID") {
     return (
-      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-        {t("paid")}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+          {t("paid")}
+        </span>
+        {onUpdateStatus && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onUpdateStatus(id, "SENT")
+            }}
+            className="cursor-pointer rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:hover:bg-gray-500/20"
+          >
+            {t("revertToSent")}
+          </button>
+        )}
+      </div>
     )
   }
 
@@ -103,15 +146,27 @@ function InvoiceStatusBadge({
         {t("sent")}
       </span>
       <PaymentDeadlineBadge paymentDueDate={paymentDueDate} status={status} />
-      {onMarkAsPaid && (
+      {(onMarkAsPaid || onUpdateStatus) && (
         <button
           onClick={(e) => {
             e.stopPropagation()
-            onMarkAsPaid(id)
+            if (onUpdateStatus) onUpdateStatus(id, "PAID")
+            else if (onMarkAsPaid) onMarkAsPaid(id)
           }}
           className="cursor-pointer rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
         >
           {t("markAsPaid")}
+        </button>
+      )}
+      {onUpdateStatus && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onUpdateStatus(id, "DRAFT")
+          }}
+          className="cursor-pointer rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:hover:bg-gray-500/20"
+        >
+          {t("revertToDraft")}
         </button>
       )}
     </div>
@@ -231,6 +286,7 @@ function InvoiceFileSection({ group }: { group: HistoryClientGroup }) {
 export function HistoryMonthList({
   months,
   onMarkAsPaid,
+  onUpdateStatus,
 }: HistoryMonthListProps) {
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set())
   const [collapsedClients, setCollapsedClients] = useState<Set<string>>(
@@ -351,6 +407,7 @@ export function HistoryMonthList({
                           <InvoiceStatusBadge
                             group={group}
                             onMarkAsPaid={onMarkAsPaid}
+                            onUpdateStatus={onUpdateStatus}
                           />
                         </div>
                         <span className="text-sm font-semibold tabular-nums text-text-primary">

@@ -28,24 +28,34 @@ export default function BillingHistoryPage() {
   const months = data?.months ?? []
   const grandTotal = data?.grandTotal ?? 0
 
-  const handleMarkAsPaid = useCallback(
-    (invoiceId: string) => {
+  const handleUpdateStatus = useCallback(
+    (invoiceId: string, status: "DRAFT" | "SENT" | "PAID") => {
       updateStatusMutation.mutate(
-        { invoiceId, status: "PAID" },
+        { invoiceId, status },
         {
           onSuccess: () => {
-            toast({ variant: "success", title: "Invoice marked as paid" })
+            toast({
+              variant: "success",
+              title: t("statusUpdated"),
+            })
           },
           onError: () => {
             toast({
               variant: "error",
-              title: "Failed to update invoice status",
+              title: t("statusUpdateError"),
             })
           },
         },
       )
     },
-    [updateStatusMutation, toast],
+    [updateStatusMutation, toast, t],
+  )
+
+  const handleMarkAsPaid = useCallback(
+    (invoiceId: string) => {
+      handleUpdateStatus(invoiceId, "PAID")
+    },
+    [handleUpdateStatus],
   )
 
   const allClients: ClientSummary[] = useMemo(() => {
@@ -103,7 +113,11 @@ export default function BillingHistoryPage() {
             taskCount={totalTaskCount}
             grandTotal={grandTotal}
           />
-          <HistoryMonthList months={months} onMarkAsPaid={handleMarkAsPaid} />
+          <HistoryMonthList
+            months={months}
+            onMarkAsPaid={handleMarkAsPaid}
+            onUpdateStatus={handleUpdateStatus}
+          />
         </>
       )}
     </div>
