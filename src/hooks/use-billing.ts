@@ -18,7 +18,7 @@ export function useBilling(searchParams: string) {
       if (!res.ok) throw new Error("Failed to fetch billing data")
       return res.json()
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -33,7 +33,7 @@ export function useBillingHistory(searchParams: string) {
       if (!res.ok) throw new Error("Failed to fetch billing history")
       return res.json()
     },
-    staleTime: 2 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
   })
 }
 

@@ -1,20 +1,54 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { PeriodSelector } from "@/components/analytics/period-selector"
-import { RevenueByMonthChart } from "@/components/analytics/revenue-by-month-chart"
-import { RevenueByClientChart } from "@/components/analytics/revenue-by-client-chart"
-import { TimeByClientChart } from "@/components/analytics/time-by-client-chart"
-import { TimeByProjectChart } from "@/components/analytics/time-by-project-chart"
-import { RevenueByCategoryChart } from "@/components/analytics/revenue-by-category-chart"
-import { UtilizationGauge } from "@/components/analytics/utilization-gauge"
-import { UtilizationTrendChart } from "@/components/analytics/utilization-trend-chart"
 import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
 import { PageHeader } from "@/components/ui/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const RevenueByMonthChart = lazy(() =>
+  import("@/components/analytics/revenue-by-month-chart").then((m) => ({
+    default: m.RevenueByMonthChart,
+  })),
+)
+const RevenueByClientChart = lazy(() =>
+  import("@/components/analytics/revenue-by-client-chart").then((m) => ({
+    default: m.RevenueByClientChart,
+  })),
+)
+const TimeByClientChart = lazy(() =>
+  import("@/components/analytics/time-by-client-chart").then((m) => ({
+    default: m.TimeByClientChart,
+  })),
+)
+const TimeByProjectChart = lazy(() =>
+  import("@/components/analytics/time-by-project-chart").then((m) => ({
+    default: m.TimeByProjectChart,
+  })),
+)
+const RevenueByCategoryChart = lazy(() =>
+  import("@/components/analytics/revenue-by-category-chart").then((m) => ({
+    default: m.RevenueByCategoryChart,
+  })),
+)
+const UtilizationGauge = lazy(() =>
+  import("@/components/analytics/utilization-gauge").then((m) => ({
+    default: m.UtilizationGauge,
+  })),
+)
+const UtilizationTrendChart = lazy(() =>
+  import("@/components/analytics/utilization-trend-chart").then((m) => ({
+    default: m.UtilizationTrendChart,
+  })),
+)
+
+function ChartFallback() {
+  return <Skeleton className="h-48 w-full rounded-xl sm:h-56 md:h-64" />
+}
 
 import type { AnalyticsData } from "@/components/analytics/types"
 
@@ -79,33 +113,49 @@ export default function AnalyticsPage() {
       ) : isEmpty ? (
         <AnalyticsEmptyState />
       ) : data ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <UtilizationGauge utilization={data.utilization} />
-            <UtilizationTrendChart data={data.utilization.byMonth} />
+        <Suspense fallback={<AnalyticsSkeleton />}>
+          <div className="space-y-6">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Suspense fallback={<ChartFallback />}>
+                <UtilizationGauge utilization={data.utilization} />
+              </Suspense>
+              <Suspense fallback={<ChartFallback />}>
+                <UtilizationTrendChart data={data.utilization.byMonth} />
+              </Suspense>
+            </div>
+            <Suspense fallback={<ChartFallback />}>
+              <RevenueByMonthChart data={data.revenueByMonth} />
+            </Suspense>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Suspense fallback={<ChartFallback />}>
+                <RevenueByClientChart data={data.revenueByClient} />
+              </Suspense>
+              <Suspense fallback={<ChartFallback />}>
+                <RevenueByCategoryChart data={data.revenueByCategory} />
+              </Suspense>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Suspense fallback={<ChartFallback />}>
+                {selectedClient ? (
+                  <TimeByProjectChart
+                    clientId={selectedClient.id}
+                    clientName={selectedClient.name}
+                    period={searchParams.get("period") ?? "3m"}
+                    searchParams={searchParams.toString()}
+                    onBack={() => setSelectedClient(null)}
+                  />
+                ) : (
+                  <TimeByClientChart
+                    data={data.hoursByClient}
+                    onClientClick={(id, name) =>
+                      setSelectedClient({ id, name })
+                    }
+                  />
+                )}
+              </Suspense>
+            </div>
           </div>
-          <RevenueByMonthChart data={data.revenueByMonth} />
-          <div className="grid gap-4 lg:grid-cols-2">
-            <RevenueByClientChart data={data.revenueByClient} />
-            <RevenueByCategoryChart data={data.revenueByCategory} />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {selectedClient ? (
-              <TimeByProjectChart
-                clientId={selectedClient.id}
-                clientName={selectedClient.name}
-                period={searchParams.get("period") ?? "3m"}
-                searchParams={searchParams.toString()}
-                onBack={() => setSelectedClient(null)}
-              />
-            ) : (
-              <TimeByClientChart
-                data={data.hoursByClient}
-                onClientClick={(id, name) => setSelectedClient({ id, name })}
-              />
-            )}
-          </div>
-        </div>
+        </Suspense>
       ) : null}
     </div>
   )

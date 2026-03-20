@@ -1,11 +1,16 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { lazy, Suspense, useEffect, useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { KpiCard } from "@/components/dashboard/kpi-card"
 import { KpiCardsSkeleton } from "@/components/dashboard/kpi-cards-skeleton"
-import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { RevenueChartSkeleton } from "@/components/dashboard/revenue-chart-skeleton"
+
+const RevenueChart = lazy(() =>
+  import("@/components/dashboard/revenue-chart").then((m) => ({
+    default: m.RevenueChart,
+  })),
+)
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state"
 import { RevenueTargetProgress } from "@/components/dashboard/revenue-target-progress"
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist"
@@ -131,7 +136,9 @@ export default function DashboardPage() {
               target={data.monthlyRevenueTarget}
             />
           )}
-          <RevenueChart data={data.revenueByMonth} />
+          <Suspense fallback={<RevenueChartSkeleton />}>
+            <RevenueChart data={data.revenueByMonth} />
+          </Suspense>
         </>
       ) : null}
     </div>

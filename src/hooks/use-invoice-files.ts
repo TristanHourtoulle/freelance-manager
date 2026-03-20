@@ -22,7 +22,7 @@ export function useInvoiceFiles(invoiceId: string | undefined) {
       return res.json()
     },
     enabled: Boolean(invoiceId),
-    staleTime: 2 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
   })
 }
 
