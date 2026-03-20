@@ -50,7 +50,7 @@ function AppNav({
 
   async function handleLogout() {
     await authClient.signOut()
-    router.push("/auth/login")
+    router.push("/")
   }
 
   return (
