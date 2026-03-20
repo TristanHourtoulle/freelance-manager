@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { PageHeader } from "@/components/ui/page-header"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -46,10 +46,33 @@ function filterDeadlinesByRange(
   })
 }
 
+const CALENDAR_VIEW_KEY = "fm-filters:calendar-view"
+
+function getInitialView(): CalendarView {
+  if (typeof window === "undefined") return "month"
+  try {
+    const stored = localStorage.getItem(CALENDAR_VIEW_KEY)
+    if (stored === "month" || stored === "week" || stored === "timeline") {
+      return stored
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return "month"
+}
+
 export default function CalendarPage() {
   const t = useTranslations("calendar")
-  const [view, setView] = useState<CalendarView>("month")
+  const [view, setView] = useState<CalendarView>(getInitialView)
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CALENDAR_VIEW_KEY, view)
+    } catch {
+      // Ignore storage errors
+    }
+  }, [view])
   const { data, isLoading, error } = useCalendarDeadlines(view, currentDate)
 
   const allDeadlines = data?.deadlines ?? []

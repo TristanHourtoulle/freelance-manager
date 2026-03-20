@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { PageHeader } from "@/components/ui/page-header"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -12,10 +12,48 @@ import { CurrencyDollarIcon } from "@heroicons/react/24/outline"
 
 type PeriodType = "month" | "quarter" | "year"
 
+const FINANCIAL_STORAGE_KEY = "fm-filters:financial"
+
+function getInitialFinancialFilters(): { period: PeriodType; year: number } {
+  if (typeof window === "undefined") {
+    return { period: "month", year: new Date().getFullYear() }
+  }
+  try {
+    const stored = localStorage.getItem(FINANCIAL_STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored) as { period?: string; year?: number }
+      const period =
+        parsed.period === "month" ||
+        parsed.period === "quarter" ||
+        parsed.period === "year"
+          ? parsed.period
+          : "month"
+      const year =
+        typeof parsed.year === "number" ? parsed.year : new Date().getFullYear()
+      return { period, year }
+    }
+  } catch {
+    // Ignore corrupted localStorage
+  }
+  return { period: "month", year: new Date().getFullYear() }
+}
+
 export default function FinancialPage() {
   const t = useTranslations("financial")
-  const [period, setPeriod] = useState<PeriodType>("month")
-  const [year, setYear] = useState(new Date().getFullYear())
+  const initial = getInitialFinancialFilters()
+  const [period, setPeriod] = useState<PeriodType>(initial.period)
+  const [year, setYear] = useState(initial.year)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        FINANCIAL_STORAGE_KEY,
+        JSON.stringify({ period, year }),
+      )
+    } catch {
+      // Ignore storage errors
+    }
+  }, [period, year])
 
   const { data, isLoading, error } = useFinancial(
     period as "month" | "quarter" | "year",

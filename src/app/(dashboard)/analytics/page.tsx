@@ -5,11 +5,17 @@ import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { CategoryFilter } from "@/components/ui/category-filter"
 import { PeriodSelector } from "@/components/analytics/period-selector"
-import { AnalyticsSkeleton } from "@/components/analytics/analytics-skeleton"
 import { AnalyticsEmptyState } from "@/components/analytics/analytics-empty-state"
 import { PageHeader } from "@/components/ui/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAnalytics } from "@/hooks/use-analytics"
+import {
+  useRevenueByMonth,
+  useRevenueByClient,
+  useHoursByClient,
+  useRevenueByCategory,
+  useUtilization,
+} from "@/hooks/use-analytics"
+import { usePersistedFilters } from "@/hooks/use-persisted-filters"
 
 const RevenueByMonthChart = lazy(() =>
   import("@/components/analytics/revenue-by-month-chart").then((m) => ({
@@ -54,23 +60,36 @@ function ChartFallback() {
 export default function AnalyticsPage() {
   const t = useTranslations("analytics")
   const searchParams = useSearchParams()
+  usePersistedFilters("analytics", ["period", "category"])
   const [selectedClient, setSelectedClient] = useState<{
     id: string
     name: string
   } | null>(null)
 
-  const { data, isLoading } = useAnalytics(searchParams.toString())
+  const paramsString = searchParams.toString()
 
-  // Reset selected client drill-down when search params change
-  // (handled by React Query re-keying; selectedClient is local UI state)
+  const revenueByMonth = useRevenueByMonth(paramsString)
+  const revenueByClient = useRevenueByClient(paramsString)
+  const hoursByClient = useHoursByClient(paramsString)
+  const revenueByCategory = useRevenueByCategory(paramsString)
+  const utilization = useUtilization(paramsString)
+
+  const isAllLoaded =
+    !revenueByMonth.isLoading &&
+    !revenueByClient.isLoading &&
+    !hoursByClient.isLoading &&
+    !revenueByCategory.isLoading &&
+    !utilization.isLoading
 
   const isEmpty =
-    data !== null &&
-    data !== undefined &&
-    data.revenueByMonth.every((m) => m.amount === 0) &&
-    data.revenueByClient.every((c) => c.amount === 0) &&
-    data.hoursByClient.every((c) => c.hours === 0) &&
-    data.revenueByCategory.every((c) => c.amount === 0)
+    isAllLoaded &&
+    (revenueByMonth.data?.revenueByMonth?.every((m) => m.amount === 0) ??
+      true) &&
+    (revenueByClient.data?.revenueByClient?.every((c) => c.amount === 0) ??
+      true) &&
+    (hoursByClient.data?.hoursByClient?.every((c) => c.hours === 0) ?? true) &&
+    (revenueByCategory.data?.revenueByCategory?.every((c) => c.amount === 0) ??
+      true)
 
   return (
     <div className="space-y-6">
@@ -81,55 +100,81 @@ export default function AnalyticsPage() {
         <CategoryFilter />
       </div>
 
-      {isLoading ? (
-        <AnalyticsSkeleton />
-      ) : isEmpty ? (
+      {isAllLoaded && isEmpty ? (
         <AnalyticsEmptyState />
-      ) : data ? (
-        <Suspense fallback={<AnalyticsSkeleton />}>
-          <div className="space-y-6">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Suspense fallback={<ChartFallback />}>
-                <UtilizationGauge utilization={data.utilization} />
-              </Suspense>
-              <Suspense fallback={<ChartFallback />}>
-                <UtilizationTrendChart data={data.utilization.byMonth} />
-              </Suspense>
-            </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Suspense fallback={<ChartFallback />}>
-              <RevenueByMonthChart data={data.revenueByMonth} />
+              {utilization.isLoading ? (
+                <ChartFallback />
+              ) : utilization.data ? (
+                <UtilizationGauge utilization={utilization.data.utilization} />
+              ) : null}
             </Suspense>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Suspense fallback={<ChartFallback />}>
-                <RevenueByClientChart data={data.revenueByClient} />
-              </Suspense>
-              <Suspense fallback={<ChartFallback />}>
-                <RevenueByCategoryChart data={data.revenueByCategory} />
-              </Suspense>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Suspense fallback={<ChartFallback />}>
-                {selectedClient ? (
+            <Suspense fallback={<ChartFallback />}>
+              {utilization.isLoading ? (
+                <ChartFallback />
+              ) : utilization.data ? (
+                <UtilizationTrendChart
+                  data={utilization.data.utilization.byMonth}
+                />
+              ) : null}
+            </Suspense>
+          </div>
+          <Suspense fallback={<ChartFallback />}>
+            {revenueByMonth.isLoading ? (
+              <ChartFallback />
+            ) : revenueByMonth.data ? (
+              <RevenueByMonthChart data={revenueByMonth.data.revenueByMonth} />
+            ) : null}
+          </Suspense>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Suspense fallback={<ChartFallback />}>
+              {revenueByClient.isLoading ? (
+                <ChartFallback />
+              ) : revenueByClient.data ? (
+                <RevenueByClientChart
+                  data={revenueByClient.data.revenueByClient}
+                />
+              ) : null}
+            </Suspense>
+            <Suspense fallback={<ChartFallback />}>
+              {revenueByCategory.isLoading ? (
+                <ChartFallback />
+              ) : revenueByCategory.data ? (
+                <RevenueByCategoryChart
+                  data={revenueByCategory.data.revenueByCategory}
+                />
+              ) : null}
+            </Suspense>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Suspense fallback={<ChartFallback />}>
+              {hoursByClient.isLoading ? (
+                <ChartFallback />
+              ) : hoursByClient.data ? (
+                selectedClient ? (
                   <TimeByProjectChart
                     clientId={selectedClient.id}
                     clientName={selectedClient.name}
                     period={searchParams.get("period") ?? "3m"}
-                    searchParams={searchParams.toString()}
+                    searchParams={paramsString}
                     onBack={() => setSelectedClient(null)}
                   />
                 ) : (
                   <TimeByClientChart
-                    data={data.hoursByClient}
+                    data={hoursByClient.data.hoursByClient}
                     onClientClick={(id, name) =>
                       setSelectedClient({ id, name })
                     }
                   />
-                )}
-              </Suspense>
-            </div>
+                )
+              ) : null}
+            </Suspense>
           </div>
-        </Suspense>
-      ) : null}
+        </div>
+      )}
     </div>
   )
 }
