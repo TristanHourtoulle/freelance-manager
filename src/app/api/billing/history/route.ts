@@ -157,6 +157,7 @@ export async function GET(request: Request) {
           id: inv.id,
           status: inv.status,
           totalAmount: Number(inv.totalAmount),
+          paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
           paymentDueDate: inv.paymentDueDate
             ? inv.paymentDueDate.toISOString()
             : null,

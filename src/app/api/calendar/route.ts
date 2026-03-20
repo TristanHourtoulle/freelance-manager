@@ -5,13 +5,14 @@ import { NextResponse } from "next/server"
 
 interface CalendarDeadline {
   id: string
-  type: "INVOICE_DUE"
+  type: "INVOICE_DUE" | "RECURRING_EXPENSE"
   title: string
   date: string
   clientName: string
   clientId: string
   metadata: {
-    invoiceId: string
+    invoiceId?: string
+    expenseId?: string
     amount: number
     status: string
   }
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
       orderBy: { paymentDueDate: "asc" },
     })
 
-    const deadlines: CalendarDeadline[] = invoices
+    const invoiceDeadlines: CalendarDeadline[] = invoices
       .filter((inv) => inv.paymentDueDate !== null)
       .map((inv) => ({
         id: `invoice-${inv.id}`,
@@ -85,6 +86,50 @@ export async function GET(request: Request) {
           status: inv.status,
         },
       }))
+
+    // Fetch recurring expenses and project next occurrence
+    const recurringExpenses = await prisma.expense.findMany({
+      where: {
+        userId: userOrError.id,
+        recurring: true,
+        deletedAt: null,
+      },
+      include: {
+        client: { select: { id: true, name: true } },
+      },
+    })
+
+    const recurringDeadlines: CalendarDeadline[] = []
+    for (const expense of recurringExpenses) {
+      const recurringDay = expense.date.getDate()
+      let nextDate = new Date(now.getFullYear(), now.getMonth(), recurringDay)
+
+      // If the day already passed this month, project to next month
+      if (nextDate < now) {
+        nextDate = new Date(now.getFullYear(), now.getMonth() + 1, recurringDay)
+      }
+
+      // Only include if within the time window
+      if (nextDate < pastBound || nextDate > futureBound) continue
+
+      recurringDeadlines.push({
+        id: `recurring-expense-${expense.id}`,
+        type: "RECURRING_EXPENSE",
+        title: `Recurring expense - ${expense.description}`,
+        date: nextDate.toISOString(),
+        clientName: expense.client?.name ?? "",
+        clientId: expense.client?.id ?? "",
+        metadata: {
+          expenseId: expense.id,
+          amount: Number(expense.amount),
+          status: "RECURRING",
+        },
+      })
+    }
+
+    const deadlines = [...invoiceDeadlines, ...recurringDeadlines].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    )
 
     return NextResponse.json({ deadlines })
   } catch (error) {

@@ -111,6 +111,9 @@ export function serializeClient(
   return {
     ...client,
     rate: Number(client.rate),
+    phone: client.phone ?? null,
+    website: client.website ?? null,
+    paymentTerms: client.paymentTerms ?? null,
     totalRevenue: computed?.totalRevenue ?? 0,
     lastActivityAt: computed?.lastActivityAt?.toISOString() ?? null,
   }

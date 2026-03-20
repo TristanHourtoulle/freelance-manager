@@ -1,5 +1,6 @@
 import {
   ArrowDownTrayIcon,
+  ArrowPathIcon,
   ClockIcon,
   CurrencyEuroIcon,
   ExclamationTriangleIcon,
@@ -36,5 +37,9 @@ export const NOTIFICATION_TYPE_CONFIG: Record<
   PAYMENT_OVERDUE: {
     icon: ClockIcon,
     color: "text-orange-500 bg-orange-50 dark:bg-orange-500/10",
+  },
+  RECURRING_EXPENSE: {
+    icon: ArrowPathIcon,
+    color: "text-violet-500 bg-violet-50 dark:bg-violet-500/10",
   },
 }

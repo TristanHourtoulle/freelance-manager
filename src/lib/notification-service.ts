@@ -397,6 +397,83 @@ export async function computeUnbilledClientAlerts(
   }
 }
 
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Creates notifications for recurring expenses that haven't been logged this month.
+ * Only alerts when we are within 3 days before the expense's recurring day-of-month.
+ * Cooldown: 24 hours per expense.
+ *
+ * @param userId - The authenticated user ID
+ */
+export async function computeRecurringExpenseReminders(
+  userId: string,
+): Promise<void> {
+  const recurringExpenses = await prisma.expense.findMany({
+    where: {
+      userId,
+      recurring: true,
+      deletedAt: null,
+    },
+  })
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+  const currentDay = now.getDate()
+
+  const firstOfMonth = new Date(currentYear, currentMonth, 1)
+  const firstOfNextMonth = new Date(currentYear, currentMonth + 1, 1)
+
+  for (const expense of recurringExpenses) {
+    const recurringDay = expense.date.getDate()
+
+    // Only alert within 3 days before the recurring day (inclusive)
+    const daysUntil = recurringDay - currentDay
+    if (daysUntil < 0 || daysUntil > 3) continue
+
+    // Check if a similar expense was already created this month
+    const existingThisMonth = await prisma.expense.findFirst({
+      where: {
+        userId,
+        description: expense.description,
+        amount: expense.amount,
+        category: expense.category,
+        deletedAt: null,
+        date: {
+          gte: firstOfMonth,
+          lt: firstOfNextMonth,
+        },
+        id: { not: expense.id },
+      },
+    })
+    if (existingThisMonth) continue
+
+    const alreadyNotified = await hasRecentNotification(
+      userId,
+      "RECURRING_EXPENSE",
+      TWENTY_FOUR_HOURS_MS,
+      { key: "expenseId", value: expense.id },
+    )
+    if (alreadyNotified) continue
+
+    const amount = Number(expense.amount)
+
+    await createNotification({
+      userId,
+      type: "RECURRING_EXPENSE",
+      title: "Recurring expense due",
+      message: `"${expense.description}" (${amount.toFixed(2)}EUR) is due ${daysUntil === 0 ? "today" : `in ${daysUntil} day${daysUntil > 1 ? "s" : ""}`}`,
+      metadata: {
+        expenseId: expense.id,
+        description: expense.description,
+        amount,
+        recurringDay,
+      },
+    })
+  }
+}
+
 /**
  * Runs all notification computations in parallel.
  *
@@ -410,5 +487,6 @@ export async function computeAllNotifications(userId: string): Promise<void> {
     computePaymentOverdueAlerts(userId),
     computeRevenueTargetAlert(userId),
     computeUnbilledClientAlerts(userId),
+    computeRecurringExpenseReminders(userId),
   ])
 }

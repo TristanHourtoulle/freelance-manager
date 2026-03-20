@@ -56,15 +56,26 @@ export async function PATCH(
       )
     }
 
+    const paidAtValue =
+      validated.status === "PAID"
+        ? new Date()
+        : invoice.status === "PAID"
+          ? null
+          : undefined
+
     const updated = await prisma.invoice.update({
       where: { id },
-      data: { status: validated.status },
+      data: {
+        status: validated.status,
+        ...(paidAtValue !== undefined ? { paidAt: paidAtValue } : {}),
+      },
     })
 
     return NextResponse.json({
       id: updated.id,
       status: updated.status,
       totalAmount: Number(updated.totalAmount),
+      paidAt: updated.paidAt?.toISOString() ?? null,
     })
   } catch (error) {
     return handleApiError(error)
