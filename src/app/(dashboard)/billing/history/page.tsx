@@ -9,6 +9,7 @@ import { HistorySummary } from "@/components/billing/history-summary"
 import { HistoryMonthList } from "@/components/billing/history-month-list"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/ui/page-header"
+import { Breadcrumbs } from "@/components/ui/breadcrumbs"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { PageToolbar } from "@/components/ui/page-toolbar"
 import { useToast } from "@/components/providers/toast-provider"
@@ -89,6 +90,12 @@ export default function BillingHistoryPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: t("backToInvoice"), href: "/billing" },
+          { label: t("title") },
+        ]}
+      />
       <PageHeader title={t("title")}>
         <Link href="/billing">
           <Button variant="outline">{t("backToInvoice")}</Button>

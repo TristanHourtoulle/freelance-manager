@@ -27,6 +27,7 @@ import {
   ExclamationCircleIcon,
 } from "@heroicons/react/20/solid"
 import { Badge } from "@/components/ui/badge"
+import { Breadcrumbs } from "@/components/ui/breadcrumbs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
@@ -186,15 +187,15 @@ export default function TaskDetailPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: t("backToTasks"), href: "/tasks" },
+          { label: issue.title },
+        ]}
+      />
+
       {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4" />
-          {t("backToTasks")}
-        </button>
+      <div className="flex items-center justify-end">
         <a
           href={issue.url}
           target="_blank"

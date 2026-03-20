@@ -13,6 +13,7 @@ import {
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline"
 import { Button } from "@/components/ui/button"
+import { Breadcrumbs } from "@/components/ui/breadcrumbs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ClientDetailHeader } from "@/components/clients/client-detail-header"
@@ -65,13 +66,12 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <Link href="/clients">
-        <Button variant="ghost" size="lg" shape="pill">
-          <ArrowLeftIcon className="size-4" />
-          {t("backToClients")}
-        </Button>
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: t("backToClients"), href: "/clients" },
+          { label: client.name },
+        ]}
+      />
 
       {/* Client header */}
       <ClientDetailHeader
