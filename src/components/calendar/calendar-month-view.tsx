@@ -198,25 +198,44 @@ export function CalendarMonthView({
                 </span>
 
                 {hasDeadlines && (
-                  <div className="mt-1 flex items-center gap-1">
-                    {cell.deadlines.slice(0, 3).map((d) => (
-                      <span
-                        key={d.id}
-                        className={`block size-1.5 rounded-full ${DOT_COLORS[getUrgency(d.date)]}`}
-                      />
-                    ))}
-                    {cell.deadlines.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        +{cell.deadlines.length - 3}
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    {cell.deadlines.slice(0, 2).map((d) => {
+                      const urgency = getUrgency(d.date)
+                      const diffDays = Math.ceil(
+                        (new Date(d.date).getTime() - Date.now()) /
+                          (1000 * 60 * 60 * 24),
+                      )
+                      const urgencyLabel =
+                        diffDays < 0
+                          ? t("daysOverdue", { days: Math.abs(diffDays) })
+                          : diffDays === 0
+                            ? t("today")
+                            : t("daysUntil", { days: diffDays })
+                      const bgColor =
+                        urgency === "overdue"
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          : urgency === "due-soon"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      return (
+                        <span
+                          key={d.id}
+                          className={`flex items-center justify-between gap-1 rounded px-2 text-[10px] leading-4 font-medium ${bgColor}`}
+                          title={`${d.clientName} — ${urgencyLabel}`}
+                        >
+                          <span className="truncate">{d.clientName}</span>
+                          <span className="shrink-0 opacity-70">
+                            {urgencyLabel}
+                          </span>
+                        </span>
+                      )
+                    })}
+                    {cell.deadlines.length > 2 && (
+                      <span className="text-[10px] text-muted-foreground pl-1">
+                        +{cell.deadlines.length - 2}
                       </span>
                     )}
                   </div>
-                )}
-
-                {hasDeadlines && (
-                  <span className="mt-0.5 inline-flex items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
-                    {cell.deadlines.length}
-                  </span>
                 )}
               </button>
 
@@ -224,7 +243,9 @@ export function CalendarMonthView({
               {isSelected && hasDeadlines && (
                 <div
                   ref={popoverRef}
-                  className="absolute top-full left-0 z-50 mt-1 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg"
+                  className={`absolute top-full z-50 mt-1 w-72 rounded-xl border border-border bg-surface p-3 shadow-lg ${
+                    index % 7 >= 5 ? "right-0" : "left-0"
+                  }`}
                   role="dialog"
                   aria-label={`${t("deadlines")} - ${cell.date.toLocaleDateString()}`}
                 >

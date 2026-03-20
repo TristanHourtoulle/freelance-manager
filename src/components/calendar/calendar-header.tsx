@@ -96,26 +96,16 @@ export function CalendarHeader({
       </div>
 
       {/* Right: view toggle */}
-      <div className="flex items-center">
-        {views.map((v, index) => {
-          const position =
-            views.length === 1
-              ? "only"
-              : index === 0
-                ? "first"
-                : index === views.length - 1
-                  ? "last"
-                  : "middle"
-          return (
-            <Chip
-              key={v.value}
-              label={v.label}
-              isActive={view === v.value}
-              onClick={() => onViewChange(v.value)}
-              position={position}
-            />
-          )
-        })}
+      <div className="flex items-center gap-2">
+        {views.map((v) => (
+          <Chip
+            key={v.value}
+            label={v.label}
+            isActive={view === v.value}
+            onClick={() => onViewChange(v.value)}
+            position="only"
+          />
+        ))}
       </div>
     </div>
   )
