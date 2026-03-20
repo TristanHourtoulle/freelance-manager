@@ -43,7 +43,7 @@ export function NotificationPanel({
   const hasUnread = notifications.some((n) => !n.readAt)
 
   return (
-    <div className="w-80 rounded-lg border border-border bg-surface shadow-lg">
+    <div className="w-[calc(100vw-1rem)] rounded-lg border border-border bg-surface shadow-lg sm:w-80">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h3 className="text-sm font-semibold text-text-primary">
           Notifications
