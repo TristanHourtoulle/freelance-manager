@@ -48,13 +48,30 @@ interface ThemeProviderProps {
   children: React.ReactNode
 }
 
+function getStoredTheme(fallback: ThemeOption): ThemeOption {
+  if (typeof window === "undefined") return fallback
+  const stored = localStorage.getItem("fm:theme")
+  if (stored === "light" || stored === "dark" || stored === "system")
+    return stored
+  return fallback
+}
+
+function getStoredAccentColor(fallback: string): string {
+  if (typeof window === "undefined") return fallback
+  return localStorage.getItem("fm:accentColor") ?? fallback
+}
+
 export function ThemeProvider({
   initialTheme,
   initialAccentColor,
   children,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeOption>(initialTheme)
-  const [accentColor, setAccentColorState] = useState(initialAccentColor)
+  const [theme, setThemeState] = useState<ThemeOption>(() =>
+    getStoredTheme(initialTheme),
+  )
+  const [accentColor, setAccentColorState] = useState(() =>
+    getStoredAccentColor(initialAccentColor),
+  )
 
   // Apply theme on mount and changes
   useEffect(() => {
