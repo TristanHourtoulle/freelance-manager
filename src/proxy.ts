@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSessionCookie } from "better-auth/cookies"
 
 /** Routes that bypass the API authentication check in the proxy. */
-const PUBLIC_API_PATTERNS = ["/api/auth/", "/api/health", "/api/webhooks/"]
+const PUBLIC_API_PATTERNS = [
+  "/api/auth/",
+  "/api/health",
+  "/api/webhooks/",
+  "/api/locale",
+]
 
 function isPublicApiRoute(pathname: string): boolean {
   return PUBLIC_API_PATTERNS.some((pattern) => pathname.startsWith(pattern))
@@ -28,8 +33,8 @@ export function proxy(request: NextRequest) {
     )
   }
 
-  if (!sessionCookie && !isAuthRoute && !isApiRoute) {
-    return NextResponse.redirect(new URL("/auth/login", request.url))
+  if (!sessionCookie && !isAuthRoute && !isApiRoute && pathname !== "/") {
+    return NextResponse.redirect(new URL("/", request.url))
   }
 
   if (sessionCookie && pathname === "/") {
