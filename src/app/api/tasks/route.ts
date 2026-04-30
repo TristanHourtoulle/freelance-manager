@@ -1,284 +1,74 @@
-import { prisma } from "@/lib/db"
-import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
-import { taskFilterSchema } from "@/lib/schemas/task"
-import {
-  fetchLinearIssues,
-  fetchLinearWorkflowStates,
-  getLinearSyncStatus,
-} from "@/lib/linear-service"
-import { calculateBilling } from "@/lib/billing"
-import { getMonthKey } from "@/lib/analytics-helpers"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
+import {
+  apiServerError,
+  apiUnauthorized,
+  decimalToNumber,
+  getAuthUser,
+} from "@/lib/api"
 
-import type { BillingMode, TaskOverride } from "@/generated/prisma/client"
-import type {
-  EnrichedTask,
-  ClientTaskGroup,
-  ClientSummary,
-} from "@/components/tasks/types"
+export async function GET(req: Request) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
 
-/**
- * GET /api/tasks
- * Lists Linear issues grouped by client, enriched with billing calculations
- * and override state. Supports filtering by client, category, and preset
- * (active, done, backlog, to-invoice).
- * @returns 200 - `{ groups: ClientTaskGroup[], lastSyncAt, lastWebhookReceivedAt }`
- * @throws 401 - Unauthenticated request
- * @throws 400 - Invalid filter parameters
- */
-export async function GET(request: Request) {
   try {
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
+    const url = new URL(req.url)
+    const clientId = url.searchParams.get("clientId") ?? undefined
+    const projectId = url.searchParams.get("projectId") ?? undefined
+    const status = url.searchParams.get("status") ?? undefined
 
-    const url = new URL(request.url)
-    const params = Object.fromEntries(url.searchParams)
-    const filters = taskFilterSchema.parse(params)
-
-    // Filtered clients for task grouping
-    const clients = await prisma.client.findMany({
+    const tasks = await prisma.task.findMany({
       where: {
-        userId: userOrError.id,
-        archivedAt: null,
-        ...(filters.clientId ? { id: filters.clientId } : {}),
-        ...(filters.category ? { category: { in: filters.category } } : {}),
+        userId: user.id,
+        ...(clientId ? { clientId } : {}),
+        ...(projectId ? { projectId } : {}),
+        ...(status
+          ? {
+              status: status as
+                | "PENDING_INVOICE"
+                | "DONE"
+                | "IN_PROGRESS"
+                | "BACKLOG"
+                | "CANCELED",
+            }
+          : {
+              status: {
+                in: ["PENDING_INVOICE", "DONE", "IN_PROGRESS", "BACKLOG"],
+              },
+            }),
       },
-      include: { linearMappings: true },
+      orderBy: [{ projectId: "asc" }, { linearIdentifier: "asc" }],
+      select: {
+        id: true,
+        linearIssueId: true,
+        linearIdentifier: true,
+        title: true,
+        status: true,
+        priority: true,
+        estimate: true,
+        completedAt: true,
+        invoiceId: true,
+        clientId: true,
+        projectId: true,
+      },
     })
-
-    // All clients with Linear mappings (unfiltered) for the client dropdown
-    const allClientsRaw = await prisma.client.findMany({
-      where: { userId: userOrError.id, archivedAt: null },
-      include: { linearMappings: true },
-    })
-    const allClients: ClientSummary[] = allClientsRaw
-      .filter((c) => c.linearMappings.length > 0)
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        company: c.company,
-        billingMode: c.billingMode,
-        rate: Number(c.rate),
-      }))
-
-    const clientsWithMappings = clients.filter(
-      (c) => c.linearMappings.length > 0,
-    )
-
-    if (clientsWithMappings.length === 0) {
-      return NextResponse.json({ groups: [] })
-    }
-
-    const clientIds = clientsWithMappings.map((c) => c.id)
-    const [allOverrides, allInvoices] = await Promise.all([
-      prisma.taskOverride.findMany({
-        where: { clientId: { in: clientIds } },
-      }),
-      prisma.invoice.findMany({
-        where: { clientId: { in: clientIds } },
-        select: { clientId: true, month: true, status: true },
-      }),
-    ])
-    const overrideMap = new Map<string, TaskOverride>(
-      allOverrides.map((o) => [o.linearIssueId, o]),
-    )
-    const invoiceStatusMap = new Map<string, string>(
-      allInvoices.map((inv) => [
-        `${inv.clientId}-${getMonthKey(inv.month)}`,
-        inv.status,
-      ]),
-    )
-
-    // Collect unique team IDs to fetch workflow states in parallel
-    const teamIds = new Set<string>()
-    for (const client of clientsWithMappings) {
-      for (const mapping of client.linearMappings) {
-        if (mapping.linearTeamId) teamIds.add(mapping.linearTeamId)
-      }
-    }
-
-    const issuePromises = clientsWithMappings.flatMap((client) =>
-      client.linearMappings.map(async (mapping) => {
-        const issues = await fetchLinearIssues({
-          teamId: mapping.linearTeamId ?? undefined,
-          projectId: mapping.linearProjectId ?? undefined,
-        })
-        return { clientId: client.id, issues }
-      }),
-    )
-
-    // Fetch workflow states for all teams in parallel with issues
-    const statesPromise = Promise.all(
-      [...teamIds].map((teamId) => fetchLinearWorkflowStates(teamId)),
-    )
-
-    const [results, allStatesArrays] = await Promise.all([
-      Promise.allSettled(issuePromises),
-      statesPromise,
-    ])
-
-    // Deduplicate workflow states by ID
-    const statesMap = new Map<
-      string,
-      { id: string; name: string; type: string; color: string }
-    >()
-    for (const states of allStatesArrays) {
-      for (const state of states) {
-        if (!statesMap.has(state.id)) {
-          statesMap.set(state.id, state)
-        }
-      }
-    }
-    const allStatuses = [...statesMap.values()]
-
-    const issuesByClient = new Map<
-      string,
-      Awaited<ReturnType<typeof fetchLinearIssues>>
-    >()
-
-    for (const result of results) {
-      if (result.status !== "fulfilled") continue
-      const { clientId, issues } = result.value
-      const existing = issuesByClient.get(clientId) ?? []
-      issuesByClient.set(clientId, [...existing, ...issues])
-    }
-
-    const groups: ClientTaskGroup[] = []
-
-    for (const client of clientsWithMappings) {
-      const rawIssues = issuesByClient.get(client.id) ?? []
-
-      const seenIds = new Set<string>()
-      const uniqueIssues = rawIssues.filter((issue) => {
-        if (seenIds.has(issue.id)) return false
-        seenIds.add(issue.id)
-        return true
-      })
-
-      const filteredIssues = (() => {
-        switch (filters.preset) {
-          case "active":
-            return uniqueIssues.filter(
-              (i) => !["completed", "cancelled"].includes(i.status?.type ?? ""),
-            )
-          case "done":
-            return uniqueIssues.filter((i) => i.status?.type === "completed")
-          case "backlog":
-            return uniqueIssues.filter((i) =>
-              ["backlog", "unstarted"].includes(i.status?.type ?? ""),
-            )
-          default:
-            return uniqueIssues
-        }
-      })()
-
-      const billingMode = client.billingMode as BillingMode
-      const rate = Number(client.rate)
-
-      let tasks: EnrichedTask[] = filteredIssues.map((issue) => {
-        const override = overrideMap.get(issue.id)
-        const rateOverride = override?.rateOverride
-          ? Number(override.rateOverride)
-          : null
-
-        const billing = calculateBilling({
-          billingMode,
-          rate,
-          estimate: issue.estimate,
-          rateOverride,
-        })
-
-        const invoiced = override?.invoiced ?? false
-        let paid = false
-        if (invoiced && override?.invoicedAt) {
-          const monthKey = getMonthKey(override.invoicedAt)
-          const invoiceKey = `${client.id}-${monthKey}`
-          paid = invoiceStatusMap.get(invoiceKey) === "PAID"
-        }
-
-        return {
-          linearIssueId: issue.id,
-          identifier: issue.identifier,
-          title: issue.title,
-          estimate: issue.estimate,
-          status: issue.status
-            ? {
-                id: issue.status.id,
-                name: issue.status.name,
-                type: issue.status.type,
-                color: issue.status.color,
-              }
-            : undefined,
-          url: issue.url,
-          priorityLabel: issue.priorityLabel,
-          billingAmount: billing.amount,
-          billingFormula: billing.formula,
-          projectName: issue.projectName,
-          toInvoice: override?.toInvoice ?? false,
-          invoiced,
-          paid,
-          rateOverride,
-        }
-      })
-
-      if (filters.preset === "to-invoice") {
-        tasks = tasks.filter((t) => t.toInvoice && !t.invoiced)
-      }
-
-      const totalBilling =
-        billingMode === "FIXED"
-          ? tasks.some((t) => t.toInvoice)
-            ? rate
-            : 0
-          : tasks
-              .filter((t) => t.toInvoice)
-              .reduce((sum, t) => sum + t.billingAmount, 0)
-
-      const clientSummary: ClientSummary = {
-        id: client.id,
-        name: client.name,
-        company: client.company,
-        billingMode: client.billingMode,
-        rate,
-      }
-
-      groups.push({
-        client: clientSummary,
-        tasks,
-        totalBilling: Math.round(totalBilling * 100) / 100,
-        taskCount: tasks.length,
-      })
-    }
-
-    groups.sort((a, b) => b.taskCount - a.taskCount)
-
-    const total = groups.length
-    const totalPages = Math.ceil(total / filters.limit)
-    const pagedGroups = groups.slice(
-      (filters.page - 1) * filters.limit,
-      filters.page * filters.limit,
-    )
 
     return NextResponse.json({
-      groups: pagedGroups,
-      pagination: {
-        page: filters.page,
-        limit: filters.limit,
-        total,
-        totalPages,
-      },
-      allStatuses,
-      allClients,
-      ...getLinearSyncStatus(),
+      items: tasks.map((t) => ({
+        id: t.id,
+        linearIssueId: t.linearIssueId,
+        linearIdentifier: t.linearIdentifier,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        estimate: decimalToNumber(t.estimate),
+        completedAt: t.completedAt?.toISOString() ?? null,
+        invoiceId: t.invoiceId,
+        clientId: t.clientId,
+        projectId: t.projectId,
+      })),
     })
   } catch (error) {
-    if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
-      return apiError(
-        "LINEAR_NOT_CONFIGURED",
-        "Linear API token is not configured",
-        503,
-      )
-    }
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

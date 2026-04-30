@@ -1,81 +1,48 @@
 "use client"
 
-import { useTranslations } from "next-intl"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+// Modal — direct port from design-reference/src/shell.jsx.
+// Click on backdrop closes; esc closes; modal content stops propagation.
 
-type ModalVariant = "default" | "danger"
+import { useEffect } from "react"
+import type { ReactNode } from "react"
+import { Icon } from "@/components/ui/icon"
 
 interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
   title: string
-  description: string
-  confirmLabel?: string
-  variant?: ModalVariant
-  isLoading?: boolean
+  onClose: () => void
+  children: ReactNode
+  footer?: ReactNode
+  width?: number
 }
 
-/**
- * Confirmation dialog built on the shadcn Dialog primitive.
- * Drop-in replacement for the old custom Modal. Used for destructive or important actions.
- *
- * @param isOpen - Controls visibility of the dialog
- * @param onClose - Callback invoked when the user dismisses the dialog
- * @param onConfirm - Callback invoked when the user clicks the confirm button
- * @param title - Heading displayed in the dialog
- * @param description - Explanatory text below the title
- * @param confirmLabel - Label for the confirm button (defaults to translated "Confirm")
- * @param variant - "default" or "danger"; controls confirm button styling
- * @param isLoading - Disables interactions and shows a loading state on confirm
- */
-export function Modal({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  description,
-  confirmLabel,
-  variant = "default",
-  isLoading = false,
-}: ModalProps) {
-  const t = useTranslations("common")
+export function Modal({ title, onClose, children, footer, width }: ModalProps) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open && !isLoading) {
-          onClose()
-        }
-      }}
-    >
-      <DialogContent showCloseButton={!isLoading}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            {t("cancel")}
-          </Button>
-          <Button
-            variant={variant === "danger" ? "destructive" : "default"}
-            onClick={onConfirm}
-            isLoading={isLoading}
-          >
-            {confirmLabel ?? "Confirm"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        style={width ? { width } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="modal-header">
+          <h3 className="modal-title">{title}</h3>
+          <button className="icon-btn" onClick={onClose} aria-label="Fermer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer">{footer}</div>}
+      </div>
+    </div>
   )
 }

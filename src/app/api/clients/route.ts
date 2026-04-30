@@ -1,236 +1,90 @@
+import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import {
-  getAuthenticatedUser,
-  handleApiError,
-  serializeClient,
-} from "@/lib/api-utils"
-import { createClientSchema, clientFilterSchema } from "@/lib/schemas/client"
-import { rateLimit } from "@/lib/rate-limit"
-import { NextResponse } from "next/server"
+  apiServerError,
+  apiUnauthorized,
+  decimalToNumber,
+  getAuthUser,
+} from "@/lib/api"
+import { clientCreateSchema } from "@/lib/schemas/client"
 
-import type { Prisma } from "@/generated/prisma/client"
-
-/**
- * GET /api/clients
- * Lists clients with filtering, sorting, and pagination. Supports sorting by
- * name, createdAt, revenue, or lastActivity.
- * @returns 200 - `{ items: SerializedClient[], pagination: { page, limit, total, totalPages } }`
- * @throws 401 - Unauthenticated request
- * @throws 400 - Invalid filter/sort parameters
- */
-export async function GET(request: Request) {
-  try {
-    const rl = rateLimit(request)
-    if (!rl.success) {
-      return NextResponse.json(
-        {
-          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
-        },
-      )
-    }
-
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const url = new URL(request.url)
-    const params = Object.fromEntries(url.searchParams)
-    const filters = clientFilterSchema.parse(params)
-
-    const where: Prisma.ClientWhereInput = {
-      userId: userOrError.id,
-      archivedAt: filters.archived ? { not: null } : null,
-      ...(filters.category ? { category: { in: filters.category } } : {}),
-      ...(filters.billingMode ? { billingMode: filters.billingMode } : {}),
-      ...(filters.search
-        ? {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { company: { contains: filters.search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    }
-
-    const isComputedSort =
-      filters.sortBy === "revenue" || filters.sortBy === "lastActivity"
-
-    if (isComputedSort) {
-      const allClients = await prisma.client.findMany({
-        where,
-        select: { id: true },
-      })
-      const clientIds = allClients.map((c) => c.id)
-      const total = clientIds.length
-
-      const [revenueByClient, activityByClient] = await Promise.all([
-        prisma.invoice.groupBy({
-          by: ["clientId"],
-          where: { clientId: { in: clientIds } },
-          _sum: { totalAmount: true },
-        }),
-        prisma.taskOverride.groupBy({
-          by: ["clientId"],
-          where: { clientId: { in: clientIds } },
-          _max: { updatedAt: true },
-        }),
-      ])
-
-      const revenueMap = new Map(
-        revenueByClient.map((r) => [
-          r.clientId,
-          Number(r._sum.totalAmount ?? 0),
-        ]),
-      )
-      const activityMap = new Map(
-        activityByClient.map((a) => [a.clientId, a._max.updatedAt]),
-      )
-
-      const sortedIds = [...clientIds].sort((a, b) => {
-        if (filters.sortBy === "revenue") {
-          const diff = (revenueMap.get(a) ?? 0) - (revenueMap.get(b) ?? 0)
-          return filters.sortOrder === "desc" ? -diff : diff
-        }
-        const dateA = activityMap.get(a)?.getTime() ?? 0
-        const dateB = activityMap.get(b)?.getTime() ?? 0
-        const diff = dateA - dateB
-        return filters.sortOrder === "desc" ? -diff : diff
-      })
-
-      const skip = (filters.page - 1) * filters.limit
-      const pagedIds = sortedIds.slice(skip, skip + filters.limit)
-
-      const items = await prisma.client.findMany({
-        where: { id: { in: pagedIds } },
-        include: { linearMappings: true },
-      })
-
-      const orderedItems = pagedIds.map((id) => items.find((i) => i.id === id)!)
-
-      return NextResponse.json({
-        items: orderedItems.map((client) =>
-          serializeClient(client, {
-            totalRevenue: revenueMap.get(client.id),
-            lastActivityAt: activityMap.get(client.id) ?? null,
-          }),
-        ),
-        pagination: {
-          page: filters.page,
-          limit: filters.limit,
-          total,
-          totalPages: Math.ceil(total / filters.limit),
-        },
-      })
-    }
-
-    const skip = (filters.page - 1) * filters.limit
-    const orderBy =
-      filters.sortBy === "name"
-        ? {
-            name:
-              filters.sortOrder === "asc"
-                ? ("asc" as const)
-                : ("desc" as const),
-          }
-        : {
-            createdAt:
-              filters.sortOrder === "asc"
-                ? ("asc" as const)
-                : ("desc" as const),
-          }
-
-    const [items, total] = await Promise.all([
-      prisma.client.findMany({
-        where,
-        skip,
-        take: filters.limit,
-        orderBy,
-        include: { linearMappings: true },
-      }),
-      prisma.client.count({ where }),
-    ])
-
-    const clientIds = items.map((c) => c.id)
-
-    const [revenueByClient, activityByClient] = await Promise.all([
-      prisma.invoice.groupBy({
-        by: ["clientId"],
-        where: { clientId: { in: clientIds } },
-        _sum: { totalAmount: true },
-      }),
-      prisma.taskOverride.groupBy({
-        by: ["clientId"],
-        where: { clientId: { in: clientIds } },
-        _max: { updatedAt: true },
-      }),
-    ])
-
-    const revenueMap = new Map(
-      revenueByClient.map((r) => [r.clientId, Number(r._sum.totalAmount ?? 0)]),
-    )
-    const activityMap = new Map(
-      activityByClient.map((a) => [a.clientId, a._max.updatedAt]),
-    )
-
-    return NextResponse.json({
-      items: items.map((client) =>
-        serializeClient(client, {
-          totalRevenue: revenueMap.get(client.id),
-          lastActivityAt: activityMap.get(client.id) ?? null,
-        }),
-      ),
-      pagination: {
-        page: filters.page,
-        limit: filters.limit,
-        total,
-        totalPages: Math.ceil(total / filters.limit),
-      },
-    })
-  } catch (error) {
-    return handleApiError(error)
+function serialize(c: {
+  id: string
+  firstName: string
+  lastName: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  billingMode: "DAILY" | "FIXED" | "HOURLY"
+  rate: import("@/generated/prisma/client").Prisma.Decimal
+  fixedPrice: import("@/generated/prisma/client").Prisma.Decimal | null
+  deposit: import("@/generated/prisma/client").Prisma.Decimal | null
+  paymentTerms: number | null
+  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  color: string | null
+  archivedAt: Date | null
+  createdAt: Date
+}) {
+  return {
+    id: c.id,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    company: c.company,
+    email: c.email,
+    phone: c.phone,
+    billingMode: c.billingMode,
+    rate: decimalToNumber(c.rate) ?? 0,
+    fixedPrice: decimalToNumber(c.fixedPrice),
+    deposit: decimalToNumber(c.deposit),
+    paymentTerms: c.paymentTerms,
+    category: c.category,
+    color: c.color,
+    archived: c.archivedAt != null,
+    createdAt: c.createdAt.toISOString(),
   }
 }
 
-/**
- * POST /api/clients
- * Creates a new client for the authenticated user.
- * @returns 201 - The created `SerializedClient`
- * @throws 401 - Unauthenticated request
- * @throws 400 - Invalid request body
- */
-export async function POST(request: Request) {
+export async function GET() {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
+
   try {
-    const rl = rateLimit(request, { limit: 30, windowMs: 60_000 })
-    if (!rl.success) {
-      return NextResponse.json(
-        {
-          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
-        },
-      )
-    }
+    const clients = await prisma.client.findMany({
+      where: { userId: user.id, archivedAt: null },
+      orderBy: { createdAt: "desc" },
+    })
+    return NextResponse.json({ items: clients.map(serialize) })
+  } catch (error) {
+    return apiServerError(error)
+  }
+}
 
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
+export async function POST(req: Request) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
 
-    const body = await request.json()
-    const validated = createClientSchema.parse(body)
-
-    const client = await prisma.client.create({
+  try {
+    const body = await req.json()
+    const data = clientCreateSchema.parse(body)
+    const created = await prisma.client.create({
       data: {
-        ...validated,
-        userId: userOrError.id,
+        userId: user.id,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        company: data.company ?? null,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        billingMode: data.billingMode ?? "DAILY",
+        rate: data.rate ?? 0,
+        fixedPrice: data.fixedPrice ?? null,
+        deposit: data.deposit ?? null,
+        paymentTerms: data.paymentTerms ?? null,
+        category: data.category ?? "FREELANCE",
+        color: data.color ?? null,
       },
     })
-
-    return NextResponse.json(serializeClient(client), { status: 201 })
+    return NextResponse.json(serialize(created), { status: 201 })
   } catch (error) {
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

@@ -1,82 +1,275 @@
+// Slim Linear service. Two responsibilities:
+//   1. Read the user's encrypted Linear token from UserSettings and instantiate
+//      a per-user Linear SDK client.
+//   2. List teams / projects / issues for the linking flows + provide a
+//      normalized "sync" routine that upserts our local Project + Task rows.
+
 import { LinearClient } from "@linear/sdk"
 import { prisma } from "@/lib/db"
-import { decrypt } from "@/lib/encryption"
-import { TTLCache } from "@/lib/cache"
+import { decrypt, encrypt } from "@/lib/encryption"
+import type { TaskStatus, TaskPriority } from "@/generated/prisma/client"
 
-const clientCache = new TTLCache<LinearClient>(5 * 60 * 1000) // 5 min
+interface UserLinear {
+  client: LinearClient
+}
 
-/**
- * Returns a LinearClient for the given user.
- * Priority: 1) encrypted token in DB  2) env var LINEAR_API_TOKEN
- * Cached per-user for 5 minutes.
- */
-export async function getLinearClient(userId: string): Promise<LinearClient> {
-  const cached = clientCache.get(userId)
-  if (cached) return cached
-
-  // Try user's stored token first
+/** Resolve a Linear SDK client for the current user, or null if no token. */
+export async function getLinearClient(
+  userId: string,
+): Promise<UserLinear | null> {
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
     select: { linearApiTokenEncrypted: true, linearApiTokenIv: true },
   })
 
-  let apiKey: string | undefined
-
-  if (settings?.linearApiTokenEncrypted && settings.linearApiTokenIv) {
-    apiKey = decrypt(
-      Buffer.from(settings.linearApiTokenEncrypted),
-      Buffer.from(settings.linearApiTokenIv),
-    )
+  if (!settings?.linearApiTokenEncrypted || !settings.linearApiTokenIv) {
+    return null
   }
-
-  // Fallback to env var
-  if (!apiKey) {
-    apiKey = process.env.LINEAR_API_TOKEN
-    if (apiKey) {
-      console.warn(
-        "[Linear] Using shared LINEAR_API_TOKEN env var. Consider configuring per-user tokens for tenant isolation.",
-      )
-    }
-  }
-
-  if (!apiKey) {
-    throw new Error(
-      "No Linear API token configured. Add one in Settings > Integrations.",
-    )
-  }
-
-  const client = new LinearClient({ apiKey })
-  clientCache.set(userId, client)
-  return client
+  const apiKey = decrypt(
+    Buffer.from(settings.linearApiTokenEncrypted),
+    Buffer.from(settings.linearApiTokenIv),
+  )
+  return { client: new LinearClient({ apiKey }) }
 }
 
-/** Clears the cached LinearClient for a user (e.g. after token update). */
-export function clearLinearClientCache(userId: string): void {
-  clientCache.delete(userId)
+/** Persist (or rotate) the user's encrypted Linear API token. */
+export async function setLinearToken(
+  userId: string,
+  token: string,
+): Promise<void> {
+  const { ciphertext, iv } = encrypt(token)
+  const ct = new Uint8Array(ciphertext)
+  const ivBytes = new Uint8Array(iv)
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { linearApiTokenEncrypted: ct, linearApiTokenIv: ivBytes },
+    create: {
+      userId,
+      linearApiTokenEncrypted: ct,
+      linearApiTokenIv: ivBytes,
+    },
+  })
+}
+
+export async function clearLinearToken(userId: string): Promise<void> {
+  await prisma.userSettings.update({
+    where: { userId },
+    data: { linearApiTokenEncrypted: null, linearApiTokenIv: null },
+  })
 }
 
 /**
- * @deprecated Use getLinearClient(userId) instead.
- * Kept temporarily for backward compatibility during migration.
- * Throws at call-time if no LINEAR_API_TOKEN env var is set.
+ * Map a Linear issue state's `type` field to our normalized TaskStatus enum.
+ * Linear types: backlog | unstarted | started | completed | canceled | triage.
  */
-function createLegacyClient(): LinearClient {
-  const token = process.env.LINEAR_API_TOKEN
-  if (!token) {
-    throw new Error(
-      "LINEAR_API_TOKEN env var is not set and no per-user token configured. Add a token in Settings > Integrations.",
-    )
+export function mapLinearStateType(
+  type: string | null | undefined,
+  hasInvoice: boolean,
+): TaskStatus {
+  switch (type) {
+    case "started":
+      return "IN_PROGRESS"
+    case "completed":
+      return hasInvoice ? "DONE" : "PENDING_INVOICE"
+    case "canceled":
+      return "CANCELED"
+    case "backlog":
+    case "unstarted":
+    case "triage":
+    default:
+      return "BACKLOG"
   }
-  return new LinearClient({ apiKey: token })
 }
 
-const globalForLinear = globalThis as unknown as {
-  _legacyLinearClient: LinearClient | undefined
+/**
+ * Map Linear's numeric priority (0=none, 1=urgent, 2=high, 3=medium, 4=low)
+ * to our enum.
+ */
+export function mapLinearPriority(p: number | null | undefined): TaskPriority {
+  switch (p) {
+    case 1:
+      return "URGENT"
+    case 2:
+      return "HIGH"
+    case 3:
+      return "MEDIUM"
+    case 4:
+      return "LOW"
+    case 0:
+    default:
+      return "NONE"
+  }
 }
 
-export const linearClient: LinearClient =
-  globalForLinear._legacyLinearClient ?? createLegacyClient()
+/** Compute Project.key from Linear identifier prefix (e.g. "TRI-543" → "TRI"). */
+export function keyFromIdentifier(identifier: string): string {
+  const idx = identifier.indexOf("-")
+  return idx > 0 ? identifier.slice(0, idx) : identifier
+}
 
-if (process.env.NODE_ENV !== "production") {
-  globalForLinear._legacyLinearClient = linearClient
+interface SyncResult {
+  projects: number
+  tasks: number
+}
+
+/**
+ * Pull all issues from the Linear scopes mapped to the user's clients and
+ * upsert local Project/Task rows. This is the "Sync Linear" button's handler.
+ */
+export async function syncFromLinear(userId: string): Promise<SyncResult> {
+  const userLinear = await getLinearClient(userId)
+  if (!userLinear) {
+    throw new Error("No Linear token configured for this user")
+  }
+  const { client } = userLinear
+
+  const mappings = await prisma.linearMapping.findMany({
+    where: { client: { userId } },
+    include: { client: true },
+  })
+
+  let projectsUpserted = 0
+  let tasksUpserted = 0
+
+  for (const m of mappings) {
+    const filter: Record<string, unknown> = {}
+    if (m.linearProjectId) {
+      filter.project = { id: { eq: m.linearProjectId } }
+    } else if (m.linearTeamId) {
+      filter.team = { id: { eq: m.linearTeamId } }
+    } else {
+      continue
+    }
+
+    const issues = await client.issues({
+      filter: filter as never,
+      first: 250,
+    })
+
+    for (const issue of issues.nodes) {
+      const project = await issue.project
+      if (!project) continue
+
+      const team = await issue.team
+      const state = await issue.state
+
+      const localProject = await prisma.project.upsert({
+        where: { linearProjectId: project.id },
+        create: {
+          userId,
+          clientId: m.clientId,
+          linearProjectId: project.id,
+          linearTeamId: team?.id ?? null,
+          name: project.name,
+          key: team?.key ?? keyFromIdentifier(issue.identifier),
+          description: project.description ?? null,
+          status:
+            project.state === "completed"
+              ? "COMPLETED"
+              : project.state === "paused"
+                ? "PAUSED"
+                : "ACTIVE",
+          linearCreatedAt: project.createdAt ?? null,
+        },
+        update: {
+          name: project.name,
+          description: project.description ?? null,
+          status:
+            project.state === "completed"
+              ? "COMPLETED"
+              : project.state === "paused"
+                ? "PAUSED"
+                : "ACTIVE",
+          linearTeamId: team?.id ?? null,
+          lastSyncedAt: new Date(),
+        },
+      })
+      projectsUpserted++
+
+      const existing = await prisma.task.findUnique({
+        where: { linearIssueId: issue.id },
+        select: { invoiceId: true },
+      })
+
+      const status = mapLinearStateType(
+        state?.type,
+        Boolean(existing?.invoiceId),
+      )
+
+      await prisma.task.upsert({
+        where: { linearIssueId: issue.id },
+        create: {
+          userId,
+          clientId: m.clientId,
+          projectId: localProject.id,
+          linearIssueId: issue.id,
+          linearIdentifier: issue.identifier,
+          linearStateName: state?.name ?? null,
+          linearStateType: state?.type ?? null,
+          title: issue.title,
+          description: issue.description ?? null,
+          status,
+          priority: mapLinearPriority(issue.priority),
+          estimate: issue.estimate ?? null,
+          completedAt: issue.completedAt ?? null,
+          linearCreatedAt: issue.createdAt ?? null,
+          linearUpdatedAt: issue.updatedAt ?? null,
+        },
+        update: {
+          clientId: m.clientId,
+          projectId: localProject.id,
+          linearIdentifier: issue.identifier,
+          linearStateName: state?.name ?? null,
+          linearStateType: state?.type ?? null,
+          title: issue.title,
+          description: issue.description ?? null,
+          status,
+          priority: mapLinearPriority(issue.priority),
+          estimate: issue.estimate ?? null,
+          completedAt: issue.completedAt ?? null,
+          linearUpdatedAt: issue.updatedAt ?? null,
+          lastSyncedAt: new Date(),
+        },
+      })
+      tasksUpserted++
+    }
+  }
+
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { linearLastSyncedAt: new Date() },
+    create: { userId, linearLastSyncedAt: new Date() },
+  })
+
+  return { projects: projectsUpserted, tasks: tasksUpserted }
+}
+
+/** List Linear teams for the linking dropdown. */
+export async function listLinearTeams(userId: string) {
+  const ul = await getLinearClient(userId)
+  if (!ul) return []
+  const teams = await ul.client.teams({ first: 100 })
+  return teams.nodes.map((t) => ({ id: t.id, key: t.key, name: t.name }))
+}
+
+/** List Linear projects (optionally scoped to a team) for the linking dropdown. */
+export async function listLinearProjects(userId: string, teamId?: string) {
+  const ul = await getLinearClient(userId)
+  if (!ul) return []
+  if (teamId) {
+    const team = await ul.client.team(teamId)
+    if (!team) return []
+    const projects = await team.projects({ first: 100 })
+    return projects.nodes.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description ?? null,
+    }))
+  }
+  const projects = await ul.client.projects({ first: 100 })
+  return projects.nodes.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? null,
+  }))
 }

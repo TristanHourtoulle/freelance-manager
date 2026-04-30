@@ -1,89 +1,100 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, type Resolver } from "react-hook-form"
-import { z } from "zod/v4"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
-import { FormField } from "@/components/ui/form-field"
-import { Button } from "@/components/ui/button"
-
-const loginSchema = z.object({
-  email: z.email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-})
-
-type LoginInput = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const [apiError, setApiError] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema) as Resolver<LoginInput>,
-  })
-
-  async function onSubmit(data: LoginInput) {
-    setApiError("")
-
-    const result = await authClient.signIn.email({
-      email: data.email,
-      password: data.password,
-    })
-
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    const result = await authClient.signIn.email({ email, password })
+    setLoading(false)
     if (result.error) {
-      setApiError(result.error.message ?? "Login failed")
+      setError(result.error.message ?? "Connexion échouée")
       return
     }
-
     router.push("/dashboard")
     router.refresh()
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-secondary">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-border bg-surface p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <h1>FreelanceDash</h1>
-          <p className="text-sm text-text-secondary">Sign in to your account</p>
+    <div
+      style={{
+        display: "grid",
+        placeItems: "center",
+        minHeight: "100vh",
+        padding: 24,
+      }}
+    >
+      <div className="card" style={{ width: 400, maxWidth: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div className="brand-mark" style={{ margin: "0 auto 12px" }}>
+            F
+          </div>
+          <div className="page-title" style={{ fontSize: 20 }}>
+            Connexion
+          </div>
+          <div className="muted small" style={{ marginTop: 4 }}>
+            Bon retour sur FreelanceManager
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            {...register("email")}
-            error={errors.email?.message}
-          />
-
-          <FormField
-            label="Password"
-            type="password"
-            placeholder="Enter your password"
-            {...register("password")}
-            error={errors.password?.message}
-          />
-
-          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
-
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
-            Sign in
-          </Button>
+        <form onSubmit={onSubmit} className="col gap-12">
+          <div className="field">
+            <label className="field-label">Email</label>
+            <input
+              className="input"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tristan@example.com"
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">Mot de passe</label>
+            <input
+              className="input"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error && (
+            <div className="muted small" style={{ color: "var(--danger)" }}>
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ marginTop: 4 }}
+          >
+            {loading ? "Connexion…" : "Se connecter"}
+          </button>
         </form>
-
-        <p className="text-center text-sm text-text-secondary">
-          Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-primary hover:underline">
-            Sign up
+        <div
+          className="muted small"
+          style={{ textAlign: "center", marginTop: 18 }}
+        >
+          Pas encore de compte ?{" "}
+          <Link
+            href="/auth/register"
+            style={{ color: "var(--accent)", textDecoration: "none" }}
+          >
+            Créer un compte
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   )

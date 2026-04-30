@@ -1,378 +1,474 @@
 "use client"
 
-import { lazy, Suspense } from "react"
-import { useParams } from "next/navigation"
-import Link from "next/link"
-import { useTranslations } from "next-intl"
-import { useQuery } from "@tanstack/react-query"
+import { use, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Icon } from "@/components/ui/icon"
 import {
-  ArrowLeftIcon,
-  BanknotesIcon,
-  DocumentTextIcon,
-  ClipboardDocumentListIcon,
-  CurrencyDollarIcon,
-} from "@heroicons/react/24/outline"
-import { Button } from "@/components/ui/button"
-import { Breadcrumbs } from "@/components/ui/breadcrumbs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ClientDetailHeader } from "@/components/clients/client-detail-header"
-import { ClientNotes } from "@/components/clients/client-notes"
-import { formatCurrency } from "@/lib/format"
-import { useClientDashboard } from "@/hooks/use-client-detail"
+  BillingTypePill,
+  StatusPill,
+  invoiceStatusToPill,
+  taskStatusToPill,
+} from "@/components/ui/pill"
+import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
+import { useClientDetail } from "@/hooks/use-client-detail"
 
-import type { EnrichedTask, ClientTaskGroup } from "@/components/tasks/types"
+type Tab = "overview" | "projects" | "tasks" | "invoices"
 
-const ClientRevenueChart = lazy(() =>
-  import("@/components/clients/client-revenue-chart").then((mod) => ({
-    default: mod.ClientRevenueChart,
-  })),
-)
-
-const STATUS_BADGES: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-700 dark:bg-gray-500/10 dark:text-gray-400",
-  SENT: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
-  PAID: "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400",
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-export default function ClientDetailPage() {
-  const params = useParams<{ id: string }>()
-  const t = useTranslations("clients.detail")
-  const { data, isLoading, error } = useClientDashboard(params.id)
+export default function ClientDetailPage({ params }: PageProps) {
+  const { id } = use(params)
+  const router = useRouter()
+  const [tab, setTab] = useState<Tab>("overview")
+  const { data: client, isLoading } = useClientDetail(id)
 
   if (isLoading) {
-    return <ClientDetailSkeleton />
-  }
-
-  if (error || !data) {
     return (
-      <div className="space-y-6">
-        <Link href="/clients">
-          <Button variant="ghost" size="lg" shape="pill">
-            <ArrowLeftIcon className="size-4" />
-            {t("backToClients")}
-          </Button>
-        </Link>
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            {error instanceof Error ? error.message : t("clientNotFound")}
-          </CardContent>
-        </Card>
+      <div className="page">
+        <div className="empty">Chargement…</div>
+      </div>
+    )
+  }
+  if (!client) {
+    return (
+      <div className="page">
+        <div className="empty">
+          <div className="empty-title">Client introuvable</div>
+        </div>
       </div>
     )
   }
 
-  const { client, stats, revenueByMonth, recentInvoices, recentExpenses } = data
+  const gradient =
+    client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
+
+  const revenue = client.invoices
+    .filter((i) => i.status === "PAID")
+    .reduce((s, i) => s + i.total, 0)
+  const outstanding = client.invoices
+    .filter((i) => i.status === "SENT" || i.status === "OVERDUE")
+    .reduce((s, i) => s + i.total, 0)
+  const pendingTasks = client.tasks.filter(
+    (t) => t.status === "PENDING_INVOICE",
+  )
+  const pipeline = pendingTasks.reduce((s, t) => {
+    if (client.billingMode === "DAILY")
+      return s + (t.estimate ?? 0) * client.rate
+    if (client.billingMode === "HOURLY")
+      return s + (t.estimate ?? 0) * 8 * client.rate
+    return s
+  }, 0)
 
   return (
-    <div className="space-y-6">
-      <Breadcrumbs
-        items={[
-          { label: t("backToClients"), href: "/clients" },
-          { label: client.name },
-        ]}
-      />
-
-      {/* Client header */}
-      <ClientDetailHeader
-        id={client.id}
-        name={client.name}
-        company={client.company}
-        category={client.category}
-        billingMode={client.billingMode}
-        rate={client.rate}
-        createdAt={client.createdAt}
-        logo={client.logo}
-      />
-
-      {/* KPI row */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          icon={
-            <BanknotesIcon className="size-5 text-emerald-600 dark:text-emerald-400" />
-          }
-          label={t("totalRevenue")}
-          value={formatCurrency(stats.totalRevenue)}
-        />
-        <KpiCard
-          icon={
-            <DocumentTextIcon className="size-5 text-blue-600 dark:text-blue-400" />
-          }
-          label={t("totalInvoices")}
-          value={String(stats.totalInvoices)}
-        />
-        <KpiCard
-          icon={
-            <ClipboardDocumentListIcon className="size-5 text-purple-600 dark:text-purple-400" />
-          }
-          label={t("totalTasks")}
-          value={String(stats.totalTasks)}
-        />
-        <KpiCard
-          icon={
-            <CurrencyDollarIcon className="size-5 text-amber-600 dark:text-amber-400" />
-          }
-          label={t("totalExpenses")}
-          value={String(stats.totalExpenses)}
-        />
+    <div className="page">
+      <div className="row gap-8" style={{ marginBottom: 16 }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => router.push("/clients")}
+        >
+          <Icon name="chevron-left" size={12} />
+          Clients
+        </button>
       </div>
 
-      {/* Revenue chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("revenueOverTime")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Suspense
-            fallback={<Skeleton className="h-48 w-full sm:h-56 md:h-64" />}
+      <div className="detail-hero">
+        <div
+          className="av av-lg"
+          style={{
+            background: gradient,
+            width: 56,
+            height: 56,
+            fontSize: 18,
+            borderRadius: 12,
+          }}
+        >
+          {initials(`${client.firstName} ${client.lastName}`)}
+        </div>
+        <div>
+          <div className="row gap-8">
+            <h1 className="page-title" style={{ fontSize: 22, margin: 0 }}>
+              {client.firstName} {client.lastName}
+            </h1>
+            <BillingTypePill type={client.billingMode} />
+          </div>
+          <div className="muted" style={{ marginTop: 4 }}>
+            {client.company ?? "—"}
+            {client.email ? ` · ${client.email}` : ""}
+          </div>
+          <div className="row gap-12 small muted" style={{ marginTop: 8 }}>
+            <span>
+              <Icon name="calendar" size={11} /> Client depuis{" "}
+              {fmtDate(client.createdAt)}
+            </span>
+            <span>
+              <Icon name="briefcase" size={11} /> {client.projects.length}{" "}
+              projet{client.projects.length > 1 ? "s" : ""}
+            </span>
+            <span>
+              <Icon name="invoice" size={11} /> {client.invoices.length} facture
+              {client.invoices.length > 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+        <div className="hero-stats">
+          <div>
+            <div className="hero-stat-label">Taux</div>
+            <div className="hero-stat-value">
+              {client.billingMode === "DAILY" && `${client.rate}€/j`}
+              {client.billingMode === "HOURLY" && `${client.rate}€/h`}
+              {client.billingMode === "FIXED" && fmtEUR(client.fixedPrice)}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-label">Revenu</div>
+            <div className="hero-stat-value" style={{ color: "var(--accent)" }}>
+              {fmtEUR(revenue)}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-label">Encours</div>
+            <div
+              className="hero-stat-value"
+              style={{ color: outstanding > 0 ? "var(--warn)" : undefined }}
+            >
+              {fmtEUR(outstanding)}
+            </div>
+          </div>
+          <div>
+            <div className="hero-stat-label">Pipeline</div>
+            <div
+              className="hero-stat-value"
+              style={{ color: pipeline > 0 ? "var(--info)" : undefined }}
+            >
+              {pipeline > 0 ? fmtEUR(pipeline) : "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="tabs">
+        {(
+          [
+            { id: "overview", label: "Vue d'ensemble" },
+            { id: "projects", label: `Projets (${client.projects.length})` },
+            { id: "tasks", label: `Tasks (${client.tasks.length})` },
+            { id: "invoices", label: `Factures (${client.invoices.length})` },
+          ] as { id: Tab; label: string }[]
+        ).map((t) => (
+          <div
+            key={t.id}
+            className={"tab" + (tab === t.id ? " active" : "")}
+            onClick={() => setTab(t.id)}
           >
-            <ClientRevenueChart data={revenueByMonth} />
-          </Suspense>
-        </CardContent>
-      </Card>
-
-      {/* Active tasks */}
-      <ActiveTasksSection clientId={params.id} />
-
-      {/* Client notes / journal */}
-      <ClientNotes clientId={params.id} />
-
-      {/* Two-column grid: invoices + expenses */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent invoices */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("recentInvoices")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentInvoices.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {t("noInvoices")}
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="pb-2 font-medium">Date</th>
-                      <th className="pb-2 font-medium">Status</th>
-                      <th className="pb-2 text-right font-medium">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentInvoices.map((inv) => (
-                      <tr
-                        key={inv.id}
-                        className="border-b border-border last:border-0"
-                      >
-                        <td className="py-2.5 text-foreground">
-                          {new Date(inv.month).toLocaleDateString("en-US", {
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </td>
-                        <td className="py-2.5">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGES[inv.status] ?? ""}`}
-                          >
-                            {inv.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right font-medium text-foreground">
-                          {formatCurrency(inv.totalAmount)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent expenses */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("recentExpenses")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentExpenses.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {t("noExpenses")}
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="pb-2 font-medium">Date</th>
-                      <th className="pb-2 font-medium">Description</th>
-                      <th className="pb-2 text-right font-medium">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentExpenses.map((exp) => (
-                      <tr
-                        key={exp.id}
-                        className="border-b border-border last:border-0"
-                      >
-                        <td className="py-2.5 text-foreground">
-                          {new Date(exp.date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </td>
-                        <td className="max-w-[200px] truncate py-2.5 text-foreground">
-                          {exp.description}
-                        </td>
-                        <td className="py-2.5 text-right font-medium text-foreground">
-                          {formatCurrency(exp.amount)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            {t.label}
+          </div>
+        ))}
+        <div style={{ marginLeft: "auto", paddingBottom: 6 }}>
+          {pendingTasks.length > 0 && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
+            >
+              <Icon name="plus" size={12} />
+              Facturer ({pendingTasks.length})
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  )
-}
 
-interface KpiCardProps {
-  icon: React.ReactNode
-  label: string
-  value: string
-}
-
-function KpiCard({ icon, label, value }: KpiCardProps) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 py-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-xs text-muted-foreground">{label}</p>
-          <p className="truncate text-lg font-semibold text-foreground">
-            {value}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface TasksApiResponse {
-  groups: ClientTaskGroup[]
-}
-
-function ActiveTasksSection({ clientId }: { clientId: string }) {
-  const t = useTranslations("clients.detail")
-
-  const { data, isLoading } = useQuery<TasksApiResponse>({
-    queryKey: ["client-tasks", clientId],
-    queryFn: async () => {
-      const res = await fetch(`/api/tasks?clientId=${clientId}&preset=active`)
-      if (!res.ok) throw new Error(t("fetchTasksError"))
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const tasks: EnrichedTask[] =
-    data?.groups?.flatMap((g) => g.tasks).slice(0, 10) ?? []
-
-  if (isLoading) {
-    return <Skeleton className="h-48 rounded-xl" />
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("activeTasks")}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {tasks.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t("noTasks")}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="pb-2 font-medium">{t("taskIdentifier")}</th>
-                  <th className="pb-2 font-medium">{t("taskTitle")}</th>
-                  <th className="pb-2 font-medium">{t("taskStatus")}</th>
-                  <th className="pb-2 text-right font-medium">
-                    {t("taskEstimate")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((task) => (
-                  <tr
-                    key={task.linearIssueId}
-                    className="border-b border-border last:border-0"
+      {tab === "overview" && (
+        <div className="chart-grid">
+          <div className="card">
+            <div className="card-h2" style={{ marginBottom: 16 }}>
+              Projets en cours
+            </div>
+            {client.projects.length === 0 && (
+              <div className="muted small">Aucun projet</div>
+            )}
+            <div className="col gap-12">
+              {client.projects.map((p) => {
+                const projectTasks = client.tasks.filter(
+                  (t) => t.projectId === p.id,
+                )
+                const done = projectTasks.filter(
+                  (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
+                ).length
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: 14,
+                      background: "var(--bg-2)",
+                      borderRadius: 8,
+                      border: "1px solid var(--border)",
+                    }}
                   >
-                    <td className="py-2.5">
-                      <a
-                        href={task.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        {task.identifier}
-                      </a>
+                    <div className="row gap-8" style={{ marginBottom: 8 }}>
+                      <Icon name="folder" size={14} className="muted" />
+                      <div className="strong grow truncate">{p.name}</div>
+                      <span className="task-id">{p.key}</span>
+                    </div>
+                    <div className="muted xs" style={{ marginBottom: 10 }}>
+                      {p.description ?? ""}
+                    </div>
+                    <div
+                      className="row gap-8 xs muted"
+                      style={{ marginBottom: 6 }}
+                    >
+                      <span>
+                        {done}/{projectTasks.length} tasks
+                      </span>
+                      <span style={{ marginLeft: "auto" }}>
+                        {Math.round(
+                          (done / Math.max(projectTasks.length, 1)) * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <div className="pbar">
+                      <span
+                        style={{
+                          width: `${(done / Math.max(projectTasks.length, 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-h2" style={{ marginBottom: 16 }}>
+              Dernières factures
+            </div>
+            <div className="col gap-8">
+              {client.invoices.slice(0, 5).map((inv) => (
+                <div
+                  key={inv.id}
+                  className="row gap-12"
+                  style={{
+                    padding: "10px 0",
+                    borderBottom: "1px solid var(--border)",
+                  }}
+                >
+                  <span className="mono small">{inv.number}</span>
+                  {inv.kind === "DEPOSIT" && (
+                    <span className="pill pill-deposit pill-no-dot xs">
+                      acompte
+                    </span>
+                  )}
+                  <div className="grow muted xs">{fmtDate(inv.issueDate)}</div>
+                  <StatusPill status={invoiceStatusToPill(inv.status)} />
+                  <span
+                    className="num strong"
+                    style={{ width: 90, textAlign: "right" }}
+                  >
+                    {fmtEUR(inv.total)}
+                  </span>
+                </div>
+              ))}
+              {client.invoices.length === 0 && (
+                <div className="muted small">Aucune facture</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "projects" && (
+        <div className="client-grid">
+          {client.projects.map((p) => {
+            const projectTasks = client.tasks.filter(
+              (t) => t.projectId === p.id,
+            )
+            return (
+              <div
+                key={p.id}
+                className="client-card"
+                onClick={() => router.push(`/tasks?projectId=${p.id}`)}
+              >
+                <div className="row gap-12">
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      background: "var(--bg-3)",
+                      borderRadius: 9,
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    <Icon name="folder" size={18} />
+                  </div>
+                  <div className="grow">
+                    <div className="strong">{p.name}</div>
+                    <div className="muted small">{p.description ?? ""}</div>
+                  </div>
+                </div>
+                <div className="client-stats">
+                  <div className="client-stat">
+                    <div className="client-stat-label">Total</div>
+                    <div className="client-stat-value">
+                      {projectTasks.length}
+                    </div>
+                  </div>
+                  <div className="client-stat">
+                    <div className="client-stat-label">Done</div>
+                    <div
+                      className="client-stat-value"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      {
+                        projectTasks.filter(
+                          (t) =>
+                            t.status === "DONE" ||
+                            t.status === "PENDING_INVOICE",
+                        ).length
+                      }
+                    </div>
+                  </div>
+                  <div className="client-stat">
+                    <div className="client-stat-label">À facturer</div>
+                    <div
+                      className="client-stat-value"
+                      style={{ color: "var(--warn)" }}
+                    >
+                      {
+                        projectTasks.filter(
+                          (t) => t.status === "PENDING_INVOICE",
+                        ).length
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {tab === "tasks" && (
+        <div className="card" style={{ padding: 0 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: 20 }}>ID</th>
+                <th>Title</th>
+                <th>Projet</th>
+                <th>Statut</th>
+                <th className="right">Estimate</th>
+                <th className="right" style={{ paddingRight: 20 }}>
+                  Facturé
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {client.tasks.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty">
+                      <div className="empty-title">Aucune task</div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {client.tasks.map((t) => {
+                const project = client.projects.find(
+                  (p) => p.id === t.projectId,
+                )
+                return (
+                  <tr key={t.id}>
+                    <td style={{ paddingLeft: 20 }}>
+                      <span className="task-id">{t.linearIdentifier}</span>
                     </td>
-                    <td className="max-w-[300px] truncate py-2.5 text-foreground">
-                      {task.title}
+                    <td className="strong">{t.title}</td>
+                    <td className="muted small">{project?.key ?? ""}</td>
+                    <td>
+                      <StatusPill status={taskStatusToPill(t.status)} />
                     </td>
-                    <td className="py-2.5">
-                      {task.status ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs">
-                          <span
-                            className="inline-block size-2 rounded-full"
-                            style={{ backgroundColor: task.status.color }}
-                          />
-                          {task.status.name}
+                    <td className="right num">
+                      {t.estimate ? `${t.estimate}j` : "—"}
+                    </td>
+                    <td className="right small" style={{ paddingRight: 20 }}>
+                      {t.invoiceId ? (
+                        <span className="pill pill-paid pill-no-dot xs">
+                          Facturée
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
+                        <span className="muted">—</span>
                       )}
                     </td>
-                    <td className="py-2.5 text-right tabular-nums text-foreground">
-                      {task.estimate != null ? `${task.estimate}pt` : "-"}
-                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-function ClientDetailSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-9 w-40" />
-      <Skeleton className="h-28 w-full rounded-xl" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-20 rounded-xl" />
-        ))}
-      </div>
-      <Skeleton className="h-64 rounded-xl" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-48 rounded-xl" />
-        <Skeleton className="h-48 rounded-xl" />
-      </div>
+      {tab === "invoices" && (
+        <div className="card" style={{ padding: 0 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: 20 }}>Numéro</th>
+                <th>Émise</th>
+                <th>Échéance</th>
+                <th>Type</th>
+                <th>Statut</th>
+                <th className="right" style={{ paddingRight: 20 }}>
+                  Montant
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {client.invoices.map((inv) => (
+                <tr
+                  key={inv.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/billing?invoiceId=${inv.id}`)}
+                >
+                  <td style={{ paddingLeft: 20 }}>
+                    <div className="row gap-8">
+                      <span className="mono small strong">{inv.number}</span>
+                      {inv.kind === "DEPOSIT" && (
+                        <span className="pill pill-deposit pill-no-dot xs">
+                          acompte
+                        </span>
+                      )}
+                    </div>
+                    <div className="xs muted" style={{ marginTop: 2 }}>
+                      {inv.linesCount} ligne{inv.linesCount > 1 ? "s" : ""}
+                    </div>
+                  </td>
+                  <td className="muted small">{fmtDate(inv.issueDate)}</td>
+                  <td className="muted small">{fmtDate(inv.dueDate)}</td>
+                  <td className="small">
+                    {inv.kind === "DEPOSIT" ? "Acompte" : "Standard"}
+                  </td>
+                  <td>
+                    <StatusPill status={invoiceStatusToPill(inv.status)} />
+                  </td>
+                  <td className="right num strong" style={{ paddingRight: 20 }}>
+                    {fmtEUR(inv.total)}
+                  </td>
+                </tr>
+              ))}
+              {client.invoices.length === 0 && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="empty">
+                      <div className="empty-title">Aucune facture</div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

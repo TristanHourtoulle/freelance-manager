@@ -1,179 +1,252 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
-import { useTranslations } from "next-intl"
-import { useSearchParams } from "next/navigation"
-import Link from "next/link"
-import { BillingFilters } from "@/components/billing/billing-filters"
-import { BillingSummary } from "@/components/billing/billing-summary"
-import { BillingGroupList } from "@/components/billing/billing-group-list"
-import { BillingEmptyState } from "@/components/billing/billing-empty-state"
-import { Modal } from "@/components/ui/modal"
-import { Button } from "@/components/ui/button"
-import { PageHeader } from "@/components/ui/page-header"
-import { TooltipHint } from "@/components/ui/tooltip-hint"
-import { PageSkeleton } from "@/components/ui/page-skeleton"
-import { useToast } from "@/components/providers/toast-provider"
-import { useBilling, useMarkInvoiced } from "@/hooks/use-billing"
-import { formatCurrency } from "@/lib/format"
+import { useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Icon } from "@/components/ui/icon"
+import { StatusPill, invoiceStatusToPill } from "@/components/ui/pill"
+import { InvoiceDrawer } from "@/components/billing/invoice-drawer"
+import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
+import { useInvoices } from "@/hooks/use-invoices"
+import { useClients } from "@/hooks/use-clients"
 
-import type { ClientSummary } from "@/components/tasks/types"
+type FilterId = "all" | "DRAFT" | "SENT" | "PAID" | "OVERDUE"
 
 export default function BillingPage() {
-  const t = useTranslations("billing")
-  const tc = useTranslations("common")
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const router = useRouter()
+  const search = useSearchParams()
+  const initialId = search.get("invoiceId")
+  const [openId, setOpenId] = useState<string | null>(initialId)
+  const [filter, setFilter] = useState<FilterId>("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
-  const { data, isLoading, isFetching } = useBilling(searchParams.toString())
-  const markInvoicedMutation = useMarkInvoiced()
+  const { data: invoices = [] } = useInvoices()
+  const { data: clients = [] } = useClients()
 
-  const groups = data?.groups ?? []
-  const grandTotal = data?.grandTotal ?? 0
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-
-  const handleToggleTask = useCallback((linearIssueId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(linearIssueId)) {
-        next.delete(linearIssueId)
-      } else {
-        next.add(linearIssueId)
+  const filtered = useMemo(() => {
+    return invoices.filter((i) => {
+      if (filter !== "all" && i.status !== filter) return false
+      if (searchTerm) {
+        const c = clients.find((cc) => cc.id === i.clientId)
+        const text =
+          `${i.number} ${c?.company ?? ""} ${c?.firstName ?? ""} ${c?.lastName ?? ""}`.toLowerCase()
+        if (!text.includes(searchTerm.toLowerCase())) return false
       }
-      return next
+      return true
     })
-  }, [])
+  }, [invoices, clients, filter, searchTerm])
 
-  const handleToggleGroup = useCallback(
-    (_clientId: string, linearIssueIds: string[]) => {
-      setSelectedIds((prev) => {
-        const allSelected = linearIssueIds.every((id) => prev.has(id))
-        const next = new Set(prev)
-        if (allSelected) {
-          for (const id of linearIssueIds) next.delete(id)
-        } else {
-          for (const id of linearIssueIds) next.add(id)
-        }
-        return next
-      })
-    },
-    [],
-  )
-
-  const handleMarkInvoiced = useCallback(async () => {
-    markInvoicedMutation.mutate([...selectedIds], {
-      onSuccess: (data) => {
-        toast({
-          variant: "success",
-          title: t("toasts.success", { count: selectedIds.size }),
-        })
-        setIsConfirmOpen(false)
-        setSelectedIds(new Set())
-      },
-      onError: () => {
-        toast({ variant: "error", title: t("toasts.error") })
-      },
-    })
-  }, [selectedIds, markInvoicedMutation, toast, t])
-
-  const allClients: ClientSummary[] = useMemo(
-    () => groups.map((g) => g.client),
-    [groups],
-  )
-
-  const totalTaskCount = useMemo(
-    () => groups.reduce((sum, g) => sum + g.taskCount, 0),
-    [groups],
-  )
-
-  const hasFilters = Boolean(
-    searchParams.get("clientId") ||
-    searchParams.get("category") ||
-    searchParams.get("dateFrom") ||
-    searchParams.get("dateTo"),
-  )
-
-  const selectedClientCount = useMemo(() => {
-    return groups.filter((g) =>
-      g.tasks.some((t) => selectedIds.has(t.linearIssueId)),
-    ).length
-  }, [groups, selectedIds])
-
-  const selectedTotal = useMemo(() => {
-    let total = 0
-    for (const group of groups) {
-      const selectedTasks = group.tasks.filter((t) =>
-        selectedIds.has(t.linearIssueId),
-      )
-      if (selectedTasks.length === 0) continue
-
-      if (group.client.billingMode === "FIXED") {
-        total += group.client.rate
-      } else {
-        total += selectedTasks.reduce((sum, t) => sum + t.billingAmount, 0)
-      }
-    }
-    return Math.round(total * 100) / 100
-  }, [groups, selectedIds])
+  const counts = {
+    all: invoices.length,
+    draft: invoices.filter((i) => i.status === "DRAFT").length,
+    sent: invoices.filter((i) => i.status === "SENT").length,
+    paid: invoices.filter((i) => i.status === "PAID").length,
+    overdue: invoices.filter((i) => i.status === "OVERDUE").length,
+  }
+  const totals = {
+    paid: invoices
+      .filter((i) => i.status === "PAID")
+      .reduce((s, i) => s + i.total, 0),
+    sent: invoices
+      .filter((i) => i.status === "SENT")
+      .reduce((s, i) => s + i.total, 0),
+    overdue: invoices
+      .filter((i) => i.status === "OVERDUE")
+      .reduce((s, i) => s + i.total, 0),
+  }
 
   return (
-    <div className="space-y-6">
-      <PageHeader title={t("title")}>
-        <Link href="/billing/history">
-          <Button variant="outline" shape="pill-left" size="lg">
-            {t("history")}
-          </Button>
-        </Link>
-        <Link href="/tasks">
-          <Button variant="outline" shape="pill-right" size="lg">
-            {t("viewTasks")}
-          </Button>
-        </Link>
-      </PageHeader>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Factures</h1>
+          <div className="page-sub">
+            {invoices.length} factures · {fmtEUR(totals.paid)} payées ·{" "}
+            {fmtEUR(totals.sent + totals.overdue)} en attente
+          </div>
+        </div>
+        <div className="page-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => router.push("/billing/new")}
+          >
+            <Icon name="plus" size={14} />
+            Nouvelle facture
+          </button>
+        </div>
+      </div>
 
-      <TooltipHint storageKey="billing-page">{t("hint")}</TooltipHint>
-
-      <BillingFilters clients={allClients} />
-
-      {isLoading ? (
-        <PageSkeleton variant="list" />
-      ) : groups.length === 0 ? (
-        <BillingEmptyState hasFilters={hasFilters} />
-      ) : (
+      <div
+        className="kpi-grid"
+        style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+      >
+        <div className="kpi kpi-accent">
+          <div className="kpi-label">
+            <Icon name="check" size={11} />
+            Payées
+          </div>
+          <div className="kpi-value">{fmtEUR(totals.paid)}</div>
+          <div className="kpi-sub">
+            <span>{counts.paid} factures</span>
+          </div>
+        </div>
+        <div className="kpi kpi-info">
+          <div className="kpi-label">
+            <Icon name="send" size={11} />
+            Envoyées · en attente
+          </div>
+          <div className="kpi-value">{fmtEUR(totals.sent)}</div>
+          <div className="kpi-sub">
+            <span>{counts.sent} factures</span>
+          </div>
+        </div>
         <div
-          className={
-            isFetching ? "opacity-50 transition-opacity" : "transition-opacity"
-          }
+          className="kpi kpi-warn"
+          style={{ borderLeftColor: "var(--danger)" }}
         >
-          <BillingSummary
-            groupCount={groups.length}
-            taskCount={totalTaskCount}
-            grandTotal={grandTotal}
-            selectedCount={selectedIds.size}
-            onMarkInvoiced={() => setIsConfirmOpen(true)}
-            isMarking={markInvoicedMutation.isPending}
-          />
+          <div className="kpi-label">
+            <Icon name="alert" size={11} />
+            En retard
+          </div>
+          <div
+            className="kpi-value"
+            style={{ color: counts.overdue > 0 ? "var(--danger)" : undefined }}
+          >
+            {fmtEUR(totals.overdue)}
+          </div>
+          <div className="kpi-sub">
+            <span>
+              {counts.overdue} facture{counts.overdue > 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+      </div>
 
-          <BillingGroupList
-            groups={groups}
-            selectedIds={selectedIds}
-            onToggleTask={handleToggleTask}
-            onToggleGroup={handleToggleGroup}
+      <div className="row gap-12" style={{ marginBottom: 18 }}>
+        <div style={{ position: "relative", flex: 1, maxWidth: 360 }}>
+          <Icon
+            name="search"
+            size={14}
+            className="muted"
+            style={{ position: "absolute", left: 12, top: 10 }}
+          />
+          <input
+            className="input"
+            style={{ paddingLeft: 34 }}
+            placeholder="Rechercher facture, client…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-      )}
+        <div className="chip-row">
+          {(
+            [
+              { id: "all", label: "Toutes", count: counts.all },
+              { id: "DRAFT", label: "Brouillon", count: counts.draft },
+              { id: "SENT", label: "Envoyée", count: counts.sent },
+              { id: "PAID", label: "Payée", count: counts.paid },
+              { id: "OVERDUE", label: "En retard", count: counts.overdue },
+            ] as { id: FilterId; label: string; count: number }[]
+          ).map((f) => (
+            <button
+              key={f.id}
+              className={"chip" + (filter === f.id ? " active" : "")}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label} <span className="count">{f.count}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <Modal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleMarkInvoiced}
-        title={t("markAsInvoiced")}
-        description={`You are about to mark ${selectedIds.size} task${selectedIds.size !== 1 ? "s" : ""} across ${selectedClientCount} client${selectedClientCount !== 1 ? "s" : ""} as invoiced (${formatCurrency(selectedTotal)}). This action can be undone from the Tasks page.`}
-        confirmLabel={t("markAsInvoiced")}
-        isLoading={markInvoicedMutation.isPending}
-      />
+      <div className="card" style={{ padding: 0 }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th style={{ paddingLeft: 20 }}>Numéro</th>
+              <th>Client</th>
+              <th>Émise</th>
+              <th>Échéance</th>
+              <th>Type</th>
+              <th>Statut</th>
+              <th className="right">Montant</th>
+              <th style={{ paddingRight: 20, width: 80 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={8}>
+                  <div className="empty">
+                    <div className="empty-title">Aucune facture</div>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {filtered.map((inv) => {
+              const client = clients.find((c) => c.id === inv.clientId)
+              return (
+                <tr
+                  key={inv.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setOpenId(inv.id)}
+                >
+                  <td style={{ paddingLeft: 20 }}>
+                    <div className="row gap-8">
+                      <span className="mono small strong">{inv.number}</span>
+                      {inv.kind === "DEPOSIT" && (
+                        <span className="pill pill-deposit pill-no-dot xs">
+                          acompte
+                        </span>
+                      )}
+                    </div>
+                    <div className="xs muted" style={{ marginTop: 2 }}>
+                      {inv.linesCount} ligne{inv.linesCount > 1 ? "s" : ""}
+                    </div>
+                  </td>
+                  <td>
+                    {client && (
+                      <div className="row gap-8">
+                        <div
+                          className="av av-sm"
+                          style={{
+                            background:
+                              client.color ??
+                              avatarColor(
+                                `${client.firstName}${client.lastName}`,
+                              ),
+                          }}
+                        >
+                          {initials(`${client.firstName} ${client.lastName}`)}
+                        </div>
+                        <span className="small">
+                          {client.company ??
+                            `${client.firstName} ${client.lastName}`}
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="muted small">{fmtDate(inv.issueDate)}</td>
+                  <td className="muted small">{fmtDate(inv.dueDate)}</td>
+                  <td className="small">
+                    {inv.kind === "DEPOSIT" ? "Acompte" : "Standard"}
+                  </td>
+                  <td>
+                    <StatusPill status={invoiceStatusToPill(inv.status)} />
+                  </td>
+                  <td className="right num strong">{fmtEUR(inv.total)}</td>
+                  <td style={{ paddingRight: 20 }}>
+                    <Icon name="chevron-right" size={14} className="muted" />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {openId && (
+        <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} />
+      )}
     </div>
   )
 }

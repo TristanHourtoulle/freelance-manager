@@ -1,75 +1,25 @@
-"use client"
-
-import { useCallback, useState } from "react"
-import { AppHeader } from "./app-header"
-import { SidebarNav } from "./sidebar-nav"
-import { CommandPalette } from "@/components/ui/command-palette"
-import { ErrorBoundary } from "@/components/ui/error-boundary"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { OfflineBanner } from "@/components/ui/offline-banner"
-import { ToastProvider } from "@/components/providers/toast-provider"
-import { QueryProvider } from "@/components/providers/query-provider"
-import { UserProvider } from "@/components/providers/user-provider"
-import { ThemeProvider } from "@/components/providers/theme-provider"
-
-import type { ThemeOption } from "@/lib/schemas/settings"
+import type { ReactNode } from "react"
+import { Sidebar } from "./sidebar"
+import { Topbar } from "./topbar"
 
 interface AppShellProps {
-  userName: string
-  userEmail: string
-  userImage: string | null
-  userTheme?: ThemeOption
-  userAccentColor?: string
-  children: React.ReactNode
+  user: { name: string; email: string }
+  crumbs: string[]
+  children: ReactNode
 }
 
-export function AppShell({
-  userName,
-  userEmail,
-  userImage,
-  userTheme = "system",
-  userAccentColor = "#2563eb",
-  children,
-}: AppShellProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-
-  const handleToggle = useCallback(() => {
-    setIsSidebarOpen((prev) => !prev)
-  }, [])
-
-  const handleClose = useCallback(() => {
-    setIsSidebarOpen(false)
-  }, [])
-
+/**
+ * Two-column layout matching design-reference/src/app.jsx:
+ * a fixed-width sidebar + main column with sticky topbar.
+ */
+export function AppShell({ user, crumbs, children }: AppShellProps) {
   return (
-    <QueryProvider>
-      <ToastProvider>
-        <ThemeProvider
-          initialTheme={userTheme}
-          initialAccentColor={userAccentColor}
-        >
-          <UserProvider initialImage={userImage}>
-            <div className="min-h-screen bg-surface-secondary">
-              <OfflineBanner />
-              <CommandPalette />
-              <SidebarNav
-                userName={userName}
-                userEmail={userEmail}
-                isOpen={isSidebarOpen}
-                onClose={handleClose}
-              />
-              <div className="lg:pl-72">
-                <AppHeader onMenuToggle={handleToggle} />
-                <PullToRefresh>
-                  <main className="mx-auto max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
-                    <ErrorBoundary>{children}</ErrorBoundary>
-                  </main>
-                </PullToRefresh>
-              </div>
-            </div>
-          </UserProvider>
-        </ThemeProvider>
-      </ToastProvider>
-    </QueryProvider>
+    <div className="app">
+      <Sidebar user={user} />
+      <div className="main">
+        <Topbar crumbs={crumbs} />
+        {children}
+      </div>
+    </div>
   )
 }

@@ -1,90 +1,57 @@
 "use client"
 
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  keepPreviousData,
-} from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { api } from "@/lib/api-client"
+import type { ClientCreateInput } from "@/lib/schemas/client"
 
-import type { SerializedClient, Pagination } from "@/components/clients/types"
-
-interface ClientsResponse {
-  items: SerializedClient[]
-  pagination: Pagination
+export interface ClientDTO {
+  id: string
+  firstName: string
+  lastName: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  billingMode: "DAILY" | "FIXED" | "HOURLY"
+  rate: number
+  fixedPrice: number | null
+  deposit: number | null
+  paymentTerms: number | null
+  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  color: string | null
+  archived: boolean
+  createdAt: string
 }
 
-/**
- * Fetches clients list with filters. Cached for 2 minutes.
- */
-export function useClients(searchParams: string) {
-  return useQuery<ClientsResponse>({
-    queryKey: ["clients", searchParams],
-    queryFn: async () => {
-      const res = await fetch(`/api/clients?${searchParams}`)
-      if (!res.ok) throw new Error("Failed to fetch clients")
-      return res.json()
-    },
-    staleTime: 5 * 60 * 1000,
-    placeholderData: keepPreviousData,
+const CLIENTS_KEY = ["clients"] as const
+
+export function useClients() {
+  return useQuery({
+    queryKey: CLIENTS_KEY,
+    queryFn: () => api.get<{ items: ClientDTO[] }>("/api/clients"),
+    select: (d) => d.items,
+    staleTime: 30_000,
   })
 }
 
-/**
- * Archives or unarchives a client.
- */
-export function useArchiveClient() {
-  const queryClient = useQueryClient()
-
+export function useCreateClient() {
+  const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({
-      clientId,
-      archive,
-    }: {
-      clientId: string
-      archive: boolean
-    }) => {
-      const endpoint = archive ? "archive" : "unarchive"
-      const res = await fetch(`/api/clients/${clientId}/${endpoint}`, {
-        method: "PATCH",
-      })
-      if (!res.ok) throw new Error("Failed to update client")
+    mutationFn: (input: ClientCreateInput) =>
+      api.post<ClientDTO>("/api/clients", input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CLIENTS_KEY })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
-    onMutate: async ({ clientId, archive }) => {
-      await queryClient.cancelQueries({ queryKey: ["clients"] })
-      const previousQueries = queryClient.getQueriesData<ClientsResponse>({
-        queryKey: ["clients"],
-      })
+  })
+}
 
-      queryClient.setQueriesData<ClientsResponse>(
-        { queryKey: ["clients"] },
-        (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            items: old.items.map((item) =>
-              item.id === clientId
-                ? {
-                    ...item,
-                    archivedAt: archive ? new Date().toISOString() : null,
-                  }
-                : item,
-            ),
-          }
-        },
-      )
-
-      return { previousQueries }
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previousQueries) {
-        for (const [key, data] of context.previousQueries) {
-          queryClient.setQueryData(key, data)
-        }
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] })
+export function useArchiveClient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/api/clients/${id}/archive`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CLIENTS_KEY })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
   })
 }

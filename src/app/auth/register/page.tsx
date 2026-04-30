@@ -1,112 +1,116 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, type Resolver } from "react-hook-form"
-import { z } from "zod/v4"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
-import { FormField } from "@/components/ui/form-field"
-import { Button } from "@/components/ui/button"
-
-const registerSchema = z
-  .object({
-    name: z.string().min(1, "Name is required").max(100).trim(),
-    email: z.email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-
-type RegisterInput = z.infer<typeof registerSchema>
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [apiError, setApiError] = useState("")
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema) as Resolver<RegisterInput>,
-  })
-
-  async function onSubmit(data: RegisterInput) {
-    setApiError("")
-
-    const result = await authClient.signUp.email({
-      name: data.name,
-      email: data.email,
-      password: data.password,
-    })
-
-    if (result.error) {
-      setApiError(result.error.message ?? "Sign up failed")
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    if (password.length < 8) {
+      setError("Mot de passe : 8 caractères minimum")
       return
     }
-
+    setLoading(true)
+    const result = await authClient.signUp.email({ name, email, password })
+    setLoading(false)
+    if (result.error) {
+      setError(result.error.message ?? "Inscription échouée")
+      return
+    }
     router.push("/dashboard")
     router.refresh()
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-secondary">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-border bg-surface p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <h1>FreelanceDash</h1>
-          <p className="text-sm text-text-secondary">Create your account</p>
+    <div
+      style={{
+        display: "grid",
+        placeItems: "center",
+        minHeight: "100vh",
+        padding: 24,
+      }}
+    >
+      <div className="card" style={{ width: 400, maxWidth: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div className="brand-mark" style={{ margin: "0 auto 12px" }}>
+            F
+          </div>
+          <div className="page-title" style={{ fontSize: 20 }}>
+            Créer un compte
+          </div>
+          <div className="muted small" style={{ marginTop: 4 }}>
+            Démarre sur FreelanceManager
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            label="Name"
-            placeholder="John Doe"
-            {...register("name")}
-            error={errors.name?.message}
-          />
-
-          <FormField
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            {...register("email")}
-            error={errors.email?.message}
-          />
-
-          <FormField
-            label="Password"
-            type="password"
-            placeholder="At least 8 characters"
-            {...register("password")}
-            error={errors.password?.message}
-          />
-
-          <FormField
-            label="Confirm password"
-            type="password"
-            placeholder="Repeat your password"
-            {...register("confirmPassword")}
-            error={errors.confirmPassword?.message}
-          />
-
-          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
-
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
-            Sign up
-          </Button>
+        <form onSubmit={onSubmit} className="col gap-12">
+          <div className="field">
+            <label className="field-label">Nom</label>
+            <input
+              className="input"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Tristan Hourtoulle"
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">Email</label>
+            <input
+              className="input"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tristan@example.com"
+            />
+          </div>
+          <div className="field">
+            <label className="field-label">Mot de passe</label>
+            <input
+              className="input"
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error && (
+            <div className="muted small" style={{ color: "var(--danger)" }}>
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading}
+            style={{ marginTop: 4 }}
+          >
+            {loading ? "Création…" : "Créer mon compte"}
+          </button>
         </form>
-
-        <p className="text-center text-sm text-text-secondary">
-          Already have an account?{" "}
-          <Link href="/auth/login" className="text-primary hover:underline">
-            Sign in
+        <div
+          className="muted small"
+          style={{ textAlign: "center", marginTop: 18 }}
+        >
+          Déjà un compte ?{" "}
+          <Link
+            href="/auth/login"
+            style={{ color: "var(--accent)", textDecoration: "none" }}
+          >
+            Se connecter
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   )

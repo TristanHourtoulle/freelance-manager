@@ -1,7 +1,5 @@
 "use client"
 
-import { ErrorState } from "@/components/ui/error-state"
-
 export default function AuthError({
   error,
   reset,
@@ -10,12 +8,16 @@ export default function AuthError({
   reset: () => void
 }) {
   return (
-    <ErrorState
-      title="Authentication error"
-      message={error.message || "Something went wrong during authentication."}
-      onRetry={reset}
-      backHref="/auth/login"
-      backLabel="Back to login"
-    />
+    <div className="page">
+      <div className="empty">
+        <div className="empty-title">Erreur d&apos;authentification</div>
+        <div style={{ marginBottom: 16 }}>
+          {error.message || "Une erreur est survenue."}
+        </div>
+        <button className="btn btn-primary" onClick={reset}>
+          Réessayer
+        </button>
+      </div>
+    </div>
   )
 }
