@@ -1,6 +1,3 @@
-// StatusPill + BillingTypePill — direct port from design-reference/src/shell.jsx.
-// Uses the .pill / .pill-* CSS classes defined in globals.css.
-
 import type {
   BillingMode,
   InvoiceStatus,
@@ -22,12 +19,12 @@ interface StatusPillProps {
 }
 
 const STATUS_LABELS: Record<PillStatus, { label: string; cls: string }> = {
-  pending_invoice: { label: "Pending Invoice", cls: "pill-pending" },
-  done: { label: "Done", cls: "pill-done" },
-  in_progress: { label: "In Progress", cls: "pill-draft" },
+  pending_invoice: { label: "À facturer", cls: "pill-pending" },
+  done: { label: "Facturée", cls: "pill-done" },
+  in_progress: { label: "En cours", cls: "pill-draft" },
   backlog: { label: "Backlog", cls: "pill-draft" },
   draft: { label: "Brouillon", cls: "pill-draft" },
-  sent: { label: "Envoyée", cls: "pill-sent" },
+  sent: { label: "Émise", cls: "pill-sent" },
   paid: { label: "Payée", cls: "pill-paid" },
   overdue: { label: "En retard", cls: "pill-overdue" },
 }

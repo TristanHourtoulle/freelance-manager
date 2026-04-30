@@ -61,7 +61,7 @@ export default function BillingPage() {
           <h1 className="page-title">Factures</h1>
           <div className="page-sub">
             {invoices.length} factures · {fmtEUR(totals.paid)} payées ·{" "}
-            {fmtEUR(totals.sent + totals.overdue)} en attente
+            {fmtEUR(totals.sent + totals.overdue)} émises en attente
           </div>
         </div>
         <div className="page-actions">
@@ -92,7 +92,7 @@ export default function BillingPage() {
         <div className="kpi kpi-info">
           <div className="kpi-label">
             <Icon name="send" size={11} />
-            Envoyées · en attente
+            Émises · en attente
           </div>
           <div className="kpi-value">{fmtEUR(totals.sent)}</div>
           <div className="kpi-sub">
@@ -121,7 +121,10 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <div className="row gap-12" style={{ marginBottom: 18 }}>
+      <div
+        className="row gap-12"
+        style={{ marginBottom: 18, justifyContent: "space-between" }}
+      >
         <div style={{ position: "relative", flex: 1, maxWidth: 360 }}>
           <Icon
             name="search"
@@ -142,7 +145,7 @@ export default function BillingPage() {
             [
               { id: "all", label: "Toutes", count: counts.all },
               { id: "DRAFT", label: "Brouillon", count: counts.draft },
-              { id: "SENT", label: "Envoyée", count: counts.sent },
+              { id: "SENT", label: "Émise", count: counts.sent },
               { id: "PAID", label: "Payée", count: counts.paid },
               { id: "OVERDUE", label: "En retard", count: counts.overdue },
             ] as { id: FilterId; label: string; count: number }[]
@@ -164,7 +167,7 @@ export default function BillingPage() {
             <tr>
               <th style={{ paddingLeft: 20 }}>Numéro</th>
               <th>Client</th>
-              <th>Émise</th>
+              <th>Date</th>
               <th>Échéance</th>
               <th>Type</th>
               <th>Statut</th>

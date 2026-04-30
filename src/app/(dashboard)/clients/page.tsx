@@ -105,68 +105,72 @@ export default function ClientsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="chip-row">
-          {(
-            [
-              { id: "all", label: "Tous", count: enriched.length },
-              {
-                id: "DAILY",
-                label: "TJM",
-                count: enriched.filter((c) => c.billingMode === "DAILY").length,
-              },
-              {
-                id: "FIXED",
-                label: "Forfait",
-                count: enriched.filter((c) => c.billingMode === "FIXED").length,
-              },
-              {
-                id: "HOURLY",
-                label: "Horaire",
-                count: enriched.filter((c) => c.billingMode === "HOURLY")
-                  .length,
-              },
-            ] as { id: FilterId; label: string; count: number }[]
-          ).map((f) => (
+        <div className="row gap-12">
+          <div className="chip-row">
+            {(
+              [
+                { id: "all", label: "Tous", count: enriched.length },
+                {
+                  id: "DAILY",
+                  label: "TJM",
+                  count: enriched.filter((c) => c.billingMode === "DAILY")
+                    .length,
+                },
+                {
+                  id: "FIXED",
+                  label: "Forfait",
+                  count: enriched.filter((c) => c.billingMode === "FIXED")
+                    .length,
+                },
+                {
+                  id: "HOURLY",
+                  label: "Horaire",
+                  count: enriched.filter((c) => c.billingMode === "HOURLY")
+                    .length,
+                },
+              ] as { id: FilterId; label: string; count: number }[]
+            ).map((f) => (
+              <button
+                key={f.id}
+                className={"chip" + (filter === f.id ? " active" : "")}
+                onClick={() => setFilter(f.id)}
+              >
+                {f.label} <span className="count">{f.count}</span>
+              </button>
+            ))}
+          </div>
+          <div
+            className="row gap-4"
+            style={{
+              background: "var(--bg-1)",
+              borderRadius: 7,
+              padding: 3,
+              border: "1px solid var(--border)",
+            }}
+          >
             <button
-              key={f.id}
-              className={"chip" + (filter === f.id ? " active" : "")}
-              onClick={() => setFilter(f.id)}
+              className="icon-btn"
+              style={
+                view === "grid"
+                  ? { background: "var(--bg-3)", color: "var(--text-0)" }
+                  : {}
+              }
+              onClick={() => setView("grid")}
             >
-              {f.label} <span className="count">{f.count}</span>
+              <Icon name="grid" size={14} />
             </button>
-          ))}
-        </div>
-        <div
-          className="row gap-4"
-          style={{
-            background: "var(--bg-1)",
-            borderRadius: 7,
-            padding: 3,
-            border: "1px solid var(--border)",
-          }}
-        >
-          <button
-            className="icon-btn"
-            style={
-              view === "grid"
-                ? { background: "var(--bg-3)", color: "var(--text-0)" }
-                : {}
-            }
-            onClick={() => setView("grid")}
-          >
-            <Icon name="grid" size={14} />
-          </button>
-          <button
-            className="icon-btn"
-            style={
-              view === "list"
-                ? { background: "var(--bg-3)", color: "var(--text-0)" }
-                : {}
-            }
-            onClick={() => setView("list")}
-          >
-            <Icon name="list" size={14} />
-          </button>
+            <button
+              className="icon-btn"
+              style={
+                view === "list"
+                  ? { background: "var(--bg-3)", color: "var(--text-0)" }
+                  : {}
+              }
+              onClick={() => setView("list")}
+            >
+              <Icon name="list" size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

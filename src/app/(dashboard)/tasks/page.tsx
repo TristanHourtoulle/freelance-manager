@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
@@ -25,6 +25,8 @@ export default function TasksPage() {
   const [clientFilter, setClientFilter] = useState<string>(initialClient)
   const [projectFilter, setProjectFilter] = useState<string>(initialProject)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
 
   const { data: tasks = [] } = useTasks()
   const { data: clients = [] } = useClients()
@@ -73,6 +75,18 @@ export default function TasksPage() {
     [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
   )
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1)
+  }, [searchTerm, statusFilter, clientFilter, projectFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paged = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage],
+  )
+
   type Group = {
     clientId: string
     projectId: string
@@ -80,7 +94,7 @@ export default function TasksPage() {
   }
   const groups: Group[] = useMemo(() => {
     const m = new Map<string, Group>()
-    for (const t of filtered) {
+    for (const t of paged) {
       const key = `${t.clientId}::${t.projectId}`
       let g = m.get(key)
       if (!g) {
@@ -90,7 +104,7 @@ export default function TasksPage() {
       g.tasks.push(t)
     }
     return Array.from(m.values())
-  }, [filtered])
+  }, [paged])
 
   const selectedTasks = filtered.filter((t) => selected.has(t.id))
   const selectedClientIds = new Set(selectedTasks.map((t) => t.clientId))
@@ -176,7 +190,11 @@ export default function TasksPage() {
 
       <div
         className="row gap-12"
-        style={{ marginBottom: 14, flexWrap: "wrap" }}
+        style={{
+          marginBottom: 14,
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
       >
         <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
           <Icon
@@ -193,61 +211,63 @@ export default function TasksPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="chip-row">
-          {(
-            [
-              { id: "all", label: "Tout", count: counts.all },
-              { id: "pending", label: "À facturer", count: counts.pending },
-              { id: "done", label: "Done", count: counts.done },
-              {
-                id: "in_progress",
-                label: "In progress",
-                count: counts.in_progress,
-              },
-            ] as { id: StatusFilterId; label: string; count: number }[]
-          ).map((f) => (
-            <button
-              key={f.id}
-              className={"chip" + (statusFilter === f.id ? " active" : "")}
-              onClick={() => setStatusFilter(f.id)}
-            >
-              {f.label} <span className="count">{f.count}</span>
-            </button>
-          ))}
-        </div>
-        <select
-          className="select"
-          style={{ width: 200 }}
-          value={clientFilter}
-          onChange={(e) => {
-            setClientFilter(e.target.value)
-            setProjectFilter("all")
-          }}
-        >
-          <option value="all">Tous les clients</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.company ?? `${c.firstName} ${c.lastName}`}
-            </option>
-          ))}
-        </select>
-        <select
-          className="select"
-          style={{ width: 220 }}
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
-        >
-          <option value="all">Tous les projets</option>
-          {projects
-            .filter(
-              (p) => clientFilter === "all" || p.clientId === clientFilter,
-            )
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+        <div className="row gap-12" style={{ flexWrap: "wrap" }}>
+          <div className="chip-row">
+            {(
+              [
+                { id: "all", label: "Tout", count: counts.all },
+                { id: "pending", label: "À facturer", count: counts.pending },
+                { id: "done", label: "Facturée", count: counts.done },
+                {
+                  id: "in_progress",
+                  label: "En cours",
+                  count: counts.in_progress,
+                },
+              ] as { id: StatusFilterId; label: string; count: number }[]
+            ).map((f) => (
+              <button
+                key={f.id}
+                className={"chip" + (statusFilter === f.id ? " active" : "")}
+                onClick={() => setStatusFilter(f.id)}
+              >
+                {f.label} <span className="count">{f.count}</span>
+              </button>
+            ))}
+          </div>
+          <select
+            className="select"
+            style={{ width: 200 }}
+            value={clientFilter}
+            onChange={(e) => {
+              setClientFilter(e.target.value)
+              setProjectFilter("all")
+            }}
+          >
+            <option value="all">Tous les clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.company ?? `${c.firstName} ${c.lastName}`}
               </option>
             ))}
-        </select>
+          </select>
+          <select
+            className="select"
+            style={{ width: 220 }}
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+          >
+            <option value="all">Tous les projets</option>
+            {projects
+              .filter(
+                (p) => clientFilter === "all" || p.clientId === clientFilter,
+              )
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+        </div>
       </div>
 
       <div className="col gap-16">
@@ -407,6 +427,49 @@ export default function TasksPage() {
           )
         })}
       </div>
+
+      {filtered.length > PAGE_SIZE && (
+        <div
+          className="row gap-12"
+          style={{
+            justifyContent: "space-between",
+            marginTop: 18,
+            padding: "12px 4px",
+            color: "var(--text-2)",
+            fontSize: 12,
+          }}
+        >
+          <span>
+            {(safePage - 1) * PAGE_SIZE + 1}–
+            {Math.min(safePage * PAGE_SIZE, filtered.length)} sur{" "}
+            {filtered.length} tasks
+          </span>
+          <div className="row gap-8">
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <Icon name="chevron-left" size={12} />
+              Précédent
+            </button>
+            <span
+              className="num small"
+              style={{ minWidth: 64, textAlign: "center" }}
+            >
+              {safePage} / {totalPages}
+            </span>
+            <button
+              className="btn btn-secondary btn-sm"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Suivant
+              <Icon name="chevron-right" size={12} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {selected.size > 0 && (
         <div
