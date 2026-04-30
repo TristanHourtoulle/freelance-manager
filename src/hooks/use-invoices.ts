@@ -2,7 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
-import type { InvoiceCreateInput } from "@/lib/schemas/invoice"
+import type {
+  InvoiceCreateInput,
+  InvoiceUpdateInput,
+} from "@/lib/schemas/invoice"
 
 export interface InvoiceListItem {
   id: string
@@ -17,6 +20,7 @@ export interface InvoiceListItem {
   subtotal: number
   tax: number
   total: number
+  totalOverride: number | null
   notes: string | null
   linesCount: number
 }
@@ -65,6 +69,21 @@ export function useCreateInvoice() {
       api.post<{ id: string }>("/api/invoices", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] })
+      qc.invalidateQueries({ queryKey: ["tasks"] })
+      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+    },
+  })
+}
+
+export function useUpdateInvoice(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: InvoiceUpdateInput) =>
+      api.patch(`/api/invoices/${id}`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] })
+      qc.invalidateQueries({ queryKey: ["invoice", id] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
       qc.invalidateQueries({ queryKey: ["nav-counts"] })

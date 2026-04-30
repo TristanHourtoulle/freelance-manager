@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { use, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
 import { fmtEUR, fmtEURprecise, initials, avatarColor } from "@/lib/format"
@@ -9,10 +9,8 @@ import { lineFromTask, sumLines } from "@/lib/billing-math"
 import { useClients } from "@/hooks/use-clients"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
-import { useCreateInvoice } from "@/hooks/use-invoices"
-import { useSplitInvoice } from "@/hooks/use-invoice-split"
+import { useInvoice, useUpdateInvoice } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
-import { SplitDialog } from "@/components/billing/split-dialog"
 import { EditableTotal } from "@/components/billing/editable-total"
 
 interface Line {
@@ -29,95 +27,121 @@ function newId() {
   return "L" + Math.random().toString(36).slice(2, 8)
 }
 
-export default function NewInvoicePage() {
+interface PageProps {
+  params: Promise<{ id: string }>
+}
+
+export default function EditInvoicePage({ params }: PageProps) {
+  const { id } = use(params)
   const router = useRouter()
-  const search = useSearchParams()
-  const taskIdsParam = search.get("taskIds") ?? ""
-  const preselectedTaskIds = useMemo(
-    () => taskIdsParam.split(",").filter(Boolean),
-    [taskIdsParam],
-  )
-  const initialClientId = search.get("clientId") ?? ""
+  const { toast } = useToast()
 
-  const [clientId, setClientId] = useState(initialClientId)
-  const [projectId, setProjectId] = useState<string>("all")
-  const [taskSearch, setTaskSearch] = useState("")
-  const [issueDate, setIssueDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  )
-  const [dueDate, setDueDate] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() + 30)
-    return d.toISOString().slice(0, 10)
-  })
-  const [kind, setKind] = useState<Kind>("STANDARD")
-  const [initialStatus, setInitialStatus] = useState<"DRAFT" | "SENT" | "PAID">(
-    "DRAFT",
-  )
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
-  const [depositLabel, setDepositLabel] = useState("Acompte 30%")
-  const [depositAmount, setDepositAmount] = useState<number>(0)
-  const [lines, setLines] = useState<Line[]>([])
-  const [dragOver, setDragOver] = useState(false)
-  const [customNumber, setCustomNumber] = useState("")
-  const [useTotalOverride, setUseTotalOverride] = useState(false)
-  const [totalOverride, setTotalOverride] = useState<number>(0)
-  const [showSplit, setShowSplit] = useState(false)
-
+  const { data: invoice, isLoading } = useInvoice(id)
   const { data: clients = [] } = useClients()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
-  const createInvoice = useCreateInvoice()
-  const splitInvoice = useSplitInvoice()
-  const { toast } = useToast()
+  const updateInvoice = useUpdateInvoice(id)
 
-  const client = clients.find((c) => c.id === clientId)
+  const [projectId, setProjectId] = useState<string>("all")
+  const [issueDate, setIssueDate] = useState("")
+  const [dueDate, setDueDate] = useState("")
+  const [paidAt, setPaidAt] = useState("")
+  const [status, setStatus] = useState<"DRAFT" | "SENT" | "PAID" | "OVERDUE">(
+    "DRAFT",
+  )
+  const [kind, setKind] = useState<Kind>("STANDARD")
+  const [depositLabel, setDepositLabel] = useState("Acompte 30%")
+  const [depositAmount, setDepositAmount] = useState<number>(0)
+  const [lines, setLines] = useState<Line[]>([])
+  const [taskSearch, setTaskSearch] = useState("")
+  const [dragOver, setDragOver] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+  const [customNumber, setCustomNumber] = useState("")
+  const [useTotalOverride, setUseTotalOverride] = useState(false)
+  const [totalOverride, setTotalOverride] = useState<number>(0)
 
   useEffect(() => {
-    if (clientId) return
-    const first = clients[0]
-    if (!first) return
+    if (!invoice || hydrated) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setClientId(first.id)
-  }, [clientId, clients])
-
-  useEffect(() => {
-    if (!client || preselectedTaskIds.length === 0) return
-    const newLines: Line[] = []
-    for (const tid of preselectedTaskIds) {
-      const t = tasks.find((x) => x.id === tid)
-      if (!t) continue
-      const { qty, rate } = lineFromTask({
-        billingMode: client.billingMode,
-        rate: client.rate,
-        estimateDays: t.estimate,
-      })
-      newLines.push({
-        id: newId(),
-        taskId: t.id,
-        label: `[${t.linearIdentifier}] ${t.title}`,
-        qty,
-        rate,
-      })
+    setProjectId(invoice.projectId ?? "all")
+    setIssueDate(invoice.issueDate.slice(0, 10))
+    setDueDate(invoice.dueDate.slice(0, 10))
+    setPaidAt(
+      invoice.paidAt
+        ? invoice.paidAt.slice(0, 10)
+        : new Date().toISOString().slice(0, 10),
+    )
+    setStatus(invoice.status)
+    setKind(invoice.kind)
+    setCustomNumber(invoice.number)
+    if (invoice.totalOverride != null) {
+      setUseTotalOverride(true)
+      setTotalOverride(invoice.totalOverride)
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLines(newLines)
-  }, [client, preselectedTaskIds, tasks])
+    if (invoice.kind === "DEPOSIT" && invoice.lines[0]) {
+      setDepositLabel(invoice.lines[0].label)
+      setDepositAmount(
+        Number(invoice.lines[0].rate) * Number(invoice.lines[0].qty),
+      )
+    } else {
+      setLines(
+        invoice.lines.map((l) => ({
+          id: l.id,
+          taskId: l.taskId,
+          label: l.label,
+          qty: l.qty,
+          rate: l.rate,
+        })),
+      )
+    }
+    setHydrated(true)
+  }, [invoice, hydrated])
+
+  const client = invoice
+    ? clients.find((c) => c.id === invoice.clientId)
+    : undefined
 
   const eligibleTasks = useMemo(() => {
-    if (!clientId) return []
+    if (!client || !invoice) return []
     const q = taskSearch.trim().toLowerCase()
+    const ownIds = new Set(lines.map((l) => l.taskId).filter(Boolean))
     return tasks.filter((t) => {
-      if (t.clientId !== clientId) return false
-      if (t.status !== "PENDING_INVOICE") return false
-      if (t.invoiceId) return false
-      if (lines.some((l) => l.taskId === t.id)) return false
+      if (t.clientId !== client.id) return false
+      if (t.status !== "PENDING_INVOICE" && !ownIds.has(t.id)) return false
+      if (t.invoiceId && t.invoiceId !== invoice.id) return false
+      if (ownIds.has(t.id)) return false
       if (projectId !== "all" && t.projectId !== projectId) return false
       if (q && !`${t.linearIdentifier} ${t.title}`.toLowerCase().includes(q))
         return false
       return true
     })
-  }, [clientId, tasks, lines, projectId, taskSearch])
+  }, [client, invoice, tasks, lines, projectId, taskSearch])
+
+  if (isLoading || !invoice) {
+    return (
+      <div className="page">
+        <div className="empty">Chargement…</div>
+      </div>
+    )
+  }
+
+  if (invoice.status === "PAID") {
+    return (
+      <div className="page">
+        <div className="empty">
+          <div className="empty-title">Facture payée</div>
+          <div>Une facture payée ne peut plus être modifiée.</div>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 16 }}
+            onClick={() => router.push(`/billing?invoiceId=${id}`)}
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   function addTask(t: (typeof tasks)[number]) {
     if (!client) return
@@ -138,11 +162,13 @@ export default function NewInvoicePage() {
     ])
   }
 
-  function updateLine(id: string, patch: Partial<Line>) {
-    setLines((cur) => cur.map((l) => (l.id === id ? { ...l, ...patch } : l)))
+  function updateLine(lineId: string, patch: Partial<Line>) {
+    setLines((cur) =>
+      cur.map((l) => (l.id === lineId ? { ...l, ...patch } : l)),
+    )
   }
-  function removeLine(id: string) {
-    setLines((cur) => cur.filter((l) => l.id !== id))
+  function removeLine(lineId: string) {
+    setLines((cur) => cur.filter((l) => l.id !== lineId))
   }
   function addBlank() {
     setLines((cur) => [
@@ -163,8 +189,8 @@ export default function NewInvoicePage() {
     ? Number(totalOverride) || 0
     : subtotal
 
-  function buildPayload(status: "DRAFT" | "SENT" | "PAID") {
-    if (!client) return null
+  function save(targetStatus: "DRAFT" | "SENT" | "PAID" | "OVERDUE") {
+    if (!client) return
     const linesPayload =
       kind === "DEPOSIT"
         ? [
@@ -181,68 +207,32 @@ export default function NewInvoicePage() {
             qty: Number(l.qty),
             rate: Number(l.rate),
           }))
-    return {
-      clientId: client.id,
-      projectId: projectId !== "all" ? projectId : null,
-      number: customNumber.trim() || undefined,
-      issueDate,
-      dueDate,
-      paidAt: status === "PAID" ? paidAt : null,
-      kind,
-      status,
-      totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
-      lines: linesPayload,
-      taskIds:
-        kind === "STANDARD"
-          ? lines.map((l) => l.taskId).filter((x): x is string => Boolean(x))
-          : [],
-    }
-  }
 
-  function submit(status: "DRAFT" | "SENT" | "PAID") {
-    const payload = buildPayload(status)
-    if (!payload) return
-    createInvoice.mutate(payload, {
-      onSuccess: (created) => {
-        toast({
-          variant: "success",
-          title:
-            status === "DRAFT"
-              ? "Brouillon créé"
-              : status === "PAID"
-                ? "Facture créée et payée"
-                : "Facture émise",
-        })
-        router.push(`/billing?invoiceId=${created.id}`)
-      },
-      onError: (e) =>
-        toast({
-          variant: "error",
-          title: "Erreur",
-          description: e instanceof Error ? e.message : String(e),
-        }),
-    })
-  }
-
-  function doSplit(parts: number, schedule: "MONTHLY" | "WEEKLY" | "ONCE") {
-    const payload = buildPayload(initialStatus)
-    if (!payload) return
-    splitInvoice.mutate(
-      { parts, schedule, base: payload },
+    updateInvoice.mutate(
       {
-        onSuccess: (r) => {
-          toast({
-            variant: "success",
-            title: `${r.items.length} factures créées`,
-            description: `Total réparti : ${effectiveTotal} € en ${r.items.length} parts`,
-          })
-          setShowSplit(false)
-          router.push("/billing")
+        projectId: projectId !== "all" ? projectId : null,
+        number: customNumber.trim() || undefined,
+        issueDate,
+        dueDate,
+        paidAt: targetStatus === "PAID" ? paidAt : null,
+        kind,
+        status: targetStatus,
+        totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
+        lines: linesPayload,
+        taskIds:
+          kind === "STANDARD"
+            ? lines.map((l) => l.taskId).filter((x): x is string => Boolean(x))
+            : [],
+      },
+      {
+        onSuccess: () => {
+          toast({ variant: "success", title: "Facture mise à jour" })
+          router.push(`/billing?invoiceId=${id}`)
         },
         onError: (e) =>
           toast({
             variant: "error",
-            title: "Split échoué",
+            title: "Erreur",
             description: e instanceof Error ? e.message : String(e),
           }),
       },
@@ -254,18 +244,17 @@ export default function NewInvoicePage() {
       <div className="row gap-8" style={{ marginBottom: 16 }}>
         <button
           className="btn btn-ghost btn-sm"
-          onClick={() => router.push("/billing")}
+          onClick={() => router.push(`/billing?invoiceId=${id}`)}
         >
           <Icon name="chevron-left" size={12} />
-          Factures
+          Facture
         </button>
       </div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Nouvelle facture</h1>
+          <h1 className="page-title">Modifier {invoice.number}</h1>
           <div className="page-sub">
-            Sélectionne un client puis ajoute des tasks par drag &amp; drop ou
-            clic
+            Édite les dates, lignes ou tasks de la facture
           </div>
         </div>
       </div>
@@ -274,22 +263,15 @@ export default function NewInvoicePage() {
         <div className="row gap-16" style={{ flexWrap: "wrap" }}>
           <div className="field" style={{ flex: 1, minWidth: 260 }}>
             <label className="field-label">Client</label>
-            <select
-              className="select"
-              value={clientId}
-              onChange={(e) => {
-                setClientId(e.target.value)
-                setLines([])
-              }}
-            >
-              <option value="">— choisir un client —</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.company ?? `${c.firstName} ${c.lastName}`} · {c.firstName}{" "}
-                  {c.lastName}
-                </option>
-              ))}
-            </select>
+            <input
+              className="input"
+              value={
+                client
+                  ? `${client.company ?? `${client.firstName} ${client.lastName}`}`
+                  : "—"
+              }
+              disabled
+            />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 220 }}>
             <label className="field-label">Projet (optionnel)</label>
@@ -297,11 +279,10 @@ export default function NewInvoicePage() {
               className="select"
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              disabled={!clientId}
             >
               <option value="all">Tous les projets</option>
               {projects
-                .filter((p) => p.clientId === clientId)
+                .filter((p) => p.clientId === invoice.clientId)
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -310,12 +291,9 @@ export default function NewInvoicePage() {
             </select>
           </div>
           <div className="field" style={{ width: 200 }}>
-            <label className="field-label">
-              Numéro <span className="muted xs">— auto si vide</span>
-            </label>
+            <label className="field-label">Numéro</label>
             <input
               className="input mono"
-              placeholder="2026-1042"
               value={customNumber}
               onChange={(e) => setCustomNumber(e.target.value)}
             />
@@ -367,8 +345,8 @@ export default function NewInvoicePage() {
               ))}
             </div>
           </div>
-          <div className="field" style={{ width: 280 }}>
-            <label className="field-label">Statut initial</label>
+          <div className="field" style={{ width: 320 }}>
+            <label className="field-label">Statut</label>
             <div
               className="row gap-4"
               style={{
@@ -382,8 +360,12 @@ export default function NewInvoicePage() {
                 [
                   { id: "DRAFT", label: "Brouillon" },
                   { id: "SENT", label: "Émise" },
+                  { id: "OVERDUE", label: "En retard" },
                   { id: "PAID", label: "Payée" },
-                ] as { id: "DRAFT" | "SENT" | "PAID"; label: string }[]
+                ] as {
+                  id: "DRAFT" | "SENT" | "OVERDUE" | "PAID"
+                  label: string
+                }[]
               ).map((s) => (
                 <button
                   key={s.id}
@@ -392,21 +374,19 @@ export default function NewInvoicePage() {
                     flex: 1,
                     justifyContent: "center",
                     background:
-                      initialStatus === s.id ? "var(--accent)" : "transparent",
+                      status === s.id ? "var(--accent)" : "transparent",
                     color:
-                      initialStatus === s.id
-                        ? "var(--accent-text)"
-                        : "var(--text-1)",
+                      status === s.id ? "var(--accent-text)" : "var(--text-1)",
                     border: "none",
                   }}
-                  onClick={() => setInitialStatus(s.id)}
+                  onClick={() => setStatus(s.id)}
                 >
                   {s.label}
                 </button>
               ))}
             </div>
           </div>
-          {initialStatus === "PAID" && (
+          {status === "PAID" && (
             <div className="field" style={{ width: 180 }}>
               <label className="field-label">Date de paiement</label>
               <input
@@ -456,17 +436,7 @@ export default function NewInvoicePage() {
         )}
       </div>
 
-      {!clientId ? (
-        <div className="card">
-          <div className="empty">
-            <div className="empty-title">Choisis un client pour commencer</div>
-            <div>
-              Les tasks éligibles apparaîtront à gauche, le récap de la facture
-              à droite.
-            </div>
-          </div>
-        </div>
-      ) : kind === "DEPOSIT" ? (
+      {kind === "DEPOSIT" ? (
         <div className="card" style={{ maxWidth: 600 }}>
           <div className="card-h2" style={{ marginBottom: 16 }}>
             Détails de l&apos;acompte
@@ -489,33 +459,6 @@ export default function NewInvoicePage() {
                 onChange={(e) => setDepositAmount(Number(e.target.value))}
               />
             </div>
-            {client?.billingMode === "FIXED" && (
-              <div
-                className="row gap-8 small"
-                style={{
-                  padding: 10,
-                  background: "var(--info-soft)",
-                  borderRadius: 7,
-                }}
-              >
-                <Icon name="info" size={14} style={{ color: "var(--info)" }} />
-                <span>
-                  Forfait projet : {fmtEUR(client.fixedPrice)}
-                  {client.deposit
-                    ? ` · acompte suggéré ${fmtEUR(client.deposit)}`
-                    : ""}
-                </span>
-                {client.deposit && (
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    style={{ marginLeft: "auto" }}
-                    onClick={() => setDepositAmount(client.deposit!)}
-                  >
-                    Utiliser
-                  </button>
-                )}
-              </div>
-            )}
           </div>
           <div className="divider" />
           <div className="row" style={{ justifyContent: "space-between" }}>
@@ -526,27 +469,15 @@ export default function NewInvoicePage() {
           </div>
           <div
             className="row gap-8"
-            style={{ marginTop: 18, justifyContent: "space-between" }}
+            style={{ marginTop: 18, justifyContent: "flex-end" }}
           >
             <button
-              className="btn btn-secondary"
-              disabled={!effectiveTotal || createInvoice.isPending}
-              onClick={() => setShowSplit(true)}
-            >
-              <Icon name="grid" size={14} />
-              Diviser en plusieurs
-            </button>
-            <button
               className="btn btn-primary"
-              onClick={() => submit(initialStatus)}
-              disabled={!effectiveTotal || createInvoice.isPending}
+              onClick={() => save(status)}
+              disabled={!subtotal || updateInvoice.isPending}
             >
               <Icon name="check" size={14} />
-              {initialStatus === "DRAFT"
-                ? "Sauver le brouillon"
-                : initialStatus === "SENT"
-                  ? "Émettre la facture"
-                  : "Créer la facture (payée)"}
+              Sauver les modifications
             </button>
           </div>
         </div>
@@ -574,18 +505,6 @@ export default function NewInvoicePage() {
                 onChange={(e) => setTaskSearch(e.target.value)}
               />
             </div>
-            {eligibleTasks.length === 0 && lines.length === 0 && (
-              <div className="card">
-                <div className="empty">
-                  <div className="empty-title">Aucune task à facturer</div>
-                  <div>
-                    {taskSearch
-                      ? "Aucune task ne correspond à ta recherche."
-                      : "Ce client n'a pas de task en statut Pending Invoice."}
-                  </div>
-                </div>
-              </div>
-            )}
             <div
               style={{
                 maxHeight: "calc(100vh - 360px)",
@@ -640,18 +559,13 @@ export default function NewInvoicePage() {
             <div className="card-h2" style={{ marginBottom: 14 }}>
               Aperçu facture
             </div>
-
             <div
               className={
                 "dropzone" +
                 (dragOver ? " over" : "") +
                 (lines.length === 0 ? " empty" : "")
               }
-              style={{
-                minHeight: lines.length === 0 ? 200 : "auto",
-                maxHeight: lines.length > 0 ? "calc(100vh - 480px)" : undefined,
-                overflowY: lines.length > 0 ? "auto" : undefined,
-              }}
+              style={{ minHeight: lines.length === 0 ? 200 : "auto" }}
               onDragOver={(e) => {
                 e.preventDefault()
                 setDragOver(true)
@@ -793,38 +707,15 @@ export default function NewInvoicePage() {
             <div className="col gap-8" style={{ marginTop: 18 }}>
               <button
                 className="btn btn-primary"
-                disabled={lines.length === 0 || createInvoice.isPending}
-                onClick={() => submit(initialStatus)}
+                disabled={lines.length === 0 || updateInvoice.isPending}
+                onClick={() => save(status)}
               >
                 <Icon name="check" size={14} />
-                {initialStatus === "DRAFT"
-                  ? "Sauver le brouillon"
-                  : initialStatus === "SENT"
-                    ? "Émettre la facture"
-                    : "Créer la facture (payée)"}
-              </button>
-              <button
-                className="btn btn-secondary"
-                disabled={!effectiveTotal || createInvoice.isPending}
-                onClick={() => setShowSplit(true)}
-              >
-                <Icon name="grid" size={14} />
-                Diviser en plusieurs
+                Sauver les modifications
               </button>
             </div>
           </div>
         </div>
-      )}
-
-      {showSplit && (
-        <SplitDialog
-          total={effectiveTotal}
-          initialIssueDate={issueDate}
-          initialDueDate={dueDate}
-          isPending={splitInvoice.isPending}
-          onClose={() => setShowSplit(false)}
-          onConfirm={(parts, schedule) => doSplit(parts, schedule)}
-        />
       )}
     </div>
   )

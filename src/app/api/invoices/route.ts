@@ -8,8 +8,35 @@ import {
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 
-function makeInvoiceNumber(year: number, seq: number): string {
+function formatNumber(year: number, seq: number): string {
   return `${year}-${String(seq).padStart(4, "0")}`
+}
+
+/**
+ * Reserve the next available invoice number for the given user. Tries the
+ * sequence based on the current count of invoices and walks forward if there
+ * are collisions (e.g. when the user previously typed a custom number that
+ * happens to match the auto sequence).
+ *
+ * @returns a string number guaranteed to be unique for the user
+ */
+async function nextAutoNumber(userId: string, year: number): Promise<string> {
+  const taken = new Set(
+    (
+      await prisma.invoice.findMany({
+        where: { userId, number: { startsWith: `${year}-` } },
+        select: { number: true },
+      })
+    ).map((r) => r.number),
+  )
+  const baseCount = await prisma.invoice.count({ where: { userId } })
+  let seq = baseCount + 1024 + 1
+  let candidate = formatNumber(year, seq)
+  while (taken.has(candidate)) {
+    seq += 1
+    candidate = formatNumber(year, seq)
+  }
+  return candidate
 }
 
 export async function GET() {
@@ -35,6 +62,7 @@ export async function GET() {
         subtotal: decimalToNumber(inv.subtotal) ?? 0,
         tax: decimalToNumber(inv.tax) ?? 0,
         total: decimalToNumber(inv.total) ?? 0,
+        totalOverride: decimalToNumber(inv.totalOverride),
         notes: inv.notes,
         linesCount: inv.lines.length,
       })),
@@ -51,7 +79,6 @@ export async function POST(req: Request) {
   try {
     const data = invoiceCreateSchema.parse(await req.json())
 
-    // Check the client is owned by this user
     const client = await prisma.client.findFirst({
       where: { id: data.clientId, userId: user.id },
       select: { id: true },
@@ -59,14 +86,30 @@ export async function POST(req: Request) {
     if (!client) return apiUnauthorized()
 
     const year = new Date(data.issueDate).getFullYear()
-    const seq =
-      (await prisma.invoice.count({ where: { userId: user.id } })) + 1024 + 1
-    const number = makeInvoiceNumber(year, seq)
+    const number =
+      data.number && data.number.trim()
+        ? data.number.trim()
+        : await nextAutoNumber(user.id, year)
+
+    if (data.number) {
+      const conflict = await prisma.invoice.findFirst({
+        where: { userId: user.id, number },
+        select: { id: true },
+      })
+      if (conflict) {
+        return NextResponse.json(
+          { error: `Le numéro de facture "${number}" est déjà utilisé` },
+          { status: 409 },
+        )
+      }
+    }
 
     const subtotal = data.lines.reduce(
       (s, l) => s + Number(l.qty) * Number(l.rate),
       0,
     )
+    const total =
+      data.totalOverride != null ? Number(data.totalOverride) : subtotal
 
     const created = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
@@ -79,9 +122,15 @@ export async function POST(req: Request) {
           kind: data.kind,
           issueDate: new Date(data.issueDate),
           dueDate: new Date(data.dueDate),
+          paidAt:
+            data.status === "PAID" && data.paidAt
+              ? new Date(data.paidAt)
+              : null,
           subtotal,
           tax: 0,
-          total: subtotal,
+          total,
+          totalOverride:
+            data.totalOverride != null ? Number(data.totalOverride) : null,
           notes: data.notes ?? null,
           lines: {
             create: data.lines.map((l, i) => ({

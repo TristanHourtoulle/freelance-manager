@@ -1,10 +1,7 @@
 "use client"
 
-// Modal — direct port from design-reference/src/shell.jsx.
-// Click on backdrop closes; esc closes; modal content stops propagation.
-
 import { useEffect } from "react"
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { Icon } from "@/components/ui/icon"
 
 interface ModalProps {
@@ -13,9 +10,23 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   width?: number
+  bodyStyle?: CSSProperties
 }
 
-export function Modal({ title, onClose, children, footer, width }: ModalProps) {
+/**
+ * Generic modal with a sticky header and an optional sticky footer. The body
+ * scrolls by default; pass `bodyStyle={{ overflow: "hidden", padding: 0 }}`
+ * to take over scroll management inside (used when only a sub-region must
+ * scroll, e.g. the lines list of an invoice drawer).
+ */
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  width,
+  bodyStyle,
+}: ModalProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose()
@@ -40,7 +51,9 @@ export function Modal({ title, onClose, children, footer, width }: ModalProps) {
             <Icon name="x" size={16} />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" style={bodyStyle}>
+          {children}
+        </div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>
