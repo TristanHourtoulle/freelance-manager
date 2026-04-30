@@ -162,9 +162,17 @@ sticky topbar.
 
 **Pills (statuses)**: `padding: 3px 9px; border-radius: 99px;` with a 6px dot
 `::before` (use `pill-no-dot` to hide the dot). Color classes:
-`pill-pending` (warn), `pill-done`/`pill-paid` (accent), `pill-sent` (info),
+`pill-pending` (rose), `pill-done`/`pill-paid` (accent), `pill-sent` (info),
 `pill-overdue` (danger), `pill-deposit` (purple), `pill-daily` (info),
 `pill-fixed` (purple), `pill-hourly` (cyan), `pill-draft` (bg-3).
+
+**Color tokens grid — chroma 0.13–0.16.** Every accent/status oklch token in
+`globals.css` (`--warn`, `--info`, `--purple`, `--cyan`, `--rose`, …) must use
+chroma in the `0.13`–`0.16` range to stay visually consistent with the
+green-dominant theme. Higher chroma reads as "too vibrant" against the
+palette. Soft variants: `oklch(L C H / 0.16)`. If a hue needs more punch,
+raise lightness — never raise chroma above `0.16` without explicit user
+approval.
 
 **Filter chips**: `padding: 5px 11px; border-radius: 99px;` — active state =
 `bg-accent text-accent-text`.
@@ -278,9 +286,18 @@ Everything else is removed.
   from `design-reference/src/page-*.jsx` ("Nouvelle facture", "À facturer",
   "Encours", "Pipeline", "Émise le", "Échéance", etc.).
 - **Numbers**: any numeric cell uses `.num` class for `tnum` font feature.
-- **No comments explaining what the code does** — code is self-documenting.
-  Only add a comment when the _why_ is non-obvious (a constraint, an
-  invariant, or a workaround).
+- **NO inline comments at all.** No `// …` lines, no `/* … */` blocks. The
+  only allowed comment form in TS/TSX is `/** … */` JSDoc on an exported
+  function, type, or component, structured as a short title (one line) plus
+  the relevant `@param`, `@returns`, `@throws`. Linter / TS directive comments
+  (`// eslint-disable-next-line …`, `// @ts-expect-error …`) are tolerated
+  only when strictly required; never use them to document intent.
+- **NO native dialogs or unstyled native UI.** Never use `window.confirm`,
+  `window.alert`, `window.prompt`. Use the `<ConfirmDialog>` component
+  (`src/components/ui/confirm-dialog.tsx`) for confirmations. Native form
+  widgets (checkbox, radio, date input) must be globally restyled in
+  `globals.css` (`appearance: none`, `accent-color`, `color-scheme: dark`)
+  so the default chrome never shows through.
 - **File size**: target 200–400 lines; absolute max 800.
 - **Tests**: keep co-located `*.test.ts(x)` files. Cover billing math, invoice
   status transitions, Linear sync, and any pricing/edge logic.
