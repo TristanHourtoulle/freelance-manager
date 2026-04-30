@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 import { linearMappingCreateSchema } from "@/lib/schemas/linear-mapping"
+import { syncOneProject } from "@/lib/linear"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -38,6 +39,39 @@ export async function POST(req: Request, { params }: Params) {
     })
     if (!owned) return apiUnauthorized()
 
+    if (data.linearProjectId) {
+      const existing = await prisma.linearMapping.findFirst({
+        where: {
+          linearProjectId: data.linearProjectId,
+          client: { userId: user.id },
+        },
+        include: {
+          client: {
+            select: {
+              firstName: true,
+              lastName: true,
+              company: true,
+            },
+          },
+        },
+      })
+      if (existing && existing.clientId !== id) {
+        const label =
+          existing.client.company ??
+          `${existing.client.firstName} ${existing.client.lastName}`
+        return NextResponse.json(
+          {
+            error: `Ce projet Linear est déjà lié au client ${label}`,
+            conflictClientId: existing.clientId,
+          },
+          { status: 409 },
+        )
+      }
+      if (existing && existing.clientId === id) {
+        return NextResponse.json(existing, { status: 200 })
+      }
+    }
+
     const created = await prisma.linearMapping.create({
       data: {
         clientId: id,
@@ -45,6 +79,18 @@ export async function POST(req: Request, { params }: Params) {
         linearProjectId: data.linearProjectId ?? null,
       },
     })
+
+    if (data.linearProjectId) {
+      try {
+        await syncOneProject({
+          userId: user.id,
+          clientId: id,
+          linearProjectId: data.linearProjectId,
+        })
+      } catch (e) {
+        console.warn("[linear] syncOneProject failed", e)
+      }
+    }
     return NextResponse.json(created, { status: 201 })
   } catch (error) {
     return apiServerError(error)

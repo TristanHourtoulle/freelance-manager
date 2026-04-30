@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 
 export interface ProjectDTO {
@@ -28,5 +28,21 @@ export function useProjects() {
     queryFn: () => api.get<{ items: ProjectDTO[] }>("/api/projects"),
     select: (d) => d.items,
     staleTime: 30_000,
+  })
+}
+
+export function useDeleteProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: string) => api.delete(`/api/projects/${projectId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.invalidateQueries({ queryKey: ["tasks"] })
+      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      qc.invalidateQueries({ queryKey: ["client"] })
+      qc.invalidateQueries({ queryKey: ["client-linear-mappings"] })
+      qc.invalidateQueries({ queryKey: ["linear-mappings"] })
+    },
   })
 }

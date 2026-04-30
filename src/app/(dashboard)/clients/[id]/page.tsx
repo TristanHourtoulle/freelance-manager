@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/pill"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useClientDetail } from "@/hooks/use-client-detail"
+import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
 
 type Tab = "overview" | "projects" | "tasks" | "invoices"
 
@@ -22,6 +23,7 @@ export default function ClientDetailPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
+  const [showLink, setShowLink] = useState(false)
   const { data: client, isLoading } = useClientDetail(id)
 
   if (isLoading) {
@@ -63,13 +65,23 @@ export default function ClientDetailPage({ params }: PageProps) {
 
   return (
     <div className="page">
-      <div className="row gap-8" style={{ marginBottom: 16 }}>
+      <div
+        className="row gap-8"
+        style={{ marginBottom: 16, justifyContent: "space-between" }}
+      >
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => router.push("/clients")}
         >
           <Icon name="chevron-left" size={12} />
           Clients
+        </button>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={() => setShowLink(true)}
+        >
+          <Icon name="link" size={12} />
+          Lier projets Linear
         </button>
       </div>
 
@@ -468,6 +480,13 @@ export default function ClientDetailPage({ params }: PageProps) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {showLink && (
+        <LinearMappingsModal
+          initialClientId={client.id}
+          onClose={() => setShowLink(false)}
+        />
       )}
     </div>
   )

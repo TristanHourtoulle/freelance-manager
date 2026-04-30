@@ -7,6 +7,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { settingsUpdateSchema } from "@/lib/schemas/settings"
+import { decrypt, maskToken } from "@/lib/encryption"
 
 export async function GET() {
   const user = await getAuthUser()
@@ -17,11 +18,26 @@ export async function GET() {
       update: {},
       create: { userId: user.id },
     })
+
+    let linearTokenPreview: string | null = null
+    if (settings.linearApiTokenEncrypted && settings.linearApiTokenIv) {
+      try {
+        const plain = decrypt(
+          Buffer.from(settings.linearApiTokenEncrypted),
+          Buffer.from(settings.linearApiTokenIv),
+        )
+        linearTokenPreview = maskToken(plain)
+      } catch (e) {
+        console.warn("[settings] could not decrypt Linear token", e)
+      }
+    }
+
     return NextResponse.json({
       defaultCurrency: settings.defaultCurrency,
       defaultPaymentDays: settings.defaultPaymentDays,
       defaultRate: decimalToNumber(settings.defaultRate) ?? 0,
       hasLinearToken: Boolean(settings.linearApiTokenEncrypted),
+      linearTokenPreview,
       linearLastSyncedAt: settings.linearLastSyncedAt?.toISOString() ?? null,
     })
   } catch (error) {

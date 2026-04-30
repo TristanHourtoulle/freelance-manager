@@ -1,9 +1,3 @@
-// Slim Linear service. Two responsibilities:
-//   1. Read the user's encrypted Linear token from UserSettings and instantiate
-//      a per-user Linear SDK client.
-//   2. List teams / projects / issues for the linking flows + provide a
-//      normalized "sync" routine that upserts our local Project + Task rows.
-
 import { LinearClient } from "@linear/sdk"
 import { prisma } from "@/lib/db"
 import { decrypt, encrypt } from "@/lib/encryption"
@@ -242,6 +236,138 @@ export async function syncFromLinear(userId: string): Promise<SyncResult> {
   })
 
   return { projects: projectsUpserted, tasks: tasksUpserted }
+}
+
+/**
+ * Pull a single Linear project (and its issues) into the local DB. Used right
+ * after the user links a project so the row is visible immediately, without
+ * waiting for a full sync.
+ */
+export async function syncOneProject(opts: {
+  userId: string
+  clientId: string
+  linearProjectId: string
+}): Promise<void> {
+  const userLinear = await getLinearClient(opts.userId)
+  if (!userLinear) {
+    throw new Error("No Linear token configured for this user")
+  }
+  const { client } = userLinear
+
+  const linearProject = await client.project(opts.linearProjectId)
+  if (!linearProject) throw new Error("Linear project not found")
+
+  const localProject = await prisma.project.upsert({
+    where: { linearProjectId: linearProject.id },
+    create: {
+      userId: opts.userId,
+      clientId: opts.clientId,
+      linearProjectId: linearProject.id,
+      name: linearProject.name,
+      key: linearProject.name.slice(0, 4).toUpperCase(),
+      description: linearProject.description ?? null,
+      status:
+        linearProject.state === "completed"
+          ? "COMPLETED"
+          : linearProject.state === "paused"
+            ? "PAUSED"
+            : "ACTIVE",
+      linearCreatedAt: linearProject.createdAt ?? null,
+    },
+    update: {
+      clientId: opts.clientId,
+      name: linearProject.name,
+      description: linearProject.description ?? null,
+      status:
+        linearProject.state === "completed"
+          ? "COMPLETED"
+          : linearProject.state === "paused"
+            ? "PAUSED"
+            : "ACTIVE",
+      lastSyncedAt: new Date(),
+    },
+  })
+
+  const issues = await client.issues({
+    filter: { project: { id: { eq: linearProject.id } } } as never,
+    first: 250,
+  })
+
+  const issueIds = issues.nodes.map((i) => i.id)
+  const [enriched, existingTasks] = await Promise.all([
+    Promise.all(
+      issues.nodes.map(async (issue) => {
+        const [team, state] = await Promise.all([issue.team, issue.state])
+        return { issue, team, state }
+      }),
+    ),
+    prisma.task.findMany({
+      where: { linearIssueId: { in: issueIds } },
+      select: { linearIssueId: true, invoiceId: true },
+    }),
+  ])
+
+  const invoiceByIssueId = new Map(
+    existingTasks.map((t) => [t.linearIssueId, t.invoiceId]),
+  )
+
+  const firstTeam = enriched.find((e) => e.team)?.team
+  if (firstTeam?.key) {
+    await prisma.project.update({
+      where: { id: localProject.id },
+      data: { key: firstTeam.key, linearTeamId: firstTeam.id },
+    })
+  }
+
+  await Promise.all(
+    enriched.map(({ issue, state }) => {
+      const status = mapLinearStateType(
+        state?.type,
+        Boolean(invoiceByIssueId.get(issue.id)),
+      )
+      return prisma.task.upsert({
+        where: { linearIssueId: issue.id },
+        create: {
+          userId: opts.userId,
+          clientId: opts.clientId,
+          projectId: localProject.id,
+          linearIssueId: issue.id,
+          linearIdentifier: issue.identifier,
+          linearStateName: state?.name ?? null,
+          linearStateType: state?.type ?? null,
+          title: issue.title,
+          description: issue.description ?? null,
+          status,
+          priority: mapLinearPriority(issue.priority),
+          estimate: issue.estimate ?? null,
+          completedAt: issue.completedAt ?? null,
+          linearCreatedAt: issue.createdAt ?? null,
+          linearUpdatedAt: issue.updatedAt ?? null,
+        },
+        update: {
+          clientId: opts.clientId,
+          projectId: localProject.id,
+          linearIdentifier: issue.identifier,
+          linearStateName: state?.name ?? null,
+          linearStateType: state?.type ?? null,
+          title: issue.title,
+          description: issue.description ?? null,
+          status,
+          priority: mapLinearPriority(issue.priority),
+          estimate: issue.estimate ?? null,
+          completedAt: issue.completedAt ?? null,
+          linearUpdatedAt: issue.updatedAt ?? null,
+          lastSyncedAt: new Date(),
+        },
+      })
+    }),
+  )
+
+  await prisma.userSettings.upsert({
+    where: { userId: opts.userId },
+    update: { linearLastSyncedAt: new Date() },
+    create: { userId: opts.userId, linearLastSyncedAt: new Date() },
+  })
 }
 
 /** List Linear teams for the linking dropdown. */
