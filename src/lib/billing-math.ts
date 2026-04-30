@@ -1,6 +1,3 @@
-// Pricing formulas — kept as a tiny, well-tested module so the rest of the app
-// never has to think about hours-vs-days conversions.
-
 import type { BillingMode } from "@/generated/prisma/client"
 
 /**

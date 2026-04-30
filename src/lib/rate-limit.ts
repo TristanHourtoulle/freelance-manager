@@ -34,8 +34,6 @@ interface RateLimitResult {
  * Falls back to a static key when no forwarding headers are present.
  */
 function getClientKey(request: Request): string {
-  // Prefer x-real-ip (set by trusted reverse proxy / Vercel) over
-  // x-forwarded-for which can be spoofed by the client.
   const realIp = request.headers.get("x-real-ip")
   if (realIp) {
     return realIp.trim()
@@ -60,7 +58,6 @@ function cleanup(): void {
   }
 }
 
-// Run cleanup every 60 seconds to prevent memory leaks
 if (typeof globalThis !== "undefined") {
   const intervalKey = "__rateLimitCleanupInterval" as const
   const g = globalThis as unknown as Record<
@@ -69,7 +66,6 @@ if (typeof globalThis !== "undefined") {
   >
   if (!g[intervalKey]) {
     g[intervalKey] = setInterval(cleanup, 60_000)
-    // Allow the process to exit without waiting for the interval
     if (
       typeof g[intervalKey] === "object" &&
       "unref" in (g[intervalKey] as object)
@@ -97,13 +93,11 @@ export function rateLimit(
 
   const entry = store.get(key)
 
-  // No existing entry or window expired — start fresh
   if (!entry || now >= entry.resetAt) {
     store.set(key, { count: 1, resetAt: now + windowMs })
     return { success: true, remaining: limit - 1, reset: windowMs }
   }
 
-  // Within window — increment
   entry.count += 1
   const remaining = Math.max(0, limit - entry.count)
   const reset = entry.resetAt - now

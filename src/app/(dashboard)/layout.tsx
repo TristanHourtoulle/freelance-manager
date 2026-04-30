@@ -11,8 +11,6 @@ export default async function DashboardLayout({
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect("/auth/login")
 
-  // Crumbs are filled per-page via the breadcrumbs slot. The shell only needs
-  // a sensible default ("FreelanceManager") so the topbar isn't empty.
   return (
     <AppShell
       user={{ name: session.user.name, email: session.user.email }}

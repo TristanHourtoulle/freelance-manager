@@ -92,7 +92,7 @@ export default function DashboardPage() {
           </div>
           <div className="kpi-value">{fmtEUR(kpi.outstanding)}</div>
           <div className="kpi-sub">
-            <span>{kpi.sentCount} factures envoyées</span>
+            <span>{kpi.sentCount} factures émises</span>
             {kpi.overdueAmount > 0 && (
               <span className="kpi-trend down" style={{ marginLeft: "auto" }}>
                 <Icon name="alert" size={10} />
@@ -356,4 +356,4 @@ export default function DashboardPage() {
   )
 }
 
-void initials // keep for future use; suppresses unused warning
+void initials

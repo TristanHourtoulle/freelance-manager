@@ -1,8 +1,5 @@
 "use client"
 
-// Inline SVG bar chart — pixel-perfect port of design-reference/src/page-dashboard.jsx
-// (RevenueChart). Highlighted bar = current month.
-
 interface MonthData {
   month: string
   total: number

@@ -1,6 +1,3 @@
-// Helpers shared across all API routes: auth gate, error envelope, serializers
-// for Prisma Decimal/DateTime values.
-
 import { NextResponse } from "next/server"
 import { headers as nextHeaders } from "next/headers"
 import { ZodError } from "zod/v4"

@@ -1,7 +1,3 @@
-// Lucide-inspired stroked icons, ported verbatim from
-// design-reference/src/icons.jsx. The design uses inline SVG instead of an
-// external library so the rendering stays under our full control.
-
 import type { SVGProps } from "react"
 
 export type IconName =

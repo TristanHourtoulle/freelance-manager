@@ -1,6 +1,3 @@
-// Sidebar navigation — mirrors the design's structure:
-// Pilotage / Travail / Finance / Système.
-
 import type { IconName } from "@/components/ui/icon"
 
 export interface NavItem {

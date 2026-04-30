@@ -1,7 +1,4 @@
-// Formatters ported from design-reference/src/data.jsx so the rendered output
-// matches the design exactly (French locale, mono digits in mocked tables).
-
-const NBSP = " " // protect from Intl variants if we ever need to compare
+const NBSP = " "
 
 const eurNoDigits = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -120,5 +117,4 @@ export function avatarColor(seed: string): string {
   return AVATAR_GRADIENTS[idx] as string
 }
 
-// Avoid an unused-binding warning if we keep NBSP for future tests.
 void NBSP

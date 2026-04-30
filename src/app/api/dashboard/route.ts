@@ -109,7 +109,6 @@ export async function GET() {
       0,
     )
 
-    // 8-month bar chart of paid revenue
     const months: { month: string; total: number; isCurrent: boolean }[] = []
     for (let i = 7; i >= 0; i--) {
       const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
