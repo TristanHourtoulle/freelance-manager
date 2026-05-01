@@ -1,328 +1,257 @@
-import { prisma } from "@/lib/db"
-import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
-import { categoryFilterField } from "@/lib/schemas/category-filter"
-import { rateLimit } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
 import {
-  getMonthKey,
-  buildMonthRange,
-  fetchIssueMapForClient,
-  computeGroupAmount,
-  computeDateRange,
-  buildUtilizationByMonth,
-} from "@/lib/analytics-helpers"
+  apiServerError,
+  apiUnauthorized,
+  decimalToNumber,
+  getAuthUser,
+} from "@/lib/api"
 
-import type { OverrideWithClient } from "@/lib/analytics-helpers"
-import type { Client, LinearMapping } from "@/generated/prisma/client"
+const RANGE_MONTHS: Record<string, number> = { "3m": 3, "6m": 6, "12m": 12 }
 
-/** Valid section values for partial data fetching. */
-type AnalyticsSection =
-  | "revenue-by-month"
-  | "revenue-by-client"
-  | "hours-by-client"
-  | "revenue-by-category"
-  | "utilization"
+export async function GET(req: Request) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
 
-const VALID_SECTIONS: ReadonlySet<string> = new Set<AnalyticsSection>([
-  "revenue-by-month",
-  "revenue-by-client",
-  "hours-by-client",
-  "revenue-by-category",
-  "utilization",
-])
-
-/**
- * Checks whether a section should be computed based on the requested section filter.
- * When no section is specified, all sections are computed (backward compatible).
- */
-function shouldCompute(
-  requested: AnalyticsSection | null,
-  target: AnalyticsSection,
-): boolean {
-  if (requested === null) return true
-  // revenue-by-category depends on revenue-by-client data
-  if (requested === "revenue-by-category") {
-    return target === "revenue-by-client" || target === "revenue-by-category"
-  }
-  // hours-by-client is computed inside the revenue-by-client block
-  if (requested === "hours-by-client") {
-    return target === "revenue-by-client" || target === "hours-by-client"
-  }
-  // utilization depends on revenue-by-month data
-  if (requested === "utilization") {
-    return target === "revenue-by-month" || target === "utilization"
-  }
-  return target === requested
-}
-
-/**
- * GET /api/analytics
- * Returns analytics data. Supports an optional `section` query param to fetch
- * only a specific chart's data (revenue-by-month, revenue-by-client,
- * hours-by-client, revenue-by-category, utilization). When omitted, returns all
- * sections (backward compatible).
- * @returns 200 - Full or partial analytics payload
- * @throws 401 - Unauthenticated request
- * @throws 400 - Invalid filter parameters
- */
-export async function GET(request: Request) {
   try {
-    const rl = rateLimit(request)
-    if (!rl.success) {
-      return NextResponse.json(
-        {
-          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
-        },
-      )
-    }
+    const { searchParams } = new URL(req.url)
+    const rangeKey = searchParams.get("range") ?? "12m"
+    const months = RANGE_MONTHS[rangeKey] ?? 12
 
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const url = new URL(request.url)
-    const period = url.searchParams.get("period") ?? "3m"
-    const fromParam = url.searchParams.get("from")
-    const toParam = url.searchParams.get("to")
-    const categoryRaw = url.searchParams.get("category") ?? undefined
-    const categoryFilter = categoryFilterField.parse(categoryRaw)
-    const sectionParam = url.searchParams.get("section")
-
-    if (sectionParam !== null && !VALID_SECTIONS.has(sectionParam)) {
-      return apiError(
-        "INVALID_SECTION",
-        `Invalid section: ${sectionParam}. Valid values: ${[...VALID_SECTIONS].join(", ")}`,
-        400,
-      )
-    }
-
-    const section = sectionParam as AnalyticsSection | null
-
-    const { from, to } = computeDateRange(period, fromParam, toParam)
-
-    const overrides = await prisma.taskOverride.findMany({
-      where: {
-        invoiced: true,
-        invoicedAt: { not: null, gte: from, lte: to },
-        client: {
-          userId: userOrError.id,
-          archivedAt: null,
-          ...(categoryFilter ? { category: { in: categoryFilter } } : {}),
-        },
-      },
-      include: {
-        client: { include: { linearMappings: true } },
-      },
-    })
-
-    // Build client map and fetch Linear issues
-    const clientMap = new Map<
-      string,
-      Client & { linearMappings: LinearMapping[] }
-    >()
-    for (const o of overrides) {
-      if (!clientMap.has(o.clientId)) {
-        clientMap.set(o.clientId, o.client)
-      }
-    }
-
-    const issueMapByClient = new Map<
-      string,
-      Map<string, { estimate: number | undefined }>
-    >()
-    const fetchPromises = [...clientMap.entries()].map(
-      async ([clientId, client]) => {
-        const issueMap = await fetchIssueMapForClient(client)
-        issueMapByClient.set(clientId, issueMap)
-      },
+    const today = new Date()
+    const periodStart = new Date(
+      today.getFullYear(),
+      today.getMonth() - (months - 1),
+      1,
     )
-    await Promise.allSettled(fetchPromises)
 
-    const result: Record<string, unknown> = {}
+    const [invoices, payments, clients, tasks] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { userId: user.id, status: { not: "CANCELLED" } },
+        select: {
+          id: true,
+          clientId: true,
+          status: true,
+          paymentStatus: true,
+          issueDate: true,
+          total: true,
+        },
+      }),
+      prisma.payment.findMany({
+        where: { userId: user.id },
+        select: { invoiceId: true, amount: true, paidAt: true },
+      }),
+      prisma.client.findMany({
+        where: { userId: user.id, archivedAt: null },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          company: true,
+          color: true,
+          billingMode: true,
+        },
+      }),
+      prisma.task.findMany({
+        where: {
+          userId: user.id,
+          completedAt: { not: null, gte: periodStart },
+        },
+        select: {
+          id: true,
+          completedAt: true,
+          status: true,
+          invoiceId: true,
+        },
+      }),
+    ])
 
-    // IMPORTANT: Section evaluation order matters due to data dependencies.
-    // 1. revenue-by-month (also populates monthHours for utilization)
-    // 2. revenue-by-client + hours-by-client (also needed for revenue-by-category)
-    // 3. revenue-by-category (depends on revenueByClient)
-    // 4. utilization (depends on revenueByMonth + monthHours)
-    // Do not reorder the blocks below without updating shouldCompute().
-
-    // Revenue by month (also needed for utilization)
-    let revenueByMonth: Array<{
-      month: string
+    const monthBuckets: {
       label: string
-      amount: number
-    }> = []
-    const monthHours = new Map<string, number>()
-
-    if (shouldCompute(section, "revenue-by-month")) {
-      revenueByMonth = buildMonthRange(from, to)
-      const monthAmounts = new Map<string, number>()
-      const byClientMonth = new Map<string, Map<string, OverrideWithClient[]>>()
-
-      for (const o of overrides) {
-        if (!o.invoicedAt) continue
-        const monthKey = getMonthKey(o.invoicedAt)
-
-        if (!byClientMonth.has(o.clientId)) {
-          byClientMonth.set(o.clientId, new Map())
-        }
-        const clientMonths = byClientMonth.get(o.clientId)!
-        const list = clientMonths.get(monthKey) ?? []
-        list.push(o)
-        clientMonths.set(monthKey, list)
-      }
-
-      for (const [clientId, monthsMap] of byClientMonth) {
-        const client = clientMap.get(clientId)!
-        const issueMap = issueMapByClient.get(clientId) ?? new Map()
-
-        for (const [monthKey, monthOverrides] of monthsMap) {
-          const { amount, hours } = computeGroupAmount(
-            monthOverrides,
-            issueMap,
-            client,
-          )
-          monthAmounts.set(monthKey, (monthAmounts.get(monthKey) ?? 0) + amount)
-          monthHours.set(monthKey, (monthHours.get(monthKey) ?? 0) + hours)
-        }
-      }
-
-      for (const entry of revenueByMonth) {
-        entry.amount =
-          Math.round((monthAmounts.get(entry.month) ?? 0) * 100) / 100
-      }
-
-      if (section === null || section === "revenue-by-month") {
-        result.revenueByMonth = revenueByMonth
-      }
-    }
-
-    // Revenue by client + hours by client (also needed for revenue-by-category)
-    const revenueByClient: Array<{
-      clientId: string
-      clientName: string
-      amount: number
-    }> = []
-    const hoursByClient: Array<{
-      clientId: string
-      clientName: string
-      hours: number
-    }> = []
-
-    if (shouldCompute(section, "revenue-by-client")) {
-      const byClient = new Map<string, OverrideWithClient[]>()
-      for (const o of overrides) {
-        const list = byClient.get(o.clientId) ?? []
-        list.push(o)
-        byClient.set(o.clientId, list)
-      }
-
-      for (const [clientId, clientOverrides] of byClient) {
-        const client = clientMap.get(clientId)!
-        const issueMap = issueMapByClient.get(clientId) ?? new Map()
-        const { amount, hours } = computeGroupAmount(
-          clientOverrides,
-          issueMap,
-          client,
-        )
-
-        revenueByClient.push({
-          clientId,
-          clientName: client.name,
-          amount: Math.round(amount * 100) / 100,
-        })
-
-        hoursByClient.push({
-          clientId,
-          clientName: client.name,
-          hours,
-        })
-      }
-
-      revenueByClient.sort((a, b) => b.amount - a.amount)
-      hoursByClient.sort((a, b) => b.hours - a.hours)
-
-      if (section === null || section === "revenue-by-client") {
-        result.revenueByClient = revenueByClient
-      }
-      if (section === null || section === "hours-by-client") {
-        result.hoursByClient = hoursByClient
-      }
-    }
-
-    // Revenue by category (depends on revenueByClient)
-    if (shouldCompute(section, "revenue-by-category")) {
-      const categoryLabels: Record<string, string> = {
-        FREELANCE: "Freelance",
-        STUDY: "Study",
-        PERSONAL: "Personal",
-        SIDE_PROJECT: "Side Project",
-      }
-
-      const categoryAmounts = new Map<string, number>()
-      for (const entry of revenueByClient) {
-        const client = clientMap.get(entry.clientId)!
-        const cat = client.category
-        categoryAmounts.set(cat, (categoryAmounts.get(cat) ?? 0) + entry.amount)
-      }
-
-      const revenueByCategory = Object.entries(categoryLabels)
-        .map(([category, label]) => ({
-          category,
-          label,
-          amount: Math.round((categoryAmounts.get(category) ?? 0) * 100) / 100,
-        }))
-        .filter((entry) => entry.amount > 0)
-        .sort((a, b) => b.amount - a.amount)
-
-      result.revenueByCategory = revenueByCategory
-    }
-
-    // Utilization (depends on revenueByMonth + monthHours)
-    if (shouldCompute(section, "utilization")) {
-      const userSettings = await prisma.userSettings.findUnique({
-        where: { userId: userOrError.id },
+      paid: number
+      issued: number
+      isCurrent: boolean
+    }[] = []
+    for (let i = months - 1; i >= 0; i--) {
+      const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
+      const paidTotal = payments
+        .filter((p) => p.paidAt >= start && p.paidAt < end)
+        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+      const issuedTotal = invoices
+        .filter((inv) => inv.issueDate >= start && inv.issueDate < end)
+        .reduce((s, inv) => s + (decimalToNumber(inv.total) ?? 0), 0)
+      monthBuckets.push({
+        label: start.toLocaleDateString("fr-FR", { month: "short" }),
+        paid: paidTotal,
+        issued: issuedTotal,
+        isCurrent: i === 0,
       })
-      const availableHoursPerMonth = userSettings?.availableHoursPerMonth ?? 140
+    }
 
-      const utilizationByMonth = buildUtilizationByMonth(
-        revenueByMonth,
-        monthHours,
-        availableHoursPerMonth,
-      )
-      const totalBilledHours = utilizationByMonth.reduce(
-        (sum, m) => sum + m.billedHours,
-        0,
-      )
-      const totalAvailableHours =
-        utilizationByMonth.length * availableHoursPerMonth
-      const utilizationRate =
-        totalAvailableHours > 0
-          ? Math.round((totalBilledHours / totalAvailableHours) * 10000) / 100
-          : 0
+    const totalRevenue = monthBuckets.reduce((s, m) => s + m.paid, 0)
+    const avgRevenue = months > 0 ? Math.round(totalRevenue / months) : 0
+    const lastMonth = monthBuckets.at(-1)?.paid ?? 0
+    const prevMonth = monthBuckets.at(-2)?.paid ?? lastMonth
+    const trend =
+      prevMonth > 0
+        ? Math.round(((lastMonth - prevMonth) / prevMonth) * 100)
+        : 0
 
-      result.utilization = {
-        availableHoursPerMonth,
-        totalBilledHours: Math.round(totalBilledHours * 100) / 100,
-        totalAvailableHours,
-        rate: utilizationRate,
-        byMonth: utilizationByMonth,
+    const paidByInvoice = new Map<string, number>()
+    for (const p of payments) {
+      paidByInvoice.set(
+        p.invoiceId,
+        (paidByInvoice.get(p.invoiceId) ?? 0) +
+          (decimalToNumber(p.amount) ?? 0),
+      )
+    }
+    const revByClient = new Map<string, number>()
+    for (const inv of invoices) {
+      const paid = paidByInvoice.get(inv.id) ?? 0
+      if (paid > 0)
+        revByClient.set(
+          inv.clientId,
+          (revByClient.get(inv.clientId) ?? 0) + paid,
+        )
+    }
+    const byClient = clients
+      .map((c) => ({
+        client: {
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          company: c.company,
+          color: c.color,
+        },
+        revenue: revByClient.get(c.id) ?? 0,
+      }))
+      .filter((x) => x.revenue > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+
+    const billingModeRev = { DAILY: 0, FIXED: 0, HOURLY: 0 }
+    for (const c of clients) {
+      const r = revByClient.get(c.id) ?? 0
+      billingModeRev[c.billingMode as keyof typeof billingModeRev] += r
+    }
+    const byType = (
+      [
+        { type: "DAILY", revenue: billingModeRev.DAILY },
+        { type: "FIXED", revenue: billingModeRev.FIXED },
+        { type: "HOURLY", revenue: billingModeRev.HOURLY },
+      ] as const
+    ).filter((x) => x.revenue > 0)
+
+    const weekCount = 12
+    const weekMs = 7 * 24 * 60 * 60 * 1000
+    const startOfWeek0 = new Date(today)
+    startOfWeek0.setHours(0, 0, 0, 0)
+    startOfWeek0.setDate(
+      startOfWeek0.getDate() - ((startOfWeek0.getDay() + 6) % 7),
+    )
+    const weeks = []
+    for (let i = weekCount - 1; i >= 0; i--) {
+      const wStart = new Date(startOfWeek0.getTime() - i * weekMs)
+      const wEnd = new Date(wStart.getTime() + weekMs)
+      const done = tasks.filter(
+        (t) => t.completedAt && t.completedAt >= wStart && t.completedAt < wEnd,
+      ).length
+      const invoiced = tasks.filter(
+        (t) =>
+          t.completedAt &&
+          t.completedAt >= wStart &&
+          t.completedAt < wEnd &&
+          t.invoiceId,
+      ).length
+      const w = new Date(wStart)
+      const oneJan = new Date(w.getFullYear(), 0, 1)
+      const weekNum = Math.ceil(
+        ((w.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7,
+      )
+      weeks.push({ label: `S${weekNum}`, done, invoiced })
+    }
+
+    const heatmap = []
+    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+      const row = []
+      for (let i = weekCount - 1; i >= 0; i--) {
+        const wStart = new Date(startOfWeek0.getTime() - i * weekMs)
+        const dayStart = new Date(
+          wStart.getTime() + dayIdx * 24 * 60 * 60 * 1000,
+        )
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+        const count = tasks.filter(
+          (t) =>
+            t.completedAt &&
+            t.completedAt >= dayStart &&
+            t.completedAt < dayEnd,
+        ).length
+        row.push(count)
       }
+      heatmap.push(row)
     }
 
-    return NextResponse.json(result)
+    const fullyPaidInvoices = invoices.filter(
+      (inv) => inv.paymentStatus === "PAID" || inv.paymentStatus === "OVERPAID",
+    )
+    const delays = fullyPaidInvoices
+      .map((inv) => {
+        const inv_payments = payments.filter((p) => p.invoiceId === inv.id)
+        if (!inv_payments.length) return null
+        const last = inv_payments.reduce(
+          (max, p) => (p.paidAt > max ? p.paidAt : max),
+          inv_payments[0]!.paidAt,
+        )
+        return Math.round(
+          (last.getTime() - inv.issueDate.getTime()) / (1000 * 60 * 60 * 24),
+        )
+      })
+      .filter((x): x is number => x !== null && x >= 0)
+    const avgDelay =
+      delays.length > 0
+        ? Math.round(delays.reduce((s, d) => s + d, 0) / delays.length)
+        : 0
+
+    const sentCount = invoices.filter(
+      (inv) =>
+        inv.status === "SENT" &&
+        (inv.paymentStatus === "UNPAID" ||
+          inv.paymentStatus === "PARTIALLY_PAID"),
+    ).length
+    const conversion =
+      fullyPaidInvoices.length + sentCount > 0
+        ? Math.round(
+            (fullyPaidInvoices.length /
+              (fullyPaidInvoices.length + sentCount)) *
+              100,
+          )
+        : 0
+
+    const avgInvoice =
+      fullyPaidInvoices.length > 0
+        ? Math.round(totalRevenue / fullyPaidInvoices.length)
+        : 0
+
+    return NextResponse.json({
+      range: rangeKey,
+      months: monthBuckets,
+      kpi: {
+        totalRevenue,
+        avgRevenue,
+        trend,
+        paidCount: fullyPaidInvoices.length,
+        avgDelay,
+        avgInvoice,
+        conversion,
+        runRate: avgRevenue * 12,
+      },
+      byClient,
+      byType,
+      weeks,
+      heatmap,
+    })
   } catch (error) {
-    if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
-      return apiError(
-        "LINEAR_NOT_CONFIGURED",
-        "Linear API token is not configured",
-        503,
-      )
-    }
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

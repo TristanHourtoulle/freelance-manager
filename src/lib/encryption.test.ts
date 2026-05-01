@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
 
-// Set a valid 64-char hex key before importing the module
 const TEST_KEY = "a".repeat(64)
 
 describe("encryption", () => {
@@ -54,7 +53,6 @@ describe("encryption", () => {
 
   it("fails to decrypt with tampered ciphertext", () => {
     const { ciphertext, iv } = encrypt("secret")
-    // Flip a byte in the encrypted data
     ciphertext[0] = (ciphertext[0] ?? 0) ^ 0xff
     expect(() => decrypt(ciphertext, iv)).toThrow()
   })

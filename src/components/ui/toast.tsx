@@ -1,17 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { XMarkIcon } from "@heroicons/react/20/solid"
 import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-} from "@heroicons/react/24/outline"
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+} from "react"
+import { useIsMobile } from "@/hooks/use-is-mobile"
 
-type ToastVariant = "success" | "error" | "warning" | "info"
+export type ToastVariant = "success" | "error" | "warning" | "info"
 
-interface ToastData {
+export interface ToastData {
   id: string
   variant: ToastVariant
   title: string
@@ -25,135 +27,245 @@ interface ToastStackProps {
   onDismiss: (id: string) => void
 }
 
-const VARIANT_STYLES: Record<
-  ToastVariant,
-  { container: string; icon: string; progress: string }
-> = {
-  success: {
-    container: "border-green-200 bg-green-50 text-green-800",
-    icon: "text-green-500",
-    progress: "bg-green-400",
-  },
-  error: {
-    container: "border-red-200 bg-red-50 text-red-800",
-    icon: "text-red-500",
-    progress: "bg-red-400",
-  },
-  warning: {
-    container: "border-amber-200 bg-amber-50 text-amber-800",
-    icon: "text-amber-500",
-    progress: "bg-amber-400",
-  },
-  info: {
-    container: "border-blue-200 bg-blue-50 text-blue-800",
-    icon: "text-blue-500",
-    progress: "bg-blue-400",
-  },
+const ICON_PROPS = {
+  width: 18,
+  height: 18,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2.2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
 }
 
-const VARIANT_ICONS: Record<
-  ToastVariant,
-  React.ComponentType<React.SVGProps<SVGSVGElement>>
-> = {
-  success: CheckCircleIcon,
-  error: ExclamationCircleIcon,
-  warning: ExclamationTriangleIcon,
-  info: InformationCircleIcon,
+const VARIANT_ICONS: Record<ToastVariant, () => ReactElement> = {
+  success: () => (
+    <svg {...ICON_PROPS}>
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.18"
+      />
+      <polyline points="8 12.5 11 15.5 16 9.5" stroke="currentColor" />
+    </svg>
+  ),
+  error: () => (
+    <svg {...ICON_PROPS}>
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.18"
+      />
+      <line x1="9" y1="9" x2="15" y2="15" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+    </svg>
+  ),
+  warning: () => (
+    <svg {...ICON_PROPS}>
+      <path
+        d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.18"
+      />
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13.5" />
+      <line x1="12" y1="16.8" x2="12.01" y2="16.8" />
+    </svg>
+  ),
+  info: () => (
+    <svg {...ICON_PROPS}>
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        fill="currentColor"
+        stroke="none"
+        opacity="0.18"
+      />
+      <line x1="12" y1="11" x2="12" y2="16" />
+      <circle
+        cx="12"
+        cy="8"
+        r="0.6"
+        fill="currentColor"
+        stroke="currentColor"
+      />
+    </svg>
+  ),
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
 }
 
 interface ToastItemProps {
   toast: ToastData
   onDismiss: (id: string) => void
+  mobile: boolean
 }
 
-function ToastItem({ toast, onDismiss }: ToastItemProps) {
-  const [isVisible, setIsVisible] = useState(false)
-  const [isExiting, setIsExiting] = useState(false)
+/**
+ * One toast row. Animates in via spring, auto-dismisses after `duration`,
+ * pauses on hover, and supports pointer-drag dismissal (horizontal on
+ * desktop, downward on mobile).
+ */
+function ToastItem({ toast, onDismiss, mobile }: ToastItemProps) {
+  const [phase, setPhase] = useState<"enter" | "live" | "exit">("enter")
+  const [paused, setPaused] = useState(false)
+  const [drag, setDrag] = useState(0)
+  const draggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startYRef = useRef(0)
+  const startedAtRef = useRef(0)
+  const remainingRef = useRef(toast.duration)
 
-  useEffect(() => {
-    const enterFrame = requestAnimationFrame(() => setIsVisible(true))
-    return () => cancelAnimationFrame(enterFrame)
+  useLayoutEffect(() => {
+    startedAtRef.current = Date.now()
+    const r = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setPhase("live")),
+    )
+    return () => cancelAnimationFrame(r)
   }, [])
 
+  const beginExit = useCallback(() => {
+    setPhase("exit")
+    setTimeout(() => onDismiss(toast.id), 280)
+  }, [toast.id, onDismiss])
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsExiting(true)
-      setTimeout(() => onDismiss(toast.id), 200)
-    }, toast.duration)
+    if (toast.duration === Infinity) return
+    if (paused) return
+    startedAtRef.current = Date.now()
+    const t = setTimeout(() => beginExit(), remainingRef.current)
+    return () => {
+      clearTimeout(t)
+      remainingRef.current =
+        remainingRef.current - (Date.now() - startedAtRef.current)
+    }
+  }, [paused, toast.duration, toast.id, beginExit])
 
-    return () => clearTimeout(timer)
-  }, [toast.id, toast.duration, onDismiss])
-
-  function handleDismiss() {
-    setIsExiting(true)
-    setTimeout(() => onDismiss(toast.id), 200)
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    draggingRef.current = true
+    startXRef.current = e.clientX
+    startYRef.current = e.clientY
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!draggingRef.current) return
+    const dx = e.clientX - startXRef.current
+    const dy = e.clientY - startYRef.current
+    if (mobile) setDrag(Math.max(dy, 0))
+    else setDrag(dx)
+  }
+  function onPointerUp() {
+    draggingRef.current = false
+    if (Math.abs(drag) > 80) beginExit()
+    else setDrag(0)
   }
 
-  const styles = VARIANT_STYLES[toast.variant]
   const Icon = VARIANT_ICONS[toast.variant]
+  const cls = [
+    "toast-item",
+    `t-${toast.variant}`,
+    `phase-${phase}`,
+    mobile ? "is-mobile" : "is-desktop",
+    paused ? "paused" : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+  const dragOpacity = Math.max(0, 1 - Math.abs(drag) / 220)
+  const transform =
+    drag !== 0
+      ? `translate3d(${mobile ? 0 : drag}px, ${mobile ? Math.max(drag, 0) : 0}px, 0)`
+      : undefined
 
   return (
     <div
-      role="alert"
-      aria-live="polite"
-      className={`pointer-events-auto relative w-80 overflow-hidden rounded-lg border shadow-lg transition-all duration-200 ${styles.container} ${
-        isVisible && !isExiting
-          ? "translate-x-0 opacity-100"
-          : "translate-x-4 opacity-0"
-      }`}
+      className={cls}
+      style={{ transform, opacity: drag !== 0 ? dragOpacity : undefined }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      role="status"
+      aria-live={toast.variant === "error" ? "assertive" : "polite"}
     >
-      <div className="flex items-start gap-3 p-4">
-        <Icon className={`h-5 w-5 shrink-0 ${styles.icon}`} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{toast.title}</p>
-          {toast.description && (
-            <p className="mt-1 text-sm opacity-80">{toast.description}</p>
-          )}
+      <div className="toast-accent" />
+      <div className="toast-icon">
+        <Icon />
+      </div>
+      <div className="toast-body">
+        <div className="toast-title">{toast.title}</div>
+        {toast.description && (
+          <div className="toast-desc">{toast.description}</div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="toast-close"
+        onClick={(e) => {
+          e.stopPropagation()
+          beginExit()
+        }}
+        aria-label="Fermer"
+      >
+        <CloseIcon />
+      </button>
+      {toast.duration !== Infinity && (
+        <div className="toast-progress">
+          <div
+            className="toast-progress-bar"
+            style={{
+              animationDuration: `${toast.duration}ms`,
+              animationPlayState: paused ? "paused" : "running",
+            }}
+          />
         </div>
-        <button
-          onClick={handleDismiss}
-          className="shrink-0 rounded p-0.5 opacity-60 transition-opacity hover:opacity-100"
-          aria-label="Dismiss"
-        >
-          <XMarkIcon className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="h-1 w-full bg-black/5">
-        <div
-          className={`h-full ${styles.progress}`}
-          style={{
-            animation: `toast-progress ${toast.duration}ms linear forwards`,
-          }}
-        />
-      </div>
+      )}
     </div>
   )
 }
 
 /**
- * Fixed-position container that renders a stack of toast notifications.
- * Toasts auto-dismiss after their configured duration and animate in/out.
- * Rendered in the root layout to provide app-wide feedback.
- *
- * @param toasts - Array of active toast data objects to display
- * @param onDismiss - Callback to remove a toast by id
+ * Toast viewport. Top-right on desktop, bottom-fullwidth on mobile.
+ * Reads viewport via `useIsMobile()` so the position stays in sync
+ * with the rest of the responsive shell.
  */
 export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
+  const mobile = useIsMobile()
   if (toasts.length === 0) return null
 
+  const positionClass = mobile
+    ? "toast-viewport pos-bottom mobile"
+    : "toast-viewport pos-top-right desktop"
+
   return (
-    <>
-      <style>{`
-        @keyframes toast-progress {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
-        ))}
-      </div>
-    </>
+    <div className={positionClass} aria-label="Notifications">
+      {toasts.map((t) => (
+        <ToastItem key={t.id} toast={t} onDismiss={onDismiss} mobile={mobile} />
+      ))}
+    </div>
   )
 }

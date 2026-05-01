@@ -1,34 +1,13 @@
-import {
-  getAuthenticatedUser,
-  apiError,
-  handleApiError,
-  isLinearError,
-} from "@/lib/api-utils"
-import { fetchLinearTeams } from "@/lib/linear-service"
 import { NextResponse } from "next/server"
+import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import { listLinearTeams } from "@/lib/linear"
 
-/**
- * GET /api/linear/teams
- * Fetches all teams from the connected Linear workspace.
- * @returns 200 - `LinearTeam[]`
- * @throws 401 - Unauthenticated request
- * @throws 502 - Linear API error
- */
-export async function GET(request: Request) {
+export async function GET() {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
   try {
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const teams = await fetchLinearTeams()
-    return NextResponse.json(teams)
+    return NextResponse.json({ items: await listLinearTeams(user.id) })
   } catch (error) {
-    if (isLinearError(error)) {
-      return apiError(
-        "LINEAR_TEAMS_FETCH_FAILED",
-        "Failed to fetch Linear teams",
-        502,
-      )
-    }
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

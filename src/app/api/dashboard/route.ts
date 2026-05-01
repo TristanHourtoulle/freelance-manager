@@ -1,235 +1,178 @@
-import { prisma } from "@/lib/db"
-import { getAuthenticatedUser, apiError, handleApiError } from "@/lib/api-utils"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
 import {
-  getMonthKey,
-  buildMonthRange,
-  fetchIssueMapForClient,
-  computeGroupAmount,
-} from "@/lib/analytics-helpers"
-import { getLinearSyncStatus } from "@/lib/linear-service"
-import { rateLimit } from "@/lib/rate-limit"
-import { dashboardCache } from "@/lib/dashboard-cache"
+  apiServerError,
+  apiUnauthorized,
+  decimalToNumber,
+  getAuthUser,
+} from "@/lib/api"
+import { pipelineValueForTask } from "@/lib/billing-math"
+import { getInvoiceComputed } from "@/lib/payments"
 
-import type { OverrideWithClient } from "@/lib/analytics-helpers"
-import type { Client, LinearMapping } from "@/generated/prisma/client"
+export async function GET() {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
 
-/**
- * GET /api/dashboard
- * Returns dashboard KPIs: billing pipeline, monthly revenue, billed hours,
- * revenue target, and a 6-month revenue chart.
- * @returns 200 - `{ pipeline, monthlyRevenue, billedHours, monthlyRevenueTarget, revenueByMonth, lastSyncAt, lastWebhookReceivedAt }`
- * @throws 401 - Unauthenticated request
- */
-export async function GET(request: Request) {
   try {
-    const rl = rateLimit(request)
-    if (!rl.success) {
-      return NextResponse.json(
-        {
-          error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
-        },
-        {
-          status: 429,
-          headers: { "Retry-After": String(Math.ceil(rl.reset / 1000)) },
-        },
-      )
-    }
-
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const cached = dashboardCache.get(`dashboard:${userOrError.id}`)
-    if (cached) {
-      return NextResponse.json(cached)
-    }
-
-    const now = new Date()
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
-
-    const baseClientWhere = {
-      userId: userOrError.id,
-      archivedAt: null,
-    }
+    const today = new Date()
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+    const yearStart = new Date(today.getFullYear(), 0, 1)
 
     const [
-      pipelineOverrides,
-      invoicedOverrides,
-      userSettings,
-      activeClientsCount,
-      monthlyExpensesAgg,
-      overdueInvoicesCount,
+      openInvoices,
+      payments,
+      pendingTasks,
+      recentInvoices,
+      recentTasks,
+      lastSync,
     ] = await Promise.all([
-      prisma.taskOverride.findMany({
+      prisma.invoice.findMany({
         where: {
-          toInvoice: true,
-          invoiced: false,
-          client: baseClientWhere,
+          userId: user.id,
+          status: "SENT",
+          paymentStatus: { in: ["UNPAID", "PARTIALLY_PAID"] },
         },
-        include: {
-          client: { include: { linearMappings: true } },
+        select: {
+          id: true,
+          number: true,
+          clientId: true,
+          status: true,
+          paymentStatus: true,
+          total: true,
+          dueDate: true,
+          payments: { select: { amount: true, paidAt: true } },
         },
       }),
-      prisma.taskOverride.findMany({
-        where: {
-          invoiced: true,
-          invoicedAt: { not: null, gte: sixMonthsAgo },
-          client: baseClientWhere,
-        },
+      prisma.payment.findMany({
+        where: { userId: user.id },
+        select: { amount: true, paidAt: true },
+      }),
+      prisma.task.findMany({
+        where: { userId: user.id, status: "PENDING_INVOICE" },
         include: {
-          client: { include: { linearMappings: true } },
+          client: {
+            select: { billingMode: true, rate: true },
+          },
         },
+      }),
+      prisma.invoice.findMany({
+        where: { userId: user.id },
+        orderBy: { issueDate: "desc" },
+        take: 5,
+        include: {
+          client: {
+            select: {
+              firstName: true,
+              lastName: true,
+              company: true,
+              color: true,
+            },
+          },
+          payments: { select: { amount: true, paidAt: true } },
+        },
+      }),
+      prisma.task.findMany({
+        where: { userId: user.id, completedAt: { not: null } },
+        orderBy: { completedAt: "desc" },
+        take: 6,
+        include: { project: { select: { key: true } } },
       }),
       prisma.userSettings.findUnique({
-        where: { userId: userOrError.id },
-        select: { monthlyRevenueTarget: true, dashboardKpis: true },
-      }),
-      prisma.client.count({
-        where: baseClientWhere,
-      }),
-      prisma.expense.aggregate({
-        where: {
-          userId: userOrError.id,
-          deletedAt: null,
-          date: { gte: firstOfMonth, lt: firstOfNextMonth },
-        },
-        _sum: { amount: true },
-      }),
-      prisma.invoice.count({
-        where: {
-          client: { userId: userOrError.id },
-          status: "SENT",
-          paymentDueDate: { lt: now },
-        },
+        where: { userId: user.id },
+        select: { linearLastSyncedAt: true },
       }),
     ])
 
-    // Collect all unique clients that need Linear issue fetching
-    const clientMap = new Map<
-      string,
-      Client & { linearMappings: LinearMapping[] }
-    >()
-    for (const o of [...pipelineOverrides, ...invoicedOverrides]) {
-      if (!clientMap.has(o.clientId)) {
-        clientMap.set(o.clientId, o.client)
-      }
-    }
+    const revenueMonth = payments
+      .filter((p) => p.paidAt >= monthStart)
+      .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+    const revenueYear = payments
+      .filter((p) => p.paidAt >= yearStart)
+      .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
 
-    // Fetch Linear issues once per client
-    const issueMapByClient = new Map<
-      string,
-      Map<string, { estimate: number | undefined }>
-    >()
-    const fetchPromises = [...clientMap.entries()].map(
-      async ([clientId, client]) => {
-        const issueMap = await fetchIssueMapForClient(client)
-        issueMapByClient.set(clientId, issueMap)
-      },
+    const overdueList = openInvoices
+      .map((inv) => ({ inv, computed: getInvoiceComputed(inv) }))
+      .filter((x) => x.computed.isOverdue)
+
+    const outstanding = openInvoices.reduce(
+      (s, inv) => s + getInvoiceComputed(inv).balanceDue,
+      0,
     )
-    await Promise.allSettled(fetchPromises)
+    const overdueAmount = overdueList.reduce(
+      (s, x) => s + x.computed.balanceDue,
+      0,
+    )
 
-    // Pipeline: toInvoice=true, invoiced=false
-    let pipeline = 0
-    const pipelineByClient = new Map<string, OverrideWithClient[]>()
-    for (const o of pipelineOverrides) {
-      const list = pipelineByClient.get(o.clientId) ?? []
-      list.push(o)
-      pipelineByClient.set(o.clientId, list)
-    }
-    for (const [clientId, overrides] of pipelineByClient) {
-      const client = clientMap.get(clientId)!
-      const issueMap = issueMapByClient.get(clientId) ?? new Map()
-      const { amount } = computeGroupAmount(overrides, issueMap, client)
-      pipeline += amount
-    }
+    const pipelineValue = pendingTasks.reduce(
+      (s, t) =>
+        s +
+        pipelineValueForTask({
+          billingMode: t.client.billingMode,
+          rate: decimalToNumber(t.client.rate) ?? 0,
+          estimateDays: decimalToNumber(t.estimate),
+        }),
+      0,
+    )
 
-    // Monthly revenue + billed hours: invoiced=true, invoicedAt in current month
-    let monthlyRevenue = 0
-    let billedHours = 0
-    const monthlyByClient = new Map<string, OverrideWithClient[]>()
-    for (const o of invoicedOverrides) {
-      if (
-        o.invoicedAt &&
-        o.invoicedAt >= firstOfMonth &&
-        o.invoicedAt < firstOfNextMonth
-      ) {
-        const list = monthlyByClient.get(o.clientId) ?? []
-        list.push(o)
-        monthlyByClient.set(o.clientId, list)
-      }
-    }
-    for (const [clientId, overrides] of monthlyByClient) {
-      const client = clientMap.get(clientId)!
-      const issueMap = issueMapByClient.get(clientId) ?? new Map()
-      const { amount, hours } = computeGroupAmount(overrides, issueMap, client)
-      monthlyRevenue += amount
-      billedHours += hours
+    const months: { month: string; total: number; isCurrent: boolean }[] = []
+    for (let i = 7; i >= 0; i--) {
+      const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
+      const total = payments
+        .filter((p) => p.paidAt >= start && p.paidAt < end)
+        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+      months.push({
+        month: start.toLocaleDateString("fr-FR", { month: "short" }),
+        total,
+        isCurrent: i === 0,
+      })
     }
 
-    // 6-month chart: aggregate invoiced amounts by month
-    const revenueByMonth = buildMonthRange(sixMonthsAgo, now)
-    const monthAmounts = new Map<string, number>()
-    const chartByClientMonth = new Map<
-      string,
-      Map<string, OverrideWithClient[]>
-    >()
-
-    for (const o of invoicedOverrides) {
-      if (!o.invoicedAt) continue
-      const monthKey = getMonthKey(o.invoicedAt)
-
-      if (!chartByClientMonth.has(o.clientId)) {
-        chartByClientMonth.set(o.clientId, new Map())
-      }
-      const clientMonths = chartByClientMonth.get(o.clientId)!
-      const list = clientMonths.get(monthKey) ?? []
-      list.push(o)
-      clientMonths.set(monthKey, list)
-    }
-
-    for (const [clientId, monthsMap] of chartByClientMonth) {
-      const client = clientMap.get(clientId)!
-      const issueMap = issueMapByClient.get(clientId) ?? new Map()
-
-      for (const [monthKey, overrides] of monthsMap) {
-        const { amount } = computeGroupAmount(overrides, issueMap, client)
-        monthAmounts.set(monthKey, (monthAmounts.get(monthKey) ?? 0) + amount)
-      }
-    }
-
-    for (const entry of revenueByMonth) {
-      entry.amount =
-        Math.round((monthAmounts.get(entry.month) ?? 0) * 100) / 100
-    }
-
-    const responseData = {
-      pipeline: Math.round(pipeline * 100) / 100,
-      monthlyRevenue: Math.round(monthlyRevenue * 100) / 100,
-      billedHours,
-      monthlyRevenueTarget: Number(userSettings?.monthlyRevenueTarget ?? 0),
-      activeClients: activeClientsCount,
-      monthlyExpenses:
-        Math.round(Number(monthlyExpensesAgg._sum.amount ?? 0) * 100) / 100,
-      overdueInvoices: overdueInvoicesCount,
-      dashboardKpis: userSettings?.dashboardKpis ?? null,
-      revenueByMonth,
-      ...getLinearSyncStatus(),
-    }
-
-    dashboardCache.set(`dashboard:${userOrError.id}`, responseData)
-
-    return NextResponse.json(responseData)
+    return NextResponse.json({
+      kpi: {
+        revenueMonth,
+        revenueYear,
+        paidCount: payments.length,
+        outstanding,
+        sentCount: openInvoices.length,
+        overdueAmount,
+        overdueCount: overdueList.length,
+        pipelineValue,
+        pipelineCount: pendingTasks.length,
+      },
+      months,
+      overdue: overdueList.map(({ inv, computed }) => ({
+        id: inv.id,
+        number: inv.number,
+        clientId: inv.clientId,
+        total: computed.balanceDue,
+        dueDate: inv.dueDate.toISOString(),
+      })),
+      recentInvoices: recentInvoices.map((inv) => {
+        const c = getInvoiceComputed(inv)
+        return {
+          id: inv.id,
+          number: inv.number,
+          kind: inv.kind,
+          status: inv.status,
+          paymentStatus: inv.paymentStatus,
+          isOverdue: c.isOverdue,
+          issueDate: inv.issueDate.toISOString(),
+          total: decimalToNumber(inv.total) ?? 0,
+          balanceDue: c.balanceDue,
+          client: inv.client,
+        }
+      }),
+      recentTasks: recentTasks.map((t) => ({
+        id: t.id,
+        linearIdentifier: t.linearIdentifier,
+        title: t.title,
+        status: t.status,
+        projectKey: t.project?.key ?? null,
+      })),
+      lastSync: lastSync?.linearLastSyncedAt?.toISOString() ?? null,
+    })
   } catch (error) {
-    if (error instanceof Error && error.message.includes("LINEAR_API_TOKEN")) {
-      return apiError(
-        "LINEAR_NOT_CONFIGURED",
-        "Linear API token is not configured",
-        503,
-      )
-    }
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

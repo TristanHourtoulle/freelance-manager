@@ -1,67 +1,67 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { api } from "@/lib/api-client"
 
-interface RevenueDataPoint {
-  month: string
-  label: string
-  amount: number
-}
-
-interface RecentInvoice {
+export interface ClientDetailDTO {
   id: string
-  month: string
-  totalAmount: number
-  status: string
-  paymentDueDate: string | null
+  firstName: string
+  lastName: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  billingMode: "DAILY" | "FIXED" | "HOURLY"
+  rate: number
+  fixedPrice: number | null
+  deposit: number | null
+  paymentTerms: number | null
+  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  color: string | null
+  archived: boolean
   createdAt: string
-}
-
-interface RecentExpense {
-  id: string
-  description: string
-  amount: number
-  date: string
-  category: string
-}
-
-export interface ClientDashboardData {
-  client: {
+  projects: {
     id: string
     name: string
-    company: string | null
-    category: string
-    billingMode: string
-    rate: number
-    createdAt: string
-    logo: string | null
-  }
-  stats: {
-    totalRevenue: number
-    totalInvoices: number
-    totalTasks: number
-    invoicedTasks: number
-    pendingTasks: number
-    totalExpenses: number
-  }
-  revenueByMonth: RevenueDataPoint[]
-  recentInvoices: RecentInvoice[]
-  recentExpenses: RecentExpense[]
+    key: string
+    description: string | null
+    status: "ACTIVE" | "PAUSED" | "COMPLETED"
+    linearProjectId: string
+  }[]
+  linearMappings: {
+    id: string
+    linearTeamId: string | null
+    linearProjectId: string | null
+  }[]
+  tasks: {
+    id: string
+    linearIdentifier: string
+    title: string
+    status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
+    estimate: number | null
+    projectId: string
+    invoiceId: string | null
+  }[]
+  invoices: {
+    id: string
+    number: string
+    status: "DRAFT" | "SENT" | "CANCELLED"
+    paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
+    isOverdue: boolean
+    kind: "STANDARD" | "DEPOSIT"
+    issueDate: string
+    dueDate: string
+    paidAmount: number
+    balanceDue: number
+    total: number
+    linesCount: number
+  }[]
 }
 
-/**
- * Fetches a single client's dashboard data. Cached for 2 minutes.
- * Only fetches when clientId is truthy.
- */
-export function useClientDashboard(clientId: string) {
-  return useQuery<ClientDashboardData>({
-    queryKey: ["client-dashboard", clientId],
-    queryFn: async () => {
-      const res = await fetch(`/api/clients/${clientId}/dashboard`)
-      if (!res.ok) throw new Error("Failed to load client dashboard")
-      return res.json()
-    },
-    staleTime: 2 * 60 * 1000,
-    enabled: !!clientId,
+export function useClientDetail(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["client", id] as const,
+    queryFn: () => api.get<ClientDetailDTO>(`/api/clients/${id}`),
+    enabled: Boolean(id),
+    staleTime: 60_000,
   })
 }

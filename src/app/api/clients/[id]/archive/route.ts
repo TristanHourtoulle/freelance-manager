@@ -1,54 +1,22 @@
-import { prisma } from "@/lib/db"
-import {
-  apiError,
-  getAuthenticatedUser,
-  handleApiError,
-  serializeClient,
-} from "@/lib/api-utils"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
+import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 
-interface RouteContext {
+interface Params {
   params: Promise<{ id: string }>
 }
 
-/**
- * PATCH /api/clients/:id/archive
- * Archives a client by setting its `archivedAt` timestamp.
- * @returns 200 - The archived `SerializedClient`
- * @throws 401 - Unauthenticated request
- * @throws 404 - Client not found
- * @throws 409 - Client is already archived
- */
-export async function PATCH(request: Request, context: RouteContext) {
+export async function POST(_: Request, { params }: Params) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
+  const { id } = await params
   try {
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const { id } = await context.params
-
-    const existing = await prisma.client.findFirst({
-      where: { id, userId: userOrError.id },
-    })
-
-    if (!existing) {
-      return apiError("CLIENT_NOT_FOUND", "Client not found", 404)
-    }
-
-    if (existing.archivedAt) {
-      return apiError(
-        "CLIENT_ALREADY_ARCHIVED",
-        "Client is already archived",
-        409,
-      )
-    }
-
-    const client = await prisma.client.update({
-      where: { id },
+    await prisma.client.updateMany({
+      where: { id, userId: user.id },
       data: { archivedAt: new Date() },
     })
-
-    return NextResponse.json(serializeClient(client))
+    return NextResponse.json({ ok: true })
   } catch (error) {
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }

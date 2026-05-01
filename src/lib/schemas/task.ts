@@ -1,34 +1,26 @@
 import { z } from "zod/v4"
 
-import { categoryFilterField } from "./category-filter"
+export const taskStatusSchema = z.enum([
+  "BACKLOG",
+  "IN_PROGRESS",
+  "PENDING_INVOICE",
+  "DONE",
+  "CANCELED",
+])
 
-/** Available task filter preset identifiers. */
-export const TASK_PRESETS = [
-  "active",
-  "all",
-  "done",
-  "to-invoice",
-  "backlog",
-] as const
+export const taskPrioritySchema = z.enum([
+  "NONE",
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+])
 
-export type TaskPreset = (typeof TASK_PRESETS)[number]
-
-/** Human-readable labels for each task preset. */
-export const TASK_PRESET_LABELS: Record<TaskPreset, string> = {
-  active: "Active",
-  all: "All",
-  done: "Done",
-  "to-invoice": "To Invoice",
-  backlog: "Backlog",
-}
-
-/** Validates query parameters for the task list endpoint. */
 export const taskFilterSchema = z.object({
+  search: z.string().optional(),
+  status: taskStatusSchema.optional(),
   clientId: z.string().optional(),
-  preset: z.enum(TASK_PRESETS).default("active"),
-  category: categoryFilterField,
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(50),
+  projectId: z.string().optional(),
 })
 
-export type TaskFilterInput = z.infer<typeof taskFilterSchema>
+export type TaskFilterInput = z.input<typeof taskFilterSchema>

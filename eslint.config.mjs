@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated code
     "src/generated/**",
+    // Design reference (raw JSX from the design handoff, not part of the app)
+    "design-reference/**",
   ]),
   {
     // Restrict lucide-react imports to shadcn/ui components only

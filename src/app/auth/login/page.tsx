@@ -1,89 +1,170 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, type Resolver } from "react-hook-form"
-import { z } from "zod/v4"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
-import { FormField } from "@/components/ui/form-field"
-import { Button } from "@/components/ui/button"
-
-const loginSchema = z.object({
-  email: z.email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-})
-
-type LoginInput = z.infer<typeof loginSchema>
+import { Icon } from "@/components/ui/icon"
+import { AuthSide, GithubGlyph, GoogleGlyph } from "@/components/auth/auth-side"
+import { useToast } from "@/components/providers/toast-provider"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileLoginPage } from "./mobile"
 
 export default function LoginPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileLoginPage />
+  return <DesktopLoginPage />
+}
+
+function DesktopLoginPage() {
   const router = useRouter()
-  const [apiError, setApiError] = useState("")
+  const { toast } = useToast()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPwd, setShowPwd] = useState(false)
+  const [remember, setRemember] = useState(true)
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema) as Resolver<LoginInput>,
-  })
-
-  async function onSubmit(data: LoginInput) {
-    setApiError("")
-
-    const result = await authClient.signIn.email({
-      email: data.email,
-      password: data.password,
-    })
-
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email || !password) return
+    setError("")
+    setLoading(true)
+    const result = await authClient.signIn.email({ email, password })
+    setLoading(false)
     if (result.error) {
-      setApiError(result.error.message ?? "Login failed")
+      setError(result.error.message ?? "Connexion échouée")
       return
     }
-
+    toast({ variant: "success", title: "Connexion réussie" })
     router.push("/dashboard")
     router.refresh()
   }
 
+  function notifyOAuth() {
+    toast({
+      variant: "info",
+      title: "OAuth bientôt disponible",
+      description: "La connexion via Google/GitHub n'est pas encore branchée.",
+    })
+  }
+
+  void remember
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-secondary">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-border bg-surface p-8 shadow-sm">
-        <div className="space-y-2 text-center">
-          <h1>FreelanceDash</h1>
-          <p className="text-sm text-text-secondary">Sign in to your account</p>
-        </div>
+    <div className="auth-page">
+      <AuthSide variant="login" />
+      <div className="auth-form-side">
+        <form className="auth-card" onSubmit={onSubmit}>
+          <div className="auth-eyebrow">
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 99,
+                background: "var(--accent)",
+                display: "inline-block",
+              }}
+            />
+            Bon retour
+          </div>
+          <h1 className="auth-title">Connexion</h1>
+          <p className="auth-sub">
+            Reprends le contrôle de ta facturation freelance.
+          </p>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
-            {...register("email")}
-            error={errors.email?.message}
-          />
+          <div className="auth-fields">
+            <div className="field">
+              <label className="field-label">Email</label>
+              <div className="auth-input-wrap">
+                <Icon name="mail" size={15} className="lead-ic" />
+                <input
+                  className="auth-input"
+                  type="email"
+                  placeholder="tu@exemple.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+            <div className="field">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <label className="field-label">Mot de passe</label>
+                <button type="button" className="auth-link xs">
+                  Mot de passe oublié ?
+                </button>
+              </div>
+              <div className="auth-input-wrap">
+                <Icon name="lock" size={15} className="lead-ic" />
+                <input
+                  className="auth-input"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-toggle-pwd"
+                  onClick={() => setShowPwd((s) => !s)}
+                  aria-label={showPwd ? "Masquer" : "Afficher"}
+                >
+                  <Icon name={showPwd ? "eye-off" : "eye"} size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="auth-row-between">
+              <label className="auth-checkbox">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span>Rester connecté</span>
+              </label>
+            </div>
+          </div>
 
-          <FormField
-            label="Password"
-            type="password"
-            placeholder="Enter your password"
-            {...register("password")}
-            error={errors.password?.message}
-          />
+          {error && (
+            <div
+              className="small"
+              style={{ color: "var(--danger)", marginTop: 12 }}
+            >
+              {error}
+            </div>
+          )}
 
-          {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+          <button type="submit" className="auth-cta" disabled={loading}>
+            {loading ? "Connexion…" : "Se connecter"}
+            <Icon name="arrow-right" size={14} />
+          </button>
 
-          <Button type="submit" isLoading={isSubmitting} className="w-full">
-            Sign in
-          </Button>
+          <div className="auth-divider">ou continuer avec</div>
+          <div className="auth-oauth-row">
+            <button type="button" className="auth-oauth" onClick={notifyOAuth}>
+              <GoogleGlyph />
+              Google
+            </button>
+            <button type="button" className="auth-oauth" onClick={notifyOAuth}>
+              <GithubGlyph />
+              GitHub
+            </button>
+          </div>
+
+          <div className="auth-bottom">
+            Pas encore de compte ?{" "}
+            <button
+              type="button"
+              className="auth-link"
+              onClick={() => router.push("/auth/register")}
+            >
+              Créer un compte
+            </button>
+          </div>
         </form>
-
-        <p className="text-center text-sm text-text-secondary">
-          Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-primary hover:underline">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   )

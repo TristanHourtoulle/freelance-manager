@@ -11,7 +11,6 @@ export async function GET() {
   const checks: Record<string, string> = {}
   let healthy = true
 
-  // Database connectivity check
   try {
     await prisma.$queryRawUnsafe("SELECT 1")
     checks.database = "connected"
@@ -20,7 +19,6 @@ export async function GET() {
     healthy = false
   }
 
-  // Linear webhook status (informational, non-blocking)
   checks.linearWebhook = "unknown"
 
   return NextResponse.json(

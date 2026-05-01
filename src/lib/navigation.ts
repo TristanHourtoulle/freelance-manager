@@ -1,327 +1,87 @@
-import {
-  ArrowDownTrayIcon,
-  ArrowLeftIcon,
-  ArrowPathIcon,
-  BanknotesIcon,
-  BellIcon,
-  BuildingLibraryIcon,
-  CalendarDaysIcon,
-  ChartBarIcon,
-  CheckCircleIcon,
-  Cog6ToothIcon,
-  CurrencyDollarIcon,
-  DocumentTextIcon,
-  LinkIcon,
-  PaintBrushIcon,
-  PlusIcon,
-  ReceiptPercentIcon,
-  ServerStackIcon,
-  Squares2X2Icon,
-  TagIcon,
-  UserCircleIcon,
-  UsersIcon,
-  WalletIcon,
-} from "@heroicons/react/24/outline"
+import type { IconName } from "@/components/ui/icon"
 
 export interface NavItem {
-  /** Translation key used to look up the label at render time */
-  translationKey: string
-  /** Fallback label (used for fuzzy search in command palette) */
-  label: string
+  id: NavBadgeKey | "dashboard" | "analytics" | "settings"
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  label: string
+  icon: IconName
+  badgeKey?: NavBadgeKey
 }
 
 export interface NavSection {
-  titleKey?: string
+  /** Section heading shown above its items. Empty for the first section. */
+  title?: string
   items: NavItem[]
 }
 
-/** Flat list of all nav items (used by command palette search). */
-export const NAV_ITEMS: NavItem[] = [
-  {
-    translationKey: "dashboard",
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: Squares2X2Icon,
-  },
-  {
-    translationKey: "clients",
-    label: "Clients",
-    href: "/clients",
-    icon: UsersIcon,
-  },
-  {
-    translationKey: "tasks",
-    label: "Tasks",
-    href: "/tasks",
-    icon: CheckCircleIcon,
-  },
-  {
-    translationKey: "billing",
-    label: "Billing",
-    href: "/billing",
-    icon: DocumentTextIcon,
-  },
-  {
-    translationKey: "expenses",
-    label: "Expenses",
-    href: "/expenses",
-    icon: BanknotesIcon,
-  },
-  {
-    translationKey: "calendar",
-    label: "Calendar",
-    href: "/calendar",
-    icon: CalendarDaysIcon,
-  },
-  {
-    translationKey: "financial",
-    label: "Financial",
-    href: "/financial",
-    icon: CurrencyDollarIcon,
-  },
-  {
-    translationKey: "analytics",
-    label: "Analytics",
-    href: "/analytics",
-    icon: ChartBarIcon,
-  },
-  {
-    translationKey: "settings",
-    label: "Settings",
-    href: "/settings",
-    icon: Cog6ToothIcon,
-  },
-]
+/** Keys for the badge counters fetched in /api/dashboard/nav-counts. */
+export type NavBadgeKey = "clients" | "projects" | "tasks" | "invoices"
 
-/** Sidebar navigation grouped by sections. */
 export const NAV_SECTIONS: NavSection[] = [
   {
+    title: "Pilotage",
     items: [
       {
-        translationKey: "dashboard",
+        id: "dashboard",
+        href: "/dashboard",
         label: "Dashboard",
-        href: "/dashboard",
-        icon: Squares2X2Icon,
+        icon: "dashboard",
       },
     ],
   },
   {
-    titleKey: "navWork",
+    title: "Travail",
     items: [
       {
-        translationKey: "clients",
-        label: "Clients",
+        id: "clients",
         href: "/clients",
-        icon: UsersIcon,
+        label: "Clients",
+        icon: "users",
+        badgeKey: "clients",
       },
       {
-        translationKey: "tasks",
-        label: "Tasks",
+        id: "projects",
+        href: "/projects",
+        label: "Projets",
+        icon: "folder",
+        badgeKey: "projects",
+      },
+      {
+        id: "tasks",
         href: "/tasks",
-        icon: CheckCircleIcon,
-      },
-      {
-        translationKey: "calendar",
-        label: "Calendar",
-        href: "/calendar",
-        icon: CalendarDaysIcon,
+        label: "Tasks",
+        icon: "check-square",
+        badgeKey: "tasks",
       },
     ],
   },
   {
-    titleKey: "navFinance",
+    title: "Finance",
     items: [
       {
-        translationKey: "billing",
-        label: "Billing",
+        id: "invoices",
         href: "/billing",
-        icon: DocumentTextIcon,
+        label: "Factures",
+        icon: "invoice",
+        badgeKey: "invoices",
       },
       {
-        translationKey: "expenses",
-        label: "Expenses",
-        href: "/expenses",
-        icon: BanknotesIcon,
-      },
-      {
-        translationKey: "financial",
-        label: "Financial",
-        href: "/financial",
-        icon: CurrencyDollarIcon,
-      },
-      {
-        translationKey: "analytics",
-        label: "Analytics",
+        id: "analytics",
         href: "/analytics",
-        icon: ChartBarIcon,
+        label: "Analytics",
+        icon: "chart",
       },
     ],
   },
   {
-    titleKey: "navSystem",
+    title: "Système",
     items: [
       {
-        translationKey: "settings",
-        label: "Settings",
+        id: "settings",
         href: "/settings",
-        icon: Cog6ToothIcon,
+        label: "Réglages",
+        icon: "settings",
       },
     ],
-  },
-]
-
-export const SETTINGS_NAV_SECTIONS: NavSection[] = [
-  {
-    items: [
-      {
-        translationKey: "backToApp",
-        label: "Back to app",
-        href: "/dashboard",
-        icon: ArrowLeftIcon,
-      },
-    ],
-  },
-  {
-    titleKey: "account",
-    items: [
-      {
-        translationKey: "profile",
-        label: "Profile",
-        href: "/settings",
-        icon: UserCircleIcon,
-      },
-      {
-        translationKey: "appearance",
-        label: "Appearance",
-        href: "/settings/appearance",
-        icon: PaintBrushIcon,
-      },
-    ],
-  },
-  {
-    titleKey: "workspace",
-    items: [
-      {
-        translationKey: "billingInvoicing",
-        label: "Billing & Invoicing",
-        href: "/settings/billing",
-        icon: WalletIcon,
-      },
-      {
-        translationKey: "taxSettings",
-        label: "Tax & Fiscal",
-        href: "/settings/tax",
-        icon: ReceiptPercentIcon,
-      },
-      {
-        translationKey: "tags",
-        label: "Tags",
-        href: "/settings/tags",
-        icon: TagIcon,
-      },
-      {
-        translationKey: "notifications",
-        label: "Notifications",
-        href: "/settings/notifications",
-        icon: BellIcon,
-      },
-      {
-        translationKey: "integrations",
-        label: "Integrations",
-        href: "/settings/integrations",
-        icon: LinkIcon,
-      },
-      {
-        translationKey: "bankImport",
-        label: "Bank Import",
-        href: "/settings/bank",
-        icon: BuildingLibraryIcon,
-      },
-    ],
-  },
-  {
-    titleKey: "advanced",
-    items: [
-      {
-        translationKey: "dataExport",
-        label: "Data & Export",
-        href: "/settings/data",
-        icon: ServerStackIcon,
-      },
-    ],
-  },
-]
-
-export interface ActionItem {
-  id: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  href?: string
-  apiCall?: string
-  comingSoon?: boolean
-}
-
-export const ACTION_ITEMS: ActionItem[] = [
-  {
-    id: "new-client",
-    label: "New client",
-    icon: PlusIcon,
-    href: "/clients/new",
-  },
-  {
-    id: "new-task",
-    label: "New task",
-    icon: PlusIcon,
-    href: "/tasks/new",
-  },
-  {
-    id: "sync-linear",
-    label: "Sync Linear",
-    icon: ArrowPathIcon,
-    apiCall: "/api/linear/refresh",
-  },
-  {
-    id: "go-billing-history",
-    label: "Billing history",
-    icon: DocumentTextIcon,
-    href: "/billing/history",
-  },
-  {
-    id: "go-settings-appearance",
-    label: "Appearance settings",
-    icon: PaintBrushIcon,
-    href: "/settings/appearance",
-  },
-  {
-    id: "go-settings-integrations",
-    label: "Integrations settings",
-    icon: LinkIcon,
-    href: "/settings/integrations",
-  },
-  {
-    id: "go-settings-billing",
-    label: "Billing settings",
-    icon: WalletIcon,
-    href: "/settings/billing",
-  },
-  {
-    id: "go-settings-notifications",
-    label: "Notification settings",
-    icon: BellIcon,
-    href: "/settings/notifications",
-  },
-  {
-    id: "go-settings-data",
-    label: "Data & Export",
-    icon: ServerStackIcon,
-    href: "/settings/data",
-  },
-  {
-    id: "export-data",
-    label: "Export data",
-    icon: ArrowDownTrayIcon,
-    comingSoon: true,
   },
 ]

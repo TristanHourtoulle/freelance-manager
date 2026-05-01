@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: freelance-manager-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: freelance
+      POSTGRES_PASSWORD: freelance
+      POSTGRES_DB: freelance_manager
+    ports:
+      - "5440:5432"
+    volumes:
+      - freelance_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U freelance -d freelance_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  freelance_pgdata:

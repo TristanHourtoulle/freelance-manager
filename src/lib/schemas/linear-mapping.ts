@@ -1,28 +1,14 @@
 import { z } from "zod/v4"
 
-/** Validates full payload (including clientId) when creating a Linear mapping. */
-export const createLinearMappingSchema = z
+export const linearMappingCreateSchema = z
   .object({
     clientId: z.string().min(1),
-    linearTeamId: z.string().min(1).optional(),
-    linearProjectId: z.string().min(1).optional(),
+    linearTeamId: z.string().min(1).optional().nullable(),
+    linearProjectId: z.string().min(1).optional().nullable(),
   })
-  .refine((data) => data.linearTeamId || data.linearProjectId, {
-    message: "At least one of linearTeamId or linearProjectId is required",
-  })
-
-export type CreateLinearMappingInput = z.infer<typeof createLinearMappingSchema>
-
-/** Validates the request body (without clientId) when creating a Linear mapping. */
-export const createLinearMappingBodySchema = z
-  .object({
-    linearTeamId: z.string().min(1).optional(),
-    linearProjectId: z.string().min(1).optional(),
-  })
-  .refine((data) => data.linearTeamId || data.linearProjectId, {
-    message: "At least one of linearTeamId or linearProjectId is required",
+  .refine((val) => Boolean(val.linearTeamId) || Boolean(val.linearProjectId), {
+    message: "Provide at least linearTeamId or linearProjectId",
+    path: ["linearTeamId"],
   })
 
-export type CreateLinearMappingBody = z.infer<
-  typeof createLinearMappingBodySchema
->
+export type LinearMappingCreateInput = z.input<typeof linearMappingCreateSchema>

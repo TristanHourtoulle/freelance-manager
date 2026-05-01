@@ -1,413 +1,484 @@
-import dotenv from "dotenv"
-dotenv.config({ path: ".env.local" })
-dotenv.config()
+// prisma/seed.ts — populate a freshly migrated database with realistic data
+// matching design-reference/src/data.jsx. Idempotent: re-running will keep the
+// demo user and refill clients/projects/tasks/invoices.
 
-import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "../src/generated/prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg"
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
 })
 const prisma = new PrismaClient({ adapter })
 
+const DEMO_EMAIL = "demo@freelance.local"
+const DEMO_NAME = "Tristan Hourtoulle"
+
 async function main() {
-  const TARGET_EMAIL = "tristan68420@gmail.com"
-
-  const user = await prisma.user.findFirst({
-    where: { email: TARGET_EMAIL },
+  const user = await prisma.user.upsert({
+    where: { email: DEMO_EMAIL },
+    update: { name: DEMO_NAME },
+    create: { id: "demo-user", email: DEMO_EMAIL, name: DEMO_NAME },
   })
 
-  if (!user) {
-    console.error(
-      `User ${TARGET_EMAIL} not found. Please sign up first at localhost:3000.`,
-    )
-    process.exit(1)
-  }
-
-  console.info(`Found user: ${user.name} (${user.id})`)
-
-  // Clean existing data for this user (order matters due to foreign keys)
-  const existingClients = await prisma.client.findMany({
+  await prisma.userSettings.upsert({
     where: { userId: user.id },
-    select: { id: true },
+    update: {},
+    create: {
+      userId: user.id,
+      defaultCurrency: "EUR",
+      defaultPaymentDays: 30,
+      defaultRate: 500,
+    },
   })
-  const clientIds = existingClients.map((c) => c.id)
 
-  if (clientIds.length > 0) {
-    await prisma.$transaction([
-      prisma.invoice.deleteMany({ where: { clientId: { in: clientIds } } }),
-      prisma.taskOverride.deleteMany({
-        where: { clientId: { in: clientIds } },
-      }),
-      prisma.linearMapping.deleteMany({
-        where: { clientId: { in: clientIds } },
-      }),
-      prisma.client.deleteMany({ where: { userId: user.id } }),
-    ])
-    console.info(`Cleaned ${clientIds.length} existing clients.`)
-  }
-
-  // --- Create clients across all 4 categories ---
-
-  const clients = await Promise.all([
-    // FREELANCE (3 clients)
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Acme Corp",
-        email: "contact@acme.com",
-        company: "Acme Corporation",
-        billingMode: "HOURLY",
-        rate: 85,
-        category: "FREELANCE",
-        notes: "Main freelance client - web platform redesign",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "TechStart SAS",
-        email: "hello@techstart.fr",
-        company: "TechStart",
-        billingMode: "DAILY",
-        rate: 650,
-        category: "FREELANCE",
-        notes: "Mobile app development contract",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Digital Agency",
-        email: "pm@digitalagency.io",
-        company: "Digital Agency Ltd",
-        billingMode: "HOURLY",
-        rate: 95,
-        category: "FREELANCE",
-        notes: "Frontend consulting and UI reviews",
-      },
-    }),
-    // STUDY (2 clients)
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "University Capstone",
-        email: "prof@epitech.eu",
-        company: "Epitech",
-        billingMode: "FREE",
-        rate: 0,
-        category: "STUDY",
-        notes: "Final year capstone project",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Research Lab",
-        email: "lab@cnrs.fr",
-        company: "CNRS",
-        billingMode: "HOURLY",
-        rate: 25,
-        category: "STUDY",
-        notes: "Part-time research assistant",
-      },
-    }),
-    // PERSONAL (2 clients)
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Portfolio Website",
-        billingMode: "FREE",
-        rate: 0,
-        category: "PERSONAL",
-        notes: "Personal portfolio redesign",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Home Automation",
-        billingMode: "FREE",
-        rate: 0,
-        category: "PERSONAL",
-        notes: "Smart home IoT project",
-      },
-    }),
-    // SIDE_PROJECT (3 clients)
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "SaaS MVP",
-        email: "co-founder@saas.dev",
-        company: "SaaS Co",
-        billingMode: "FIXED",
-        rate: 3000,
-        category: "SIDE_PROJECT",
-        notes: "Co-founded SaaS product",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Open Source CLI",
-        billingMode: "FREE",
-        rate: 0,
-        category: "SIDE_PROJECT",
-        notes: "Open source developer tool",
-      },
-    }),
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Mobile Game",
-        billingMode: "FIXED",
-        rate: 1500,
-        category: "SIDE_PROJECT",
-        notes: "Indie mobile game",
-      },
-    }),
-    // Archived client (should NOT appear in analytics)
-    prisma.client.create({
-      data: {
-        userId: user.id,
-        name: "Old Client (Archived)",
-        email: "old@client.com",
-        billingMode: "HOURLY",
-        rate: 60,
-        category: "FREELANCE",
-        archivedAt: new Date("2025-12-01"),
-        notes: "This client is archived and should not appear",
-      },
-    }),
-  ])
-
-  const [
-    acme,
-    techstart,
-    digitalAgency,
-    ,
-    researchLab,
-    portfolio,
-    homeAuto,
-    saasMvp,
-    osCli,
-    mobileGame,
-    archivedClient,
-  ] = clients
-
-  console.info(`Created ${clients.length} clients (1 archived).`)
-
-  // --- Create task overrides ---
-
-  const now = new Date()
-  let issueId = 1000
-
-  function makeInvoicedTasks(
-    clientId: string,
-    monthsAgo: number,
-    count: number,
-    rateOverride?: number,
-  ) {
-    return Array.from({ length: count }, (_, i) => ({
-      clientId,
-      linearIssueId: `SEED-${issueId++}`,
-      toInvoice: false,
-      invoiced: true,
-      invoicedAt: new Date(
-        now.getFullYear(),
-        now.getMonth() - monthsAgo,
-        Math.min(28, 3 + i * 4),
-      ),
-      rateOverride: rateOverride ?? null,
-    }))
-  }
-
-  function makePendingTasks(clientId: string, count: number) {
-    return Array.from({ length: count }, () => ({
-      clientId,
-      linearIssueId: `SEED-${issueId++}`,
-      toInvoice: true,
-      invoiced: false,
-      invoicedAt: null,
-      rateOverride: null,
-    }))
-  }
-
-  const invoicedTasks = [
-    // Acme Corp (FREELANCE, HOURLY 85) - heaviest client
-    ...makeInvoicedTasks(acme.id, 0, 5),
-    ...makeInvoicedTasks(acme.id, 1, 8),
-    ...makeInvoicedTasks(acme.id, 2, 6),
-    ...makeInvoicedTasks(acme.id, 3, 4),
-    ...makeInvoicedTasks(acme.id, 5, 3),
-    ...makeInvoicedTasks(acme.id, 8, 2),
-    // one task with premium rate override
-    ...makeInvoicedTasks(acme.id, 1, 1, 120),
-
-    // TechStart SAS (FREELANCE, DAILY 650)
-    ...makeInvoicedTasks(techstart.id, 0, 3),
-    ...makeInvoicedTasks(techstart.id, 1, 4),
-    ...makeInvoicedTasks(techstart.id, 2, 5),
-    ...makeInvoicedTasks(techstart.id, 4, 2),
-
-    // Digital Agency (FREELANCE, HOURLY 95)
-    ...makeInvoicedTasks(digitalAgency.id, 0, 2),
-    ...makeInvoicedTasks(digitalAgency.id, 1, 3),
-    ...makeInvoicedTasks(digitalAgency.id, 3, 4),
-    ...makeInvoicedTasks(digitalAgency.id, 6, 2),
-
-    // Research Lab (STUDY, HOURLY 25) - lower amounts
-    ...makeInvoicedTasks(researchLab.id, 0, 2),
-    ...makeInvoicedTasks(researchLab.id, 1, 3),
-    ...makeInvoicedTasks(researchLab.id, 2, 4),
-    ...makeInvoicedTasks(researchLab.id, 5, 2),
-
-    // SaaS MVP (SIDE_PROJECT, FIXED 3000)
-    ...makeInvoicedTasks(saasMvp.id, 0, 2),
-    ...makeInvoicedTasks(saasMvp.id, 2, 1),
-    ...makeInvoicedTasks(saasMvp.id, 4, 1),
-
-    // Mobile Game (SIDE_PROJECT, FIXED 1500)
-    ...makeInvoicedTasks(mobileGame.id, 1, 2),
-    ...makeInvoicedTasks(mobileGame.id, 3, 1),
-
-    // Archived client tasks (should be filtered out by analytics query)
-    ...makeInvoicedTasks(archivedClient.id, 0, 3),
-  ]
-
-  const pendingTasks = [
-    ...makePendingTasks(acme.id, 3),
-    ...makePendingTasks(techstart.id, 2),
-    ...makePendingTasks(digitalAgency.id, 1),
-    ...makePendingTasks(researchLab.id, 2),
-    ...makePendingTasks(saasMvp.id, 1),
-    ...makePendingTasks(portfolio.id, 2),
-    ...makePendingTasks(homeAuto.id, 1),
-    ...makePendingTasks(osCli.id, 1),
-  ]
-
-  await prisma.taskOverride.createMany({
-    data: [...invoicedTasks, ...pendingTasks],
+  // Wipe domain data for the demo user — keeps re-seed idempotent.
+  await prisma.task.deleteMany({ where: { userId: user.id } })
+  await prisma.invoiceLine.deleteMany({
+    where: { invoice: { userId: user.id } },
   })
-  console.info(
-    `Created ${invoicedTasks.length} invoiced + ${pendingTasks.length} pending task overrides.`,
-  )
+  await prisma.invoice.deleteMany({ where: { userId: user.id } })
+  await prisma.project.deleteMany({ where: { userId: user.id } })
+  await prisma.linearMapping.deleteMany({
+    where: { client: { userId: user.id } },
+  })
+  await prisma.client.deleteMany({ where: { userId: user.id } })
 
-  // --- Create invoices ---
-
-  const invoices = [
-    // Acme Corp
+  const clientsData = [
     {
-      clientId: acme.id,
-      month: new Date(now.getFullYear(), now.getMonth(), 1),
-      totalAmount: 4250,
-      status: "DRAFT" as const,
+      id: "demo-c1",
+      firstName: "Henri",
+      lastName: "Mistral",
+      company: "Quintyss Limited",
+      email: "henri@quintyss.io",
+      billingMode: "DAILY" as const,
+      rate: 650,
+      color:
+        "linear-gradient(135deg, oklch(0.6 0.15 250), oklch(0.55 0.18 320))",
     },
     {
-      clientId: acme.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      totalAmount: 7650,
-      status: "SENT" as const,
+      id: "demo-c2",
+      firstName: "Coralie",
+      lastName: "Ebring",
+      company: "GYNECOLOGIE RUEIL",
+      email: "c.ebring@gyn-rueil.fr",
+      billingMode: "FIXED" as const,
+      rate: 0,
+      fixedPrice: 8400,
+      deposit: 2520,
+      color:
+        "linear-gradient(135deg, oklch(0.55 0.16 150), oklch(0.6 0.18 180))",
     },
     {
-      clientId: acme.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-      totalAmount: 5100,
-      status: "PAID" as const,
+      id: "demo-c3",
+      firstName: "Paul",
+      lastName: "Levy",
+      company: "Moduloop",
+      email: "paul@moduloop.app",
+      billingMode: "FIXED" as const,
+      rate: 0,
+      fixedPrice: 12000,
+      deposit: 4000,
+      color:
+        "linear-gradient(135deg, oklch(0.55 0.18 280), oklch(0.6 0.16 220))",
     },
     {
-      clientId: acme.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 3, 1),
-      totalAmount: 3400,
-      status: "PAID" as const,
-    },
-    // TechStart
-    {
-      clientId: techstart.id,
-      month: new Date(now.getFullYear(), now.getMonth(), 1),
-      totalAmount: 1950,
-      status: "DRAFT" as const,
+      id: "demo-c4",
+      firstName: "Tahirihanitra",
+      lastName: "Sambazafi",
+      company: "Hosted",
+      email: "tahiri@hosted.cloud",
+      billingMode: "HOURLY" as const,
+      rate: 75,
+      color: "linear-gradient(135deg, oklch(0.6 0.17 0), oklch(0.55 0.18 350))",
     },
     {
-      clientId: techstart.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      totalAmount: 2600,
-      status: "PAID" as const,
-    },
-    {
-      clientId: techstart.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-      totalAmount: 3250,
-      status: "PAID" as const,
-    },
-    // Digital Agency
-    {
-      clientId: digitalAgency.id,
-      month: new Date(now.getFullYear(), now.getMonth(), 1),
-      totalAmount: 1900,
-      status: "DRAFT" as const,
-    },
-    {
-      clientId: digitalAgency.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      totalAmount: 2850,
-      status: "SENT" as const,
-    },
-    // Research Lab
-    {
-      clientId: researchLab.id,
-      month: new Date(now.getFullYear(), now.getMonth(), 1),
-      totalAmount: 500,
-      status: "DRAFT" as const,
-    },
-    {
-      clientId: researchLab.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      totalAmount: 750,
-      status: "PAID" as const,
-    },
-    // SaaS MVP
-    {
-      clientId: saasMvp.id,
-      month: new Date(now.getFullYear(), now.getMonth(), 1),
-      totalAmount: 6000,
-      status: "DRAFT" as const,
-    },
-    {
-      clientId: saasMvp.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 2, 1),
-      totalAmount: 3000,
-      status: "PAID" as const,
-    },
-    // Mobile Game
-    {
-      clientId: mobileGame.id,
-      month: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-      totalAmount: 3000,
-      status: "SENT" as const,
+      id: "demo-c5",
+      firstName: "Léa",
+      lastName: "Garnier",
+      company: "Pivot Studio",
+      email: "lea@pivot.studio",
+      billingMode: "DAILY" as const,
+      rate: 580,
+      color:
+        "linear-gradient(135deg, oklch(0.6 0.14 80), oklch(0.55 0.16 110))",
     },
   ]
 
-  await prisma.invoice.createMany({ data: invoices })
-  console.info(`Created ${invoices.length} invoices.`)
+  for (const c of clientsData) {
+    await prisma.client.create({
+      data: { ...c, userId: user.id, category: "FREELANCE" },
+    })
+  }
 
-  console.info("\n--- Seed Summary ---")
-  console.info("Clients: 10 active + 1 archived")
-  console.info("  FREELANCE:    Acme Corp, TechStart SAS, Digital Agency")
-  console.info("  STUDY:        University Capstone, Research Lab")
-  console.info("  PERSONAL:     Portfolio Website, Home Automation")
-  console.info("  SIDE_PROJECT: SaaS MVP, Open Source CLI, Mobile Game")
-  console.info(
-    `Task overrides: ${invoicedTasks.length} invoiced, ${pendingTasks.length} pending`,
-  )
-  console.info(`Invoices: ${invoices.length}`)
-  console.info("Done!")
+  const projectsData = [
+    {
+      id: "demo-p1",
+      clientId: "demo-c1",
+      key: "TRI",
+      name: "quintyss-dashboard",
+      description: "Refonte du dashboard interne admin",
+      linearProjectId: "lp-tri-dashboard",
+    },
+    {
+      id: "demo-p2",
+      clientId: "demo-c1",
+      key: "API",
+      name: "quintyss-api",
+      description: "Migration API v2 + auth",
+      linearProjectId: "lp-tri-api",
+    },
+    {
+      id: "demo-p3",
+      clientId: "demo-c2",
+      key: "GYN",
+      name: "gyn-portal-patient",
+      description: "Portail patient avec prise de rdv",
+      linearProjectId: "lp-gyn-portal",
+    },
+    {
+      id: "demo-p4",
+      clientId: "demo-c3",
+      key: "MOD",
+      name: "moduloop-marketplace",
+      description: "Marketplace SaaS modulaire",
+      linearProjectId: "lp-mod-marketplace",
+    },
+    {
+      id: "demo-p5",
+      clientId: "demo-c4",
+      key: "HST",
+      name: "hosted-dns-tooling",
+      description: "CLI + dashboard pour DNS",
+      linearProjectId: "lp-hst-dns",
+    },
+    {
+      id: "demo-p6",
+      clientId: "demo-c5",
+      key: "PVT",
+      name: "pivot-website",
+      description: "Site vitrine + CMS",
+      linearProjectId: "lp-pvt-site",
+    },
+  ]
+
+  for (const p of projectsData) {
+    await prisma.project.create({
+      data: { ...p, userId: user.id, status: "ACTIVE" },
+    })
+  }
+
+  const taskTitles: Record<string, string[]> = {
+    TRI: [
+      "Layout & colocation per route",
+      "Forms error UX",
+      "Translate server errors via error.code",
+      "Audit form error UX (invalid input until blur)",
+      "Inline constants extraction",
+      "Replace hex color inputs with Tailwind tokens",
+      "Backend: add presigned PUT endpoint",
+      "Data layer migration",
+      "Hygiene & safety net",
+      "Root error.tsx et not-found.tsx",
+      "Refactor — vagues admin/support architectural",
+      "Layout & colocation par route — vague 3",
+      "Extraction des constantes inline",
+      "Empty states pour tableaux principaux",
+      "Skeleton loaders",
+    ],
+    API: [
+      "JWT refresh strategy",
+      "Rate limiter Redis",
+      "Webhook signing v2",
+      "Migrate /v1/users endpoint",
+      "Sentry breadcrumbs cleanup",
+      "OpenAPI doc regen",
+    ],
+    GYN: [
+      "Page de prise de rdv mobile",
+      "Auth patient via SMS OTP",
+      "Calendrier dispo praticiens",
+      "Dossier patient — résumé visites",
+      "Notifications email rappel rdv",
+    ],
+    MOD: [
+      "Onboarding marketplace v2",
+      "Stripe Connect intégration",
+      'Module produit "abonnement"',
+      "Search Algolia setup",
+      "Reviews + modération",
+    ],
+    HST: [
+      "CLI: hosted dns import bind",
+      "Bulk DNS edit UI",
+      "Audit log per zone",
+      "API tokens management",
+    ],
+    PVT: ["Hero animation Framer", "Blog MDX setup"],
+  }
+
+  let counter = 500
+  for (const [key, titles] of Object.entries(taskTitles)) {
+    const project = projectsData.find((p) => p.key === key)
+    if (!project) continue
+    for (const title of titles) {
+      counter++
+      const r = Math.random()
+      let status: "DONE" | "PENDING_INVOICE" | "IN_PROGRESS" | "BACKLOG"
+      if (r < 0.4) status = "DONE"
+      else if (r < 0.7) status = "PENDING_INVOICE"
+      else if (r < 0.9) status = "IN_PROGRESS"
+      else status = "BACKLOG"
+      const estimate = [0.25, 0.5, 0.5, 1, 1, 1, 1.5, 2, 2, 3][
+        Math.floor(Math.random() * 10)
+      ] as number
+      const completedAt =
+        status === "DONE" || status === "PENDING_INVOICE"
+          ? randomPastDate(status === "DONE" ? 60 : 20)
+          : null
+      await prisma.task.create({
+        data: {
+          userId: user.id,
+          clientId: project.clientId,
+          projectId: project.id,
+          linearIssueId: `li-${counter}`,
+          linearIdentifier: `${key}-${counter}`,
+          linearStateName:
+            status === "DONE"
+              ? "Done"
+              : status === "PENDING_INVOICE"
+                ? "Done"
+                : status === "IN_PROGRESS"
+                  ? "In Progress"
+                  : "Backlog",
+          linearStateType:
+            status === "DONE" || status === "PENDING_INVOICE"
+              ? "completed"
+              : status === "IN_PROGRESS"
+                ? "started"
+                : "unstarted",
+          title,
+          status,
+          priority: ["LOW", "MEDIUM", "HIGH"][Math.floor(Math.random() * 3)] as
+            | "LOW"
+            | "MEDIUM"
+            | "HIGH",
+          estimate,
+          completedAt,
+        },
+      })
+    }
+  }
+
+  let invNum = 1024
+
+  const c1Done = await prisma.task.findMany({
+    where: { clientId: "demo-c1", status: "DONE" },
+    take: 18,
+    orderBy: { createdAt: "asc" },
+  })
+  if (c1Done.length >= 6) {
+    invNum++
+    const batch = c1Done.slice(0, 6)
+    const subtotal = batch.reduce(
+      (s, t) => s + Number(t.estimate ?? 0) * 650,
+      0,
+    )
+    const inv = await prisma.invoice.create({
+      data: {
+        userId: user.id,
+        clientId: "demo-c1",
+        projectId: "demo-p1",
+        number: `2026-${invNum}`,
+        status: "SENT",
+        paymentStatus: "PAID",
+        kind: "STANDARD",
+        issueDate: new Date("2026-02-28"),
+        dueDate: new Date("2026-03-30"),
+        subtotal,
+        tax: 0,
+        total: subtotal,
+        payments: {
+          create: {
+            userId: user.id,
+            amount: subtotal,
+            paidAt: new Date("2026-03-12"),
+          },
+        },
+        lines: {
+          create: batch.map((t, i) => ({
+            taskId: t.id,
+            label: `[${t.linearIdentifier}] ${t.title}`,
+            qty: Number(t.estimate ?? 0),
+            rate: 650,
+            position: i,
+          })),
+        },
+      },
+    })
+    await prisma.task.updateMany({
+      where: { id: { in: batch.map((t) => t.id) } },
+      data: { invoiceId: inv.id },
+    })
+  }
+
+  invNum++
+  await prisma.invoice.create({
+    data: {
+      userId: user.id,
+      clientId: "demo-c2",
+      projectId: "demo-p3",
+      number: `2026-${invNum}`,
+      status: "SENT",
+      paymentStatus: "PAID",
+      kind: "DEPOSIT",
+      issueDate: new Date("2026-01-10"),
+      dueDate: new Date("2026-01-25"),
+      subtotal: 2520,
+      tax: 0,
+      total: 2520,
+      lines: {
+        create: [
+          {
+            label: "Acompte 30% — Portail patient",
+            qty: 1,
+            rate: 2520,
+            position: 0,
+          },
+        ],
+      },
+      payments: {
+        create: {
+          userId: user.id,
+          amount: 2520,
+          paidAt: new Date("2026-01-22"),
+        },
+      },
+    },
+  })
+
+  invNum++
+  await prisma.invoice.create({
+    data: {
+      userId: user.id,
+      clientId: "demo-c2",
+      projectId: "demo-p3",
+      number: `2026-${invNum}`,
+      status: "SENT",
+      kind: "STANDARD",
+      issueDate: new Date("2026-03-20"),
+      dueDate: new Date("2026-04-20"),
+      subtotal: 3500,
+      tax: 0,
+      total: 3500,
+      lines: {
+        create: [
+          {
+            label: "Forfait étape 1 — Auth + RDV",
+            qty: 1,
+            rate: 3500,
+            position: 0,
+          },
+        ],
+      },
+    },
+  })
+
+  invNum++
+  await prisma.invoice.create({
+    data: {
+      userId: user.id,
+      clientId: "demo-c3",
+      projectId: "demo-p4",
+      number: `2026-${invNum}`,
+      status: "SENT",
+      paymentStatus: "PAID",
+      kind: "DEPOSIT",
+      issueDate: new Date("2026-02-15"),
+      dueDate: new Date("2026-03-01"),
+      subtotal: 4000,
+      tax: 0,
+      total: 4000,
+      lines: {
+        create: [
+          {
+            label: "Acompte 33% — Marketplace v2",
+            qty: 1,
+            rate: 4000,
+            position: 0,
+          },
+        ],
+      },
+      payments: {
+        create: {
+          userId: user.id,
+          amount: 4000,
+          paidAt: new Date("2026-02-28"),
+        },
+      },
+    },
+  })
+
+  invNum++
+  await prisma.invoice.create({
+    data: {
+      userId: user.id,
+      clientId: "demo-c3",
+      projectId: "demo-p4",
+      number: `2026-${invNum}`,
+      status: "SENT",
+      kind: "STANDARD",
+      issueDate: new Date("2026-04-10"),
+      dueDate: new Date("2026-05-10"),
+      subtotal: 4000,
+      tax: 0,
+      total: 4000,
+      lines: {
+        create: [
+          {
+            label: "Étape 1 — Onboarding + Stripe Connect",
+            qty: 1,
+            rate: 4000,
+            position: 0,
+          },
+        ],
+      },
+    },
+  })
+
+  invNum++
+  await prisma.invoice.create({
+    data: {
+      userId: user.id,
+      clientId: "demo-c5",
+      projectId: "demo-p6",
+      number: `2026-${invNum}`,
+      status: "DRAFT",
+      kind: "STANDARD",
+      issueDate: new Date("2026-04-22"),
+      dueDate: new Date("2026-05-22"),
+      subtotal: 1160,
+      tax: 0,
+      total: 1160,
+      lines: {
+        create: [{ label: "Hero animation", qty: 2, rate: 580, position: 0 }],
+      },
+    },
+  })
+
+  console.log(`[seed] OK — user "${DEMO_EMAIL}" with full demo data`)
+}
+
+function randomPastDate(maxDaysAgo: number): Date {
+  const d = new Date()
+  d.setDate(d.getDate() - Math.floor(Math.random() * maxDaysAgo))
+  return d
 }
 
 main()
-  .then(() => prisma.$disconnect())
-  .catch(async (e) => {
-    console.error("Seed failed:", e)
-    await prisma.$disconnect()
+  .catch((e) => {
+    console.error(e)
     process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
   })

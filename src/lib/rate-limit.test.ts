@@ -43,9 +43,9 @@ describe("rateLimit", () => {
     const request = makeRequest("10.0.0.3")
     const options = { limit: 2, windowMs: 60_000 }
 
-    rateLimit(request, options) // 1
-    rateLimit(request, options) // 2 (at limit)
-    const result = rateLimit(request, options) // 3 (over limit)
+    rateLimit(request, options)
+    rateLimit(request, options)
+    const result = rateLimit(request, options)
 
     expect(result.success).toBe(false)
     expect(result.remaining).toBe(0)
@@ -73,7 +73,6 @@ describe("rateLimit", () => {
     const blocked = rateLimit(request, options)
     expect(blocked.success).toBe(false)
 
-    // Advance time past the window
     vi.advanceTimersByTime(6_000)
 
     const afterReset = rateLimit(request, options)
@@ -87,11 +86,9 @@ describe("rateLimit", () => {
       headers.set("x-forwarded-for", "192.168.1.1, 10.0.0.1, 172.16.0.1")
       const request = new Request("http://localhost/api/test", { headers })
 
-      // First call should succeed and use IP "192.168.1.1"
       const result = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result.success).toBe(true)
 
-      // A request from a different IP should also succeed (separate bucket)
       const otherRequest = makeRequest("10.0.0.99")
       const otherResult = rateLimit(otherRequest, {
         limit: 1,
@@ -108,7 +105,6 @@ describe("rateLimit", () => {
       const result = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result.success).toBe(true)
 
-      // Second call should be blocked (same trimmed IP)
       const result2 = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result2.success).toBe(false)
     })
@@ -119,7 +115,6 @@ describe("rateLimit", () => {
       const result = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result.success).toBe(true)
 
-      // Another request without headers shares the same "unknown" key
       const request2 = new Request("http://localhost/api/other")
       const result2 = rateLimit(request2, { limit: 1, windowMs: 60_000 })
       expect(result2.success).toBe(false)
@@ -131,11 +126,9 @@ describe("rateLimit", () => {
       headers.set("x-real-ip", "empty-fwd-test-ip")
       const request = new Request("http://localhost/api/test", { headers })
 
-      // Empty x-forwarded-for is falsy, so falls through to x-real-ip
       const result = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result.success).toBe(true)
 
-      // Second call uses the same x-real-ip key, so it should be blocked
       const result2 = rateLimit(request, { limit: 1, windowMs: 60_000 })
       expect(result2.success).toBe(false)
     })
@@ -150,17 +143,13 @@ describe("rateLimit", () => {
       rateLimit(request1, options)
       rateLimit(request2, options)
 
-      // Both should be tracked
       expect(rateLimit(request1, options).remaining).toBe(0)
       expect(rateLimit(request2, options).remaining).toBe(0)
 
-      // Advance time past the window so entries expire
       vi.advanceTimersByTime(6_000)
 
-      // Call cleanup directly to remove expired entries
       _cleanup()
 
-      // After cleanup, entries should be gone — fresh window starts
       const afterCleanup1 = rateLimit(request1, options)
       expect(afterCleanup1.success).toBe(true)
       expect(afterCleanup1.remaining).toBe(1)
@@ -176,12 +165,10 @@ describe("rateLimit", () => {
 
       rateLimit(request, options)
 
-      // Advance time but NOT past the window
       vi.advanceTimersByTime(5_000)
 
       _cleanup()
 
-      // Entry should still be present — second call increments
       const result = rateLimit(request, options)
       expect(result.remaining).toBe(1)
     })

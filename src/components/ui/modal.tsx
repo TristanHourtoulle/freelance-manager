@@ -1,81 +1,61 @@
 "use client"
 
-import { useTranslations } from "next-intl"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-
-type ModalVariant = "default" | "danger"
+import { useEffect } from "react"
+import type { CSSProperties, ReactNode } from "react"
+import { Icon } from "@/components/ui/icon"
 
 interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: () => void
   title: string
-  description: string
-  confirmLabel?: string
-  variant?: ModalVariant
-  isLoading?: boolean
+  onClose: () => void
+  children: ReactNode
+  footer?: ReactNode
+  width?: number
+  bodyStyle?: CSSProperties
 }
 
 /**
- * Confirmation dialog built on the shadcn Dialog primitive.
- * Drop-in replacement for the old custom Modal. Used for destructive or important actions.
- *
- * @param isOpen - Controls visibility of the dialog
- * @param onClose - Callback invoked when the user dismisses the dialog
- * @param onConfirm - Callback invoked when the user clicks the confirm button
- * @param title - Heading displayed in the dialog
- * @param description - Explanatory text below the title
- * @param confirmLabel - Label for the confirm button (defaults to translated "Confirm")
- * @param variant - "default" or "danger"; controls confirm button styling
- * @param isLoading - Disables interactions and shows a loading state on confirm
+ * Generic modal with a sticky header and an optional sticky footer. The body
+ * scrolls by default; pass `bodyStyle={{ overflow: "hidden", padding: 0 }}`
+ * to take over scroll management inside (used when only a sub-region must
+ * scroll, e.g. the lines list of an invoice drawer).
  */
 export function Modal({
-  isOpen,
-  onClose,
-  onConfirm,
   title,
-  description,
-  confirmLabel,
-  variant = "default",
-  isLoading = false,
+  onClose,
+  children,
+  footer,
+  width,
+  bodyStyle,
 }: ModalProps) {
-  const t = useTranslations("common")
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open && !isLoading) {
-          onClose()
-        }
-      }}
-    >
-      <DialogContent showCloseButton={!isLoading}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            {t("cancel")}
-          </Button>
-          <Button
-            variant={variant === "danger" ? "destructive" : "default"}
-            onClick={onConfirm}
-            isLoading={isLoading}
-          >
-            {confirmLabel ?? "Confirm"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal"
+        style={width ? { width } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="modal-header">
+          <h3 className="modal-title">{title}</h3>
+          <button className="icon-btn" onClick={onClose} aria-label="Fermer">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="modal-body" style={bodyStyle}>
+          {children}
+        </div>
+        {footer && <div className="modal-footer">{footer}</div>}
+      </div>
+    </div>
   )
 }

@@ -7,21 +7,27 @@ generator client {
   output   = "../src/generated/prisma/client"
 }
 
+// =====================================================================
+// AUTH (better-auth) — kept as-is
+// =====================================================================
+
 model User {
-  id               String            @id @default(cuid())
-  name             String
-  email            String            @unique
-  emailVerified    Boolean           @default(false)
-  image            String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  sessions         Session[]
-  accounts         Account[]
-  clients          Client[]
-  settings         UserSettings?
-  notifications    Notification[]
-  expenses         Expense[]
-  bankTransactions BankTransaction[]
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  clients  Client[]
+  projects Project[]
+  tasks    Task[]
+  invoices Invoice[]
+  payments Payment[]
+  settings UserSettings?
 
   @@map("users")
 }
@@ -70,180 +76,313 @@ model Verification {
   @@map("verifications")
 }
 
+// =====================================================================
+// USER SETTINGS — slim version (only what the new design needs)
+// =====================================================================
+
 model UserSettings {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Billing defaults
-  availableHoursPerMonth Int      @default(140)
-  monthlyRevenueTarget   Decimal  @default(0) @db.Decimal(10, 2)
-  defaultCurrency        String   @default("EUR")
-  defaultPaymentDays     Int      @default(30)
-  defaultRate            Decimal  @default(0) @db.Decimal(10, 2)
-
-  // Notification preferences (JSON: { billingReminder: true, inactiveClient: true, ... })
-  notificationPrefs      Json?
+  defaultCurrency    String  @default("EUR")
+  defaultPaymentDays Int     @default(30)
+  defaultRate        Decimal @default(0) @db.Decimal(10, 2)
 
   // Linear integration (AES-256-GCM encrypted)
   linearApiTokenEncrypted Bytes?
   linearApiTokenIv        Bytes?
+  linearLastSyncedAt      DateTime?
 
-  // Dashboard KPI preferences (JSON: string[] of enabled KPI ids)
-  dashboardKpis          Json?
-
-  // Tax settings
-  taxRegime              String   @default("micro")
-  tvaRate                Decimal  @default(0) @db.Decimal(5, 2)
-  activityType           String   @default("services")
-  acreEligible           Boolean  @default(false)
-
-  // Appearance
-  theme                  String   @default("system")
-  accentColor            String   @default("#2563eb")
-
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("user_settings")
 }
 
-// --- Business Domain ---
+// =====================================================================
+// CORE DOMAIN
+// =====================================================================
 
 enum BillingMode {
   HOURLY
   DAILY
   FIXED
-  FREE
 }
 
-enum Category {
+enum ClientCategory {
   FREELANCE
   STUDY
   PERSONAL
   SIDE_PROJECT
 }
 
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum TaskStatus {
+  BACKLOG
+  IN_PROGRESS
+  PENDING_INVOICE
+  DONE
+  CANCELED
+}
+
+enum TaskPriority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
   PAID
+  OVERPAID
 }
 
-enum NotificationType {
-  BILLING_REMINDER
-  INACTIVE_CLIENT
-  SYNC_ALERT
-  IMPORT_SUMMARY
-  PAYMENT_OVERDUE
+enum InvoiceKind {
+  STANDARD
+  DEPOSIT
 }
 
-enum ExpenseCategory {
-  SUBSCRIPTION
-  SOFTWARE
-  HARDWARE
-  TRAVEL
-  OFFICE
-  MARKETING
-  LEGAL
-  PROFESSIONAL
-  PERSONAL
-  ENTERTAINMENT
-  OTHER
-}
+// ---------- Client ----------
 
 model Client {
-  id          String       @id @default(cuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  email       String?
-  company     String?
-  logo        String?
-  billingMode BillingMode  @default(HOURLY)
-  rate        Decimal      @default(0) @db.Decimal(10, 2)
-  category    Category     @default(FREELANCE)
-  notes       String?
-  archivedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  firstName String
+  lastName  String
+  company   String?
+  email     String?
+  phone     String?
+
+  billingMode  BillingMode @default(DAILY)
+  rate         Decimal     @default(0) @db.Decimal(10, 2)
+  fixedPrice   Decimal?    @db.Decimal(10, 2)
+  deposit      Decimal?    @db.Decimal(10, 2)
+  paymentTerms Int?
+
+  category ClientCategory @default(FREELANCE)
+  color    String?
+
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   linearMappings LinearMapping[]
-  taskOverrides  TaskOverride[]
+  projects       Project[]
+  tasks          Task[]
   invoices       Invoice[]
-  expenses       Expense[]
-  tags           Tag[]
-  journal        ClientNote[]
 
   @@index([userId])
+  @@index([userId, archivedAt])
   @@index([category])
   @@map("clients")
 }
 
-model ClientNote {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  title     String
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([clientId])
-  @@index([clientId, createdAt])
-  @@map("client_notes")
-}
+// ---------- Linear mapping (Client ↔ Linear team or project) ----------
+//
+// Defines WHICH Linear scope feeds tasks for a given client. Supports either
+// a whole Linear team (all its issues) or a specific Linear project.
+// At least one of linearTeamId / linearProjectId must be set (enforced via Zod).
 
 model LinearMapping {
   id              String   @id @default(cuid())
   clientId        String
   client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  // At least one of linearTeamId or linearProjectId is required (enforced at application layer via Zod)
   linearTeamId    String?
   linearProjectId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@unique([clientId, linearProjectId])
+  @@unique([clientId, linearTeamId])
   @@index([linearTeamId])
   @@index([linearProjectId])
   @@map("linear_mappings")
 }
 
-model TaskOverride {
-  id            String    @id @default(cuid())
-  clientId      String
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  linearIssueId String    @unique
-  toInvoice     Boolean   @default(false)
-  invoiced      Boolean   @default(false)
-  invoicedAt    DateTime?
-  rateOverride  Decimal?  @db.Decimal(10, 2)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+// ---------- Project (mirror of a Linear project) ----------
+//
+// Always backed by a Linear project — never created manually. Auto-populated
+// when the Linear sync discovers projects within the user's mapped scopes.
 
-  @@index([clientId])
-  @@map("task_overrides")
-}
+model Project {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-model Invoice {
-  id             String        @id @default(cuid())
-  clientId       String
-  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  month          DateTime
-  totalAmount    Decimal       @default(0) @db.Decimal(10, 2)
-  status         InvoiceStatus @default(DRAFT)
-  paymentDueDate DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  linearProjectId String  @unique
+  linearTeamId    String?
 
-  files InvoiceFile[]
+  name        String
+  key         String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
 
-  @@unique([clientId, month])
+  linearCreatedAt DateTime?
+  lastSyncedAt    DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tasks    Task[]
+  invoices Invoice[]
+
+  @@index([userId])
   @@index([clientId])
   @@index([status])
-  @@index([month])
+  @@map("projects")
+}
+
+// ---------- Task (mirror of a Linear issue + billing state) ----------
+//
+// One row per Linear issue we care about. The display `status` is derived
+// during sync from the Linear state's type:
+//   - completed + !invoiceId   → PENDING_INVOICE
+//   - completed +  invoiceId   → DONE
+//   - started                  → IN_PROGRESS
+//   - unstarted/triage         → BACKLOG
+//   - canceled                 → CANCELED (filtered out of most views)
+// We also persist Linear's raw state name + type for display/debugging.
+
+model Task {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  linearIssueId    String  @unique
+  linearIdentifier String // e.g. "TRI-543" — displayed in tables
+  linearStateName  String?
+  linearStateType  String?
+
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(BACKLOG)
+  priority    TaskPriority @default(NONE)
+  estimate    Decimal?     @db.Decimal(6, 2)
+
+  completedAt     DateTime?
+  linearCreatedAt DateTime?
+  linearUpdatedAt DateTime?
+  lastSyncedAt    DateTime  @default(now())
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  invoiceLines InvoiceLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([clientId, status])
+  @@index([projectId])
+  @@index([invoiceId])
+  @@index([status])
+  @@map("tasks")
+}
+
+// ---------- Invoice ----------
+
+model Invoice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  paymentStatus PaymentStatus @default(UNPAID)
+  kind          InvoiceKind   @default(STANDARD)
+
+  issueDate DateTime
+  dueDate   DateTime
+
+  subtotal      Decimal  @default(0) @db.Decimal(10, 2)
+  totalOverride Decimal? @db.Decimal(10, 2)
+  tax      Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @default(0) @db.Decimal(10, 2)
+  notes    String? @db.Text
+
+  lines    InvoiceLine[]
+  files    InvoiceFile[]
+  tasks    Task[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([issueDate])
   @@map("invoices")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount Decimal  @db.Decimal(10, 2)
+  paidAt DateTime
+  method String?
+  note   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  label    String
+  qty      Decimal @db.Decimal(10, 2)
+  rate     Decimal @db.Decimal(10, 2)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([taskId])
+  @@map("invoice_lines")
 }
 
 model InvoiceFile {
@@ -258,135 +397,4 @@ model InvoiceFile {
 
   @@index([invoiceId])
   @@map("invoice_files")
-}
-
-model Expense {
-  id          String          @id @default(cuid())
-  userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId    String?
-  client      Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  category    ExpenseCategory @default(OTHER)
-  description String
-  amount      Decimal         @db.Decimal(10, 2)
-  date        DateTime
-  recurring   Boolean         @default(false)
-  receiptUrl  String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  deletedAt   DateTime?
-
-  tags            Tag[]
-  bankTransaction BankTransaction?
-
-  @@index([userId])
-  @@index([userId, category])
-  @@index([userId, date])
-  @@index([clientId])
-  @@index([date])
-  @@index([deletedAt])
-  @@map("expenses")
-}
-
-model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  message   String
-  metadata  Json?
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
-
-  @@index([userId, readAt])
-  @@index([userId, type])
-  @@index([createdAt])
-  @@map("notifications")
-}
-
-// --- Audit Log ---
-// NOTE: action and entity are kept as String for now to avoid a migration.
-// Valid actions: CREATE, UPDATE, DELETE, ARCHIVE, UNARCHIVE, EXPORT, LOGIN
-// Valid entities: Client, Expense, Invoice, TaskOverride, UserSettings, UserData, Tag, BankTransaction
-// Enforced at application layer via AUDIT_ACTIONS in src/lib/audit-log.ts.
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String
-  action     String
-  entity     String
-  entityId   String?
-  metadata   Json?
-  ipAddress  String?
-  createdAt  DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([entity, entityId])
-  @@index([action])
-  @@map("audit_logs")
-}
-
-// --- Local Task Cache (reduces Linear API dependency) ---
-
-model TaskCache {
-  linearIssueId String   @id
-  userId        String
-  data          Json     // Full serialized Linear issue data
-  syncedAt      DateTime @default(now())
-
-  @@index([userId])
-  @@index([syncedAt])
-  @@map("task_cache")
-}
-
-// --- Usage Metrics ---
-
-model UsageMetric {
-  id        String   @id @default(cuid())
-  userId    String
-  event     String   // page_view, action, feature_used, etc.
-  page      String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([event])
-  @@map("usage_metrics")
-}
-
-// --- Tags (custom labels for clients and expenses) ---
-
-model Tag {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  color     String   @default("#6b7280")
-  createdAt DateTime @default(now())
-
-  clients  Client[]
-  expenses Expense[]
-
-  @@unique([userId, name])
-  @@index([userId])
-  @@map("tags")
-}
-
-// --- Bank Transactions (imported from CSV) ---
-
-model BankTransaction {
-  id               String   @id @default(cuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date             DateTime
-  description      String
-  amount           Decimal  @db.Decimal(10, 2)
-  bankName         String?
-  matchedExpenseId String?  @unique
-  matchedExpense   Expense? @relation(fields: [matchedExpenseId], references: [id], onDelete: SetNull)
-  importedAt       DateTime @default(now())
-
-  @@index([userId])
-  @@index([userId, date])
-  @@map("bank_transactions")
 }

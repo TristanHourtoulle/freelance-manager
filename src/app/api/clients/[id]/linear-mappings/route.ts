@@ -1,92 +1,98 @@
-import { prisma } from "@/lib/db"
-import { apiError, getAuthenticatedUser, handleApiError } from "@/lib/api-utils"
-import { createLinearMappingBodySchema } from "@/lib/schemas/linear-mapping"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
+import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import { linearMappingCreateSchema } from "@/lib/schemas/linear-mapping"
+import { syncOneProject } from "@/lib/linear"
 
-interface RouteContext {
+interface Params {
   params: Promise<{ id: string }>
 }
 
-/**
- * GET /api/clients/:id/linear-mappings
- * Lists all Linear mappings (team/project associations) for a client.
- * @returns 200 - `LinearMapping[]`
- * @throws 401 - Unauthenticated request
- * @throws 404 - Client not found
- */
-export async function GET(request: Request, context: RouteContext) {
+export async function GET(_: Request, { params }: Params) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
+  const { id } = await params
   try {
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const { id } = await context.params
-
-    const client = await prisma.client.findFirst({
-      where: { id, userId: userOrError.id },
-    })
-
-    if (!client) {
-      return apiError("CLIENT_NOT_FOUND", "Client not found", 404)
-    }
-
     const mappings = await prisma.linearMapping.findMany({
-      where: { clientId: id },
+      where: { clientId: id, client: { userId: user.id } },
       orderBy: { createdAt: "desc" },
     })
-
-    return NextResponse.json(mappings)
+    return NextResponse.json({ items: mappings })
   } catch (error) {
-    return handleApiError(error)
+    return apiServerError(error)
   }
 }
 
-/**
- * POST /api/clients/:id/linear-mappings
- * Creates a new Linear mapping for a client (team or project association).
- * @returns 201 - The created `LinearMapping`
- * @throws 401 - Unauthenticated request
- * @throws 400 - Invalid request body
- * @throws 404 - Client not found
- * @throws 409 - Duplicate mapping
- */
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(req: Request, { params }: Params) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
+  const { id } = await params
   try {
-    const userOrError = await getAuthenticatedUser(request)
-    if (userOrError instanceof NextResponse) return userOrError
-
-    const { id } = await context.params
-
-    const client = await prisma.client.findFirst({
-      where: { id, userId: userOrError.id },
+    const data = linearMappingCreateSchema.parse({
+      ...((await req.json()) as object),
+      clientId: id,
     })
 
-    if (!client) {
-      return apiError("CLIENT_NOT_FOUND", "Client not found", 404)
+    const owned = await prisma.client.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true },
+    })
+    if (!owned) return apiUnauthorized()
+
+    if (data.linearProjectId) {
+      const existing = await prisma.linearMapping.findFirst({
+        where: {
+          linearProjectId: data.linearProjectId,
+          client: { userId: user.id },
+        },
+        include: {
+          client: {
+            select: {
+              firstName: true,
+              lastName: true,
+              company: true,
+            },
+          },
+        },
+      })
+      if (existing && existing.clientId !== id) {
+        const label =
+          existing.client.company ??
+          `${existing.client.firstName} ${existing.client.lastName}`
+        return NextResponse.json(
+          {
+            error: `Ce projet Linear est déjà lié au client ${label}`,
+            conflictClientId: existing.clientId,
+          },
+          { status: 409 },
+        )
+      }
+      if (existing && existing.clientId === id) {
+        return NextResponse.json(existing, { status: 200 })
+      }
     }
 
-    const body = await request.json()
-    const validated = createLinearMappingBodySchema.parse(body)
-
-    const mapping = await prisma.linearMapping.create({
+    const created = await prisma.linearMapping.create({
       data: {
         clientId: id,
-        ...validated,
+        linearTeamId: data.linearTeamId ?? null,
+        linearProjectId: data.linearProjectId ?? null,
       },
     })
 
-    return NextResponse.json(mapping, { status: 201 })
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as { code: string }).code === "P2002"
-    ) {
-      return apiError(
-        "MAPPING_DUPLICATE",
-        "This project or team is already mapped to a client",
-        409,
-      )
+    if (data.linearProjectId) {
+      try {
+        await syncOneProject({
+          userId: user.id,
+          clientId: id,
+          linearProjectId: data.linearProjectId,
+        })
+      } catch (e) {
+        console.warn("[linear] syncOneProject failed", e)
+      }
     }
-    return handleApiError(error)
+    return NextResponse.json(created, { status: 201 })
+  } catch (error) {
+    return apiServerError(error)
   }
 }
