@@ -23,6 +23,24 @@ import { useToast } from "@/components/providers/toast-provider"
 
 type Filter = "all" | "DRAFT" | "SENT" | "PARTIAL" | "PAID" | "OVERDUE"
 
+function matchesFilter(
+  i: {
+    status: string
+    paymentStatus: string
+    isOverdue: boolean
+  },
+  f: Filter,
+): boolean {
+  if (f === "all") return true
+  if (f === "DRAFT") return i.status === "DRAFT"
+  if (f === "SENT")
+    return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
+  if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
+  if (f === "PAID") return i.paymentStatus === "PAID"
+  if (f === "OVERDUE") return i.isOverdue
+  return true
+}
+
 export function MobileBillingPage() {
   const router = useRouter()
   const search = useSearchParams()
@@ -33,17 +51,6 @@ export function MobileBillingPage() {
   const { data: clients = [] } = useClients()
   const [filter, setFilter] = useState<Filter>(initialFilter)
   const [openId, setOpenId] = useState<string | null>(initialId)
-
-  function matchesFilter(i: (typeof invoices)[number], f: Filter) {
-    if (f === "all") return true
-    if (f === "DRAFT") return i.status === "DRAFT"
-    if (f === "SENT")
-      return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
-    if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
-    if (f === "PAID") return i.paymentStatus === "PAID"
-    if (f === "OVERDUE") return i.isOverdue
-    return true
-  }
 
   const filtered = useMemo(
     () =>

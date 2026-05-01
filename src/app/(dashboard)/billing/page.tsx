@@ -20,6 +20,25 @@ type FilterId =
   | "OVERPAID"
   | "OVERDUE"
 
+function matchesFilter(
+  i: {
+    status: string
+    paymentStatus: string
+    isOverdue: boolean
+  },
+  f: FilterId,
+): boolean {
+  if (f === "all") return true
+  if (f === "DRAFT") return i.status === "DRAFT"
+  if (f === "SENT")
+    return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
+  if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
+  if (f === "PAID") return i.paymentStatus === "PAID"
+  if (f === "OVERPAID") return i.paymentStatus === "OVERPAID"
+  if (f === "OVERDUE") return i.isOverdue
+  return true
+}
+
 export default function BillingPage() {
   const isMobile = useIsMobile()
   if (isMobile) return <MobileBillingPage />
@@ -36,18 +55,6 @@ function DesktopBillingPage() {
 
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
-
-  function matchesFilter(i: (typeof invoices)[number], f: FilterId) {
-    if (f === "all") return true
-    if (f === "DRAFT") return i.status === "DRAFT"
-    if (f === "SENT")
-      return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
-    if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
-    if (f === "PAID") return i.paymentStatus === "PAID"
-    if (f === "OVERPAID") return i.paymentStatus === "OVERPAID"
-    if (f === "OVERDUE") return i.isOverdue
-    return true
-  }
 
   const filtered = useMemo(() => {
     return invoices.filter((i) => {

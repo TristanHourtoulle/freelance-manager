@@ -133,14 +133,14 @@ function ToastItem({ toast, onDismiss, mobile }: ToastItemProps) {
   const [phase, setPhase] = useState<"enter" | "live" | "exit">("enter")
   const [paused, setPaused] = useState(false)
   const [drag, setDrag] = useState(0)
-  const dragging = useRef(false)
-  const startX = useRef(0)
-  const startY = useRef(0)
-  const startedAt = useRef(0)
+  const draggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startYRef = useRef(0)
+  const startedAtRef = useRef(0)
   const remainingRef = useRef(toast.duration)
 
   useLayoutEffect(() => {
-    startedAt.current = Date.now()
+    startedAtRef.current = Date.now()
     const r = requestAnimationFrame(() =>
       requestAnimationFrame(() => setPhase("live")),
     )
@@ -155,30 +155,30 @@ function ToastItem({ toast, onDismiss, mobile }: ToastItemProps) {
   useEffect(() => {
     if (toast.duration === Infinity) return
     if (paused) return
-    startedAt.current = Date.now()
+    startedAtRef.current = Date.now()
     const t = setTimeout(() => beginExit(), remainingRef.current)
     return () => {
       clearTimeout(t)
       remainingRef.current =
-        remainingRef.current - (Date.now() - startedAt.current)
+        remainingRef.current - (Date.now() - startedAtRef.current)
     }
   }, [paused, toast.duration, toast.id, beginExit])
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    dragging.current = true
-    startX.current = e.clientX
-    startY.current = e.clientY
+    draggingRef.current = true
+    startXRef.current = e.clientX
+    startYRef.current = e.clientY
     e.currentTarget.setPointerCapture(e.pointerId)
   }
   function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return
-    const dx = e.clientX - startX.current
-    const dy = e.clientY - startY.current
+    if (!draggingRef.current) return
+    const dx = e.clientX - startXRef.current
+    const dy = e.clientY - startYRef.current
     if (mobile) setDrag(Math.max(dy, 0))
     else setDrag(dx)
   }
   function onPointerUp() {
-    dragging.current = false
+    draggingRef.current = false
     if (Math.abs(drag) > 80) beginExit()
     else setDrag(0)
   }
