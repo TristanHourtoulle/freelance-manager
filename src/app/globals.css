@@ -2422,3 +2422,227 @@ textarea {
 .progress-dots .dot.active {
   background: var(--accent);
 }
+
+/* =====================================================================
+   Toasts (mirror of design-reference/src/toast.jsx)
+   Top-right on desktop, bottom-fullwidth on mobile, with type accent,
+   progress bar, swipe-to-dismiss, hover-pause.
+   ===================================================================== */
+
+@keyframes tprogress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.toast-viewport {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-sans);
+}
+.toast-viewport.pos-top-right {
+  top: 18px;
+  right: 18px;
+  align-items: flex-end;
+  flex-direction: column;
+}
+.toast-viewport.pos-bottom {
+  bottom: max(18px, env(safe-area-inset-bottom, 18px));
+  left: 12px;
+  right: 12px;
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+
+.toast-item {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 13px 38px 13px 16px;
+  background: oklch(0.22 0.008 240 / 0.92);
+  border: 1px solid oklch(0.34 0.01 240 / 0.7);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.04) inset,
+    0 6px 16px rgba(0, 0, 0, 0.28),
+    0 18px 36px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  color: var(--text-0);
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.45;
+  transition:
+    transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 220ms ease;
+  will-change: transform, opacity;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.toast-item.is-mobile {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  touch-action: pan-x pan-y;
+}
+.toast-item:active {
+  cursor: grabbing;
+}
+
+.toast-viewport.pos-top-right .toast-item.phase-enter {
+  transform: translate3d(60px, -10px, 0) rotate(3deg) scale(0.94);
+  opacity: 0;
+}
+.toast-viewport.pos-bottom .toast-item.phase-enter {
+  transform: translate3d(0, 100%, 0) scale(0.96);
+  opacity: 0;
+}
+.toast-item.phase-live {
+  transform: translate3d(0, 0, 0) rotate(0) scale(1);
+  opacity: 1;
+}
+.toast-item.phase-exit {
+  transition:
+    transform 240ms ease-in,
+    opacity 240ms ease-in;
+  opacity: 0;
+}
+.toast-viewport.pos-top-right .toast-item.phase-exit {
+  transform: translate3d(80px, 0, 0) scale(0.94);
+}
+.toast-viewport.pos-bottom .toast-item.phase-exit {
+  transform: translate3d(0, 100%, 0) scale(0.96);
+}
+
+.toast-item .toast-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+.toast-item.t-success .toast-accent {
+  background: var(--accent);
+}
+.toast-item.t-error .toast-accent {
+  background: var(--danger);
+}
+.toast-item.t-warning .toast-accent {
+  background: var(--warn);
+}
+.toast-item.t-info .toast-accent {
+  background: var(--info);
+}
+
+.toast-item .toast-icon {
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.toast-item.t-success .toast-icon {
+  color: var(--accent);
+}
+.toast-item.t-error .toast-icon {
+  color: var(--danger);
+}
+.toast-item.t-warning .toast-icon {
+  color: var(--warn);
+}
+.toast-item.t-info .toast-icon {
+  color: var(--info);
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+.toast-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 2px;
+  letter-spacing: -0.005em;
+}
+.toast-desc {
+  color: var(--text-2);
+  font-size: 12.5px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.toast-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  background: transparent;
+  border: none;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.toast-item:hover .toast-close,
+.toast-item.is-mobile .toast-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+.toast-close:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: oklch(0.3 0.01 240 / 0.5);
+  overflow: hidden;
+}
+.toast-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: tprogress linear forwards;
+}
+.toast-item.t-error .toast-progress-bar {
+  background: var(--danger);
+}
+.toast-item.t-warning .toast-progress-bar {
+  background: var(--warn);
+}
+.toast-item.t-info .toast-progress-bar {
+  background: var(--info);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-item,
+  .toast-item.phase-enter,
+  .toast-item.phase-exit {
+    transition-duration: 0ms !important;
+    transform: none !important;
+  }
+  .toast-progress-bar {
+    animation: none;
+  }
+}
