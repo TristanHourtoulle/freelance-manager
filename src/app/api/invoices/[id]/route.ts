@@ -11,6 +11,11 @@ import {
   invoiceStatusUpdateSchema,
   invoiceUpdateSchema,
 } from "@/lib/schemas/invoice"
+import {
+  getInvoiceComputed,
+  recomputeInvoicePayment,
+  serializePayment,
+} from "@/lib/payments"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -23,9 +28,14 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const inv = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      include: { lines: { orderBy: { position: "asc" } }, client: true },
+      include: {
+        lines: { orderBy: { position: "asc" } },
+        client: true,
+        payments: { orderBy: { paidAt: "asc" } },
+      },
     })
     if (!inv) return apiNotFound()
+    const computed = getInvoiceComputed(inv)
     return NextResponse.json({
       id: inv.id,
       number: inv.number,
@@ -41,10 +51,14 @@ export async function GET(_: Request, { params }: Params) {
         color: inv.client.color,
       },
       status: inv.status,
+      paymentStatus: inv.paymentStatus,
+      isOverdue: computed.isOverdue,
       kind: inv.kind,
       issueDate: inv.issueDate.toISOString(),
       dueDate: inv.dueDate.toISOString(),
-      paidAt: inv.paidAt?.toISOString() ?? null,
+      paidAmount: computed.paidAmount,
+      balanceDue: computed.balanceDue,
+      lastPaidAt: computed.lastPaidAt,
       subtotal: decimalToNumber(inv.subtotal) ?? 0,
       tax: decimalToNumber(inv.tax) ?? 0,
       total: decimalToNumber(inv.total) ?? 0,
@@ -57,6 +71,7 @@ export async function GET(_: Request, { params }: Params) {
         qty: decimalToNumber(l.qty) ?? 0,
         rate: decimalToNumber(l.rate) ?? 0,
       })),
+      payments: inv.payments.map(serializePayment),
     })
   } catch (error) {
     return apiServerError(error)
@@ -73,7 +88,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const owned = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      select: { id: true, status: true },
+      select: { id: true, paymentStatus: true },
     })
     if (!owned) return apiNotFound()
 
@@ -81,22 +96,14 @@ export async function PATCH(req: Request, { params }: Params) {
       const data = invoiceStatusUpdateSchema.parse(body)
       await prisma.invoice.update({
         where: { id },
-        data: {
-          status: data.status,
-          paidAt:
-            data.status === "PAID"
-              ? data.paidAt
-                ? new Date(data.paidAt)
-                : new Date()
-              : null,
-        },
+        data: { status: data.status },
       })
       return NextResponse.json({ ok: true })
     }
 
-    if (owned.status === "PAID") {
+    if (owned.paymentStatus === "PAID" || owned.paymentStatus === "OVERPAID") {
       return NextResponse.json(
-        { error: "Une facture payée ne peut plus être modifiée" },
+        { error: "Une facture entièrement payée ne peut plus être modifiée" },
         { status: 409 },
       )
     }
@@ -144,12 +151,6 @@ export async function PATCH(req: Request, { params }: Params) {
           kind: data.kind,
           issueDate: new Date(data.issueDate),
           dueDate: new Date(data.dueDate),
-          paidAt:
-            data.status === "PAID"
-              ? data.paidAt
-                ? new Date(data.paidAt)
-                : new Date()
-              : null,
           subtotal,
           tax: 0,
           total,
@@ -174,6 +175,8 @@ export async function PATCH(req: Request, { params }: Params) {
           data: { invoiceId: id, status: "DONE" },
         })
       }
+
+      await recomputeInvoicePayment(id, tx)
     })
 
     return NextResponse.json({ ok: true })

@@ -40,12 +40,15 @@ export default function ClientsPage() {
   const enriched: EnrichedClient[] = useMemo(() => {
     return clients.map((c) => {
       const myInvoices = invoices.filter((i) => i.clientId === c.id)
-      const revenue = myInvoices
-        .filter((i) => i.status === "PAID")
-        .reduce((s, i) => s + i.total, 0)
+      const revenue = myInvoices.reduce((s, i) => s + i.paidAmount, 0)
       const outstanding = myInvoices
-        .filter((i) => i.status === "SENT" || i.status === "OVERDUE")
-        .reduce((s, i) => s + i.total, 0)
+        .filter(
+          (i) =>
+            i.status === "SENT" &&
+            (i.paymentStatus === "UNPAID" ||
+              i.paymentStatus === "PARTIALLY_PAID"),
+        )
+        .reduce((s, i) => s + i.balanceDue, 0)
       const pendingTasksCount = tasks.filter(
         (t) => t.clientId === c.id && t.status === "PENDING_INVOICE",
       ).length

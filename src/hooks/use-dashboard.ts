@@ -27,9 +27,12 @@ export interface DashboardDTO {
     id: string
     number: string
     kind: "STANDARD" | "DEPOSIT"
-    status: "DRAFT" | "SENT" | "PAID" | "OVERDUE"
+    status: "DRAFT" | "SENT" | "CANCELLED"
+    paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
+    isOverdue: boolean
     issueDate: string
     total: number
+    balanceDue: number
     client: {
       firstName: string
       lastName: string

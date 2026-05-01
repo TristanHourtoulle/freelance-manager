@@ -155,10 +155,6 @@ export async function POST(req: Request) {
             kind: base.kind,
             issueDate: new Date(base.issueDate),
             dueDate: new Date(dueDate),
-            paidAt:
-              base.status === "PAID" && base.paidAt
-                ? new Date(base.paidAt)
-                : null,
             subtotal,
             tax: 0,
             total: partAmount,

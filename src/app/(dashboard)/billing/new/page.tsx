@@ -51,9 +51,8 @@ export default function NewInvoicePage() {
     return d.toISOString().slice(0, 10)
   })
   const [kind, setKind] = useState<Kind>("STANDARD")
-  const [initialStatus, setInitialStatus] = useState<"DRAFT" | "SENT" | "PAID">(
-    "DRAFT",
-  )
+  const [initialStatus, setInitialStatus] = useState<"DRAFT" | "SENT">("DRAFT")
+  const [markPaid, setMarkPaid] = useState(false)
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
   const [depositLabel, setDepositLabel] = useState("Acompte 30%")
   const [depositAmount, setDepositAmount] = useState<number>(0)
@@ -163,7 +162,7 @@ export default function NewInvoicePage() {
     ? Number(totalOverride) || 0
     : subtotal
 
-  function buildPayload(status: "DRAFT" | "SENT" | "PAID") {
+  function buildPayload(status: "DRAFT" | "SENT") {
     if (!client) return null
     const linesPayload =
       kind === "DEPOSIT"
@@ -181,13 +180,17 @@ export default function NewInvoicePage() {
             qty: Number(l.qty),
             rate: Number(l.rate),
           }))
+    const total = useTotalOverride
+      ? Number(totalOverride) || 0
+      : kind === "DEPOSIT"
+        ? Number(depositAmount) || 0
+        : lines.reduce((s, l) => s + Number(l.qty) * Number(l.rate), 0)
     return {
       clientId: client.id,
       projectId: projectId !== "all" ? projectId : null,
       number: customNumber.trim() || undefined,
       issueDate,
       dueDate,
-      paidAt: status === "PAID" ? paidAt : null,
       kind,
       status,
       totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
@@ -196,10 +199,14 @@ export default function NewInvoicePage() {
         kind === "STANDARD"
           ? lines.map((l) => l.taskId).filter((x): x is string => Boolean(x))
           : [],
+      initialPayment:
+        markPaid && total > 0
+          ? { amount: total, paidAt, method: null, note: null }
+          : null,
     }
   }
 
-  function submit(status: "DRAFT" | "SENT" | "PAID") {
+  function submit(status: "DRAFT" | "SENT") {
     const payload = buildPayload(status)
     if (!payload) return
     createInvoice.mutate(payload, {
@@ -209,7 +216,7 @@ export default function NewInvoicePage() {
           title:
             status === "DRAFT"
               ? "Brouillon créé"
-              : status === "PAID"
+              : markPaid
                 ? "Facture créée et payée"
                 : "Facture émise",
         })
@@ -382,8 +389,7 @@ export default function NewInvoicePage() {
                 [
                   { id: "DRAFT", label: "Brouillon" },
                   { id: "SENT", label: "Émise" },
-                  { id: "PAID", label: "Payée" },
-                ] as { id: "DRAFT" | "SENT" | "PAID"; label: string }[]
+                ] as { id: "DRAFT" | "SENT"; label: string }[]
               ).map((s) => (
                 <button
                   key={s.id}
@@ -406,15 +412,42 @@ export default function NewInvoicePage() {
               ))}
             </div>
           </div>
-          {initialStatus === "PAID" && (
-            <div className="field" style={{ width: 180 }}>
-              <label className="field-label">Date de paiement</label>
-              <input
-                className="input"
-                type="date"
-                value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-              />
+          {initialStatus === "SENT" && (
+            <div className="field" style={{ width: 320 }}>
+              <label className="field-label">Marquer comme payée</label>
+              <div
+                className="row gap-8"
+                style={{
+                  background: "var(--bg-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 7,
+                  padding: "8px 10px",
+                  height: 40,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  id="markPaid"
+                  checked={markPaid}
+                  onChange={(e) => setMarkPaid(e.target.checked)}
+                />
+                <label
+                  htmlFor="markPaid"
+                  className="small"
+                  style={{ flex: 1, cursor: "pointer" }}
+                >
+                  Paiement total reçu
+                </label>
+                {markPaid && (
+                  <input
+                    className="input"
+                    type="date"
+                    value={paidAt}
+                    onChange={(e) => setPaidAt(e.target.value)}
+                    style={{ width: 140 }}
+                  />
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -544,9 +577,9 @@ export default function NewInvoicePage() {
               <Icon name="check" size={14} />
               {initialStatus === "DRAFT"
                 ? "Sauver le brouillon"
-                : initialStatus === "SENT"
-                  ? "Émettre la facture"
-                  : "Créer la facture (payée)"}
+                : markPaid
+                  ? "Émettre et marquer payée"
+                  : "Émettre la facture"}
             </button>
           </div>
         </div>

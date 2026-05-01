@@ -723,6 +723,14 @@ textarea {
   background: var(--danger-soft);
   color: var(--danger);
 }
+.pill-partial {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.pill-overpaid {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
 .pill-deposit {
   background: var(--purple-soft);
   color: var(--purple);

@@ -8,6 +8,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { clientUpdateSchema } from "@/lib/schemas/client"
+import { getInvoiceComputed } from "@/lib/payments"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -36,7 +37,10 @@ export async function GET(_: Request, { params }: Params) {
       prisma.invoice.findMany({
         where: { clientId: c.id },
         orderBy: { issueDate: "desc" },
-        include: { lines: true },
+        include: {
+          lines: true,
+          payments: { select: { amount: true, paidAt: true } },
+        },
       }),
     ])
 
@@ -78,17 +82,23 @@ export async function GET(_: Request, { params }: Params) {
         projectId: t.projectId,
         invoiceId: t.invoiceId,
       })),
-      invoices: invoices.map((inv) => ({
-        id: inv.id,
-        number: inv.number,
-        status: inv.status,
-        kind: inv.kind,
-        issueDate: inv.issueDate.toISOString(),
-        dueDate: inv.dueDate.toISOString(),
-        paidAt: inv.paidAt?.toISOString() ?? null,
-        total: decimalToNumber(inv.total) ?? 0,
-        linesCount: inv.lines.length,
-      })),
+      invoices: invoices.map((inv) => {
+        const computed = getInvoiceComputed(inv)
+        return {
+          id: inv.id,
+          number: inv.number,
+          status: inv.status,
+          paymentStatus: inv.paymentStatus,
+          isOverdue: computed.isOverdue,
+          kind: inv.kind,
+          issueDate: inv.issueDate.toISOString(),
+          dueDate: inv.dueDate.toISOString(),
+          paidAmount: computed.paidAmount,
+          balanceDue: computed.balanceDue,
+          total: decimalToNumber(inv.total) ?? 0,
+          linesCount: inv.lines.length,
+        }
+      }),
     })
   } catch (error) {
     return apiServerError(error)

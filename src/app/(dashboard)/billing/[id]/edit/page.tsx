@@ -45,10 +45,7 @@ export default function EditInvoicePage({ params }: PageProps) {
   const [projectId, setProjectId] = useState<string>("all")
   const [issueDate, setIssueDate] = useState("")
   const [dueDate, setDueDate] = useState("")
-  const [paidAt, setPaidAt] = useState("")
-  const [status, setStatus] = useState<"DRAFT" | "SENT" | "PAID" | "OVERDUE">(
-    "DRAFT",
-  )
+  const [status, setStatus] = useState<"DRAFT" | "SENT" | "CANCELLED">("DRAFT")
   const [kind, setKind] = useState<Kind>("STANDARD")
   const [depositLabel, setDepositLabel] = useState("Acompte 30%")
   const [depositAmount, setDepositAmount] = useState<number>(0)
@@ -66,11 +63,6 @@ export default function EditInvoicePage({ params }: PageProps) {
     setProjectId(invoice.projectId ?? "all")
     setIssueDate(invoice.issueDate.slice(0, 10))
     setDueDate(invoice.dueDate.slice(0, 10))
-    setPaidAt(
-      invoice.paidAt
-        ? invoice.paidAt.slice(0, 10)
-        : new Date().toISOString().slice(0, 10),
-    )
     setStatus(invoice.status)
     setKind(invoice.kind)
     setCustomNumber(invoice.number)
@@ -125,12 +117,18 @@ export default function EditInvoicePage({ params }: PageProps) {
     )
   }
 
-  if (invoice.status === "PAID") {
+  if (
+    invoice.paymentStatus === "PAID" ||
+    invoice.paymentStatus === "OVERPAID"
+  ) {
     return (
       <div className="page">
         <div className="empty">
-          <div className="empty-title">Facture payée</div>
-          <div>Une facture payée ne peut plus être modifiée.</div>
+          <div className="empty-title">Facture entièrement payée</div>
+          <div>
+            Pour modifier le contenu, supprime d&apos;abord les paiements
+            associés depuis le drawer.
+          </div>
           <button
             className="btn btn-primary"
             style={{ marginTop: 16 }}
@@ -189,7 +187,7 @@ export default function EditInvoicePage({ params }: PageProps) {
     ? Number(totalOverride) || 0
     : subtotal
 
-  function save(targetStatus: "DRAFT" | "SENT" | "PAID" | "OVERDUE") {
+  function save(targetStatus: "DRAFT" | "SENT" | "CANCELLED") {
     if (!client) return
     const linesPayload =
       kind === "DEPOSIT"
@@ -214,7 +212,6 @@ export default function EditInvoicePage({ params }: PageProps) {
         number: customNumber.trim() || undefined,
         issueDate,
         dueDate,
-        paidAt: targetStatus === "PAID" ? paidAt : null,
         kind,
         status: targetStatus,
         totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
@@ -360,10 +357,9 @@ export default function EditInvoicePage({ params }: PageProps) {
                 [
                   { id: "DRAFT", label: "Brouillon" },
                   { id: "SENT", label: "Émise" },
-                  { id: "OVERDUE", label: "En retard" },
-                  { id: "PAID", label: "Payée" },
+                  { id: "CANCELLED", label: "Annulée" },
                 ] as {
-                  id: "DRAFT" | "SENT" | "OVERDUE" | "PAID"
+                  id: "DRAFT" | "SENT" | "CANCELLED"
                   label: string
                 }[]
               ).map((s) => (
@@ -386,17 +382,6 @@ export default function EditInvoicePage({ params }: PageProps) {
               ))}
             </div>
           </div>
-          {status === "PAID" && (
-            <div className="field" style={{ width: 180 }}>
-              <label className="field-label">Date de paiement</label>
-              <input
-                className="input"
-                type="date"
-                value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-              />
-            </div>
-          )}
         </div>
         {client && (
           <div

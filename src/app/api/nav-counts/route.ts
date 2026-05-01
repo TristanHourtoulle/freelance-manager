@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db"
  * - clients: active (non-archived) clients
  * - projects: active projects
  * - tasks: tasks in PENDING_INVOICE state (the "ready to bill" backlog)
- * - invoices: invoices in DRAFT, SENT or OVERDUE (i.e. not yet PAID)
+ * - invoices: open invoices (not cancelled and not fully settled)
  */
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -24,7 +24,8 @@ export async function GET() {
     prisma.invoice.count({
       where: {
         userId,
-        status: { in: ["DRAFT", "SENT", "OVERDUE"] },
+        status: { not: "CANCELLED" },
+        paymentStatus: { in: ["UNPAID", "PARTIALLY_PAID"] },
       },
     }),
   ])

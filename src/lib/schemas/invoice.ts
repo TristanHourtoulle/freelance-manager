@@ -1,6 +1,6 @@
 import { z } from "zod/v4"
 
-export const invoiceStatusSchema = z.enum(["DRAFT", "SENT", "PAID", "OVERDUE"])
+export const invoiceStatusSchema = z.enum(["DRAFT", "SENT", "CANCELLED"])
 
 export const invoiceKindSchema = z.enum(["STANDARD", "DEPOSIT"])
 
@@ -22,6 +22,16 @@ const optionalNumber = z.coerce
 
 const optionalNumberString = z.string().min(1).max(40).optional()
 
+const initialPaymentSchema = z
+  .object({
+    amount: z.coerce.number().gt(0).max(10_000_000),
+    paidAt: isoDate,
+    method: z.string().max(60).optional().nullable(),
+    note: z.string().max(500).optional().nullable(),
+  })
+  .optional()
+  .nullable()
+
 export const invoiceCreateSchema = z
   .object({
     clientId: z.string().min(1),
@@ -31,11 +41,11 @@ export const invoiceCreateSchema = z
     status: invoiceStatusSchema.default("DRAFT"),
     issueDate: isoDate,
     dueDate: isoDate,
-    paidAt: isoDate.optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     totalOverride: optionalNumber,
     lines: z.array(invoiceLineSchema).min(1),
     taskIds: z.array(z.string()).optional(),
+    initialPayment: initialPaymentSchema,
   })
   .superRefine((val, ctx) => {
     if (val.kind === "DEPOSIT" && val.lines.length !== 1) {
@@ -45,18 +55,10 @@ export const invoiceCreateSchema = z
         message: "Deposit invoice must have exactly one line",
       })
     }
-    if (val.status === "PAID" && !val.paidAt) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["paidAt"],
-        message: "paidAt is required when status is PAID",
-      })
-    }
   })
 
 export const invoiceStatusUpdateSchema = z.object({
   status: invoiceStatusSchema,
-  paidAt: isoDate.optional().nullable(),
 })
 
 /**
@@ -72,7 +74,6 @@ export const invoiceUpdateSchema = z
     status: invoiceStatusSchema,
     issueDate: isoDate,
     dueDate: isoDate,
-    paidAt: isoDate.optional().nullable(),
     notes: z.string().max(2000).optional().nullable(),
     totalOverride: optionalNumber,
     lines: z.array(invoiceLineSchema).min(1),
@@ -84,13 +85,6 @@ export const invoiceUpdateSchema = z
         code: "custom",
         path: ["lines"],
         message: "Deposit invoice must have exactly one line",
-      })
-    }
-    if (val.status === "PAID" && !val.paidAt) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["paidAt"],
-        message: "paidAt is required when status is PAID",
       })
     }
   })

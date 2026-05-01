@@ -78,8 +78,8 @@ export default function ProjectsPage() {
               )
             : 0
       const revenue = invoices
-        .filter((i) => i.projectId === p.id && i.status === "PAID")
-        .reduce((s, i) => s + i.total, 0)
+        .filter((i) => i.projectId === p.id)
+        .reduce((s, i) => s + i.paidAmount, 0)
       const clientLabel =
         p.client.company ?? `${p.client.firstName} ${p.client.lastName}`
       return {

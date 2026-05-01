@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon"
 import {
   BillingTypePill,
   StatusPill,
-  invoiceStatusToPill,
+  invoicePillStatus,
 } from "@/components/ui/pill"
 import {
   fmtDate,
@@ -15,8 +15,13 @@ import {
   initials,
   avatarColor,
 } from "@/lib/format"
-import { useInvoice, useUpdateInvoiceStatus } from "@/hooks/use-invoices"
+import {
+  useInvoice,
+  useUpdateInvoiceStatus,
+  type InvoiceDocStatus,
+} from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
+import { PaymentsSection } from "@/components/billing/payments-section"
 
 interface InvoiceDrawerProps {
   invoiceId: string
@@ -31,31 +36,33 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
 
   if (isLoading || !invoice) {
     return (
-      <Modal title="Facture" onClose={onClose} width={640}>
+      <Modal title="Facture" onClose={onClose} width={680}>
         <div className="empty">Chargement…</div>
       </Modal>
     )
   }
 
   const client = invoice.client
-  const canEdit = invoice.status === "DRAFT" || invoice.status === "SENT"
+  const canEdit =
+    invoice.status !== "CANCELLED" &&
+    invoice.paymentStatus !== "PAID" &&
+    invoice.paymentStatus !== "OVERPAID"
   const hasOverride = invoice.totalOverride != null
+  const isFullyPaid =
+    invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
 
-  function setStatus(
-    status: "DRAFT" | "SENT" | "PAID" | "OVERDUE",
-    paidAt?: string,
-  ) {
+  function setStatus(status: InvoiceDocStatus) {
     updateStatus.mutate(
-      { id: invoice!.id, status, paidAt },
+      { id: invoice!.id, status },
       {
         onSuccess: () =>
           toast({
             variant: "success",
             title:
-              status === "PAID"
-                ? "Facture marquée comme payée"
-                : status === "SENT"
-                  ? "Facture émise"
+              status === "SENT"
+                ? "Facture émise"
+                : status === "CANCELLED"
+                  ? "Facture annulée"
                   : "Statut mis à jour",
           }),
       },
@@ -83,21 +90,12 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
           Émettre
         </button>
       )}
-      {(invoice.status === "SENT" || invoice.status === "OVERDUE") && (
-        <button
-          className="btn btn-primary"
-          onClick={() =>
-            setStatus("PAID", new Date().toISOString().slice(0, 10))
-          }
-        >
-          <Icon name="check" size={14} />
-          Marquer payée
-        </button>
-      )}
-      {invoice.status === "PAID" && (
+      {isFullyPaid && (
         <button className="btn btn-secondary" disabled>
           <Icon name="check" size={14} />
-          Payée le {fmtDate(invoice.paidAt)}
+          {invoice.paymentStatus === "OVERPAID"
+            ? `Trop-perçu de ${fmtEUR(-invoice.balanceDue)}`
+            : `Soldée le ${fmtDate(invoice.lastPaidAt ?? invoice.dueDate)}`}
         </button>
       )}
     </>
@@ -107,7 +105,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
     <Modal
       title={invoice.number}
       onClose={onClose}
-      width={640}
+      width={680}
       footer={footer}
       bodyStyle={{
         padding: 0,
@@ -126,7 +124,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
         }}
       >
         <div className="row gap-8">
-          <StatusPill status={invoiceStatusToPill(invoice.status)} />
+          <StatusPill status={invoicePillStatus(invoice)} />
           {invoice.kind === "DEPOSIT" && (
             <span className="pill pill-deposit pill-no-dot xs">acompte</span>
           )}
@@ -231,6 +229,18 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
             </tbody>
           </table>
         </div>
+
+        <div style={{ marginTop: 18 }}>
+          <PaymentsSection
+            invoiceId={invoice.id}
+            total={invoice.total}
+            balanceDue={invoice.balanceDue}
+            paidAmount={invoice.paidAmount}
+            payments={invoice.payments}
+            paymentStatus={invoice.paymentStatus}
+            documentStatus={invoice.status}
+          />
+        </div>
       </div>
 
       <div
@@ -274,6 +284,36 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
                 {fmtEURprecise(invoice.total)}
               </span>
             </div>
+            {invoice.paidAmount > 0 && (
+              <div
+                className="row"
+                style={{ justifyContent: "space-between", padding: "4px 0" }}
+              >
+                <span className="muted small">Payé</span>
+                <span className="num small" style={{ color: "var(--accent)" }}>
+                  {fmtEURprecise(invoice.paidAmount)}
+                </span>
+              </div>
+            )}
+            {invoice.balanceDue !== 0 && (
+              <div
+                className="row"
+                style={{ justifyContent: "space-between", padding: "4px 0" }}
+              >
+                <span className="strong small">
+                  {invoice.balanceDue > 0 ? "Reste dû" : "Trop-perçu"}
+                </span>
+                <span
+                  className="num strong"
+                  style={{
+                    color:
+                      invoice.balanceDue > 0 ? "var(--warn)" : "var(--purple)",
+                  }}
+                >
+                  {fmtEURprecise(Math.abs(invoice.balanceDue))}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

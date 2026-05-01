@@ -289,14 +289,21 @@ async function main() {
         clientId: "demo-c1",
         projectId: "demo-p1",
         number: `2026-${invNum}`,
-        status: "PAID",
+        status: "SENT",
+        paymentStatus: "PAID",
         kind: "STANDARD",
         issueDate: new Date("2026-02-28"),
         dueDate: new Date("2026-03-30"),
-        paidAt: new Date("2026-03-12"),
         subtotal,
         tax: 0,
         total: subtotal,
+        payments: {
+          create: {
+            userId: user.id,
+            amount: subtotal,
+            paidAt: new Date("2026-03-12"),
+          },
+        },
         lines: {
           create: batch.map((t, i) => ({
             taskId: t.id,
@@ -321,11 +328,11 @@ async function main() {
       clientId: "demo-c2",
       projectId: "demo-p3",
       number: `2026-${invNum}`,
-      status: "PAID",
+      status: "SENT",
+      paymentStatus: "PAID",
       kind: "DEPOSIT",
       issueDate: new Date("2026-01-10"),
       dueDate: new Date("2026-01-25"),
-      paidAt: new Date("2026-01-22"),
       subtotal: 2520,
       tax: 0,
       total: 2520,
@@ -339,6 +346,13 @@ async function main() {
           },
         ],
       },
+      payments: {
+        create: {
+          userId: user.id,
+          amount: 2520,
+          paidAt: new Date("2026-01-22"),
+        },
+      },
     },
   })
 
@@ -349,7 +363,7 @@ async function main() {
       clientId: "demo-c2",
       projectId: "demo-p3",
       number: `2026-${invNum}`,
-      status: "OVERDUE",
+      status: "SENT",
       kind: "STANDARD",
       issueDate: new Date("2026-03-20"),
       dueDate: new Date("2026-04-20"),
@@ -376,11 +390,11 @@ async function main() {
       clientId: "demo-c3",
       projectId: "demo-p4",
       number: `2026-${invNum}`,
-      status: "PAID",
+      status: "SENT",
+      paymentStatus: "PAID",
       kind: "DEPOSIT",
       issueDate: new Date("2026-02-15"),
       dueDate: new Date("2026-03-01"),
-      paidAt: new Date("2026-02-28"),
       subtotal: 4000,
       tax: 0,
       total: 4000,
@@ -393,6 +407,13 @@ async function main() {
             position: 0,
           },
         ],
+      },
+      payments: {
+        create: {
+          userId: user.id,
+          amount: 4000,
+          paidAt: new Date("2026-02-28"),
+        },
       },
     },
   })

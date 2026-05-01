@@ -1,8 +1,4 @@
-import type {
-  BillingMode,
-  InvoiceStatus,
-  TaskStatus,
-} from "@/generated/prisma/client"
+import type { BillingMode, TaskStatus } from "@/generated/prisma/client"
 
 type PillStatus =
   | "pending_invoice"
@@ -12,7 +8,10 @@ type PillStatus =
   | "draft"
   | "sent"
   | "paid"
+  | "partial"
+  | "overpaid"
   | "overdue"
+  | "cancelled"
 
 interface StatusPillProps {
   status: PillStatus
@@ -26,7 +25,10 @@ const STATUS_LABELS: Record<PillStatus, { label: string; cls: string }> = {
   draft: { label: "Brouillon", cls: "pill-draft" },
   sent: { label: "Émise", cls: "pill-sent" },
   paid: { label: "Payée", cls: "pill-paid" },
+  partial: { label: "Partielle", cls: "pill-partial" },
+  overpaid: { label: "Trop-perçu", cls: "pill-overpaid" },
   overdue: { label: "En retard", cls: "pill-overdue" },
+  cancelled: { label: "Annulée", cls: "pill-draft" },
 }
 
 export function StatusPill({ status }: StatusPillProps) {
@@ -52,20 +54,25 @@ export function taskStatusToPill(status: TaskStatus): PillStatus {
   }
 }
 
+interface InvoiceStatusInput {
+  status: "DRAFT" | "SENT" | "CANCELLED"
+  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
+  isOverdue?: boolean
+}
+
 /**
- * Map a Prisma InvoiceStatus enum value to the design's display key.
+ * Resolve the single pill displayed for an invoice from its document status,
+ * payment status and computed overdue flag. Priority: cancelled > overpaid >
+ * paid > overdue > partial > sent > draft.
  */
-export function invoiceStatusToPill(status: InvoiceStatus): PillStatus {
-  switch (status) {
-    case "DRAFT":
-      return "draft"
-    case "SENT":
-      return "sent"
-    case "PAID":
-      return "paid"
-    case "OVERDUE":
-      return "overdue"
-  }
+export function invoicePillStatus(inv: InvoiceStatusInput): PillStatus {
+  if (inv.status === "CANCELLED") return "cancelled"
+  if (inv.paymentStatus === "OVERPAID") return "overpaid"
+  if (inv.paymentStatus === "PAID") return "paid"
+  if (inv.isOverdue) return "overdue"
+  if (inv.paymentStatus === "PARTIALLY_PAID") return "partial"
+  if (inv.status === "SENT") return "sent"
+  return "draft"
 }
 
 interface BillingTypePillProps {

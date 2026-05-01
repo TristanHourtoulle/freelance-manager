@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon"
 import {
   BillingTypePill,
   StatusPill,
-  invoiceStatusToPill,
+  invoicePillStatus,
   taskStatusToPill,
 } from "@/components/ui/pill"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
@@ -46,12 +46,14 @@ export default function ClientDetailPage({ params }: PageProps) {
   const gradient =
     client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
 
-  const revenue = client.invoices
-    .filter((i) => i.status === "PAID")
-    .reduce((s, i) => s + i.total, 0)
+  const revenue = client.invoices.reduce((s, i) => s + i.paidAmount, 0)
   const outstanding = client.invoices
-    .filter((i) => i.status === "SENT" || i.status === "OVERDUE")
-    .reduce((s, i) => s + i.total, 0)
+    .filter(
+      (i) =>
+        i.status === "SENT" &&
+        (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
+    )
+    .reduce((s, i) => s + i.balanceDue, 0)
   const pendingTasks = client.tasks.filter(
     (t) => t.status === "PENDING_INVOICE",
   )
@@ -301,7 +303,7 @@ export default function ClientDetailPage({ params }: PageProps) {
                     </span>
                   )}
                   <div className="grow muted xs">{fmtDate(inv.issueDate)}</div>
-                  <StatusPill status={invoiceStatusToPill(inv.status)} />
+                  <StatusPill status={invoicePillStatus(inv)} />
                   <span
                     className="num strong"
                     style={{ width: 90, textAlign: "right" }}
@@ -490,7 +492,7 @@ export default function ClientDetailPage({ params }: PageProps) {
                     {inv.kind === "DEPOSIT" ? "Acompte" : "Standard"}
                   </td>
                   <td>
-                    <StatusPill status={invoiceStatusToPill(inv.status)} />
+                    <StatusPill status={invoicePillStatus(inv)} />
                   </td>
                   <td className="right num strong" style={{ paddingRight: 20 }}>
                     {fmtEUR(inv.total)}

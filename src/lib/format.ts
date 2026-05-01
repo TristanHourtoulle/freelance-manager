@@ -13,6 +13,10 @@ const eur2Digits = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 })
 
+function hasCents(n: number): boolean {
+  return Math.round(n * 100) % 100 !== 0
+}
+
 const dateLong = new Intl.DateTimeFormat("fr-FR", {
   day: "2-digit",
   month: "short",
@@ -25,12 +29,13 @@ const dateShort = new Intl.DateTimeFormat("fr-FR", {
 })
 
 /**
- * Format a number as EUR with no fractional digits ("1 500 €").
- * Returns "—" for null/undefined/NaN.
+ * Format a number as EUR. Shows decimals only when the amount has cents
+ * ("1 500 €" for round numbers, "937,50 €" otherwise). Returns "—" for
+ * null/undefined/NaN.
  */
 export function fmtEUR(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—"
-  return eurNoDigits.format(n)
+  return hasCents(n) ? eur2Digits.format(n) : eurNoDigits.format(n)
 }
 
 /**

@@ -44,11 +44,14 @@ export interface ClientDetailDTO {
   invoices: {
     id: string
     number: string
-    status: "DRAFT" | "SENT" | "PAID" | "OVERDUE"
+    status: "DRAFT" | "SENT" | "CANCELLED"
+    paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
+    isOverdue: boolean
     kind: "STANDARD" | "DEPOSIT"
     issueDate: string
     dueDate: string
-    paidAt: string | null
+    paidAmount: number
+    balanceDue: number
     total: number
     linesCount: number
   }[]

@@ -26,6 +26,7 @@ model User {
   projects Project[]
   tasks    Task[]
   invoices Invoice[]
+  payments Payment[]
   settings UserSettings?
 
   @@map("users")
@@ -141,8 +142,14 @@ enum TaskPriority {
 enum InvoiceStatus {
   DRAFT
   SENT
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
   PAID
-  OVERDUE
+  OVERPAID
 }
 
 enum InvoiceKind {
@@ -306,13 +313,13 @@ model Invoice {
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  number String
-  status InvoiceStatus @default(DRAFT)
-  kind   InvoiceKind   @default(STANDARD)
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  paymentStatus PaymentStatus @default(UNPAID)
+  kind          InvoiceKind   @default(STANDARD)
 
   issueDate DateTime
   dueDate   DateTime
-  paidAt    DateTime?
 
   subtotal      Decimal  @default(0) @db.Decimal(10, 2)
   totalOverride Decimal? @db.Decimal(10, 2)
@@ -320,9 +327,10 @@ model Invoice {
   total    Decimal @default(0) @db.Decimal(10, 2)
   notes    String? @db.Text
 
-  lines InvoiceLine[]
-  files InvoiceFile[]
-  tasks Task[]
+  lines    InvoiceLine[]
+  files    InvoiceFile[]
+  tasks    Task[]
+  payments Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -332,8 +340,30 @@ model Invoice {
   @@index([clientId])
   @@index([projectId])
   @@index([status])
+  @@index([paymentStatus])
   @@index([issueDate])
   @@map("invoices")
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  amount Decimal  @db.Decimal(10, 2)
+  paidAt DateTime
+  method String?
+  note   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([invoiceId])
+  @@index([paidAt])
+  @@map("payments")
 }
 
 model InvoiceLine {

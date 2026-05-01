@@ -7,6 +7,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
+import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
 
 function formatNumber(year: number, seq: number): string {
   return `${year}-${String(seq).padStart(4, "0")}`
@@ -46,26 +47,36 @@ export async function GET() {
     const invoices = await prisma.invoice.findMany({
       where: { userId: user.id },
       orderBy: { issueDate: "desc" },
-      include: { lines: true },
+      include: {
+        lines: true,
+        payments: { select: { amount: true, paidAt: true } },
+      },
     })
     return NextResponse.json({
-      items: invoices.map((inv) => ({
-        id: inv.id,
-        number: inv.number,
-        clientId: inv.clientId,
-        projectId: inv.projectId,
-        status: inv.status,
-        kind: inv.kind,
-        issueDate: inv.issueDate.toISOString(),
-        dueDate: inv.dueDate.toISOString(),
-        paidAt: inv.paidAt?.toISOString() ?? null,
-        subtotal: decimalToNumber(inv.subtotal) ?? 0,
-        tax: decimalToNumber(inv.tax) ?? 0,
-        total: decimalToNumber(inv.total) ?? 0,
-        totalOverride: decimalToNumber(inv.totalOverride),
-        notes: inv.notes,
-        linesCount: inv.lines.length,
-      })),
+      items: invoices.map((inv) => {
+        const computed = getInvoiceComputed(inv)
+        return {
+          id: inv.id,
+          number: inv.number,
+          clientId: inv.clientId,
+          projectId: inv.projectId,
+          status: inv.status,
+          paymentStatus: inv.paymentStatus,
+          isOverdue: computed.isOverdue,
+          kind: inv.kind,
+          issueDate: inv.issueDate.toISOString(),
+          dueDate: inv.dueDate.toISOString(),
+          paidAmount: computed.paidAmount,
+          balanceDue: computed.balanceDue,
+          lastPaidAt: computed.lastPaidAt,
+          subtotal: decimalToNumber(inv.subtotal) ?? 0,
+          tax: decimalToNumber(inv.tax) ?? 0,
+          total: decimalToNumber(inv.total) ?? 0,
+          totalOverride: decimalToNumber(inv.totalOverride),
+          notes: inv.notes,
+          linesCount: inv.lines.length,
+        }
+      }),
     })
   } catch (error) {
     return apiServerError(error)
@@ -122,10 +133,6 @@ export async function POST(req: Request) {
           kind: data.kind,
           issueDate: new Date(data.issueDate),
           dueDate: new Date(data.dueDate),
-          paidAt:
-            data.status === "PAID" && data.paidAt
-              ? new Date(data.paidAt)
-              : null,
           subtotal,
           tax: 0,
           total,
@@ -149,6 +156,20 @@ export async function POST(req: Request) {
           where: { id: { in: data.taskIds }, userId: user.id },
           data: { invoiceId: inv.id, status: "DONE" },
         })
+      }
+
+      if (data.initialPayment) {
+        await tx.payment.create({
+          data: {
+            userId: user.id,
+            invoiceId: inv.id,
+            amount: data.initialPayment.amount,
+            paidAt: new Date(data.initialPayment.paidAt),
+            method: data.initialPayment.method ?? null,
+            note: data.initialPayment.note ?? null,
+          },
+        })
+        await recomputeInvoicePayment(inv.id, tx)
       }
 
       return inv

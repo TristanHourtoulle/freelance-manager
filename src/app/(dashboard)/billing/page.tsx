@@ -3,13 +3,20 @@
 import { useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
-import { StatusPill, invoiceStatusToPill } from "@/components/ui/pill"
+import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { InvoiceDrawer } from "@/components/billing/invoice-drawer"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 
-type FilterId = "all" | "DRAFT" | "SENT" | "PAID" | "OVERDUE"
+type FilterId =
+  | "all"
+  | "DRAFT"
+  | "SENT"
+  | "PARTIAL"
+  | "PAID"
+  | "OVERPAID"
+  | "OVERDUE"
 
 export default function BillingPage() {
   const router = useRouter()
@@ -22,9 +29,21 @@ export default function BillingPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
 
+  function matchesFilter(i: (typeof invoices)[number], f: FilterId) {
+    if (f === "all") return true
+    if (f === "DRAFT") return i.status === "DRAFT"
+    if (f === "SENT")
+      return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
+    if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
+    if (f === "PAID") return i.paymentStatus === "PAID"
+    if (f === "OVERPAID") return i.paymentStatus === "OVERPAID"
+    if (f === "OVERDUE") return i.isOverdue
+    return true
+  }
+
   const filtered = useMemo(() => {
     return invoices.filter((i) => {
-      if (filter !== "all" && i.status !== filter) return false
+      if (!matchesFilter(i, filter)) return false
       if (searchTerm) {
         const c = clients.find((cc) => cc.id === i.clientId)
         const text =
@@ -37,21 +56,30 @@ export default function BillingPage() {
 
   const counts = {
     all: invoices.length,
-    draft: invoices.filter((i) => i.status === "DRAFT").length,
-    sent: invoices.filter((i) => i.status === "SENT").length,
-    paid: invoices.filter((i) => i.status === "PAID").length,
-    overdue: invoices.filter((i) => i.status === "OVERDUE").length,
+    draft: invoices.filter((i) => matchesFilter(i, "DRAFT")).length,
+    sent: invoices.filter((i) => matchesFilter(i, "SENT")).length,
+    partial: invoices.filter((i) => matchesFilter(i, "PARTIAL")).length,
+    paid: invoices.filter((i) => matchesFilter(i, "PAID")).length,
+    overpaid: invoices.filter((i) => matchesFilter(i, "OVERPAID")).length,
+    overdue: invoices.filter((i) => matchesFilter(i, "OVERDUE")).length,
   }
   const totals = {
     paid: invoices
-      .filter((i) => i.status === "PAID")
-      .reduce((s, i) => s + i.total, 0),
-    sent: invoices
-      .filter((i) => i.status === "SENT")
-      .reduce((s, i) => s + i.total, 0),
+      .filter(
+        (i) => i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID",
+      )
+      .reduce((s, i) => s + i.paidAmount, 0),
+    outstanding: invoices
+      .filter(
+        (i) =>
+          i.status === "SENT" &&
+          (i.paymentStatus === "UNPAID" ||
+            i.paymentStatus === "PARTIALLY_PAID"),
+      )
+      .reduce((s, i) => s + i.balanceDue, 0),
     overdue: invoices
-      .filter((i) => i.status === "OVERDUE")
-      .reduce((s, i) => s + i.total, 0),
+      .filter((i) => i.isOverdue)
+      .reduce((s, i) => s + i.balanceDue, 0),
   }
 
   return (
@@ -60,8 +88,8 @@ export default function BillingPage() {
         <div>
           <h1 className="page-title">Factures</h1>
           <div className="page-sub">
-            {invoices.length} factures · {fmtEUR(totals.paid)} payées ·{" "}
-            {fmtEUR(totals.sent + totals.overdue)} émises en attente
+            {invoices.length} factures · {fmtEUR(totals.paid)} encaissées ·{" "}
+            {fmtEUR(totals.outstanding)} en attente
           </div>
         </div>
         <div className="page-actions">
@@ -92,11 +120,14 @@ export default function BillingPage() {
         <div className="kpi kpi-info">
           <div className="kpi-label">
             <Icon name="send" size={11} />
-            Émises · en attente
+            En attente
           </div>
-          <div className="kpi-value">{fmtEUR(totals.sent)}</div>
+          <div className="kpi-value">{fmtEUR(totals.outstanding)}</div>
           <div className="kpi-sub">
-            <span>{counts.sent} factures</span>
+            <span>
+              {counts.sent + counts.partial} facture
+              {counts.sent + counts.partial > 1 ? "s" : ""}
+            </span>
           </div>
         </div>
         <div
@@ -146,7 +177,9 @@ export default function BillingPage() {
               { id: "all", label: "Toutes", count: counts.all },
               { id: "DRAFT", label: "Brouillon", count: counts.draft },
               { id: "SENT", label: "Émise", count: counts.sent },
+              { id: "PARTIAL", label: "Partielle", count: counts.partial },
               { id: "PAID", label: "Payée", count: counts.paid },
+              { id: "OVERPAID", label: "Trop-perçu", count: counts.overpaid },
               { id: "OVERDUE", label: "En retard", count: counts.overdue },
             ] as { id: FilterId; label: string; count: number }[]
           ).map((f) => (
@@ -234,9 +267,24 @@ export default function BillingPage() {
                     {inv.kind === "DEPOSIT" ? "Acompte" : "Standard"}
                   </td>
                   <td>
-                    <StatusPill status={invoiceStatusToPill(inv.status)} />
+                    <StatusPill status={invoicePillStatus(inv)} />
                   </td>
-                  <td className="right num strong">{fmtEUR(inv.total)}</td>
+                  <td className="right num strong">
+                    {fmtEUR(inv.total)}
+                    {inv.paymentStatus === "PARTIALLY_PAID" && (
+                      <div className="xs muted num" style={{ marginTop: 2 }}>
+                        reste {fmtEUR(inv.balanceDue)}
+                      </div>
+                    )}
+                    {inv.paymentStatus === "OVERPAID" && (
+                      <div
+                        className="xs num"
+                        style={{ marginTop: 2, color: "var(--purple)" }}
+                      >
+                        +{fmtEUR(-inv.balanceDue)}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ paddingRight: 20 }}>
                     <Icon name="chevron-right" size={14} className="muted" />
                   </td>

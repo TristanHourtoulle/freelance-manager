@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
-import { StatusPill, invoiceStatusToPill } from "@/components/ui/pill"
+import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
@@ -283,7 +283,7 @@ export default function DashboardPage() {
                   </td>
                   <td className="muted small">{fmtDate(inv.issueDate)}</td>
                   <td>
-                    <StatusPill status={invoiceStatusToPill(inv.status)} />
+                    <StatusPill status={invoicePillStatus(inv)} />
                   </td>
                   <td className="right num strong" style={{ paddingRight: 22 }}>
                     {fmtEUR(inv.total)}
