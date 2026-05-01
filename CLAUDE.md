@@ -23,6 +23,8 @@
 > - `design-reference/src/page-tasks.jsx`
 > - `design-reference/src/page-billing.jsx`
 > - `design-reference/src/page-invoice-new.jsx`
+> - `design-reference/src/page-analytics.jsx` — full analytics dashboard with Sparkline, DualChart, Donut, ThroughputChart, ActivityHeatmap helpers
+> - `design-reference/src/page-auth.jsx` — login + register split-screen, AuthSide (gradient + preview cards), OAuth buttons, password strength meter
 > - `design-reference/screenshots/` — 2 screenshots showing the rendered Tasks page and Clients page (cross-reference for any visual doubt)
 > - `design-reference/FreelanceManager-design.zip` — original handoff archive (kept for traceability)
 >
@@ -246,11 +248,11 @@ src/app/
 │   ├── billing/
 │   │   ├── page.tsx                 # /billing (list + drawer)
 │   │   └── new/page.tsx             # /billing/new (drag & drop builder)
-│   ├── analytics/page.tsx           # stub "Bientôt disponible"
+│   ├── analytics/page.tsx           # /analytics (full dashboard)
 │   └── settings/page.tsx            # stub "Bientôt disponible"
 ├── auth/
-│   ├── login/page.tsx
-│   └── register/page.tsx
+│   ├── login/page.tsx                # split-screen design (AuthSide + form)
+│   └── register/page.tsx             # split-screen design + password strength meter
 └── api/...                          # only the routes the design needs
 ```
 

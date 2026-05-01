@@ -2,18 +2,24 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { authClient } from "@/lib/auth-client"
+import { Icon } from "@/components/ui/icon"
+import { AuthSide, GithubGlyph, GoogleGlyph } from "@/components/auth/auth-side"
+import { useToast } from "@/components/providers/toast-provider"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPwd, setShowPwd] = useState(false)
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!email || !password) return
     setError("")
     setLoading(true)
     const result = await authClient.signIn.email({ email, password })
@@ -22,79 +28,135 @@ export default function LoginPage() {
       setError(result.error.message ?? "Connexion échouée")
       return
     }
+    toast({ variant: "success", title: "Connexion réussie" })
     router.push("/dashboard")
     router.refresh()
   }
 
+  function notifyOAuth() {
+    toast({
+      variant: "info",
+      title: "OAuth bientôt disponible",
+      description: "La connexion via Google/GitHub n'est pas encore branchée.",
+    })
+  }
+
+  void remember
+
   return (
-    <div
-      style={{
-        display: "grid",
-        placeItems: "center",
-        minHeight: "100vh",
-        padding: 24,
-      }}
-    >
-      <div className="card" style={{ width: 400, maxWidth: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div className="brand-mark" style={{ margin: "0 auto 12px" }}>
-            F
-          </div>
-          <div className="page-title" style={{ fontSize: 20 }}>
-            Connexion
-          </div>
-          <div className="muted small" style={{ marginTop: 4 }}>
-            Bon retour sur FreelanceManager
-          </div>
-        </div>
-        <form onSubmit={onSubmit} className="col gap-12">
-          <div className="field">
-            <label className="field-label">Email</label>
-            <input
-              className="input"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tristan@example.com"
+    <div className="auth-page">
+      <AuthSide variant="login" />
+      <div className="auth-form-side">
+        <form className="auth-card" onSubmit={onSubmit}>
+          <div className="auth-eyebrow">
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 99,
+                background: "var(--accent)",
+                display: "inline-block",
+              }}
             />
+            Bon retour
           </div>
-          <div className="field">
-            <label className="field-label">Mot de passe</label>
-            <input
-              className="input"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+          <h1 className="auth-title">Connexion</h1>
+          <p className="auth-sub">
+            Reprends le contrôle de ta facturation freelance.
+          </p>
+
+          <div className="auth-fields">
+            <div className="field">
+              <label className="field-label">Email</label>
+              <div className="auth-input-wrap">
+                <Icon name="mail" size={15} className="lead-ic" />
+                <input
+                  className="auth-input"
+                  type="email"
+                  placeholder="tu@exemple.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+            <div className="field">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <label className="field-label">Mot de passe</label>
+                <button type="button" className="auth-link xs">
+                  Mot de passe oublié ?
+                </button>
+              </div>
+              <div className="auth-input-wrap">
+                <Icon name="lock" size={15} className="lead-ic" />
+                <input
+                  className="auth-input"
+                  type={showPwd ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-toggle-pwd"
+                  onClick={() => setShowPwd((s) => !s)}
+                  aria-label={showPwd ? "Masquer" : "Afficher"}
+                >
+                  <Icon name={showPwd ? "eye-off" : "eye"} size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="auth-row-between">
+              <label className="auth-checkbox">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                <span>Rester connecté</span>
+              </label>
+            </div>
           </div>
+
           {error && (
-            <div className="muted small" style={{ color: "var(--danger)" }}>
+            <div
+              className="small"
+              style={{ color: "var(--danger)", marginTop: 12 }}
+            >
               {error}
             </div>
           )}
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading}
-            style={{ marginTop: 4 }}
-          >
+
+          <button type="submit" className="auth-cta" disabled={loading}>
             {loading ? "Connexion…" : "Se connecter"}
+            <Icon name="arrow-right" size={14} />
           </button>
+
+          <div className="auth-divider">ou continuer avec</div>
+          <div className="auth-oauth-row">
+            <button type="button" className="auth-oauth" onClick={notifyOAuth}>
+              <GoogleGlyph />
+              Google
+            </button>
+            <button type="button" className="auth-oauth" onClick={notifyOAuth}>
+              <GithubGlyph />
+              GitHub
+            </button>
+          </div>
+
+          <div className="auth-bottom">
+            Pas encore de compte ?{" "}
+            <button
+              type="button"
+              className="auth-link"
+              onClick={() => router.push("/auth/register")}
+            >
+              Créer un compte
+            </button>
+          </div>
         </form>
-        <div
-          className="muted small"
-          style={{ textAlign: "center", marginTop: 18 }}
-        >
-          Pas encore de compte ?{" "}
-          <Link
-            href="/auth/register"
-            style={{ color: "var(--accent)", textDecoration: "none" }}
-          >
-            Créer un compte
-          </Link>
-        </div>
       </div>
     </div>
   )

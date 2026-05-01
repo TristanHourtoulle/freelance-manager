@@ -1,7 +1,7 @@
 // Sidebar + Topbar shell
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-function Sidebar({ route, navigate, counts }) {
+function Sidebar({ route, navigate, counts, onLogout }) {
   const items = [
     { section: 'Pilotage' },
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -46,7 +46,7 @@ function Sidebar({ route, navigate, counts }) {
           <div className="me-name truncate">{me.name}</div>
           <div className="me-email truncate">{me.email}</div>
         </div>
-        <div className="icon-btn" title="Déconnexion"><I name="logout" size={15} /></div>
+        <div className="icon-btn" title="Déconnexion" onClick={() => onLogout && onLogout()}><I name="logout" size={15} /></div>
       </div>
     </aside>
   );

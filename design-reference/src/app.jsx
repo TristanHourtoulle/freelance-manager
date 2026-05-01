@@ -3,13 +3,22 @@ const { useState: useState_, useMemo: useMemo_ } = React;
 
 function App() {
   const [store, setStore] = useState_(window.FM.Store);
-  const [route, setRoute] = useState_({ page: 'dashboard' });
+  const [route, setRoute] = useState_({ page: 'login' });
+  const [authed, setAuthed] = useState_(false);
   const { toasts, push: pushToast } = window.useToasts();
 
   const navigate = (r) => {
+    // Auth gate: only login/register accessible when not authed
+    if (!authed && r.page !== 'login' && r.page !== 'register') {
+      // Treat navigation to an app page as "authentication success"
+      setAuthed(true);
+    }
     setRoute(r);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
+
+  // Wrap the auth-success path so login/register pages can flip the flag explicitly
+  const navigateAuthed = (r) => { setAuthed(true); navigate(r); };
 
   const counts = useMemo_(() => ({
     clients: store.clients.filter(c => !c.archived).length,
@@ -17,6 +26,20 @@ function App() {
     tasksOpen: store.tasks.filter(t => t.status === 'pending_invoice').length,
     invoicesOpen: store.invoices.filter(i => i.status === 'sent' || i.status === 'overdue' || i.status === 'draft').length,
   }), [store]);
+
+  // Auth pages render full-bleed, no shell
+  if (route.page === 'login') {
+    return (<>
+      <window.PageLogin navigate={navigateAuthed} toast={pushToast} switchTo={(p) => setRoute({ page: p })} />
+      <window.Toasts toasts={toasts} />
+    </>);
+  }
+  if (route.page === 'register') {
+    return (<>
+      <window.PageRegister navigate={navigateAuthed} toast={pushToast} switchTo={(p) => setRoute({ page: p })} />
+      <window.Toasts toasts={toasts} />
+    </>);
+  }
 
   let crumbs = ['FreelanceManager'];
   let content = null;
@@ -46,11 +69,13 @@ function App() {
       crumbs = ['FreelanceManager', 'Factures', 'Nouvelle'];
       content = <window.PageInvoiceNew navigate={navigate} store={store} setStore={setStore} route={route} toast={pushToast} />; break;
     case 'analytics':
+      crumbs = ['FreelanceManager', 'Analytics'];
+      content = <window.PageAnalytics navigate={navigate} store={store} />; break;
     case 'settings':
-      crumbs = ['FreelanceManager', route.page];
+      crumbs = ['FreelanceManager', 'Réglages'];
       content = (
         <div className="page">
-          <div className="page-header"><div><h1 className="page-title">{route.page === 'analytics' ? 'Analytics' : 'Réglages'}</h1><div className="page-sub">À venir dans une prochaine itération</div></div></div>
+          <div className="page-header"><div><h1 className="page-title">Réglages</h1><div className="page-sub">À venir dans une prochaine itération</div></div></div>
           <div className="card"><div className="empty"><div className="empty-title">Bientôt disponible</div><div>Cette page n'est pas encore implémentée.</div></div></div>
         </div>
       );
@@ -61,7 +86,7 @@ function App() {
 
   return (
     <div className="app" data-screen-label={'00 ' + (route.page || 'dashboard')}>
-      <window.Sidebar route={route} navigate={navigate} counts={counts} />
+      <window.Sidebar route={route} navigate={navigate} counts={counts} onLogout={() => { setAuthed(false); setRoute({ page: 'login' }); }} />
       <div className="main">
         <window.Topbar crumbs={crumbs} />
         {content}
