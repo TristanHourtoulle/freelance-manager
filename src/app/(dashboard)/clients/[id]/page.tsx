@@ -98,7 +98,7 @@ export default function ClientDetailPage({ params }: PageProps) {
         >
           {initials(`${client.firstName} ${client.lastName}`)}
         </div>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="row gap-8">
             <h1 className="page-title" style={{ fontSize: 22, margin: 0 }}>
               {client.firstName} {client.lastName}
@@ -109,16 +109,45 @@ export default function ClientDetailPage({ params }: PageProps) {
             {client.company ?? "—"}
             {client.email ? ` · ${client.email}` : ""}
           </div>
-          <div className="row gap-12 small muted" style={{ marginTop: 8 }}>
-            <span>
+          <div
+            className="small muted"
+            style={{
+              marginTop: 8,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "4px 14px",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
               <Icon name="calendar" size={11} /> Client depuis{" "}
               {fmtDate(client.createdAt)}
             </span>
-            <span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
               <Icon name="briefcase" size={11} /> {client.projects.length}{" "}
               projet{client.projects.length > 1 ? "s" : ""}
             </span>
-            <span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
               <Icon name="invoice" size={11} /> {client.invoices.length} facture
               {client.invoices.length > 1 ? "s" : ""}
             </span>

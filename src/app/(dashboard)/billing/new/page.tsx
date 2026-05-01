@@ -264,8 +264,8 @@ export default function NewInvoicePage() {
         <div>
           <h1 className="page-title">Nouvelle facture</h1>
           <div className="page-sub">
-            Sélectionne un client puis ajoute des tasks par drag &amp; drop ou
-            clic
+            Sélectionne un client, puis glisse des tasks Linear ou ajoute des
+            lignes manuelles (utile pour la facturation rétroactive)
           </div>
         </div>
       </div>
@@ -581,8 +581,18 @@ export default function NewInvoicePage() {
                   <div>
                     {taskSearch
                       ? "Aucune task ne correspond à ta recherche."
-                      : "Ce client n'a pas de task en statut Pending Invoice."}
+                      : "Ce client n'a pas de task en statut Pending Invoice. Tu peux quand même créer une facture en ajoutant des lignes manuelles."}
                   </div>
+                  {!taskSearch && (
+                    <button
+                      className="btn btn-secondary"
+                      style={{ marginTop: 14 }}
+                      onClick={addBlank}
+                    >
+                      <Icon name="plus" size={14} />
+                      Ajouter une ligne manuelle
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -673,7 +683,7 @@ export default function NewInvoicePage() {
                     Glisse une task ici
                     <br />
                     <span className="xs muted">
-                      ou clique sur une task à gauche
+                      ou ajoute une ligne manuelle ci-dessous
                     </span>
                   </div>
                 </div>
@@ -737,12 +747,12 @@ export default function NewInvoicePage() {
             </div>
 
             <button
-              className="btn btn-ghost btn-sm"
-              style={{ marginTop: 8 }}
+              className="btn btn-secondary"
+              style={{ marginTop: 10, width: "100%", justifyContent: "center" }}
               onClick={addBlank}
             >
-              <Icon name="plus" size={12} />
-              Ligne personnalisée
+              <Icon name="plus" size={14} />
+              Ajouter une ligne manuelle
             </button>
 
             <div className="divider" />
