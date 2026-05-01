@@ -88,7 +88,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const owned = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      select: { id: true, paymentStatus: true },
+      select: { id: true },
     })
     if (!owned) return apiNotFound()
 
@@ -99,13 +99,6 @@ export async function PATCH(req: Request, { params }: Params) {
         data: { status: data.status },
       })
       return NextResponse.json({ ok: true })
-    }
-
-    if (owned.paymentStatus === "PAID" || owned.paymentStatus === "OVERPAID") {
-      return NextResponse.json(
-        { error: "Une facture entièrement payée ne peut plus être modifiée" },
-        { status: 409 },
-      )
     }
 
     const data = invoiceUpdateSchema.parse(body)

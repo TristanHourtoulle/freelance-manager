@@ -43,10 +43,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
   }
 
   const client = invoice.client
-  const canEdit =
-    invoice.status !== "CANCELLED" &&
-    invoice.paymentStatus !== "PAID" &&
-    invoice.paymentStatus !== "OVERPAID"
+  const canEdit = invoice.status !== "CANCELLED"
   const hasOverride = invoice.totalOverride != null
   const isFullyPaid =
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"

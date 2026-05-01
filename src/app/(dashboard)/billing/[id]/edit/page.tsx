@@ -117,29 +117,7 @@ export default function EditInvoicePage({ params }: PageProps) {
     )
   }
 
-  if (
-    invoice.paymentStatus === "PAID" ||
-    invoice.paymentStatus === "OVERPAID"
-  ) {
-    return (
-      <div className="page">
-        <div className="empty">
-          <div className="empty-title">Facture entièrement payée</div>
-          <div>
-            Pour modifier le contenu, supprime d&apos;abord les paiements
-            associés depuis le drawer.
-          </div>
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: 16 }}
-            onClick={() => router.push(`/billing?invoiceId=${id}`)}
-          >
-            Retour
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const hasPayments = invoice.paidAmount > 0
 
   function addTask(t: (typeof tasks)[number]) {
     if (!client) return
@@ -255,6 +233,27 @@ export default function EditInvoicePage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {hasPayments && (
+        <div
+          className="row gap-8"
+          style={{
+            marginBottom: 14,
+            padding: "10px 14px",
+            background: "var(--warn-soft)",
+            color: "var(--warn)",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          <Icon name="alert" size={14} />
+          <span>
+            Cette facture a déjà {fmtEUR(invoice.paidAmount)} de paiements
+            enregistrés. Modifier le total recalculera son statut (partiel, payé
+            ou trop-perçu).
+          </span>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="row gap-16" style={{ flexWrap: "wrap" }}>
