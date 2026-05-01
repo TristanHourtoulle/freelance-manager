@@ -10,6 +10,8 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileClientsPage } from "./mobile"
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type ViewMode = "grid" | "list"
@@ -26,6 +28,12 @@ function gradient(c: ClientDTO): string {
 }
 
 export default function ClientsPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileClientsPage />
+  return <DesktopClientsPage />
+}
+
+function DesktopClientsPage() {
   const router = useRouter()
   const [filter, setFilter] = useState<FilterId>("all")
   const [search, setSearch] = useState("")

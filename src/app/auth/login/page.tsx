@@ -6,8 +6,16 @@ import { authClient } from "@/lib/auth-client"
 import { Icon } from "@/components/ui/icon"
 import { AuthSide, GithubGlyph, GoogleGlyph } from "@/components/auth/auth-side"
 import { useToast } from "@/components/providers/toast-provider"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileLoginPage } from "./mobile"
 
 export default function LoginPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileLoginPage />
+  return <DesktopLoginPage />
+}
+
+function DesktopLoginPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [email, setEmail] = useState("")

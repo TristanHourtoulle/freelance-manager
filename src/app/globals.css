@@ -1896,3 +1896,529 @@ textarea {
     display: none;
   }
 }
+
+/* =====================================================================
+   Desktop / mobile visibility helpers
+   ===================================================================== */
+
+.desktop-only {
+  display: contents;
+}
+.mobile-only {
+  display: none;
+}
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: contents;
+  }
+  .app {
+    grid-template-columns: 1fr !important;
+  }
+  .page {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .builder {
+    grid-template-columns: 1fr !important;
+  }
+  .invoice-side {
+    position: static !important;
+    max-height: none !important;
+  }
+  .page-header {
+    padding: 16px 16px 0 !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .ana-grid-3,
+  .ana-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* =====================================================================
+   Mobile shell + primitives (mirror of design-reference/FreelanceManager Mobile.html)
+   Active when viewport is narrow; classes are namespaced (m-*) only
+   when they conflict with desktop counterparts. Most class names are
+   reused as-is from the mobile design (kpi-tile, sheet, sticky-cta,
+   bottom-nav, etc.) and don't clash with desktop because they're
+   only rendered inside <MobileShell>.
+   ===================================================================== */
+
+.m-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-0);
+  color: var(--text-0);
+}
+.m-screen .m-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 100px;
+}
+.m-screen .m-content::-webkit-scrollbar {
+  width: 0;
+}
+
+/* Mobile topbar */
+.m-topbar {
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--bg-0);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.m-topbar-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 99px;
+  background: var(--bg-2);
+  display: grid;
+  place-items: center;
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+.m-topbar-back:active {
+  background: var(--bg-3);
+}
+.m-topbar-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  flex: 1;
+  min-width: 0;
+}
+.m-topbar-action {
+  width: 36px;
+  height: 36px;
+  border-radius: 99px;
+  background: var(--bg-2);
+  display: grid;
+  place-items: center;
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+.m-topbar-action.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: oklch(0.18 0.008 240 / 0.85);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 50;
+}
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 12px;
+  color: var(--text-3);
+  transition: color 0.12s;
+  min-width: 56px;
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.nav-tab.active {
+  color: var(--accent);
+}
+.nav-tab .lbl {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.nav-tab .dot {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background: var(--danger);
+  border-radius: 99px;
+}
+
+/* Big iOS-style page title */
+.big-header {
+  padding: 8px 18px 14px;
+}
+.big-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.big-sub {
+  color: var(--text-2);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Stack — mobile container with horizontal padding */
+.m-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+/* KPI tile (mobile) */
+.kpi-tile {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-tile.accent {
+  border-left: 2px solid var(--accent);
+}
+.kpi-tile.warn {
+  border-left: 2px solid var(--warn);
+}
+.kpi-tile.info {
+  border-left: 2px solid var(--info);
+}
+.kpi-tile.danger {
+  border-left: 2px solid var(--danger);
+}
+
+/* Sticky CTA bar (above bottom nav) */
+.sticky-cta {
+  position: fixed;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  background: oklch(0.18 0.008 240 / 0.95);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+}
+
+/* Mobile sheet (bottom-anchored modal) */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 70;
+}
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border-radius: 24px 24px 0 0;
+  padding: 12px 18px calc(28px + env(safe-area-inset-bottom));
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: 80;
+  border-top: 1px solid var(--border-strong);
+  animation: sheetin 0.25s ease-out;
+}
+@keyframes sheetin {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--text-3);
+  border-radius: 99px;
+  margin: 0 auto 14px;
+}
+.sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.sheet-sub {
+  color: var(--text-2);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.sheet-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Searchbar (mobile) */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.searchbar input {
+  background: transparent;
+  border: none;
+  outline: none;
+  flex: 1;
+  color: var(--text-0);
+  font-size: 14px;
+}
+.searchbar input::placeholder {
+  color: var(--text-3);
+}
+
+/* Segmented control */
+.seg {
+  display: flex;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.seg button.active {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+/* iOS-style list group */
+.list-group {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+.list-row:active {
+  background: var(--bg-2);
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+
+/* Task item card */
+.task-item {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+}
+.task-item.selected {
+  border-color: var(--accent);
+  background: oklch(0.86 0.19 128 / 0.06);
+}
+.task-item .task-title {
+  font-weight: 500;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--text-0);
+}
+.task-item .task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+/* Checkbox circle (used for task selection) */
+.checkbox-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border-strong);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  transition: all 0.1s;
+}
+.checkbox-circle.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Mobile auth screen */
+.auth-screen {
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      500px 400px at 20% 20%,
+      oklch(0.86 0.19 128 / 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      400px 350px at 90% 80%,
+      oklch(0.55 0.18 280 / 0.2),
+      transparent 60%
+    ),
+    var(--bg-0);
+}
+.auth-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 70px 24px 0;
+  margin-bottom: 38px;
+}
+.auth-headline {
+  padding: 0 24px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+.auth-screen .auth-sub {
+  padding: 0 24px;
+  margin: 10px 0 0;
+}
+.auth-screen .auth-form {
+  padding: 28px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Mobile builder (invoice creation) */
+.builder-summary {
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.builder-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 9px;
+  background: var(--bg-2);
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+/* Sync pill (small live-status indicator) */
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+/* Section header (mobile) */
+.sec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 14px 8px;
+}
+.sec-link {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* Pbar (linear progress bar) */
+.pbar {
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.pbar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+
+/* Progress dots (steps in invoice flow) */
+.progress-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.progress-dots .dot {
+  width: 18px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--bg-3);
+}
+.progress-dots .dot.active {
+  background: var(--accent);
+}

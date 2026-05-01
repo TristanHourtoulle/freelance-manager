@@ -11,10 +11,18 @@ import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileTasksPage } from "./mobile"
 
 type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 
 export default function TasksPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileTasksPage />
+  return <DesktopTasksPage />
+}
+
+function DesktopTasksPage() {
   const router = useRouter()
   const search = useSearchParams()
   const initialClient = search.get("clientId") ?? "all"

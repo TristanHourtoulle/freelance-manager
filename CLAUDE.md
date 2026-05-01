@@ -25,7 +25,12 @@
 > - `design-reference/src/page-invoice-new.jsx`
 > - `design-reference/src/page-analytics.jsx` — full analytics dashboard with Sparkline, DualChart, Donut, ThroughputChart, ActivityHeatmap helpers
 > - `design-reference/src/page-auth.jsx` — login + register split-screen, AuthSide (gradient + preview cards), OAuth buttons, password strength meter
+> - `design-reference/FreelanceManager Mobile.html` — mobile-only HTML/CSS bundle (iPhone-sized device frame, all .stage / .device / .bottom-nav / .nav-tab / .topbar / .kpi-tile / .task-item / .checkbox-circle / .sheet / .sticky-cta / .seg / .list-row / .builder-summary / .auth-screen tokens)
+> - `design-reference/src/mobile/m-app.jsx` — single-file mobile app with all mobile pages (PageLogin, PageRegister, PageDashboard, PageTasks, PageBilling, PageClients, PageClientDetail, PageProjects, PageInvoiceNew, PageAnalytics, PageMore, PageSettings) + BottomNav + helpers
 > - `design-reference/screenshots/` — 2 screenshots showing the rendered Tasks page and Clients page (cross-reference for any visual doubt)
+>
+> **Mobile architecture notes**: the app is responsive via a single `useIsMobile()` hook (768px breakpoint, SSR-safe — defaults to desktop on the server). The `(dashboard)/layout.tsx` swaps `<AppShell>` for `<MobileShell>` (top mobile-topbar + bottom-nav 5 tabs: Accueil/Tasks/Factures/Clients/Plus). Each page exports a default that branches `Mobile<Page>` vs `Desktop<Page>` via the same hook; data hooks (useInvoices/useClients/etc.) are shared between both. Mobile-specific primitives live in `src/components/mobile/`. The iOS chrome from the design (statusbar, island, home-indicator) is preview-only and is NOT shipped.
+>
 > - `design-reference/FreelanceManager-design.zip` — original handoff archive (kept for traceability)
 >
 > **Do not deviate** from the design without explicit user approval.

@@ -11,10 +11,18 @@ import {
   scorePassword,
 } from "@/components/auth/auth-side"
 import { useToast } from "@/components/providers/toast-provider"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileRegisterPage } from "./mobile"
 
 const STRENGTH_LABEL = ["Trop court", "Faible", "Correct", "Fort", "Excellent"]
 
 export default function RegisterPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileRegisterPage />
+  return <DesktopRegisterPage />
+}
+
+function DesktopRegisterPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [name, setName] = useState("")

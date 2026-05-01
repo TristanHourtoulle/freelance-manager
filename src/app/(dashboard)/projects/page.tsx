@@ -10,6 +10,8 @@ import { useClients } from "@/hooks/use-clients"
 import { useSyncLinear } from "@/hooks/use-tasks"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileProjectsPage } from "./mobile"
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type SortKey =
@@ -42,6 +44,12 @@ interface ProjectRow {
 }
 
 export default function ProjectsPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileProjectsPage />
+  return <DesktopProjectsPage />
+}
+
+function DesktopProjectsPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<FilterId>("all")

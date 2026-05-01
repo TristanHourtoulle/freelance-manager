@@ -12,6 +12,8 @@ import {
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useClientDetail } from "@/hooks/use-client-detail"
 import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileClientDetailPage } from "./mobile"
 
 type Tab = "overview" | "projects" | "tasks" | "invoices"
 
@@ -21,6 +23,12 @@ interface PageProps {
 
 export default function ClientDetailPage({ params }: PageProps) {
   const { id } = use(params)
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileClientDetailPage id={id} />
+  return <DesktopClientDetailPage id={id} />
+}
+
+function DesktopClientDetailPage({ id }: { id: string }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [showLink, setShowLink] = useState(false)

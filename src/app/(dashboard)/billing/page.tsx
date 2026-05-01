@@ -8,6 +8,8 @@ import { InvoiceDrawer } from "@/components/billing/invoice-drawer"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileBillingPage } from "./mobile"
 
 type FilterId =
   | "all"
@@ -19,6 +21,12 @@ type FilterId =
   | "OVERDUE"
 
 export default function BillingPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileBillingPage />
+  return <DesktopBillingPage />
+}
+
+function DesktopBillingPage() {
   const router = useRouter()
   const search = useSearchParams()
   const initialId = search.get("invoiceId")

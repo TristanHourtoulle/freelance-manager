@@ -6,8 +6,16 @@ import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileDashboardPage } from "./mobile"
 
 export default function DashboardPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileDashboardPage />
+  return <DesktopDashboardPage />
+}
+
+function DesktopDashboardPage() {
   const router = useRouter()
   const { data } = useDashboard()
   const today = new Date()

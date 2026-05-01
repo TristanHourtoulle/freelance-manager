@@ -11,6 +11,8 @@ import {
   Sparkline,
   ThroughputChart,
 } from "@/components/analytics/charts"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobileAnalyticsPage } from "./mobile"
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -24,6 +26,12 @@ const TYPE_COLOR: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
 }
 
 export default function AnalyticsPage() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MobileAnalyticsPage />
+  return <DesktopAnalyticsPage />
+}
+
+function DesktopAnalyticsPage() {
   const [range, setRange] = useState<AnalyticsRange>("12m")
   const { data, isLoading } = useAnalytics(range)
 
