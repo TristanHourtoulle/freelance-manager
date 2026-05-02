@@ -46,22 +46,48 @@ function DesktopClientsPage() {
   const { data: projects = [] } = useProjects()
 
   const enriched: EnrichedClient[] = useMemo(() => {
+    const invoicesByClient = new Map<string, typeof invoices>()
+    for (const i of invoices) {
+      const arr = invoicesByClient.get(i.clientId) ?? []
+      arr.push(i)
+      invoicesByClient.set(i.clientId, arr)
+    }
+    const pendingTasksByClient = new Map<string, number>()
+    for (const t of tasks) {
+      if (t.status !== "PENDING_INVOICE") continue
+      pendingTasksByClient.set(
+        t.clientId,
+        (pendingTasksByClient.get(t.clientId) ?? 0) + 1,
+      )
+    }
+    const projectsByClient = new Map<string, number>()
+    for (const p of projects) {
+      projectsByClient.set(
+        p.clientId,
+        (projectsByClient.get(p.clientId) ?? 0) + 1,
+      )
+    }
+
     return clients.map((c) => {
-      const myInvoices = invoices.filter((i) => i.clientId === c.id)
-      const revenue = myInvoices.reduce((s, i) => s + i.paidAmount, 0)
-      const outstanding = myInvoices
-        .filter(
-          (i) =>
-            i.status === "SENT" &&
-            (i.paymentStatus === "UNPAID" ||
-              i.paymentStatus === "PARTIALLY_PAID"),
-        )
-        .reduce((s, i) => s + i.balanceDue, 0)
-      const pendingTasksCount = tasks.filter(
-        (t) => t.clientId === c.id && t.status === "PENDING_INVOICE",
-      ).length
-      const projectsCount = projects.filter((p) => p.clientId === c.id).length
-      return { ...c, projectsCount, pendingTasksCount, revenue, outstanding }
+      const myInvoices = invoicesByClient.get(c.id) ?? []
+      let revenue = 0
+      let outstanding = 0
+      for (const i of myInvoices) {
+        revenue += i.paidAmount
+        if (
+          i.status === "SENT" &&
+          (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
+        ) {
+          outstanding += i.balanceDue
+        }
+      }
+      return {
+        ...c,
+        projectsCount: projectsByClient.get(c.id) ?? 0,
+        pendingTasksCount: pendingTasksByClient.get(c.id) ?? 0,
+        revenue,
+        outstanding,
+      }
     })
   }, [clients, invoices, tasks, projects])
 

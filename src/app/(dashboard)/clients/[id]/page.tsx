@@ -66,6 +66,14 @@ function DesktopClientDetailPage({ id }: { id: string }) {
   const gradient = client.color ?? avatarColor(fullName)
   const clientLabel = client.company ?? fullName
 
+  const tasksByProject = new Map<string, typeof client.tasks>()
+  for (const t of client.tasks) {
+    const arr = tasksByProject.get(t.projectId) ?? []
+    arr.push(t)
+    tasksByProject.set(t.projectId, arr)
+  }
+  const projectById = new Map(client.projects.map((p) => [p.id, p]))
+
   const totalRevenue = client.invoices.reduce((s, i) => s + i.paidAmount, 0)
   const sentInvoices = client.invoices.filter(
     (i) =>
@@ -339,9 +347,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
                   <div className="muted small">Aucun projet lié.</div>
                 )}
                 {client.projects.slice(0, 3).map((p) => {
-                  const projectTasks = client.tasks.filter(
-                    (t) => t.projectId === p.id,
-                  )
+                  const projectTasks = tasksByProject.get(p.id) ?? []
                   const done = projectTasks.filter(
                     (t) =>
                       t.status === "DONE" || t.status === "PENDING_INVOICE",
@@ -553,9 +559,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
           ) : (
             <div className="proj-stack">
               {client.projects.map((p) => {
-                const projectTasks = client.tasks.filter(
-                  (t) => t.projectId === p.id,
-                )
+                const projectTasks = tasksByProject.get(p.id) ?? []
                 const done = projectTasks.filter(
                   (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
                 ).length
@@ -628,9 +632,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
                 </tr>
               )}
               {client.tasks.map((t) => {
-                const project = client.projects.find(
-                  (p) => p.id === t.projectId,
-                )
+                const project = projectById.get(t.projectId)
                 return (
                   <tr key={t.id}>
                     <td style={{ paddingLeft: 20 }}>

@@ -78,7 +78,16 @@ function NewInvoicePageContent() {
   const splitInvoice = useSplitInvoice()
   const { toast } = useToast()
 
-  const client = clients.find((c) => c.id === clientId)
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p])),
+    [projects],
+  )
+
+  const client = clientById.get(clientId)
 
   useEffect(() => {
     if (clientId) return
@@ -645,7 +654,7 @@ function NewInvoicePageContent() {
               }}
             >
               {eligibleTasks.map((t) => {
-                const project = projects.find((p) => p.id === t.projectId)
+                const project = projectById.get(t.projectId)
                 const value = client
                   ? lineFromTask({
                       billingMode: client.billingMode,
