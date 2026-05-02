@@ -37,6 +37,12 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // cacheComponents: true — TODO(TRI-629): enable when every page that
+  // accesses request-time data (cookies, headers, auth session) has a
+  // <Suspense> boundary. Currently every dashboard page bails the build
+  // with "Uncached data accessed outside of <Suspense>" because
+  // (dashboard)/layout.tsx awaits auth.api.getSession() at top-level.
+  // Migration roadmap is in TRI-630, 631, 632, 633, 634.
   serverExternalPackages: [
     "@react-pdf/renderer",
     "@prisma/client",
