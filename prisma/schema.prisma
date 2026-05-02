@@ -258,6 +258,7 @@ model Project {
   activity ActivityLog[]
 
   @@index([userId])
+  @@index([userId, status])
   @@index([clientId])
   @@index([status])
   @@map("projects")
@@ -308,9 +309,11 @@ model Task {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, status])
   @@index([clientId, status])
   @@index([projectId])
   @@index([invoiceId])
+  @@index([invoiceId, userId])
   @@index([status])
   @@map("tasks")
 }
@@ -351,6 +354,8 @@ model Invoice {
 
   @@unique([userId, number])
   @@index([userId])
+  @@index([userId, status, paymentStatus])
+  @@index([userId, issueDate(sort: Desc)])
   @@index([clientId])
   @@index([projectId])
   @@index([status])
@@ -375,6 +380,7 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, paidAt])
   @@index([invoiceId])
   @@index([paidAt])
   @@map("payments")
