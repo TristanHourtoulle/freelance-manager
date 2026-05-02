@@ -27,16 +27,17 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    const client = await prisma.client.findFirst({
-      where: { id, userId: user.id },
-    })
+    const [client, invoices] = await Promise.all([
+      prisma.client.findFirst({
+        where: { id, userId: user.id },
+      }),
+      prisma.invoice.findMany({
+        where: { clientId: id, userId: user.id },
+        orderBy: { issueDate: "desc" },
+        include: { payments: { select: { amount: true, paidAt: true } } },
+      }),
+    ])
     if (!client) return apiNotFound()
-
-    const invoices = await prisma.invoice.findMany({
-      where: { clientId: id },
-      orderBy: { issueDate: "desc" },
-      include: { payments: { select: { amount: true, paidAt: true } } },
-    })
 
     let totalRevenue = 0
     let totalOutstanding = 0

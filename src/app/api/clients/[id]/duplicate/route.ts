@@ -18,14 +18,14 @@ interface Params {
  * The new client name is suffixed with "(copie)" to avoid confusion.
  */
 export async function POST(_: Request, { params }: Params) {
-  const user = await getAuthUser()
-  if (!user) return apiUnauthorized()
   const { id } = await params
   try {
-    const src = await prisma.client.findFirst({
-      where: { id, userId: user.id },
-    })
-    if (!src) return apiNotFound()
+    const [user, src] = await Promise.all([
+      getAuthUser(),
+      prisma.client.findUnique({ where: { id } }),
+    ])
+    if (!user) return apiUnauthorized()
+    if (!src || src.userId !== user.id) return apiNotFound()
 
     const created = await prisma.client.create({
       data: {

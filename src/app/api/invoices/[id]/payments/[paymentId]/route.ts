@@ -15,18 +15,22 @@ interface Params {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
-  const user = await getAuthUser()
-  if (!user) return apiUnauthorized()
   const { id, paymentId } = await params
 
   try {
-    const data = paymentUpdateSchema.parse(await req.json())
-
-    const payment = await prisma.payment.findFirst({
-      where: { id: paymentId, invoiceId: id, userId: user.id },
-      select: { id: true },
-    })
-    if (!payment) return apiNotFound()
+    const [user, body, payment] = await Promise.all([
+      getAuthUser(),
+      req.json(),
+      prisma.payment.findUnique({
+        where: { id: paymentId },
+        select: { id: true, invoiceId: true, userId: true },
+      }),
+    ])
+    if (!user) return apiUnauthorized()
+    if (!payment || payment.userId !== user.id || payment.invoiceId !== id) {
+      return apiNotFound()
+    }
+    const data = paymentUpdateSchema.parse(body)
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.payment.update({
@@ -49,20 +53,26 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const user = await getAuthUser()
-  if (!user) return apiUnauthorized()
   const { id, paymentId } = await params
 
   try {
-    const payment = await prisma.payment.findFirst({
-      where: { id: paymentId, invoiceId: id, userId: user.id },
-      select: {
-        id: true,
-        amount: true,
-        invoice: { select: { number: true, clientId: true } },
-      },
-    })
-    if (!payment) return apiNotFound()
+    const [user, payment] = await Promise.all([
+      getAuthUser(),
+      prisma.payment.findUnique({
+        where: { id: paymentId },
+        select: {
+          id: true,
+          amount: true,
+          invoiceId: true,
+          userId: true,
+          invoice: { select: { number: true, clientId: true } },
+        },
+      }),
+    ])
+    if (!user) return apiUnauthorized()
+    if (!payment || payment.userId !== user.id || payment.invoiceId !== id) {
+      return apiNotFound()
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.payment.delete({ where: { id: paymentId } })
