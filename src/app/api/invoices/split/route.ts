@@ -13,6 +13,13 @@ function formatNumber(year: number, seq: number): string {
 }
 
 /**
+ * TODO(TRI-614 follow-up): wrap `allocateNumbers` inside the same
+ * `prisma.$transaction` that creates the invoices, and acquire a
+ * pg_advisory_xact_lock on the user (see src/lib/invoice-numbering.ts)
+ * before the read. As-is, two concurrent POST /api/invoices/split
+ * for the same user could pick the same numbers — currently a single-
+ * user perso app, so deferred.
+ *
  * Allocate `parts` distinct invoice numbers.
  *
  * When a `base` is provided, the trailing digit group is incremented

@@ -10,36 +10,7 @@ import {
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
-
-function formatNumber(year: number, seq: number): string {
-  return `${year}-${String(seq).padStart(4, "0")}`
-}
-
-/**
- * Reserve the next available invoice number for the given user. Tries the
- * sequence based on the current count of invoices and walks forward if there
- * are collisions (e.g. when the user previously typed a custom number that
- * happens to match the auto sequence).
- *
- * @returns a string number guaranteed to be unique for the user
- */
-async function nextAutoNumber(userId: string, year: number): Promise<string> {
-  const [takenNumbers, baseCount] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { userId, number: { startsWith: `${year}-` } },
-      select: { number: true },
-    }),
-    prisma.invoice.count({ where: { userId } }),
-  ])
-  const taken = new Set(takenNumbers.map((r) => r.number))
-  let seq = baseCount + 1024 + 1
-  let candidate = formatNumber(year, seq)
-  while (taken.has(candidate)) {
-    seq += 1
-    candidate = formatNumber(year, seq)
-  }
-  return candidate
-}
+import { nextAutoNumber } from "@/lib/invoice-numbering"
 
 export async function GET() {
   const user = await getAuthUser()
@@ -94,17 +65,11 @@ export async function POST(req: Request) {
 
     const year = new Date(data.issueDate).getFullYear()
 
-    const [client, autoNumber] = await Promise.all([
-      prisma.client.findFirst({
-        where: { id: data.clientId, userId: user.id },
-        select: { id: true },
-      }),
-      data.number && data.number.trim()
-        ? Promise.resolve(data.number.trim())
-        : nextAutoNumber(user.id, year),
-    ])
+    const client = await prisma.client.findFirst({
+      where: { id: data.clientId, userId: user.id },
+      select: { id: true },
+    })
     if (!client) return apiUnauthorized()
-    const number = autoNumber
 
     if (data.projectId) {
       const project = await prisma.project.findFirst({
@@ -126,19 +91,6 @@ export async function POST(req: Request) {
       }
     }
 
-    if (data.number) {
-      const conflict = await prisma.invoice.findFirst({
-        where: { userId: user.id, number },
-        select: { id: true },
-      })
-      if (conflict) {
-        return NextResponse.json(
-          { error: `Le numéro de facture "${number}" est déjà utilisé` },
-          { status: 409 },
-        )
-      }
-    }
-
     const subtotal = data.lines.reduce(
       (s, l) => s + Number(l.qty) * Number(l.rate),
       0,
@@ -147,6 +99,21 @@ export async function POST(req: Request) {
       data.totalOverride != null ? Number(data.totalOverride) : subtotal
 
     const created = await prisma.$transaction(async (tx) => {
+      const number =
+        data.number && data.number.trim()
+          ? data.number.trim()
+          : await nextAutoNumber(tx, user.id, year)
+
+      if (data.number) {
+        const conflict = await tx.invoice.findFirst({
+          where: { userId: user.id, number },
+          select: { id: true },
+        })
+        if (conflict) {
+          throw new InvoiceNumberConflictError(number)
+        }
+      }
+
       const inv = await tx.invoice.create({
         data: {
           userId: user.id,
@@ -208,8 +175,8 @@ export async function POST(req: Request) {
       kind: data.status === "SENT" ? "INVOICE_SENT" : "INVOICE_CREATED",
       title:
         data.status === "SENT"
-          ? `Facture ${number} émise`
-          : `Brouillon ${number} créé`,
+          ? `Facture ${created.number} émise`
+          : `Brouillon ${created.number} créé`,
       meta: `${total.toFixed(2)} €`,
       clientId: created.clientId,
       invoiceId: created.id,
@@ -218,6 +185,18 @@ export async function POST(req: Request) {
 
     return NextResponse.json(created, { status: 201 })
   } catch (error) {
+    if (error instanceof InvoiceNumberConflictError) {
+      return NextResponse.json(
+        { error: `Le numéro de facture "${error.number}" est déjà utilisé` },
+        { status: 409 },
+      )
+    }
     return apiServerError(error)
+  }
+}
+
+class InvoiceNumberConflictError extends Error {
+  constructor(public number: string) {
+    super(`Invoice number conflict: ${number}`)
   }
 }
