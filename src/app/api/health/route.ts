@@ -12,7 +12,7 @@ export async function GET() {
   let healthy = true
 
   try {
-    await prisma.$queryRawUnsafe("SELECT 1")
+    await prisma.$queryRaw`SELECT 1`
     checks.database = "connected"
   } catch {
     checks.database = "disconnected"

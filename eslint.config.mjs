@@ -36,6 +36,24 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // Forbid Prisma's unsafe raw query helpers — they accept string
+    // interpolation and are an SQL-injection trap. Use the tagged-template
+    // variants ($queryRaw / $executeRaw) instead.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/generated/**"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[property.name=/^\\$(query|execute)RawUnsafe$/]",
+          message:
+            "Use prisma.$queryRaw / prisma.$executeRaw (tagged templates) — they parameterize safely. Never $queryRawUnsafe / $executeRawUnsafe.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
