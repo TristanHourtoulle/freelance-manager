@@ -143,6 +143,23 @@ export async function PATCH(req: Request, { params }: Params) {
       }
     }
 
+    if (data.projectId) {
+      const project = await prisma.project.findFirst({
+        where: {
+          id: data.projectId,
+          userId: user.id,
+          clientId: owned.clientId,
+        },
+        select: { id: true },
+      })
+      if (!project) {
+        return NextResponse.json(
+          { error: "Bad Request", code: "INVALID_PROJECT_FOR_CLIENT" },
+          { status: 400 },
+        )
+      }
+    }
+
     const subtotal = data.lines.reduce(
       (s, l) => s + Number(l.qty) * Number(l.rate),
       0,
@@ -187,7 +204,11 @@ export async function PATCH(req: Request, { params }: Params) {
 
       if (data.taskIds?.length) {
         await tx.task.updateMany({
-          where: { id: { in: data.taskIds }, userId: user.id },
+          where: {
+            id: { in: data.taskIds },
+            userId: user.id,
+            clientId: owned.clientId,
+          },
           data: { invoiceId: id, status: "DONE" },
         })
       }
