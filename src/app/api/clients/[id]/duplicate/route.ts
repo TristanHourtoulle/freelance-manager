@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   getAuthUser,
 } from "@/lib/api"
-import { logActivity } from "@/lib/activity"
+import { deferActivityLog } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -27,35 +27,32 @@ export async function POST(_: Request, { params }: Params) {
     })
     if (!src) return apiNotFound()
 
-    const created = await prisma.$transaction(async (tx) => {
-      const c = await tx.client.create({
-        data: {
-          userId: user.id,
-          firstName: src.firstName,
-          lastName: src.lastName,
-          company: src.company ? `${src.company} (copie)` : null,
-          email: src.email,
-          phone: src.phone,
-          website: src.website,
-          address: src.address,
-          notes: src.notes,
-          billingMode: src.billingMode,
-          rate: src.rate,
-          fixedPrice: src.fixedPrice,
-          deposit: src.deposit,
-          paymentTerms: src.paymentTerms,
-          category: src.category,
-          color: src.color,
-          starred: false,
-        },
-      })
-      await logActivity(tx, {
+    const created = await prisma.client.create({
+      data: {
         userId: user.id,
-        kind: "CLIENT_DUPLICATED",
-        title: `Client ${c.company ?? `${c.firstName} ${c.lastName}`} dupliqué depuis ${src.company ?? `${src.firstName} ${src.lastName}`}`,
-        clientId: c.id,
-      })
-      return c
+        firstName: src.firstName,
+        lastName: src.lastName,
+        company: src.company ? `${src.company} (copie)` : null,
+        email: src.email,
+        phone: src.phone,
+        website: src.website,
+        address: src.address,
+        notes: src.notes,
+        billingMode: src.billingMode,
+        rate: src.rate,
+        fixedPrice: src.fixedPrice,
+        deposit: src.deposit,
+        paymentTerms: src.paymentTerms,
+        category: src.category,
+        color: src.color,
+        starred: false,
+      },
+    })
+    deferActivityLog({
+      userId: user.id,
+      kind: "CLIENT_DUPLICATED",
+      title: `Client ${created.company ?? `${created.firstName} ${created.lastName}`} dupliqué depuis ${src.company ?? `${src.firstName} ${src.lastName}`}`,
+      clientId: created.id,
     })
 
     return NextResponse.json({ id: created.id }, { status: 201 })

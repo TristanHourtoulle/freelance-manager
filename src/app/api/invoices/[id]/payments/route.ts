@@ -8,7 +8,7 @@ import {
 } from "@/lib/api"
 import { paymentCreateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
-import { logActivity } from "@/lib/activity"
+import { deferActivityLog } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -48,15 +48,16 @@ export async function POST(req: Request, { params }: Params) {
         },
       })
       await recomputeInvoicePayment(id, tx)
-      await logActivity(tx, {
-        userId: user.id,
-        kind: "PAYMENT_RECORDED",
-        title: `Paiement de ${data.amount.toFixed(2)} € sur ${invoice.number}`,
-        meta: data.method ?? undefined,
-        clientId: invoice.clientId,
-        invoiceId: invoice.id,
-      })
       return payment
+    })
+
+    deferActivityLog({
+      userId: user.id,
+      kind: "PAYMENT_RECORDED",
+      title: `Paiement de ${data.amount.toFixed(2)} € sur ${invoice.number}`,
+      meta: data.method ?? undefined,
+      clientId: invoice.clientId,
+      invoiceId: invoice.id,
     })
 
     return NextResponse.json(serializePayment(result), { status: 201 })

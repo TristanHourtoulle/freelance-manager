@@ -9,7 +9,7 @@ import {
 } from "@/lib/api"
 import { clientUpdateSchema } from "@/lib/schemas/client"
 import { getInvoiceComputed } from "@/lib/payments"
-import { logActivity } from "@/lib/activity"
+import { deferActivityLog } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -138,38 +138,36 @@ export async function PATCH(req: Request, { params }: Params) {
     })
     if (!owned) return apiNotFound()
 
-    await prisma.$transaction(async (tx) => {
-      await tx.client.update({
-        where: { id },
-        data: {
-          ...("firstName" in data ? { firstName: data.firstName } : {}),
-          ...("lastName" in data ? { lastName: data.lastName } : {}),
-          ...("company" in data ? { company: data.company ?? null } : {}),
-          ...("email" in data ? { email: data.email ?? null } : {}),
-          ...("phone" in data ? { phone: data.phone ?? null } : {}),
-          ...("website" in data ? { website: data.website ?? null } : {}),
-          ...("address" in data ? { address: data.address ?? null } : {}),
-          ...("notes" in data ? { notes: data.notes ?? null } : {}),
-          ...("billingMode" in data ? { billingMode: data.billingMode } : {}),
-          ...("rate" in data ? { rate: data.rate } : {}),
-          ...("fixedPrice" in data
-            ? { fixedPrice: data.fixedPrice ?? null }
-            : {}),
-          ...("deposit" in data ? { deposit: data.deposit ?? null } : {}),
-          ...("paymentTerms" in data
-            ? { paymentTerms: data.paymentTerms ?? null }
-            : {}),
-          ...("category" in data ? { category: data.category } : {}),
-          ...("color" in data ? { color: data.color ?? null } : {}),
-          ...("starred" in data ? { starred: data.starred } : {}),
-        },
-      })
-      await logActivity(tx, {
-        userId: user.id,
-        kind: "CLIENT_UPDATED",
-        title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} mis à jour`,
-        clientId: id,
-      })
+    await prisma.client.update({
+      where: { id },
+      data: {
+        ...("firstName" in data ? { firstName: data.firstName } : {}),
+        ...("lastName" in data ? { lastName: data.lastName } : {}),
+        ...("company" in data ? { company: data.company ?? null } : {}),
+        ...("email" in data ? { email: data.email ?? null } : {}),
+        ...("phone" in data ? { phone: data.phone ?? null } : {}),
+        ...("website" in data ? { website: data.website ?? null } : {}),
+        ...("address" in data ? { address: data.address ?? null } : {}),
+        ...("notes" in data ? { notes: data.notes ?? null } : {}),
+        ...("billingMode" in data ? { billingMode: data.billingMode } : {}),
+        ...("rate" in data ? { rate: data.rate } : {}),
+        ...("fixedPrice" in data
+          ? { fixedPrice: data.fixedPrice ?? null }
+          : {}),
+        ...("deposit" in data ? { deposit: data.deposit ?? null } : {}),
+        ...("paymentTerms" in data
+          ? { paymentTerms: data.paymentTerms ?? null }
+          : {}),
+        ...("category" in data ? { category: data.category } : {}),
+        ...("color" in data ? { color: data.color ?? null } : {}),
+        ...("starred" in data ? { starred: data.starred } : {}),
+      },
+    })
+    deferActivityLog({
+      userId: user.id,
+      kind: "CLIENT_UPDATED",
+      title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} mis à jour`,
+      clientId: id,
     })
     return NextResponse.json({ ok: true })
   } catch (error) {
@@ -188,17 +186,15 @@ export async function DELETE(_: Request, { params }: Params) {
     })
     if (!owned) return apiNotFound()
 
-    await prisma.$transaction(async (tx) => {
-      await tx.client.update({
-        where: { id },
-        data: { archivedAt: new Date() },
-      })
-      await logActivity(tx, {
-        userId: user.id,
-        kind: "CLIENT_ARCHIVED",
-        title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} archivé`,
-        clientId: id,
-      })
+    await prisma.client.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    })
+    deferActivityLog({
+      userId: user.id,
+      kind: "CLIENT_ARCHIVED",
+      title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} archivé`,
+      clientId: id,
     })
     return NextResponse.json({ ok: true })
   } catch (error) {
