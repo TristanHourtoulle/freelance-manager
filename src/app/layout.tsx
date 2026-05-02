@@ -7,15 +7,20 @@ import { ToastProvider } from "@/components/providers/toast-provider"
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
 })
 
 const jetbrains = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
-  title: "FreelanceManager",
+  title: {
+    default: "FreelanceManager",
+    template: "%s · FreelanceManager",
+  },
   description: "Gestion freelance — clients, projets, tasks, factures",
 }
 
