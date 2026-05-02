@@ -49,7 +49,7 @@ export async function GET() {
       where: { userId: user.id },
       orderBy: { issueDate: "desc" },
       include: {
-        lines: true,
+        _count: { select: { lines: true } },
         payments: { select: { amount: true, paidAt: true } },
       },
     })
@@ -75,7 +75,7 @@ export async function GET() {
           total: decimalToNumber(inv.total) ?? 0,
           totalOverride: decimalToNumber(inv.totalOverride),
           notes: inv.notes,
-          linesCount: inv.lines.length,
+          linesCount: inv._count.lines,
         }
       }),
     })
