@@ -23,8 +23,12 @@ export function Sparkline({ data, width = 220, height = 64 }: SparklineProps) {
       </svg>
     )
   }
-  const max = Math.max(...data, 1)
-  const min = Math.min(...data, 0)
+  let max = 1
+  let min = 0
+  for (const v of data) {
+    if (v > max) max = v
+    if (v < min) min = v
+  }
   const span = max - min || 1
   const stepX = width / (data.length - 1)
   const points = data.map((v, i): [number, number] => [
@@ -88,7 +92,11 @@ interface DualChartProps {
 /** Stacked dual chart: bars for "paid" + smooth line for "issued". */
 export function DualChart({ months }: DualChartProps) {
   if (!months.length) return null
-  const max = Math.max(...months.flatMap((m) => [m.paid, m.issued]), 1)
+  let max = 1
+  for (const m of months) {
+    if (m.paid > max) max = m.paid
+    if (m.issued > max) max = m.issued
+  }
   const W = 900,
     H = 280,
     padL = 50,
@@ -221,20 +229,19 @@ export function Donut({ segments, total, format }: DonutProps) {
   const stroke = 22
   const r = (size - stroke) / 2
   const C = 2 * Math.PI * r
-  const ringSegments = segments.reduce<
-    {
-      label: string
-      value: number
-      color: string
-      dash: number
-      offset: number
-    }[]
-  >((rows, s) => {
-    const previousAcc = rows.reduce((sum, r) => sum + r.value / total, 0)
+  const ringSegments: {
+    label: string
+    value: number
+    color: string
+    dash: number
+    offset: number
+  }[] = []
+  let acc = 0
+  for (const s of segments) {
     const frac = s.value / total
-    rows.push({ ...s, dash: frac * C, offset: -previousAcc * C })
-    return rows
-  }, [])
+    ringSegments.push({ ...s, dash: frac * C, offset: -acc * C })
+    acc += frac
+  }
   return (
     <div className="donut-wrap">
       <svg
@@ -313,7 +320,11 @@ interface ThroughputChartProps {
 /** Side-by-side bars for "done" and "invoiced" tasks per week. */
 export function ThroughputChart({ weeks }: ThroughputChartProps) {
   if (!weeks.length) return null
-  const max = Math.max(...weeks.flatMap((w) => [w.done, w.invoiced]), 1)
+  let max = 1
+  for (const w of weeks) {
+    if (w.done > max) max = w.done
+    if (w.invoiced > max) max = w.invoiced
+  }
   const W = 600,
     H = 220,
     padL = 30,
@@ -388,8 +399,12 @@ const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
  * Buckets values into 5 intensity levels by max in dataset.
  */
 export function ActivityHeatmap({ rows, weekLabels }: ActivityHeatmapProps) {
-  const flat = rows.flat()
-  const max = Math.max(...flat, 1)
+  let max = 1
+  for (const row of rows) {
+    for (const v of row) {
+      if (v > max) max = v
+    }
+  }
   const intensity = (n: number) =>
     n === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((n / max) * 4)))
   const weeksCount = rows[0]?.length ?? 12

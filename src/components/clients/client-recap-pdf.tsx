@@ -144,21 +144,25 @@ const PAYMENT_FR: Record<string, string> = {
   OVERPAID: "Trop-perçu",
 }
 
+const EUR_FORMATTER = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+})
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+})
+
 function fmtEUR(n: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(n)
+  return EUR_FORMATTER.format(n)
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  return DATE_FORMATTER.format(new Date(iso))
 }
 
 /**
