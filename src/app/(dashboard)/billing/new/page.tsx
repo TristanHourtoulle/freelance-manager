@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
@@ -30,6 +30,14 @@ function newId() {
 }
 
 export default function NewInvoicePage() {
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      <NewInvoicePageContent />
+    </Suspense>
+  )
+}
+
+function NewInvoicePageContent() {
   const router = useRouter()
   const search = useSearchParams()
   const taskIdsParam = search.get("taskIds") ?? ""
