@@ -64,3 +64,24 @@ export function dateToISO(d: Date | null | undefined): string | null {
   if (!d) return null
   return d.toISOString()
 }
+
+/**
+ * Resolve the calling client's IP address. Honours x-forwarded-for and
+ * x-real-ip ONLY when TRUST_PROXY=1 is set in the environment, otherwise
+ * the headers are user-controllable and can be spoofed (returns 'unknown'
+ * in that case to make rate-limiters fail closed). Set TRUST_PROXY=1 only
+ * when running behind Vercel/Cloudflare/nginx that strips client-supplied
+ * X-Forwarded-For headers.
+ */
+export function getClientIp(request: Request): string {
+  const trustProxy = process.env.TRUST_PROXY === "1"
+  if (!trustProxy) return "unknown"
+  const fwd = request.headers.get("x-forwarded-for")
+  if (fwd) {
+    const first = fwd.split(",")[0]?.trim()
+    if (first) return first
+  }
+  const real = request.headers.get("x-real-ip")
+  if (real) return real
+  return "unknown"
+}
