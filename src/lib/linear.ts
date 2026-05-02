@@ -1,3 +1,4 @@
+import "server-only"
 import { LinearClient } from "@linear/sdk"
 import { prisma } from "@/lib/db"
 import { decrypt, encrypt } from "@/lib/encryption"

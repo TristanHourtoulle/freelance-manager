@@ -1,3 +1,4 @@
+import "server-only"
 import { NextResponse } from "next/server"
 import { headers as nextHeaders } from "next/headers"
 import { ZodError } from "zod/v4"

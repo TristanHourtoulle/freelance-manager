@@ -1,3 +1,4 @@
+import "server-only"
 import type { ActivityKind, Prisma } from "@/generated/prisma/client"
 
 type TxClient = Prisma.TransactionClient

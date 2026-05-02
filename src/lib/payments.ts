@@ -1,3 +1,4 @@
+import "server-only"
 import type { Prisma, PaymentStatus } from "@/generated/prisma/client"
 import { decimalToNumber } from "@/lib/api"
 
