@@ -106,6 +106,26 @@ export async function POST(req: Request) {
     if (!client) return apiUnauthorized()
     const number = autoNumber
 
+    if (data.projectId) {
+      const project = await prisma.project.findFirst({
+        where: {
+          id: data.projectId,
+          userId: user.id,
+          clientId: data.clientId,
+        },
+        select: { id: true },
+      })
+      if (!project) {
+        return NextResponse.json(
+          {
+            error: "Bad Request",
+            code: "INVALID_PROJECT_FOR_CLIENT",
+          },
+          { status: 400 },
+        )
+      }
+    }
+
     if (data.number) {
       const conflict = await prisma.invoice.findFirst({
         where: { userId: user.id, number },
@@ -157,7 +177,11 @@ export async function POST(req: Request) {
 
       if (data.taskIds?.length) {
         await tx.task.updateMany({
-          where: { id: { in: data.taskIds }, userId: user.id },
+          where: {
+            id: { in: data.taskIds },
+            userId: user.id,
+            clientId: data.clientId,
+          },
           data: { invoiceId: inv.id, status: "DONE" },
         })
       }
