@@ -16,6 +16,7 @@ import {
   recomputeInvoicePayment,
   serializePayment,
 } from "@/lib/payments"
+import { logActivity } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -88,15 +89,36 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const owned = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      select: { id: true },
+      select: { id: true, number: true, clientId: true, status: true },
     })
     if (!owned) return apiNotFound()
 
     if (!isFullUpdate) {
       const data = invoiceStatusUpdateSchema.parse(body)
-      await prisma.invoice.update({
-        where: { id },
-        data: { status: data.status },
+      await prisma.$transaction(async (tx) => {
+        await tx.invoice.update({
+          where: { id },
+          data: { status: data.status },
+        })
+        if (data.status !== owned.status) {
+          await logActivity(tx, {
+            userId: user.id,
+            kind:
+              data.status === "SENT"
+                ? "INVOICE_SENT"
+                : data.status === "CANCELLED"
+                  ? "INVOICE_CANCELLED"
+                  : "INVOICE_CREATED",
+            title:
+              data.status === "SENT"
+                ? `Facture ${owned.number} émise`
+                : data.status === "CANCELLED"
+                  ? `Facture ${owned.number} annulée`
+                  : `Facture ${owned.number} repassée en brouillon`,
+            clientId: owned.clientId,
+            invoiceId: owned.id,
+          })
+        }
       })
       return NextResponse.json({ ok: true })
     }

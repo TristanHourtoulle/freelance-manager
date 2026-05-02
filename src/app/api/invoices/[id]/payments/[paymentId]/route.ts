@@ -8,6 +8,7 @@ import {
 } from "@/lib/api"
 import { paymentUpdateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
+import { logActivity } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string; paymentId: string }>
@@ -55,13 +56,24 @@ export async function DELETE(_: Request, { params }: Params) {
   try {
     const payment = await prisma.payment.findFirst({
       where: { id: paymentId, invoiceId: id, userId: user.id },
-      select: { id: true },
+      select: {
+        id: true,
+        amount: true,
+        invoice: { select: { number: true, clientId: true } },
+      },
     })
     if (!payment) return apiNotFound()
 
     await prisma.$transaction(async (tx) => {
       await tx.payment.delete({ where: { id: paymentId } })
       await recomputeInvoicePayment(id, tx)
+      await logActivity(tx, {
+        userId: user.id,
+        kind: "PAYMENT_DELETED",
+        title: `Paiement de ${Number(payment.amount).toFixed(2)} € retiré sur ${payment.invoice.number}`,
+        clientId: payment.invoice.clientId,
+        invoiceId: id,
+      })
     })
 
     return NextResponse.json({ ok: true })

@@ -7,6 +7,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
+import { logActivity } from "@/lib/activity"
 
 function serialize(c: {
   id: string
@@ -15,6 +16,9 @@ function serialize(c: {
   company: string | null
   email: string | null
   phone: string | null
+  website: string | null
+  address: string | null
+  notes: string | null
   billingMode: "DAILY" | "FIXED" | "HOURLY"
   rate: import("@/generated/prisma/client").Prisma.Decimal
   fixedPrice: import("@/generated/prisma/client").Prisma.Decimal | null
@@ -22,6 +26,7 @@ function serialize(c: {
   paymentTerms: number | null
   category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
   color: string | null
+  starred: boolean
   archivedAt: Date | null
   createdAt: Date
 }) {
@@ -32,6 +37,9 @@ function serialize(c: {
     company: c.company,
     email: c.email,
     phone: c.phone,
+    website: c.website,
+    address: c.address,
+    notes: c.notes,
     billingMode: c.billingMode,
     rate: decimalToNumber(c.rate) ?? 0,
     fixedPrice: decimalToNumber(c.fixedPrice),
@@ -39,6 +47,7 @@ function serialize(c: {
     paymentTerms: c.paymentTerms,
     category: c.category,
     color: c.color,
+    starred: c.starred,
     archived: c.archivedAt != null,
     createdAt: c.createdAt.toISOString(),
   }
@@ -66,22 +75,35 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const data = clientCreateSchema.parse(body)
-    const created = await prisma.client.create({
-      data: {
+    const created = await prisma.$transaction(async (tx) => {
+      const c = await tx.client.create({
+        data: {
+          userId: user.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          company: data.company ?? null,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          website: data.website ?? null,
+          address: data.address ?? null,
+          notes: data.notes ?? null,
+          billingMode: data.billingMode ?? "DAILY",
+          rate: data.rate ?? 0,
+          fixedPrice: data.fixedPrice ?? null,
+          deposit: data.deposit ?? null,
+          paymentTerms: data.paymentTerms ?? null,
+          category: data.category ?? "FREELANCE",
+          color: data.color ?? null,
+          starred: data.starred ?? false,
+        },
+      })
+      await logActivity(tx, {
         userId: user.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        company: data.company ?? null,
-        email: data.email ?? null,
-        phone: data.phone ?? null,
-        billingMode: data.billingMode ?? "DAILY",
-        rate: data.rate ?? 0,
-        fixedPrice: data.fixedPrice ?? null,
-        deposit: data.deposit ?? null,
-        paymentTerms: data.paymentTerms ?? null,
-        category: data.category ?? "FREELANCE",
-        color: data.color ?? null,
-      },
+        kind: "CLIENT_CREATED",
+        title: `Client ${c.company ?? `${c.firstName} ${c.lastName}`} créé`,
+        clientId: c.id,
+      })
+      return c
     })
     return NextResponse.json(serialize(created), { status: 201 })
   } catch (error) {

@@ -4,18 +4,27 @@ import { use, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import {
-  BillingTypePill,
   StatusPill,
   invoicePillStatus,
   taskStatusToPill,
 } from "@/components/ui/pill"
-import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
-import { useClientDetail } from "@/hooks/use-client-detail"
+import {
+  fmtDate,
+  fmtDateShort,
+  fmtEUR,
+  initials,
+  avatarColor,
+} from "@/lib/format"
+import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
 import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
+import { EditClientModal } from "@/components/clients/edit-client-modal"
+import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
+import { ClientRevenueChart } from "@/components/clients/client-revenue-chart"
+import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobileClientDetailPage } from "./mobile"
 
-type Tab = "overview" | "projects" | "tasks" | "invoices"
+type Tab = "overview" | "projects" | "tasks" | "invoices" | "activity"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -32,7 +41,9 @@ function DesktopClientDetailPage({ id }: { id: string }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [showLink, setShowLink] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const { data: client, isLoading } = useClientDetail(id)
+  const { data: activity } = useClientActivity(tab === "activity" ? id : null)
 
   if (isLoading) {
     return (
@@ -51,27 +62,36 @@ function DesktopClientDetailPage({ id }: { id: string }) {
     )
   }
 
-  const gradient =
-    client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
+  const fullName = `${client.firstName} ${client.lastName}`
+  const gradient = client.color ?? avatarColor(fullName)
+  const clientLabel = client.company ?? fullName
 
-  const revenue = client.invoices.reduce((s, i) => s + i.paidAmount, 0)
-  const outstanding = client.invoices
-    .filter(
-      (i) =>
-        i.status === "SENT" &&
-        (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
-    )
-    .reduce((s, i) => s + i.balanceDue, 0)
+  const totalRevenue = client.invoices.reduce((s, i) => s + i.paidAmount, 0)
+  const sentInvoices = client.invoices.filter(
+    (i) =>
+      i.status === "SENT" &&
+      (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
+  )
+  const outstanding = sentInvoices.reduce((s, i) => s + i.balanceDue, 0)
+  const paidCount = client.invoices.filter(
+    (i) => i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID",
+  ).length
+  const overdueCount = client.invoices.filter((i) => i.isOverdue).length
   const pendingTasks = client.tasks.filter(
     (t) => t.status === "PENDING_INVOICE",
   )
-  const pipeline = pendingTasks.reduce((s, t) => {
-    if (client.billingMode === "DAILY")
-      return s + (t.estimate ?? 0) * client.rate
-    if (client.billingMode === "HOURLY")
-      return s + (t.estimate ?? 0) * 8 * client.rate
-    return s
-  }, 0)
+  const billingLabel =
+    client.billingMode === "DAILY"
+      ? `TJM · ${client.rate} €/j`
+      : client.billingMode === "HOURLY"
+        ? `Horaire · ${client.rate} €/h`
+        : "Forfait"
+  const billingPillClass =
+    client.billingMode === "DAILY"
+      ? "pill pill-daily pill-no-dot"
+      : client.billingMode === "HOURLY"
+        ? "pill pill-hourly pill-no-dot"
+        : "pill pill-deposit pill-no-dot"
 
   return (
     <div className="page">
@@ -84,244 +104,431 @@ function DesktopClientDetailPage({ id }: { id: string }) {
           onClick={() => router.push("/clients")}
         >
           <Icon name="chevron-left" size={12} />
-          Clients
+          Retour aux clients
         </button>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => setShowLink(true)}
-        >
-          <Icon name="link" size={12} />
-          Lier projets Linear
-        </button>
+        <div className="row gap-8">
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowLink(true)}
+          >
+            <Icon name="link" size={13} />
+            Lier projets Linear
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowEdit(true)}>
+            <Icon name="edit" size={13} />
+            Modifier
+          </button>
+          <ClientActionsMenu
+            clientId={client.id}
+            clientLabel={clientLabel}
+            archived={client.archived}
+            onArchived={() => router.push("/clients")}
+          />
+        </div>
       </div>
 
       <div className="detail-hero">
-        <div
-          className="av av-lg"
-          style={{
-            background: gradient,
-            width: 56,
-            height: 56,
-            fontSize: 18,
-            borderRadius: 12,
-          }}
-        >
-          {initials(`${client.firstName} ${client.lastName}`)}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="row gap-8">
-            <h1 className="page-title" style={{ fontSize: 22, margin: 0 }}>
-              {client.firstName} {client.lastName}
-            </h1>
-            <BillingTypePill type={client.billingMode} />
-          </div>
-          <div className="muted" style={{ marginTop: 4 }}>
-            {client.company ?? "—"}
-            {client.email ? ` · ${client.email}` : ""}
-          </div>
+        <div className="hero-top">
           <div
-            className="small muted"
+            className="hero-av"
             style={{
-              marginTop: 8,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "4px 14px",
+              background: gradient,
+              width: 64,
+              height: 64,
+              fontSize: 22,
+              boxShadow: "0 0 0 4px oklch(0.86 0.19 128 / 0.06)",
             }}
           >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                whiteSpace: "nowrap",
-              }}
+            {initials(fullName)}
+          </div>
+          <div className="hero-info">
+            <div className="hero-name-row">
+              <h1 className="hero-name">{fullName}</h1>
+              <span className={billingPillClass}>{billingLabel}</span>
+              {!client.archived && (
+                <span className="pill pill-paid pill-no-dot">Actif</span>
+              )}
+              {client.archived && (
+                <span className="pill pill-draft pill-no-dot">Archivé</span>
+              )}
+              {client.starred && (
+                <span style={{ color: "var(--warn)", display: "inline-flex" }}>
+                  <Icon name="star" size={15} />
+                </span>
+              )}
+            </div>
+            <div className="hero-sub">
+              {client.company && (
+                <span style={{ color: "var(--text-0)", fontWeight: 600 }}>
+                  {client.company}
+                </span>
+              )}
+              {client.company && client.email && (
+                <span className="dot-sep">·</span>
+              )}
+              {client.email && (
+                <a href={`mailto:${client.email}`}>{client.email}</a>
+              )}
+              {client.phone && <span className="dot-sep">·</span>}
+              {client.phone && (
+                <a href={`tel:${client.phone}`}>{client.phone}</a>
+              )}
+            </div>
+            <div className="hero-meta">
+              <span className="hero-meta-item">
+                <Icon name="calendar" size={13} />
+                Client depuis {fmtDate(client.createdAt)}
+              </span>
+              <span className="hero-meta-item">
+                <Icon name="folder" size={13} />
+                {client.projects.length} projet
+                {client.projects.length > 1 ? "s" : ""}
+              </span>
+              <span className="hero-meta-item">
+                <Icon name="invoice" size={13} />
+                {client.invoices.length} facture
+                {client.invoices.length > 1 ? "s" : ""}
+              </span>
+              {client.address && (
+                <span className="hero-meta-item">
+                  <Icon name="map" size={13} />
+                  {client.address}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="hero-actions">
+            <button
+              className="btn btn-primary"
+              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
+              disabled={pendingTasks.length === 0}
             >
-              <Icon name="calendar" size={11} /> Client depuis{" "}
-              {fmtDate(client.createdAt)}
-            </span>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Icon name="briefcase" size={11} /> {client.projects.length}{" "}
-              projet{client.projects.length > 1 ? "s" : ""}
-            </span>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <Icon name="invoice" size={11} /> {client.invoices.length} facture
-              {client.invoices.length > 1 ? "s" : ""}
-            </span>
+              <Icon name="plus" size={13} />
+              Facturer ({pendingTasks.length})
+            </button>
           </div>
         </div>
-        <div className="hero-stats">
-          <div>
-            <div className="hero-stat-label">Taux</div>
-            <div className="hero-stat-value">
-              {client.billingMode === "DAILY" && `${client.rate}€/j`}
-              {client.billingMode === "HOURLY" && `${client.rate}€/h`}
-              {client.billingMode === "FIXED" && fmtEUR(client.fixedPrice)}
+
+        <div className="kpi-grid">
+          <div className="kpi k-revenue">
+            <div className="kpi-label">
+              <Icon name="arrow-up" size={11} />
+              Revenu généré
+            </div>
+            <div className="kpi-value accent">{fmtEUR(totalRevenue)}</div>
+            <div className="kpi-sub">
+              {paidCount} facture{paidCount > 1 ? "s" : ""} payée
+              {paidCount > 1 ? "s" : ""}
             </div>
           </div>
-          <div>
-            <div className="hero-stat-label">Revenu</div>
-            <div className="hero-stat-value" style={{ color: "var(--accent)" }}>
-              {fmtEUR(revenue)}
+          <div className="kpi k-outstanding">
+            <div className="kpi-label">
+              <Icon name="invoice" size={11} />
+              Encours
+            </div>
+            <div className="kpi-value warn">{fmtEUR(outstanding)}</div>
+            <div className="kpi-sub">
+              {sentInvoices.length} facture{sentInvoices.length > 1 ? "s" : ""}{" "}
+              envoyée{sentInvoices.length > 1 ? "s" : ""}
             </div>
           </div>
-          <div>
-            <div className="hero-stat-label">Encours</div>
-            <div
-              className="hero-stat-value"
-              style={{ color: outstanding > 0 ? "var(--warn)" : undefined }}
-            >
-              {fmtEUR(outstanding)}
+          <div className="kpi k-overdue">
+            <div className="kpi-label">
+              <Icon name="circle-dot" size={11} />
+              En retard
             </div>
-          </div>
-          <div>
-            <div className="hero-stat-label">Pipeline</div>
-            <div
-              className="hero-stat-value"
-              style={{ color: pipeline > 0 ? "var(--info)" : undefined }}
-            >
-              {pipeline > 0 ? fmtEUR(pipeline) : "—"}
+            <div className="kpi-value danger">
+              {overdueCount}
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  marginLeft: 6,
+                  fontFamily: "inherit",
+                }}
+              >
+                facture{overdueCount > 1 ? "s" : ""}
+              </span>
             </div>
+            <div className="kpi-sub">à relancer</div>
           </div>
         </div>
       </div>
 
-      <div className="tabs">
+      <div className="tabs" role="tablist">
         {(
           [
-            { id: "overview", label: "Vue d'ensemble" },
-            { id: "projects", label: `Projets (${client.projects.length})` },
-            { id: "tasks", label: `Tasks (${client.tasks.length})` },
-            { id: "invoices", label: `Factures (${client.invoices.length})` },
-          ] as { id: Tab; label: string }[]
+            { id: "overview", label: "Vue d'ensemble", icon: "home" as const },
+            {
+              id: "projects",
+              label: "Projets",
+              icon: "folder" as const,
+              count: client.projects.length,
+            },
+            {
+              id: "tasks",
+              label: "Tasks",
+              icon: "tasks" as const,
+              count: client.tasks.length,
+            },
+            {
+              id: "invoices",
+              label: "Factures",
+              icon: "invoice" as const,
+              count: client.invoices.length,
+            },
+            { id: "activity", label: "Activité", icon: "clock" as const },
+          ] as const
         ).map((t) => (
-          <div
+          <button
             key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
             className={"tab" + (tab === t.id ? " active" : "")}
             onClick={() => setTab(t.id)}
           >
+            <Icon name={t.icon} size={13} />
             {t.label}
-          </div>
+            {"count" in t && t.count !== undefined && (
+              <span className="count">{t.count}</span>
+            )}
+          </button>
         ))}
-        <div style={{ marginLeft: "auto", paddingBottom: 6 }}>
-          {pendingTasks.length > 0 && (
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
-            >
-              <Icon name="plus" size={12} />
-              Facturer ({pendingTasks.length})
-            </button>
-          )}
-        </div>
       </div>
 
       {tab === "overview" && (
-        <div className="chart-grid">
-          <div className="card">
-            <div className="card-h2" style={{ marginBottom: 16 }}>
-              Projets en cours
-            </div>
-            {client.projects.length === 0 && (
-              <div className="muted small">Aucun projet</div>
-            )}
-            <div className="col gap-12">
-              {client.projects.map((p) => {
-                const projectTasks = client.tasks.filter(
-                  (t) => t.projectId === p.id,
-                )
-                const done = projectTasks.filter(
-                  (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
-                ).length
-                return (
-                  <div
-                    key={p.id}
-                    style={{
-                      padding: 14,
-                      background: "var(--bg-2)",
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <div className="row gap-8" style={{ marginBottom: 8 }}>
-                      <Icon name="folder" size={14} className="muted" />
-                      <div className="strong grow truncate">{p.name}</div>
-                      <span className="task-id">{p.key}</span>
-                    </div>
-                    <div className="muted xs" style={{ marginBottom: 10 }}>
-                      {p.description ?? ""}
-                    </div>
-                    <div
-                      className="row gap-8 xs muted"
-                      style={{ marginBottom: 6 }}
-                    >
-                      <span>
-                        {done}/{projectTasks.length} tasks
-                      </span>
-                      <span style={{ marginLeft: "auto" }}>
-                        {Math.round(
-                          (done / Math.max(projectTasks.length, 1)) * 100,
-                        )}
-                        %
-                      </span>
-                    </div>
-                    <div className="pbar">
-                      <span
-                        style={{
-                          width: `${(done / Math.max(projectTasks.length, 1)) * 100}%`,
-                        }}
-                      />
-                    </div>
+        <div className="detail-cols">
+          <div className="col gap-12" style={{ minWidth: 0 }}>
+            <div className="detail-card">
+              <div className="detail-card-header">
+                <div>
+                  <div className="detail-card-title">Évolution du revenu</div>
+                  <div className="detail-card-sub">
+                    12 derniers mois · {fmtEUR(totalRevenue)}
                   </div>
-                )
-              })}
+                </div>
+              </div>
+              <div className="mini-chart-wrap">
+                <ClientRevenueChart data={client.monthlyRevenue} />
+              </div>
+            </div>
+
+            <div className="detail-card">
+              <div className="detail-card-header">
+                <div>
+                  <div className="detail-card-title">Projets en cours</div>
+                  <div className="detail-card-sub">
+                    {client.projects.length} actif
+                    {client.projects.length > 1 ? "s" : ""} · synchronisés
+                    Linear
+                  </div>
+                </div>
+                {client.projects.length > 3 && (
+                  <button
+                    type="button"
+                    className="detail-card-link"
+                    onClick={() => setTab("projects")}
+                  >
+                    Tout voir →
+                  </button>
+                )}
+              </div>
+              <div className="proj-stack">
+                {client.projects.length === 0 && (
+                  <div className="muted small">Aucun projet lié.</div>
+                )}
+                {client.projects.slice(0, 3).map((p) => {
+                  const projectTasks = client.tasks.filter(
+                    (t) => t.projectId === p.id,
+                  )
+                  const done = projectTasks.filter(
+                    (t) =>
+                      t.status === "DONE" || t.status === "PENDING_INVOICE",
+                  ).length
+                  const total = projectTasks.length
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="proj-card"
+                      onClick={() => router.push(`/tasks?projectId=${p.id}`)}
+                    >
+                      <div className="proj-row1">
+                        <div className="proj-icon">
+                          <Icon name="folder" size={13} />
+                        </div>
+                        <span className="proj-name">{p.name}</span>
+                        <span className="proj-key">{p.key}</span>
+                      </div>
+                      {p.description && (
+                        <div className="proj-desc">{p.description}</div>
+                      )}
+                      <div className="proj-progress">
+                        <div className="proj-progress-row">
+                          <span>
+                            {done}/{total} tasks
+                          </span>
+                          <span
+                            className="mono"
+                            style={{ color: "var(--accent)", fontWeight: 600 }}
+                          >
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="pbar">
+                          <span style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-          <div className="card">
-            <div className="card-h2" style={{ marginBottom: 16 }}>
-              Dernières factures
+
+          <div className="col gap-12" style={{ minWidth: 0 }}>
+            <div className="detail-card">
+              <div className="detail-card-header">
+                <div className="detail-card-title">Informations</div>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 8px", fontSize: 12 }}
+                  onClick={() => setShowEdit(true)}
+                >
+                  <Icon name="edit" size={12} />
+                </button>
+              </div>
+              <div>
+                {client.company && (
+                  <div className="info-row">
+                    <Icon name="briefcase" size={14} />
+                    <span className="lbl">Société</span>
+                    <span className="val">{client.company}</span>
+                  </div>
+                )}
+                {client.email && (
+                  <div className="info-row">
+                    <Icon name="mail" size={14} />
+                    <span className="lbl">Email</span>
+                    <span className="val">{client.email}</span>
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="info-row">
+                    <Icon name="phone" size={14} />
+                    <span className="lbl">Téléphone</span>
+                    <span className="val mono">{client.phone}</span>
+                  </div>
+                )}
+                {client.website && (
+                  <div className="info-row">
+                    <Icon name="globe" size={14} />
+                    <span className="lbl">Site</span>
+                    <span className="val">{client.website}</span>
+                  </div>
+                )}
+                {client.address && (
+                  <div className="info-row">
+                    <Icon name="map" size={14} />
+                    <span className="lbl">Adresse</span>
+                    <span className="val" style={{ fontSize: 12 }}>
+                      {client.address}
+                    </span>
+                  </div>
+                )}
+                {client.paymentTerms != null && (
+                  <div className="info-row">
+                    <Icon name="clock" size={14} />
+                    <span className="lbl">Délai paiement</span>
+                    <span className="val mono">
+                      {client.paymentTerms} jours
+                    </span>
+                  </div>
+                )}
+                <div className="info-row">
+                  <Icon name="calendar" size={14} />
+                  <span className="lbl">Client depuis</span>
+                  <span className="val">{fmtDate(client.createdAt)}</span>
+                </div>
+              </div>
             </div>
-            <div className="col gap-8">
-              {client.invoices.slice(0, 5).map((inv) => (
+
+            <div className="detail-card">
+              <div className="detail-card-header">
+                <div className="detail-card-title">Notes</div>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 8px", fontSize: 12 }}
+                  onClick={() => setShowEdit(true)}
+                >
+                  <Icon name="edit" size={12} />
+                </button>
+              </div>
+              {client.notes ? (
                 <div
-                  key={inv.id}
-                  className="row gap-12"
                   style={{
-                    padding: "10px 0",
-                    borderBottom: "1px solid var(--border)",
+                    color: "var(--text-1)",
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
                   }}
                 >
-                  <span className="mono small">{inv.number}</span>
-                  {inv.kind === "DEPOSIT" && (
-                    <span className="pill pill-deposit pill-no-dot xs">
-                      acompte
-                    </span>
-                  )}
-                  <div className="grow muted xs">{fmtDate(inv.issueDate)}</div>
-                  <StatusPill status={invoicePillStatus(inv)} />
-                  <span
-                    className="num strong"
-                    style={{ width: 90, textAlign: "right" }}
-                  >
-                    {fmtEUR(inv.total)}
-                  </span>
+                  {client.notes}
                 </div>
-              ))}
-              {client.invoices.length === 0 && (
-                <div className="muted small">Aucune facture</div>
+              ) : (
+                <div className="muted small">Aucune note pour ce client.</div>
+              )}
+            </div>
+
+            <div className="detail-card">
+              <div className="detail-card-header">
+                <div>
+                  <div className="detail-card-title">Dernières factures</div>
+                  <div className="detail-card-sub">
+                    {client.invoices.length} au total
+                  </div>
+                </div>
+                {client.invoices.length > 4 && (
+                  <button
+                    type="button"
+                    className="detail-card-link"
+                    onClick={() => setTab("invoices")}
+                  >
+                    Tout voir →
+                  </button>
+                )}
+              </div>
+              {client.invoices.length === 0 ? (
+                <div className="muted small">Aucune facture.</div>
+              ) : (
+                client.invoices.slice(0, 4).map((inv, i) => (
+                  <div key={inv.id}>
+                    {i > 0 && <div className="inv-divider" />}
+                    <button
+                      type="button"
+                      className="inv-row"
+                      onClick={() =>
+                        router.push(`/billing?invoiceId=${inv.id}`)
+                      }
+                    >
+                      <span className="inv-num">{inv.number}</span>
+                      <span className="inv-date">
+                        {fmtDateShort(inv.issueDate)}
+                      </span>
+                      <StatusPill status={invoicePillStatus(inv)} />
+                      <span className="inv-total">{fmtEUR(inv.total)}</span>
+                      <Icon
+                        name="chevron-right"
+                        size={13}
+                        style={{ color: "var(--text-3)" }}
+                      />
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -329,74 +536,69 @@ function DesktopClientDetailPage({ id }: { id: string }) {
       )}
 
       {tab === "projects" && (
-        <div className="client-grid">
-          {client.projects.map((p) => {
-            const projectTasks = client.tasks.filter(
-              (t) => t.projectId === p.id,
-            )
-            return (
-              <div
-                key={p.id}
-                className="client-card"
-                onClick={() => router.push(`/tasks?projectId=${p.id}`)}
-              >
-                <div className="row gap-12">
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      background: "var(--bg-3)",
-                      borderRadius: 9,
-                      display: "grid",
-                      placeItems: "center",
-                    }}
+        <div className="detail-card">
+          <div className="detail-card-header">
+            <div className="detail-card-title">Tous les projets</div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowLink(true)}
+            >
+              <Icon name="plus" size={12} />
+              Lier un projet
+            </button>
+          </div>
+          {client.projects.length === 0 ? (
+            <div className="muted small">Aucun projet lié.</div>
+          ) : (
+            <div className="proj-stack">
+              {client.projects.map((p) => {
+                const projectTasks = client.tasks.filter(
+                  (t) => t.projectId === p.id,
+                )
+                const done = projectTasks.filter(
+                  (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
+                ).length
+                const total = projectTasks.length
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="proj-card"
+                    onClick={() => router.push(`/tasks?projectId=${p.id}`)}
                   >
-                    <Icon name="folder" size={18} />
-                  </div>
-                  <div className="grow">
-                    <div className="strong">{p.name}</div>
-                    <div className="muted small">{p.description ?? ""}</div>
-                  </div>
-                </div>
-                <div className="client-stats">
-                  <div className="client-stat">
-                    <div className="client-stat-label">Total</div>
-                    <div className="client-stat-value">
-                      {projectTasks.length}
+                    <div className="proj-row1">
+                      <div className="proj-icon">
+                        <Icon name="folder" size={13} />
+                      </div>
+                      <span className="proj-name">{p.name}</span>
+                      <span className="proj-key">{p.key}</span>
                     </div>
-                  </div>
-                  <div className="client-stat">
-                    <div className="client-stat-label">Done</div>
-                    <div
-                      className="client-stat-value"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      {
-                        projectTasks.filter(
-                          (t) =>
-                            t.status === "DONE" ||
-                            t.status === "PENDING_INVOICE",
-                        ).length
-                      }
+                    {p.description && (
+                      <div className="proj-desc">{p.description}</div>
+                    )}
+                    <div className="proj-progress">
+                      <div className="proj-progress-row">
+                        <span>
+                          {done}/{total} tasks
+                        </span>
+                        <span
+                          className="mono"
+                          style={{ color: "var(--accent)", fontWeight: 600 }}
+                        >
+                          {pct}%
+                        </span>
+                      </div>
+                      <div className="pbar">
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="client-stat">
-                    <div className="client-stat-label">À facturer</div>
-                    <div
-                      className="client-stat-value"
-                      style={{ color: "var(--warn)" }}
-                    >
-                      {
-                        projectTasks.filter(
-                          (t) => t.status === "PENDING_INVOICE",
-                        ).length
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -460,64 +662,51 @@ function DesktopClientDetailPage({ id }: { id: string }) {
       )}
 
       {tab === "invoices" && (
-        <div className="card" style={{ padding: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th style={{ paddingLeft: 20 }}>Numéro</th>
-                <th>Émise</th>
-                <th>Échéance</th>
-                <th>Type</th>
-                <th>Statut</th>
-                <th className="right" style={{ paddingRight: 20 }}>
-                  Montant
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.invoices.map((inv) => (
-                <tr
-                  key={inv.id}
-                  style={{ cursor: "pointer" }}
+        <div className="detail-card">
+          <div className="detail-card-header">
+            <div className="detail-card-title">Toutes les factures</div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
+            >
+              <Icon name="plus" size={12} />
+              Nouvelle facture
+            </button>
+          </div>
+          {client.invoices.length === 0 ? (
+            <div className="muted small">Aucune facture.</div>
+          ) : (
+            client.invoices.map((inv, i) => (
+              <div key={inv.id}>
+                {i > 0 && <div className="inv-divider" />}
+                <button
+                  type="button"
+                  className="inv-row"
                   onClick={() => router.push(`/billing?invoiceId=${inv.id}`)}
                 >
-                  <td style={{ paddingLeft: 20 }}>
-                    <div className="row gap-8">
-                      <span className="mono small strong">{inv.number}</span>
-                      {inv.kind === "DEPOSIT" && (
-                        <span className="pill pill-deposit pill-no-dot xs">
-                          acompte
-                        </span>
-                      )}
-                    </div>
-                    <div className="xs muted" style={{ marginTop: 2 }}>
-                      {inv.linesCount} ligne{inv.linesCount > 1 ? "s" : ""}
-                    </div>
-                  </td>
-                  <td className="muted small">{fmtDate(inv.issueDate)}</td>
-                  <td className="muted small">{fmtDate(inv.dueDate)}</td>
-                  <td className="small">
-                    {inv.kind === "DEPOSIT" ? "Acompte" : "Standard"}
-                  </td>
-                  <td>
-                    <StatusPill status={invoicePillStatus(inv)} />
-                  </td>
-                  <td className="right num strong" style={{ paddingRight: 20 }}>
-                    {fmtEUR(inv.total)}
-                  </td>
-                </tr>
-              ))}
-              {client.invoices.length === 0 && (
-                <tr>
-                  <td colSpan={6}>
-                    <div className="empty">
-                      <div className="empty-title">Aucune facture</div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  <span className="inv-num">{inv.number}</span>
+                  <span className="inv-date">{fmtDate(inv.issueDate)}</span>
+                  <StatusPill status={invoicePillStatus(inv)} />
+                  <span className="inv-total">{fmtEUR(inv.total)}</span>
+                  <Icon
+                    name="chevron-right"
+                    size={13}
+                    style={{ color: "var(--text-3)" }}
+                  />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {tab === "activity" && (
+        <div className="detail-card">
+          <div className="detail-card-header">
+            <div className="detail-card-title">Activité récente</div>
+          </div>
+          <ClientActivityTimeline items={activity ?? []} />
         </div>
       )}
 
@@ -526,6 +715,9 @@ function DesktopClientDetailPage({ id }: { id: string }) {
           initialClientId={client.id}
           onClose={() => setShowLink(false)}
         />
+      )}
+      {showEdit && (
+        <EditClientModal client={client} onClose={() => setShowEdit(false)} />
       )}
     </div>
   )

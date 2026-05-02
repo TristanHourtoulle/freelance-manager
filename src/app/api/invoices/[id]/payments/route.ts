@@ -8,6 +8,7 @@ import {
 } from "@/lib/api"
 import { paymentCreateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
+import { logActivity } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -23,7 +24,7 @@ export async function POST(req: Request, { params }: Params) {
 
     const invoice = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, number: true, clientId: true },
     })
     if (!invoice) return apiNotFound()
     if (invoice.status === "CANCELLED") {
@@ -47,6 +48,14 @@ export async function POST(req: Request, { params }: Params) {
         },
       })
       await recomputeInvoicePayment(id, tx)
+      await logActivity(tx, {
+        userId: user.id,
+        kind: "PAYMENT_RECORDED",
+        title: `Paiement de ${data.amount.toFixed(2)} € sur ${invoice.number}`,
+        meta: data.method ?? undefined,
+        clientId: invoice.clientId,
+        invoiceId: invoice.id,
+      })
       return payment
     })
 

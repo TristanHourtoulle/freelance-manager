@@ -9,6 +9,7 @@ import {
 } from "@/lib/api"
 import { clientUpdateSchema } from "@/lib/schemas/client"
 import { getInvoiceComputed } from "@/lib/payments"
+import { logActivity } from "@/lib/activity"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -44,6 +45,21 @@ export async function GET(_: Request, { params }: Params) {
       }),
     ])
 
+    const today = new Date()
+    const monthlyRevenue: { month: string; total: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
+      const total = invoices
+        .flatMap((inv) => inv.payments)
+        .filter((p) => p.paidAt >= start && p.paidAt < end)
+        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+      monthlyRevenue.push({
+        month: start.toLocaleDateString("fr-FR", { month: "short" }),
+        total,
+      })
+    }
+
     return NextResponse.json({
       id: c.id,
       firstName: c.firstName,
@@ -51,6 +67,9 @@ export async function GET(_: Request, { params }: Params) {
       company: c.company,
       email: c.email,
       phone: c.phone,
+      website: c.website,
+      address: c.address,
+      notes: c.notes,
       billingMode: c.billingMode,
       rate: decimalToNumber(c.rate) ?? 0,
       fixedPrice: decimalToNumber(c.fixedPrice),
@@ -58,8 +77,10 @@ export async function GET(_: Request, { params }: Params) {
       paymentTerms: c.paymentTerms,
       category: c.category,
       color: c.color,
+      starred: c.starred,
       archived: c.archivedAt != null,
       createdAt: c.createdAt.toISOString(),
+      monthlyRevenue,
       projects: c.projects.map((p) => ({
         id: p.id,
         name: p.name,
@@ -111,26 +132,44 @@ export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params
   try {
     const data = clientUpdateSchema.parse(await req.json())
-    await prisma.client.updateMany({
+    const owned = await prisma.client.findFirst({
       where: { id, userId: user.id },
-      data: {
-        ...("firstName" in data ? { firstName: data.firstName } : {}),
-        ...("lastName" in data ? { lastName: data.lastName } : {}),
-        ...("company" in data ? { company: data.company ?? null } : {}),
-        ...("email" in data ? { email: data.email ?? null } : {}),
-        ...("phone" in data ? { phone: data.phone ?? null } : {}),
-        ...("billingMode" in data ? { billingMode: data.billingMode } : {}),
-        ...("rate" in data ? { rate: data.rate } : {}),
-        ...("fixedPrice" in data
-          ? { fixedPrice: data.fixedPrice ?? null }
-          : {}),
-        ...("deposit" in data ? { deposit: data.deposit ?? null } : {}),
-        ...("paymentTerms" in data
-          ? { paymentTerms: data.paymentTerms ?? null }
-          : {}),
-        ...("category" in data ? { category: data.category } : {}),
-        ...("color" in data ? { color: data.color ?? null } : {}),
-      },
+      select: { id: true, firstName: true, lastName: true, company: true },
+    })
+    if (!owned) return apiNotFound()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.client.update({
+        where: { id },
+        data: {
+          ...("firstName" in data ? { firstName: data.firstName } : {}),
+          ...("lastName" in data ? { lastName: data.lastName } : {}),
+          ...("company" in data ? { company: data.company ?? null } : {}),
+          ...("email" in data ? { email: data.email ?? null } : {}),
+          ...("phone" in data ? { phone: data.phone ?? null } : {}),
+          ...("website" in data ? { website: data.website ?? null } : {}),
+          ...("address" in data ? { address: data.address ?? null } : {}),
+          ...("notes" in data ? { notes: data.notes ?? null } : {}),
+          ...("billingMode" in data ? { billingMode: data.billingMode } : {}),
+          ...("rate" in data ? { rate: data.rate } : {}),
+          ...("fixedPrice" in data
+            ? { fixedPrice: data.fixedPrice ?? null }
+            : {}),
+          ...("deposit" in data ? { deposit: data.deposit ?? null } : {}),
+          ...("paymentTerms" in data
+            ? { paymentTerms: data.paymentTerms ?? null }
+            : {}),
+          ...("category" in data ? { category: data.category } : {}),
+          ...("color" in data ? { color: data.color ?? null } : {}),
+          ...("starred" in data ? { starred: data.starred } : {}),
+        },
+      })
+      await logActivity(tx, {
+        userId: user.id,
+        kind: "CLIENT_UPDATED",
+        title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} mis à jour`,
+        clientId: id,
+      })
     })
     return NextResponse.json({ ok: true })
   } catch (error) {
@@ -143,7 +182,24 @@ export async function DELETE(_: Request, { params }: Params) {
   if (!user) return apiUnauthorized()
   const { id } = await params
   try {
-    await prisma.client.deleteMany({ where: { id, userId: user.id } })
+    const owned = await prisma.client.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true, firstName: true, lastName: true, company: true },
+    })
+    if (!owned) return apiNotFound()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.client.update({
+        where: { id },
+        data: { archivedAt: new Date() },
+      })
+      await logActivity(tx, {
+        userId: user.id,
+        kind: "CLIENT_ARCHIVED",
+        title: `Client ${owned.company ?? `${owned.firstName} ${owned.lastName}`} archivé`,
+        clientId: id,
+      })
+    })
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)

@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/db"
+import {
+  apiNotFound,
+  apiServerError,
+  apiUnauthorized,
+  getAuthUser,
+} from "@/lib/api"
+import { logActivity } from "@/lib/activity"
+
+interface Params {
+  params: Promise<{ id: string }>
+}
+
+/**
+ * Clone a client. Duplicates only the client row itself — invoices,
+ * projects, tasks, linear mappings and activity log are NOT copied.
+ * The new client name is suffixed with "(copie)" to avoid confusion.
+ */
+export async function POST(_: Request, { params }: Params) {
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
+  const { id } = await params
+  try {
+    const src = await prisma.client.findFirst({
+      where: { id, userId: user.id },
+    })
+    if (!src) return apiNotFound()
+
+    const created = await prisma.$transaction(async (tx) => {
+      const c = await tx.client.create({
+        data: {
+          userId: user.id,
+          firstName: src.firstName,
+          lastName: src.lastName,
+          company: src.company ? `${src.company} (copie)` : null,
+          email: src.email,
+          phone: src.phone,
+          website: src.website,
+          address: src.address,
+          notes: src.notes,
+          billingMode: src.billingMode,
+          rate: src.rate,
+          fixedPrice: src.fixedPrice,
+          deposit: src.deposit,
+          paymentTerms: src.paymentTerms,
+          category: src.category,
+          color: src.color,
+          starred: false,
+        },
+      })
+      await logActivity(tx, {
+        userId: user.id,
+        kind: "CLIENT_DUPLICATED",
+        title: `Client ${c.company ?? `${c.firstName} ${c.lastName}`} dupliqué depuis ${src.company ?? `${src.firstName} ${src.lastName}`}`,
+        clientId: c.id,
+      })
+      return c
+    })
+
+    return NextResponse.json({ id: created.id }, { status: 201 })
+  } catch (error) {
+    return apiServerError(error)
+  }
+}
