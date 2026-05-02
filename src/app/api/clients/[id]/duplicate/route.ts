@@ -5,6 +5,7 @@ import {
   apiServerError,
   apiUnauthorized,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { deferActivityLog } from "@/lib/activity"
 
@@ -17,7 +18,9 @@ interface Params {
  * projects, tasks, linear mappings and activity log are NOT copied.
  * The new client name is suffixed with "(copie)" to avoid confusion.
  */
-export async function POST(_: Request, { params }: Params) {
+export async function POST(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const { id } = await params
   try {
     const [user, src] = await Promise.all([

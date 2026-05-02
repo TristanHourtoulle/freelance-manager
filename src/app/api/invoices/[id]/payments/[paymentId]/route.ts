@@ -5,6 +5,7 @@ import {
   apiServerError,
   apiUnauthorized,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { paymentUpdateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
@@ -15,6 +16,8 @@ interface Params {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const { id, paymentId } = await params
 
   try {
@@ -52,7 +55,9 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const { id, paymentId } = await params
 
   try {

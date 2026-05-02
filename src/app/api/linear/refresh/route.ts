@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  getAuthUser,
+  requireSameOrigin,
+} from "@/lib/api"
 import { syncFromLinear } from "@/lib/linear"
 import { deferActivityLog } from "@/lib/activity"
 
-export async function POST() {
+export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {

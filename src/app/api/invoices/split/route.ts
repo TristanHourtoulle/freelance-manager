@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  getAuthUser,
+  requireSameOrigin,
+} from "@/lib/api"
 import { invoiceSplitSchema } from "@/lib/schemas/invoice-split"
 
 function formatNumber(year: number, seq: number): string {
@@ -109,6 +114,8 @@ function shiftDate(
  * @returns `{ items: [{ id, number, total, dueDate }, …] }`
  */
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 

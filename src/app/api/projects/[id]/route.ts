@@ -5,6 +5,7 @@ import {
   apiServerError,
   apiUnauthorized,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 
 interface Params {
@@ -26,7 +27,9 @@ interface Params {
  * NOTE: invoices created from those tasks are preserved. The InvoiceLine.taskId
  * is set to null because of the SetNull on Task delete.
  */
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   const { id } = await params

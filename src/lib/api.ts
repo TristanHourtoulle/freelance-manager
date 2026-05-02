@@ -66,6 +66,41 @@ export function dateToISO(d: Date | null | undefined): string | null {
 }
 
 /**
+ * Reject mutating requests whose Origin/Referer doesn't match
+ * NEXT_PUBLIC_APP_URL. Defense-in-depth against CSRF attacks even when
+ * the session cookie is cross-origin-leakable (e.g. SameSite=Lax). Pair
+ * with `cookieOptions.sameSite='strict'` in the better-auth config.
+ *
+ * Returns a 403 NextResponse on mismatch, or `null` to proceed.
+ *
+ * @example
+ *   export async function POST(request: Request) {
+ *     const csrf = requireSameOrigin(request)
+ *     if (csrf) return csrf
+ *     // … rest of handler
+ *   }
+ */
+export function requireSameOrigin(request: Request): NextResponse | null {
+  const expected = process.env.NEXT_PUBLIC_APP_URL
+  if (!expected) return null
+  const origin = request.headers.get("origin")
+  if (origin) {
+    return origin === expected
+      ? null
+      : NextResponse.json(
+          { error: "Forbidden", code: "CSRF_ORIGIN_MISMATCH" },
+          { status: 403 },
+        )
+  }
+  const referer = request.headers.get("referer")
+  if (referer && referer.startsWith(expected)) return null
+  return NextResponse.json(
+    { error: "Forbidden", code: "CSRF_ORIGIN_MISSING" },
+    { status: 403 },
+  )
+}
+
+/**
  * Resolve the calling client's IP address. Honours x-forwarded-for and
  * x-real-ip ONLY when TRUST_PROXY=1 is set in the environment, otherwise
  * the headers are user-controllable and can be spoofed (returns 'unknown'

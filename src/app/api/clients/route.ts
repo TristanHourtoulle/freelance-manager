@@ -5,6 +5,7 @@ import {
   apiUnauthorized,
   decimalToNumber,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
 import { deferActivityLog } from "@/lib/activity"
@@ -69,6 +70,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 

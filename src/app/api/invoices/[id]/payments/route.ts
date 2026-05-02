@@ -5,6 +5,7 @@ import {
   apiServerError,
   apiUnauthorized,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { paymentCreateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
@@ -15,6 +16,8 @@ interface Params {
 }
 
 export async function POST(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const { id } = await params
 
   try {
