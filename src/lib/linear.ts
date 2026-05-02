@@ -107,9 +107,56 @@ interface SyncResult {
   tasks: number
 }
 
+function projectStatus(
+  state: string | undefined | null,
+): "COMPLETED" | "PAUSED" | "ACTIVE" {
+  if (state === "completed") return "COMPLETED"
+  if (state === "paused") return "PAUSED"
+  return "ACTIVE"
+}
+
+/**
+ * Run `fn` over `items` with at most `concurrency` parallel executions.
+ * Used in `syncFromLinear` to keep Linear's SDK from opening 750+
+ * simultaneous fetches (which trips ETIMEDOUT on busy networks).
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let i = 0
+  async function worker() {
+    while (true) {
+      const idx = i++
+      if (idx >= items.length) return
+      results[idx] = await fn(items[idx]!)
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker))
+  return results
+}
+
 /**
  * Pull all issues from the Linear scopes mapped to the user's clients and
  * upsert local Project/Task rows. This is the "Sync Linear" button's handler.
+ *
+ * The function is split into two phases to keep the database transaction
+ * short and never wait on Linear API I/O while holding row locks:
+ *
+ *   PHASE 1 — pull (no DB): for every mapping, fetch the issues page
+ *     and resolve `project`, `team`, `state` for each issue in parallel
+ *     via Promise.all. Builds an in-memory list of `enriched` records.
+ *
+ *   PHASE 2 — write (single transaction): one batched findMany to learn
+ *     which tasks already exist (so we can preserve invoiceId), then
+ *     project + task upserts inside `prisma.$transaction(...)`. The
+ *     userSettings.linearLastSyncedAt write is in the same tx so the
+ *     sync timestamp can never drift from the data.
+ *
+ * If phase 1 throws (Linear API error), no DB write happens; if phase 2
+ * throws, everything rolls back.
  */
 export async function syncFromLinear(userId: string): Promise<SyncResult> {
   const userLinear = await getLinearClient(userId)
@@ -123,117 +170,158 @@ export async function syncFromLinear(userId: string): Promise<SyncResult> {
     include: { client: true },
   })
 
-  let projectsUpserted = 0
-  let tasksUpserted = 0
-
+  // Phase 1 — pull: process mappings sequentially (one Linear workspace
+  // at a time) and resolve issue → (project, team, state) with a small
+  // concurrency cap. The Linear SDK's GraphQL layer struggles when given
+  // hundreds of simultaneous relation accesses (ETIMEDOUT under load),
+  // so we keep peak concurrency low.
+  const ISSUE_CONCURRENCY = 4
+  const enrichedByMapping: {
+    mapping: (typeof mappings)[number]
+    issues: {
+      issue: Awaited<ReturnType<typeof client.issues>>["nodes"][number]
+      project: Awaited<
+        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["project"]
+      >
+      team: Awaited<
+        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["team"]
+      >
+      state: Awaited<
+        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["state"]
+      >
+    }[]
+  }[] = []
   for (const m of mappings) {
-    const filter: Record<string, unknown> = {}
-    if (m.linearProjectId) {
-      filter.project = { id: { eq: m.linearProjectId } }
-    } else if (m.linearTeamId) {
-      filter.team = { id: { eq: m.linearTeamId } }
-    } else {
+    if (!m.linearProjectId && !m.linearTeamId) {
+      enrichedByMapping.push({ mapping: m, issues: [] })
       continue
     }
-
-    const issues = await client.issues({
+    const filter = m.linearProjectId
+      ? { project: { id: { eq: m.linearProjectId } } }
+      : { team: { id: { eq: m.linearTeamId! } } }
+    const issuesPage = await client.issues({
       filter: filter as never,
       first: 250,
     })
-
-    for (const issue of issues.nodes) {
-      const project = await issue.project
-      if (!project) continue
-
-      const team = await issue.team
-      const state = await issue.state
-
-      const localProject = await prisma.project.upsert({
-        where: { linearProjectId: project.id },
-        create: {
-          userId,
-          clientId: m.clientId,
-          linearProjectId: project.id,
-          linearTeamId: team?.id ?? null,
-          name: project.name,
-          key: team?.key ?? keyFromIdentifier(issue.identifier),
-          description: project.description ?? null,
-          status:
-            project.state === "completed"
-              ? "COMPLETED"
-              : project.state === "paused"
-                ? "PAUSED"
-                : "ACTIVE",
-          linearCreatedAt: project.createdAt ?? null,
-        },
-        update: {
-          name: project.name,
-          description: project.description ?? null,
-          status:
-            project.state === "completed"
-              ? "COMPLETED"
-              : project.state === "paused"
-                ? "PAUSED"
-                : "ACTIVE",
-          linearTeamId: team?.id ?? null,
-          lastSyncedAt: new Date(),
-        },
-      })
-      projectsUpserted++
-
-      const existing = await prisma.task.findUnique({
-        where: { linearIssueId: issue.id },
-        select: { invoiceId: true },
-      })
-
-      const status = mapLinearStateType(
-        state?.type,
-        Boolean(existing?.invoiceId),
-      )
-
-      await prisma.task.upsert({
-        where: { linearIssueId: issue.id },
-        create: {
-          userId,
-          clientId: m.clientId,
-          projectId: localProject.id,
-          linearIssueId: issue.id,
-          linearIdentifier: issue.identifier,
-          linearStateName: state?.name ?? null,
-          linearStateType: state?.type ?? null,
-          title: issue.title,
-          description: issue.description ?? null,
-          status,
-          priority: mapLinearPriority(issue.priority),
-          estimate: issue.estimate ?? null,
-          completedAt: issue.completedAt ?? null,
-          linearCreatedAt: issue.createdAt ?? null,
-          linearUpdatedAt: issue.updatedAt ?? null,
-        },
-        update: {
-          clientId: m.clientId,
-          projectId: localProject.id,
-          linearIdentifier: issue.identifier,
-          linearStateName: state?.name ?? null,
-          linearStateType: state?.type ?? null,
-          title: issue.title,
-          description: issue.description ?? null,
-          status,
-          priority: mapLinearPriority(issue.priority),
-          estimate: issue.estimate ?? null,
-          completedAt: issue.completedAt ?? null,
-          linearUpdatedAt: issue.updatedAt ?? null,
-          lastSyncedAt: new Date(),
-        },
-      })
-      tasksUpserted++
-    }
+    const enriched = await mapWithConcurrency(
+      issuesPage.nodes,
+      ISSUE_CONCURRENCY,
+      async (issue) => {
+        const [project, team, state] = await Promise.all([
+          issue.project,
+          issue.team,
+          issue.state,
+        ])
+        return { issue, project, team, state }
+      },
+    )
+    enrichedByMapping.push({ mapping: m, issues: enriched })
   }
 
-  await prisma.userSettings.upsert({
-    where: { userId },
-    update: { linearLastSyncedAt: new Date() },
-    create: { userId, linearLastSyncedAt: new Date() },
+  const allIssueIds = enrichedByMapping.flatMap((g) =>
+    g.issues.map((e) => e.issue.id),
+  )
+
+  // Phase 2 — write: single transaction, no Linear I/O inside.
+  let projectsUpserted = 0
+  let tasksUpserted = 0
+
+  await prisma.$transaction(async (tx) => {
+    const existingTasks =
+      allIssueIds.length > 0
+        ? await tx.task.findMany({
+            where: { userId, linearIssueId: { in: allIssueIds } },
+            select: { linearIssueId: true, invoiceId: true },
+          })
+        : []
+    const invoiceByIssueId = new Map(
+      existingTasks.map((t) => [t.linearIssueId, t.invoiceId]),
+    )
+
+    const localProjectIdByLinearId = new Map<string, string>()
+
+    for (const group of enrichedByMapping) {
+      const { mapping, issues } = group
+      for (const { issue, project, team, state } of issues) {
+        if (!project) continue
+
+        let localProjectId = localProjectIdByLinearId.get(project.id)
+        if (!localProjectId) {
+          const localProject = await tx.project.upsert({
+            where: { linearProjectId: project.id },
+            create: {
+              userId,
+              clientId: mapping.clientId,
+              linearProjectId: project.id,
+              linearTeamId: team?.id ?? null,
+              name: project.name,
+              key: team?.key ?? keyFromIdentifier(issue.identifier),
+              description: project.description ?? null,
+              status: projectStatus(project.state),
+              linearCreatedAt: project.createdAt ?? null,
+            },
+            update: {
+              name: project.name,
+              description: project.description ?? null,
+              status: projectStatus(project.state),
+              linearTeamId: team?.id ?? null,
+              lastSyncedAt: new Date(),
+            },
+          })
+          localProjectId = localProject.id
+          localProjectIdByLinearId.set(project.id, localProjectId)
+          projectsUpserted++
+        }
+
+        const status = mapLinearStateType(
+          state?.type,
+          Boolean(invoiceByIssueId.get(issue.id)),
+        )
+
+        await tx.task.upsert({
+          where: { linearIssueId: issue.id },
+          create: {
+            userId,
+            clientId: mapping.clientId,
+            projectId: localProjectId,
+            linearIssueId: issue.id,
+            linearIdentifier: issue.identifier,
+            linearStateName: state?.name ?? null,
+            linearStateType: state?.type ?? null,
+            title: issue.title,
+            description: issue.description ?? null,
+            status,
+            priority: mapLinearPriority(issue.priority),
+            estimate: issue.estimate ?? null,
+            completedAt: issue.completedAt ?? null,
+            linearCreatedAt: issue.createdAt ?? null,
+            linearUpdatedAt: issue.updatedAt ?? null,
+          },
+          update: {
+            clientId: mapping.clientId,
+            projectId: localProjectId,
+            linearIdentifier: issue.identifier,
+            linearStateName: state?.name ?? null,
+            linearStateType: state?.type ?? null,
+            title: issue.title,
+            description: issue.description ?? null,
+            status,
+            priority: mapLinearPriority(issue.priority),
+            estimate: issue.estimate ?? null,
+            completedAt: issue.completedAt ?? null,
+            linearUpdatedAt: issue.updatedAt ?? null,
+            lastSyncedAt: new Date(),
+          },
+        })
+        tasksUpserted++
+      }
+    }
+
+    await tx.userSettings.upsert({
+      where: { userId },
+      update: { linearLastSyncedAt: new Date() },
+      create: { userId, linearLastSyncedAt: new Date() },
+    })
   })
 
   return { projects: projectsUpserted, tasks: tasksUpserted }
