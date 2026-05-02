@@ -59,18 +59,23 @@ function DesktopBillingPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
 
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+
   const filtered = useMemo(() => {
     return invoices.filter((i) => {
       if (!matchesFilter(i, filter)) return false
       if (searchTerm) {
-        const c = clients.find((cc) => cc.id === i.clientId)
+        const c = clientById.get(i.clientId)
         const text =
           `${i.number} ${c?.company ?? ""} ${c?.firstName ?? ""} ${c?.lastName ?? ""}`.toLowerCase()
         if (!text.includes(searchTerm.toLowerCase())) return false
       }
       return true
     })
-  }, [invoices, clients, filter, searchTerm])
+  }, [invoices, clientById, filter, searchTerm])
 
   const counts = {
     all: invoices.length,
@@ -237,7 +242,7 @@ function DesktopBillingPage() {
               </tr>
             )}
             {filtered.map((inv) => {
-              const client = clients.find((c) => c.id === inv.clientId)
+              const client = clientById.get(inv.clientId)
               return (
                 <tr
                   key={inv.id}

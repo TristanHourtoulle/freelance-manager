@@ -117,12 +117,21 @@ function DesktopTasksPage() {
     return Array.from(m.values())
   }, [paged])
 
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p])),
+    [projects],
+  )
+
   const selectedTasks = filtered.filter((t) => selected.has(t.id))
   const selectedClientIds = new Set(selectedTasks.map((t) => t.clientId))
   const canInvoiceSelected = selectedClientIds.size === 1
 
   const selectedValue = selectedTasks.reduce((s, t) => {
-    const c = clients.find((cc) => cc.id === t.clientId)
+    const c = clientById.get(t.clientId)
     if (!c) return s
     return (
       s +
@@ -291,8 +300,8 @@ function DesktopTasksPage() {
           </div>
         )}
         {groups.map((g) => {
-          const c = clients.find((cc) => cc.id === g.clientId)
-          const p = projects.find((pp) => pp.id === g.projectId)
+          const c = clientById.get(g.clientId)
+          const p = projectById.get(g.projectId)
           const groupValue = g.tasks.reduce((s, t) => {
             if (!c) return s
             return (

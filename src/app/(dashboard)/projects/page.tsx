@@ -63,16 +63,30 @@ function DesktopProjectsPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
 
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const tasksByProject = useMemo(() => {
+    const m = new Map<string, typeof tasks>()
+    for (const t of tasks) {
+      const arr = m.get(t.projectId) ?? []
+      arr.push(t)
+      m.set(t.projectId, arr)
+    }
+    return m
+  }, [tasks])
+
   const rows: ProjectRow[] = useMemo(() => {
     return projects.map((p) => {
-      const projectTasks = tasks.filter((t) => t.projectId === p.id)
+      const projectTasks = tasksByProject.get(p.id) ?? []
       const pendingTasks = projectTasks.filter(
         (t) => t.status === "PENDING_INVOICE",
       )
       const doneTasks = projectTasks.filter(
         (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
       )
-      const client = clients.find((c) => c.id === p.clientId)
+      const client = clientById.get(p.clientId)
       const pipeline =
         client?.billingMode === "DAILY"
           ? pendingTasks.reduce(
@@ -109,7 +123,7 @@ function DesktopProjectsPage() {
         revenue,
       }
     })
-  }, [projects, tasks, invoices, clients])
+  }, [projects, tasksByProject, invoices, clientById])
 
   const counts = useMemo(
     () => ({
