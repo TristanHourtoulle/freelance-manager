@@ -9,9 +9,20 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useSyncLinear } from "@/hooks/use-tasks"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
-import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
+const LinearMappingsModal = dynamic(
+  () =>
+    import("@/components/clients/linear-mappings-modal").then(
+      (m) => m.LinearMappingsModal,
+    ),
+  { ssr: false },
+)
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileProjectsPage } from "./mobile"
+import dynamic from "next/dynamic"
+
+const MobileProjectsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileProjectsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type SortKey =

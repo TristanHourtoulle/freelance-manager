@@ -11,8 +11,13 @@ import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileTasksPage } from "./mobile"
+
+const MobileTasksPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileTasksPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 

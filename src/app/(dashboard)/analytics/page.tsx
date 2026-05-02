@@ -11,8 +11,13 @@ import {
   Sparkline,
   ThroughputChart,
 } from "@/components/analytics/charts"
+import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileAnalyticsPage } from "./mobile"
+
+const MobileAnalyticsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileAnalyticsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",

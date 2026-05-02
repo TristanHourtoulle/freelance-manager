@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
@@ -7,7 +8,11 @@ import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileDashboardPage } from "./mobile"
+
+const MobileDashboardPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileDashboardPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 export default function DashboardPage() {
   const isMobile = useIsMobile()
