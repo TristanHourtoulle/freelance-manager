@@ -2,12 +2,14 @@
 
 import { Fragment } from "react"
 import { Icon } from "@/components/ui/icon"
+import { useCmdK } from "@/components/cmdk/cmdk-provider"
 
 interface TopbarProps {
   crumbs: string[]
 }
 
 export function Topbar({ crumbs }: TopbarProps) {
+  const cmdk = useCmdK()
   return (
     <div className="topbar">
       <div className="crumbs">
@@ -22,14 +24,18 @@ export function Topbar({ crumbs }: TopbarProps) {
           </Fragment>
         ))}
       </div>
-      <div className="topbar-search">
+      <button
+        type="button"
+        className="topbar-search"
+        onClick={cmdk.open}
+        aria-label="Ouvrir la palette de commandes"
+      >
         <Icon name="search" size={14} className="muted" />
-        <input
-          placeholder="Rechercher tasks, clients, factures…"
-          aria-label="Rechercher"
-        />
+        <span className="topbar-search-placeholder">
+          Rechercher tasks, clients, factures…
+        </span>
         <span className="kbd">⌘K</span>
-      </div>
+      </button>
       <button
         className="icon-btn"
         title="Notifications"

@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { Sidebar } from "./sidebar"
 import { Topbar } from "./topbar"
 import { BottomNav } from "@/components/mobile/bottom-nav"
+import { CmdKProvider } from "@/components/cmdk/cmdk-provider"
 
 interface AppShellProps {
   user: { name: string; email: string }
@@ -18,19 +19,21 @@ interface AppShellProps {
  */
 export function AppShell({ user, crumbs, children }: AppShellProps) {
   return (
-    <div className="app">
-      <div className="desktop-only">
-        <Sidebar user={user} />
-      </div>
-      <div className="main">
+    <CmdKProvider>
+      <div className="app">
         <div className="desktop-only">
-          <Topbar crumbs={crumbs} />
+          <Sidebar user={user} />
         </div>
-        {children}
+        <div className="main">
+          <div className="desktop-only">
+            <Topbar crumbs={crumbs} />
+          </div>
+          {children}
+        </div>
+        <div className="mobile-only">
+          <BottomNav />
+        </div>
       </div>
-      <div className="mobile-only">
-        <BottomNav />
-      </div>
-    </div>
+    </CmdKProvider>
   )
 }
