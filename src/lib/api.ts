@@ -1,4 +1,5 @@
 import "server-only"
+import { cache } from "react"
 import { NextResponse } from "next/server"
 import { headers as nextHeaders } from "next/headers"
 import { ZodError } from "zod/v4"
@@ -14,9 +15,10 @@ export interface ApiUser {
 /**
  * Resolve the current authenticated user from the request cookies. Returns
  * null when the request is unauthenticated — callers wrap with apiUnauthorized()
- * when null.
+ * when null. Memoized per request via React.cache so multiple call sites in
+ * the same render tree (layout + page + cached data fns) share one lookup.
  */
-export async function getAuthUser(): Promise<ApiUser | null> {
+export const getAuthUser = cache(async (): Promise<ApiUser | null> => {
   const session = await auth.api.getSession({ headers: await nextHeaders() })
   if (!session?.user) return null
   return {
@@ -24,7 +26,7 @@ export async function getAuthUser(): Promise<ApiUser | null> {
     email: session.user.email,
     name: session.user.name,
   }
-}
+})
 
 export function apiUnauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
