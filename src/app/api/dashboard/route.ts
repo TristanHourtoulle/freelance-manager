@@ -16,10 +16,12 @@ export async function GET() {
     const today = new Date()
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const yearStart = new Date(today.getFullYear(), 0, 1)
+    const chartStart = new Date(today.getFullYear(), today.getMonth() - 7, 1)
 
     const [
       openInvoices,
-      payments,
+      paymentTotals,
+      paymentBuckets,
       pendingTasks,
       recentInvoices,
       recentTasks,
@@ -42,10 +44,29 @@ export async function GET() {
           payments: { select: { amount: true, paidAt: true } },
         },
       }),
-      prisma.payment.findMany({
-        where: { userId: user.id },
-        select: { amount: true, paidAt: true },
-      }),
+      prisma.$queryRaw<
+        {
+          paid_count: bigint
+          revenue_month: number
+          revenue_year: number
+        }[]
+      >`
+        SELECT
+          COUNT(*)::bigint AS paid_count,
+          COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${monthStart}), 0)::float AS revenue_month,
+          COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${yearStart}), 0)::float AS revenue_year
+        FROM payments
+        WHERE "userId" = ${user.id}
+      `,
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
+        SELECT
+          date_trunc('month', "paidAt") AS month,
+          SUM(amount)::float AS total
+        FROM payments
+        WHERE "userId" = ${user.id} AND "paidAt" >= ${chartStart}
+        GROUP BY 1
+        ORDER BY 1
+      `,
       prisma.task.findMany({
         where: {
           userId: user.id,
@@ -82,12 +103,10 @@ export async function GET() {
       }),
     ])
 
-    const revenueMonth = payments
-      .filter((p) => p.paidAt >= monthStart)
-      .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
-    const revenueYear = payments
-      .filter((p) => p.paidAt >= yearStart)
-      .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+    const totals = paymentTotals[0]
+    const paidCount = totals ? Number(totals.paid_count) : 0
+    const revenueMonth = totals?.revenue_month ?? 0
+    const revenueYear = totals?.revenue_year ?? 0
 
     const overdueList = openInvoices
       .map((inv) => ({ inv, computed: getInvoiceComputed(inv) }))
@@ -105,16 +124,18 @@ export async function GET() {
     const pipelineClientCount = new Set(pendingTasks.map((t) => t.clientId))
       .size
 
+    const bucketByMonth = new Map(
+      paymentBuckets.map(
+        (b) => [b.month.toISOString().slice(0, 7), b.total] as const,
+      ),
+    )
     const months: { month: string; total: number; isCurrent: boolean }[] = []
     for (let i = 7; i >= 0; i--) {
       const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
-      const total = payments
-        .filter((p) => p.paidAt >= start && p.paidAt < end)
-        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+      const key = start.toISOString().slice(0, 7)
       months.push({
         month: start.toLocaleDateString("fr-FR", { month: "short" }),
-        total,
+        total: bucketByMonth.get(key) ?? 0,
         isCurrent: i === 0,
       })
     }
@@ -123,7 +144,7 @@ export async function GET() {
       kpi: {
         revenueMonth,
         revenueYear,
-        paidCount: payments.length,
+        paidCount,
         outstanding,
         sentCount: openInvoices.length,
         overdueAmount,

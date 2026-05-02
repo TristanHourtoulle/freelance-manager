@@ -22,7 +22,10 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    const [c, tasks, invoices] = await Promise.all([
+    const today = new Date()
+    const monthlyStart = new Date(today.getFullYear(), today.getMonth() - 11, 1)
+
+    const [c, tasks, invoices, monthlyTotals] = await Promise.all([
       prisma.client.findFirst({
         where: { id, userId: user.id },
         include: {
@@ -42,21 +45,30 @@ export async function GET(_: Request, { params }: Params) {
           payments: { select: { amount: true, paidAt: true } },
         },
       }),
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
+        SELECT date_trunc('month', p."paidAt") AS month,
+               SUM(p.amount)::float AS total
+        FROM payments p
+        JOIN invoices i ON p."invoiceId" = i.id
+        WHERE i."clientId" = ${id}
+          AND i."userId" = ${user.id}
+          AND p."paidAt" >= ${monthlyStart}
+        GROUP BY 1
+        ORDER BY 1
+      `,
     ])
     if (!c) return apiNotFound()
 
-    const today = new Date()
+    const monthlyMap = new Map(
+      monthlyTotals.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
+    )
     const monthlyRevenue: { month: string; total: number }[] = []
     for (let i = 11; i >= 0; i--) {
       const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
-      const total = invoices
-        .flatMap((inv) => inv.payments)
-        .filter((p) => p.paidAt >= start && p.paidAt < end)
-        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
+      const key = start.toISOString().slice(0, 7)
       monthlyRevenue.push({
         month: start.toLocaleDateString("fr-FR", { month: "short" }),
-        total,
+        total: monthlyMap.get(key) ?? 0,
       })
     }
 

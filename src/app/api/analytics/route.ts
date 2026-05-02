@@ -25,47 +25,70 @@ export async function GET(req: Request) {
       1,
     )
 
-    const [invoices, payments, clients, tasks] = await Promise.all([
-      prisma.invoice.findMany({
-        where: { userId: user.id, status: { not: "CANCELLED" } },
-        select: {
-          id: true,
-          clientId: true,
-          status: true,
-          paymentStatus: true,
-          issueDate: true,
-          total: true,
-        },
-      }),
-      prisma.payment.findMany({
-        where: { userId: user.id },
-        select: { invoiceId: true, amount: true, paidAt: true },
-      }),
-      prisma.client.findMany({
-        where: { userId: user.id, archivedAt: null },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          company: true,
-          color: true,
-          billingMode: true,
-        },
-      }),
-      prisma.task.findMany({
-        where: {
-          userId: user.id,
-          completedAt: { not: null, gte: periodStart },
-        },
-        select: {
-          id: true,
-          completedAt: true,
-          status: true,
-          invoiceId: true,
-        },
-      }),
-    ])
+    const [invoices, payments, clients, tasks, paidByMonth, issuedByMonth] =
+      await Promise.all([
+        prisma.invoice.findMany({
+          where: { userId: user.id, status: { not: "CANCELLED" } },
+          select: {
+            id: true,
+            clientId: true,
+            status: true,
+            paymentStatus: true,
+            issueDate: true,
+            total: true,
+          },
+        }),
+        prisma.payment.findMany({
+          where: { userId: user.id },
+          select: { invoiceId: true, amount: true, paidAt: true },
+        }),
+        prisma.client.findMany({
+          where: { userId: user.id, archivedAt: null },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            company: true,
+            color: true,
+            billingMode: true,
+          },
+        }),
+        prisma.task.findMany({
+          where: {
+            userId: user.id,
+            completedAt: { not: null, gte: periodStart },
+          },
+          select: {
+            id: true,
+            completedAt: true,
+            status: true,
+            invoiceId: true,
+          },
+        }),
+        prisma.$queryRaw<{ month: Date; total: number }[]>`
+        SELECT date_trunc('month', "paidAt") AS month, SUM(amount)::float AS total
+        FROM payments
+        WHERE "userId" = ${user.id} AND "paidAt" >= ${periodStart}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+        prisma.$queryRaw<{ month: Date; total: number }[]>`
+        SELECT date_trunc('month', "issueDate") AS month, SUM(total)::float AS total
+        FROM invoices
+        WHERE "userId" = ${user.id}
+          AND "status" <> 'CANCELLED'
+          AND "issueDate" >= ${periodStart}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      ])
 
+    const paidByMonthMap = new Map(
+      paidByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
+    )
+    const issuedByMonthMap = new Map(
+      issuedByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
+    )
     const monthBuckets: {
       label: string
       paid: number
@@ -74,17 +97,11 @@ export async function GET(req: Request) {
     }[] = []
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const end = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
-      const paidTotal = payments
-        .filter((p) => p.paidAt >= start && p.paidAt < end)
-        .reduce((s, p) => s + (decimalToNumber(p.amount) ?? 0), 0)
-      const issuedTotal = invoices
-        .filter((inv) => inv.issueDate >= start && inv.issueDate < end)
-        .reduce((s, inv) => s + (decimalToNumber(inv.total) ?? 0), 0)
+      const key = start.toISOString().slice(0, 7)
       monthBuckets.push({
         label: start.toLocaleDateString("fr-FR", { month: "short" }),
-        paid: paidTotal,
-        issued: issuedTotal,
+        paid: paidByMonthMap.get(key) ?? 0,
+        issued: issuedByMonthMap.get(key) ?? 0,
         isCurrent: i === 0,
       })
     }
