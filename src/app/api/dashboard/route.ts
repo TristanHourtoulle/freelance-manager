@@ -6,7 +6,6 @@ import {
   decimalToNumber,
   getAuthUser,
 } from "@/lib/api"
-import { pipelineValueForTask } from "@/lib/billing-math"
 import { getInvoiceComputed } from "@/lib/payments"
 
 export async function GET() {
@@ -48,12 +47,12 @@ export async function GET() {
         select: { amount: true, paidAt: true },
       }),
       prisma.task.findMany({
-        where: { userId: user.id, status: "PENDING_INVOICE" },
-        include: {
-          client: {
-            select: { billingMode: true, rate: true },
-          },
+        where: {
+          userId: user.id,
+          status: "PENDING_INVOICE",
+          client: { billingMode: { in: ["DAILY", "HOURLY"] } },
         },
+        select: { clientId: true },
       }),
       prisma.invoice.findMany({
         where: { userId: user.id },
@@ -103,16 +102,8 @@ export async function GET() {
       0,
     )
 
-    const pipelineValue = pendingTasks.reduce(
-      (s, t) =>
-        s +
-        pipelineValueForTask({
-          billingMode: t.client.billingMode,
-          rate: decimalToNumber(t.client.rate) ?? 0,
-          estimateDays: decimalToNumber(t.estimate),
-        }),
-      0,
-    )
+    const pipelineClientCount = new Set(pendingTasks.map((t) => t.clientId))
+      .size
 
     const months: { month: string; total: number; isCurrent: boolean }[] = []
     for (let i = 7; i >= 0; i--) {
@@ -137,8 +128,8 @@ export async function GET() {
         sentCount: openInvoices.length,
         overdueAmount,
         overdueCount: overdueList.length,
-        pipelineValue,
         pipelineCount: pendingTasks.length,
+        pipelineClientCount,
       },
       months,
       overdue: overdueList.map(({ inv, computed }) => ({

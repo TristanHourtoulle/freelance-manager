@@ -33,8 +33,8 @@ function DesktopDashboardPage() {
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
-    pipelineValue: 0,
     pipelineCount: 0,
+    pipelineClientCount: 0,
   }
 
   return (
@@ -88,9 +88,17 @@ function DesktopDashboardPage() {
             <Icon name="clock" size={11} />
             Pipeline
           </div>
-          <div className="kpi-value">{fmtEUR(kpi.pipelineValue)}</div>
+          <div className="kpi-value">
+            {kpi.pipelineCount}{" "}
+            <span className="muted" style={{ fontSize: 14, fontWeight: 500 }}>
+              tasks
+            </span>
+          </div>
           <div className="kpi-sub">
-            <span>{kpi.pipelineCount} tasks à facturer</span>
+            <span>
+              {kpi.pipelineClientCount} client
+              {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
+            </span>
           </div>
         </div>
         <div className="kpi kpi-warn">
@@ -188,7 +196,7 @@ function DesktopDashboardPage() {
                 </div>
               )
             })}
-            {kpi.pipelineValue > 5000 && (
+            {kpi.pipelineCount >= 10 && (
               <div
                 className="row gap-12"
                 style={{
@@ -205,8 +213,9 @@ function DesktopDashboardPage() {
                 <div className="grow">
                   <div className="strong small">Pipeline conséquente</div>
                   <div className="xs muted">
-                    {kpi.pipelineCount} tasks à facturer ·{" "}
-                    {fmtEUR(kpi.pipelineValue)}
+                    {kpi.pipelineCount} tasks chez {kpi.pipelineClientCount}{" "}
+                    client
+                    {kpi.pipelineClientCount > 1 ? "s" : ""} à facturer
                   </div>
                 </div>
                 <button

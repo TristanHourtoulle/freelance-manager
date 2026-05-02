@@ -12,8 +12,8 @@ export interface DashboardDTO {
     sentCount: number
     overdueAmount: number
     overdueCount: number
-    pipelineValue: number
     pipelineCount: number
+    pipelineClientCount: number
   }
   months: { month: string; total: number; isCurrent: boolean }[]
   overdue: {

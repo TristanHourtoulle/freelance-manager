@@ -18,8 +18,8 @@ export function MobileDashboardPage() {
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
-    pipelineValue: 0,
     pipelineCount: 0,
+    pipelineClientCount: 0,
   }
   const months = data?.months ?? []
   const overdue = data?.overdue ?? []
@@ -77,10 +77,18 @@ export function MobileDashboardPage() {
                 <Icon name="clock" size={11} />
                 Pipeline
               </div>
-              <div className="kpi-value">{fmtEUR(kpi.pipelineValue)}</div>
+              <div className="kpi-value">
+                {kpi.pipelineCount}{" "}
+                <span
+                  className="muted"
+                  style={{ fontSize: 12, fontWeight: 500 }}
+                >
+                  tasks
+                </span>
+              </div>
               <div className="kpi-sub muted">
-                {kpi.pipelineCount} task
-                {kpi.pipelineCount > 1 ? "s" : ""}
+                {kpi.pipelineClientCount} client
+                {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
               </div>
             </div>
             <div className="kpi-tile danger">
