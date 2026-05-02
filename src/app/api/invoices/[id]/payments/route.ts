@@ -15,18 +15,26 @@ interface Params {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  const user = await getAuthUser()
-  if (!user) return apiUnauthorized()
   const { id } = await params
 
   try {
-    const data = paymentCreateSchema.parse(await req.json())
-
-    const invoice = await prisma.invoice.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true, status: true, number: true, clientId: true },
-    })
-    if (!invoice) return apiNotFound()
+    const [user, body, invoice] = await Promise.all([
+      getAuthUser(),
+      req.json(),
+      prisma.invoice.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          number: true,
+          clientId: true,
+          userId: true,
+        },
+      }),
+    ])
+    if (!user) return apiUnauthorized()
+    if (!invoice || invoice.userId !== user.id) return apiNotFound()
+    const data = paymentCreateSchema.parse(body)
     if (invoice.status === "CANCELLED") {
       return NextResponse.json(
         {

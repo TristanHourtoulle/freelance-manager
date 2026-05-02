@@ -21,22 +21,20 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    const c = await prisma.client.findFirst({
-      where: { id, userId: user.id },
-      include: {
-        projects: { orderBy: { createdAt: "desc" } },
-        linearMappings: true,
-      },
-    })
-    if (!c) return apiNotFound()
-
-    const [tasks, invoices] = await Promise.all([
+    const [c, tasks, invoices] = await Promise.all([
+      prisma.client.findFirst({
+        where: { id, userId: user.id },
+        include: {
+          projects: { orderBy: { createdAt: "desc" } },
+          linearMappings: true,
+        },
+      }),
       prisma.task.findMany({
-        where: { clientId: c.id },
+        where: { clientId: id, userId: user.id },
         orderBy: { lastSyncedAt: "desc" },
       }),
       prisma.invoice.findMany({
-        where: { clientId: c.id },
+        where: { clientId: id, userId: user.id },
         orderBy: { issueDate: "desc" },
         include: {
           _count: { select: { lines: true } },
@@ -44,6 +42,7 @@ export async function GET(_: Request, { params }: Params) {
         },
       }),
     ])
+    if (!c) return apiNotFound()
 
     const today = new Date()
     const monthlyRevenue: { month: string; total: number }[] = []

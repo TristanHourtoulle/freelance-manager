@@ -23,15 +23,14 @@ function formatNumber(year: number, seq: number): string {
  * @returns a string number guaranteed to be unique for the user
  */
 async function nextAutoNumber(userId: string, year: number): Promise<string> {
-  const taken = new Set(
-    (
-      await prisma.invoice.findMany({
-        where: { userId, number: { startsWith: `${year}-` } },
-        select: { number: true },
-      })
-    ).map((r) => r.number),
-  )
-  const baseCount = await prisma.invoice.count({ where: { userId } })
+  const [takenNumbers, baseCount] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { userId, number: { startsWith: `${year}-` } },
+      select: { number: true },
+    }),
+    prisma.invoice.count({ where: { userId } }),
+  ])
+  const taken = new Set(takenNumbers.map((r) => r.number))
   let seq = baseCount + 1024 + 1
   let candidate = formatNumber(year, seq)
   while (taken.has(candidate)) {
@@ -85,23 +84,24 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const user = await getAuthUser()
-  if (!user) return apiUnauthorized()
-
   try {
-    const data = invoiceCreateSchema.parse(await req.json())
-
-    const client = await prisma.client.findFirst({
-      where: { id: data.clientId, userId: user.id },
-      select: { id: true },
-    })
-    if (!client) return apiUnauthorized()
+    const [user, body] = await Promise.all([getAuthUser(), req.json()])
+    if (!user) return apiUnauthorized()
+    const data = invoiceCreateSchema.parse(body)
 
     const year = new Date(data.issueDate).getFullYear()
-    const number =
+
+    const [client, autoNumber] = await Promise.all([
+      prisma.client.findFirst({
+        where: { id: data.clientId, userId: user.id },
+        select: { id: true },
+      }),
       data.number && data.number.trim()
-        ? data.number.trim()
-        : await nextAutoNumber(user.id, year)
+        ? Promise.resolve(data.number.trim())
+        : nextAutoNumber(user.id, year),
+    ])
+    if (!client) return apiUnauthorized()
+    const number = autoNumber
 
     if (data.number) {
       const conflict = await prisma.invoice.findFirst({
