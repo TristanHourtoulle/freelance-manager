@@ -39,7 +39,7 @@ export async function GET(_: Request, { params }: Params) {
         where: { clientId: c.id },
         orderBy: { issueDate: "desc" },
         include: {
-          lines: true,
+          _count: { select: { lines: true } },
           payments: { select: { amount: true, paidAt: true } },
         },
       }),
@@ -117,7 +117,7 @@ export async function GET(_: Request, { params }: Params) {
           paidAmount: computed.paidAmount,
           balanceDue: computed.balanceDue,
           total: decimalToNumber(inv.total) ?? 0,
-          linesCount: inv.lines.length,
+          linesCount: inv._count.lines,
         }
       }),
     })
