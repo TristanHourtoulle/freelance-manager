@@ -4,14 +4,25 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
-import { NewClientModal } from "@/components/clients/new-client-modal"
+const NewClientModal = dynamic(
+  () =>
+    import("@/components/clients/new-client-modal").then(
+      (m) => m.NewClientModal,
+    ),
+  { ssr: false },
+)
 import { useClients, type ClientDTO } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileClientsPage } from "./mobile"
+import dynamic from "next/dynamic"
+
+const MobileClientsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileClientsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type ViewMode = "grid" | "list"

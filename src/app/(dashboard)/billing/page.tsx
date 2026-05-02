@@ -9,7 +9,12 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileBillingPage } from "./mobile"
+import dynamic from "next/dynamic"
+
+const MobileBillingPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileBillingPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId =
   | "all"

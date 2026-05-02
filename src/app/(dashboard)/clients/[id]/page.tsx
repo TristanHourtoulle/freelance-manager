@@ -16,8 +16,22 @@ import {
   avatarColor,
 } from "@/lib/format"
 import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
-import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
-import { EditClientModal } from "@/components/clients/edit-client-modal"
+import dynamic from "next/dynamic"
+
+const LinearMappingsModal = dynamic(
+  () =>
+    import("@/components/clients/linear-mappings-modal").then(
+      (m) => m.LinearMappingsModal,
+    ),
+  { ssr: false },
+)
+const EditClientModal = dynamic(
+  () =>
+    import("@/components/clients/edit-client-modal").then(
+      (m) => m.EditClientModal,
+    ),
+  { ssr: false },
+)
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientRevenueChart } from "@/components/clients/client-revenue-chart"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
