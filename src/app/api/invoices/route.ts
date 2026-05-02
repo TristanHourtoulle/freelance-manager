@@ -8,7 +8,7 @@ import {
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
-import { logActivity } from "@/lib/activity"
+import { deferActivityLog } from "@/lib/activity"
 
 function formatNumber(year: number, seq: number): string {
   return `${year}-${String(seq).padStart(4, "0")}`
@@ -173,20 +173,20 @@ export async function POST(req: Request) {
         await recomputeInvoicePayment(inv.id, tx)
       }
 
-      await logActivity(tx, {
-        userId: user.id,
-        kind: data.status === "SENT" ? "INVOICE_SENT" : "INVOICE_CREATED",
-        title:
-          data.status === "SENT"
-            ? `Facture ${number} émise`
-            : `Brouillon ${number} créé`,
-        meta: `${total.toFixed(2)} €`,
-        clientId: inv.clientId,
-        invoiceId: inv.id,
-        projectId: inv.projectId,
-      })
-
       return inv
+    })
+
+    deferActivityLog({
+      userId: user.id,
+      kind: data.status === "SENT" ? "INVOICE_SENT" : "INVOICE_CREATED",
+      title:
+        data.status === "SENT"
+          ? `Facture ${number} émise`
+          : `Brouillon ${number} créé`,
+      meta: `${total.toFixed(2)} €`,
+      clientId: created.clientId,
+      invoiceId: created.id,
+      projectId: created.projectId,
     })
 
     return NextResponse.json(created, { status: 201 })

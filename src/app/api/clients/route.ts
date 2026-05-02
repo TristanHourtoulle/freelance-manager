@@ -7,7 +7,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
-import { logActivity } from "@/lib/activity"
+import { deferActivityLog } from "@/lib/activity"
 
 function serialize(c: {
   id: string
@@ -75,35 +75,32 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const data = clientCreateSchema.parse(body)
-    const created = await prisma.$transaction(async (tx) => {
-      const c = await tx.client.create({
-        data: {
-          userId: user.id,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          company: data.company ?? null,
-          email: data.email ?? null,
-          phone: data.phone ?? null,
-          website: data.website ?? null,
-          address: data.address ?? null,
-          notes: data.notes ?? null,
-          billingMode: data.billingMode ?? "DAILY",
-          rate: data.rate ?? 0,
-          fixedPrice: data.fixedPrice ?? null,
-          deposit: data.deposit ?? null,
-          paymentTerms: data.paymentTerms ?? null,
-          category: data.category ?? "FREELANCE",
-          color: data.color ?? null,
-          starred: data.starred ?? false,
-        },
-      })
-      await logActivity(tx, {
+    const created = await prisma.client.create({
+      data: {
         userId: user.id,
-        kind: "CLIENT_CREATED",
-        title: `Client ${c.company ?? `${c.firstName} ${c.lastName}`} créé`,
-        clientId: c.id,
-      })
-      return c
+        firstName: data.firstName,
+        lastName: data.lastName,
+        company: data.company ?? null,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        website: data.website ?? null,
+        address: data.address ?? null,
+        notes: data.notes ?? null,
+        billingMode: data.billingMode ?? "DAILY",
+        rate: data.rate ?? 0,
+        fixedPrice: data.fixedPrice ?? null,
+        deposit: data.deposit ?? null,
+        paymentTerms: data.paymentTerms ?? null,
+        category: data.category ?? "FREELANCE",
+        color: data.color ?? null,
+        starred: data.starred ?? false,
+      },
+    })
+    deferActivityLog({
+      userId: user.id,
+      kind: "CLIENT_CREATED",
+      title: `Client ${created.company ?? `${created.firstName} ${created.lastName}`} créé`,
+      clientId: created.id,
     })
     return NextResponse.json(serialize(created), { status: 201 })
   } catch (error) {
