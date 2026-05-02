@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  getAuthUser,
+  requireSameOrigin,
+} from "@/lib/api"
 import { linearTokenSchema } from "@/lib/schemas/settings"
 import { clearLinearToken, setLinearToken } from "@/lib/linear"
 
 export async function PUT(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {
@@ -15,7 +22,9 @@ export async function PUT(req: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {

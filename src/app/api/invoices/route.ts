@@ -5,6 +5,7 @@ import {
   apiUnauthorized,
   decimalToNumber,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
@@ -84,6 +85,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   try {
     const [user, body] = await Promise.all([getAuthUser(), req.json()])
     if (!user) return apiUnauthorized()
