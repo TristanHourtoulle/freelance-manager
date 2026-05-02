@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
@@ -18,8 +18,11 @@ type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 
 export default function TasksPage() {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileTasksPage />
-  return <DesktopTasksPage />
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      {isMobile ? <MobileTasksPage /> : <DesktopTasksPage />}
+    </Suspense>
+  )
 }
 
 function DesktopTasksPage() {

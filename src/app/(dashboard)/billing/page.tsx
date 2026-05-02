@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
@@ -41,8 +41,11 @@ function matchesFilter(
 
 export default function BillingPage() {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileBillingPage />
-  return <DesktopBillingPage />
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      {isMobile ? <MobileBillingPage /> : <DesktopBillingPage />}
+    </Suspense>
+  )
 }
 
 function DesktopBillingPage() {
