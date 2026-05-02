@@ -439,6 +439,16 @@ textarea {
   flex: 1;
   color: var(--text-3);
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.topbar-search > .ic {
+  flex-shrink: 0;
+}
+.topbar-search .kbd {
+  flex-shrink: 0;
 }
 .kbd {
   font-family: var(--font-mono);

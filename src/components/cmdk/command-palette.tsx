@@ -1,6 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { Icon, type IconName } from "@/components/ui/icon"
 
 export interface CommandItem {
@@ -82,12 +89,21 @@ export function CommandPalette({
       setQuery("")
       setActive(0)
       setMounted(true)
-      const r = requestAnimationFrame(() => inputRef.current?.focus())
-      return () => cancelAnimationFrame(r)
+      return
     }
     const t = setTimeout(() => setMounted(false), 220)
     return () => clearTimeout(t)
   }, [open])
+
+  /**
+   * Focus the input synchronously after the modal commits. `useLayoutEffect`
+   * runs before paint, so the user can start typing immediately after ⌘K.
+   */
+  useLayoutEffect(() => {
+    if (open && mounted) {
+      inputRef.current?.focus()
+    }
+  }, [open, mounted])
 
   const grouped = useMemo<Group[]>(() => {
     const filtered = !query.trim()
