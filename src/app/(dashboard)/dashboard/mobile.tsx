@@ -1,5 +1,6 @@
 "use client"
 
+import { memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -21,10 +22,19 @@ export function MobileDashboardPage() {
     pipelineCount: 0,
     pipelineClientCount: 0,
   }
-  const months = data?.months ?? []
+  const months = useMemo(() => data?.months ?? [], [data?.months])
   const overdue = data?.overdue ?? []
   const recentTasks = data?.recentTasks ?? []
   const monthlyTotal = months.reduce((s, m) => s + m.total, 0)
+  const barMonths = useMemo(
+    () =>
+      months.map((m) => ({
+        label: m.month,
+        value: m.total,
+        isCurrent: m.isCurrent,
+      })),
+    [months],
+  )
 
   return (
     <div className="m-screen">
@@ -106,13 +116,7 @@ export function MobileDashboardPage() {
               <span>Revenus mensuels</span>
               <span className="muted xs num">{fmtEUR(monthlyTotal)}</span>
             </div>
-            <BarChart
-              months={months.map((m) => ({
-                label: m.month,
-                value: m.total,
-                isCurrent: m.isCurrent,
-              }))}
-            />
+            <BarChart months={barMonths} />
           </div>
 
           {overdue.length > 0 && (
@@ -242,7 +246,7 @@ interface BarChartProps {
   months: { label: string; value: number; isCurrent: boolean }[]
 }
 
-function BarChart({ months }: BarChartProps) {
+const BarChart = memo(function BarChart({ months }: BarChartProps) {
   if (!months.length) return null
   const max = Math.max(...months.map((m) => m.value), 1)
   const W = 320,
@@ -293,4 +297,4 @@ function BarChart({ months }: BarChartProps) {
       })}
     </svg>
   )
-}
+})
