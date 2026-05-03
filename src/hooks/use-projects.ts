@@ -37,7 +37,7 @@ export function useProjects() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 30_000,
+    staleTime: 60 * 60_000,
   })
 }
 
