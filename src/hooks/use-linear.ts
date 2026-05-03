@@ -54,7 +54,7 @@ export function useLinearProjects(enabled = true) {
     queryFn: () =>
       api.get<{ items: LinearProjectDTO[] }>("/api/linear/projects"),
     select: (d) => d.items,
-    staleTime: 60_000,
+    staleTime: 60 * 60_000,
     enabled,
   })
 }
