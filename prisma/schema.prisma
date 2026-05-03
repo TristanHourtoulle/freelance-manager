@@ -97,9 +97,10 @@ model UserSettings {
   defaultRate        Decimal @default(0) @db.Decimal(10, 2)
 
   // Linear integration (AES-256-GCM encrypted)
-  linearApiTokenEncrypted Bytes?
-  linearApiTokenIv        Bytes?
-  linearLastSyncedAt      DateTime?
+  linearApiTokenEncrypted   Bytes?
+  linearApiTokenIv          Bytes?
+  linearApiTokenKeyVersion  Int?      @default(1)
+  linearLastSyncedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

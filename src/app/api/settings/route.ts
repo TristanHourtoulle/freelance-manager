@@ -26,6 +26,7 @@ export async function GET() {
         const plain = decrypt(
           Buffer.from(settings.linearApiTokenEncrypted),
           Buffer.from(settings.linearApiTokenIv),
+          settings.linearApiTokenKeyVersion ?? 1,
         )
         linearTokenPreview = maskToken(plain)
       } catch (e) {

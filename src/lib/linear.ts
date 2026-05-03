@@ -14,7 +14,11 @@ export async function getLinearClient(
 ): Promise<UserLinear | null> {
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
-    select: { linearApiTokenEncrypted: true, linearApiTokenIv: true },
+    select: {
+      linearApiTokenEncrypted: true,
+      linearApiTokenIv: true,
+      linearApiTokenKeyVersion: true,
+    },
   })
 
   if (!settings?.linearApiTokenEncrypted || !settings.linearApiTokenIv) {
@@ -23,6 +27,7 @@ export async function getLinearClient(
   const apiKey = decrypt(
     Buffer.from(settings.linearApiTokenEncrypted),
     Buffer.from(settings.linearApiTokenIv),
+    settings.linearApiTokenKeyVersion ?? 1,
   )
   return { client: new LinearClient({ apiKey }) }
 }
@@ -32,16 +37,21 @@ export async function setLinearToken(
   userId: string,
   token: string,
 ): Promise<void> {
-  const { ciphertext, iv } = encrypt(token)
+  const { ciphertext, iv, keyVersion } = encrypt(token)
   const ct = new Uint8Array(ciphertext)
   const ivBytes = new Uint8Array(iv)
   await prisma.userSettings.upsert({
     where: { userId },
-    update: { linearApiTokenEncrypted: ct, linearApiTokenIv: ivBytes },
+    update: {
+      linearApiTokenEncrypted: ct,
+      linearApiTokenIv: ivBytes,
+      linearApiTokenKeyVersion: keyVersion,
+    },
     create: {
       userId,
       linearApiTokenEncrypted: ct,
       linearApiTokenIv: ivBytes,
+      linearApiTokenKeyVersion: keyVersion,
     },
   })
 }
@@ -49,7 +59,11 @@ export async function setLinearToken(
 export async function clearLinearToken(userId: string): Promise<void> {
   await prisma.userSettings.update({
     where: { userId },
-    data: { linearApiTokenEncrypted: null, linearApiTokenIv: null },
+    data: {
+      linearApiTokenEncrypted: null,
+      linearApiTokenIv: null,
+      linearApiTokenKeyVersion: null,
+    },
   })
 }
 
