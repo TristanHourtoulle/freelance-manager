@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { useToast } from "@/components/providers/toast-provider"
+import { useSyncLinear } from "@/hooks/use-tasks"
 import {
   CommandPalette,
   type CommandItem,
@@ -26,6 +27,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
   const { open, setOpen } = useCommandPalette()
   const router = useRouter()
   const { toast } = useToast()
+  const syncLinear = useSyncLinear()
 
   const commands = useMemo<CommandItem[]>(
     () => [
@@ -104,15 +106,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         keywords: ["linear", "refresh", "pull"],
         run: async () => {
           try {
-            const res = await fetch("/api/linear/refresh", {
-              method: "POST",
-              credentials: "include",
-            })
-            if (!res.ok) throw new Error(await res.text())
-            const data = (await res.json()) as {
-              tasks: number
-              projects: number
-            }
+            const data = await syncLinear.mutateAsync()
             toast({
               variant: "success",
               title: "Sync Linear terminée",
@@ -141,7 +135,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         },
       },
     ],
-    [router, toast],
+    [router, toast, syncLinear],
   )
 
   const value = useMemo<CmdKContextValue>(
