@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -6,6 +7,8 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
+import { projectsTag } from "@/lib/data/projects"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string; mappingId: string }>
@@ -21,6 +24,8 @@ export async function DELETE(req: Request, { params }: Params) {
     await prisma.linearMapping.deleteMany({
       where: { id: mappingId, clientId: id, client: { userId: user.id } },
     })
+    revalidateTag(projectsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { updateTag } from "next/cache"
+import { revalidateTag } from "next/cache"
 import {
   apiServerError,
   apiUnauthorized,
@@ -18,8 +18,8 @@ export async function PUT(req: Request) {
   try {
     const { token } = linearTokenSchema.parse(await req.json())
     await setLinearToken(user.id, token)
-    updateTag(linearTeamsTag(user.id))
-    updateTag(linearProjectsTag(user.id))
+    revalidateTag(linearTeamsTag(user.id), "max")
+    revalidateTag(linearProjectsTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)
@@ -33,8 +33,8 @@ export async function DELETE(req: Request) {
   if (!user) return apiUnauthorized()
   try {
     await clearLinearToken(user.id)
-    updateTag(linearTeamsTag(user.id))
-    updateTag(linearProjectsTag(user.id))
+    revalidateTag(linearTeamsTag(user.id), "max")
+    revalidateTag(linearProjectsTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)

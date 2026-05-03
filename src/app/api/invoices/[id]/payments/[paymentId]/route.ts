@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiNotFound,
@@ -10,6 +11,8 @@ import {
 import { paymentUpdateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
+import { invoicesTag } from "@/lib/data/invoices"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string; paymentId: string }>
@@ -49,6 +52,8 @@ export async function PATCH(req: Request, { params }: Params) {
       return updated
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json(serializePayment(result))
   } catch (error) {
     return apiServerError(error)
@@ -84,6 +89,8 @@ export async function DELETE(req: Request, { params }: Params) {
       await recomputeInvoicePayment(id, tx)
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: "PAYMENT_DELETED",

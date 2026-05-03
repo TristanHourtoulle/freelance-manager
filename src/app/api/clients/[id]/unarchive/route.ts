@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -6,6 +7,8 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
+import { clientsTag } from "@/lib/data/clients"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -22,6 +25,8 @@ export async function POST(req: Request, { params }: Params) {
       where: { id, userId: user.id },
       data: { archivedAt: null },
     })
+    revalidateTag(clientsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)
