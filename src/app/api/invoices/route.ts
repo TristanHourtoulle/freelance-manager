@@ -72,9 +72,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const csrf = requireSameOrigin(req)
   if (csrf) return csrf
+  const user = await getAuthUser()
+  if (!user) return apiUnauthorized()
   try {
-    const [user, body] = await Promise.all([getAuthUser(), req.json()])
-    if (!user) return apiUnauthorized()
+    const body = await req.json()
     const data = invoiceCreateSchema.parse(body)
 
     const year = new Date(data.issueDate).getFullYear()
