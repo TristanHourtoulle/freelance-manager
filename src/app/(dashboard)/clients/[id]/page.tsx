@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { Activity, use, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import {
@@ -327,7 +327,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
         ))}
       </div>
 
-      {tab === "overview" && (
+      <Activity mode={tab === "overview" ? "visible" : "hidden"}>
         <div className="detail-cols">
           <div className="col gap-12" style={{ minWidth: 0 }}>
             <div className="detail-card">
@@ -561,9 +561,9 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             </div>
           </div>
         </div>
-      )}
+      </Activity>
 
-      {tab === "projects" && (
+      <Activity mode={tab === "projects" ? "visible" : "hidden"}>
         <div className="detail-card">
           <div className="detail-card-header">
             <div className="detail-card-title">Tous les projets</div>
@@ -626,9 +626,9 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             </div>
           )}
         </div>
-      )}
+      </Activity>
 
-      {tab === "tasks" && (
+      <Activity mode={tab === "tasks" ? "visible" : "hidden"}>
         <div className="card" style={{ padding: 0 }}>
           <table className="table">
             <thead>
@@ -683,9 +683,9 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             </tbody>
           </table>
         </div>
-      )}
+      </Activity>
 
-      {tab === "invoices" && (
+      <Activity mode={tab === "invoices" ? "visible" : "hidden"}>
         <div className="detail-card">
           <div className="detail-card-header">
             <div className="detail-card-title">Toutes les factures</div>
@@ -723,16 +723,16 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             ))
           )}
         </div>
-      )}
+      </Activity>
 
-      {tab === "activity" && (
+      <Activity mode={tab === "activity" ? "visible" : "hidden"}>
         <div className="detail-card">
           <div className="detail-card-header">
             <div className="detail-card-title">Activité récente</div>
           </div>
           <ClientActivityTimeline items={activity ?? []} />
         </div>
-      )}
+      </Activity>
 
       {showLink && (
         <LinearMappingsModal
