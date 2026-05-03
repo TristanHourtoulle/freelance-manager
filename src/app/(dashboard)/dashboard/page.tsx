@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
@@ -23,7 +24,7 @@ export default function DashboardPage() {
 function DesktopDashboardPage() {
   const router = useRouter()
   const { data } = useDashboard()
-  const today = new Date()
+  const today = useMemo(() => new Date(), [])
 
   const months = data?.months ?? []
   const overdue = data?.overdue ?? []

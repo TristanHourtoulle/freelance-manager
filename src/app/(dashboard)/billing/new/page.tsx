@@ -50,7 +50,7 @@ function NewInvoicePageContent() {
   const [pickedClientId, setPickedClientId] = useState(initialClientId)
   const [projectId, setProjectId] = useState<string>("all")
   const [taskSearch, setTaskSearch] = useState("")
-  const [issueDate, setIssueDate] = useState(
+  const [issueDate, setIssueDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   )
   const [dueDate, setDueDate] = useState(() => {
@@ -61,7 +61,9 @@ function NewInvoicePageContent() {
   const [kind, setKind] = useState<Kind>("STANDARD")
   const [initialStatus, setInitialStatus] = useState<"DRAFT" | "SENT">("DRAFT")
   const [markPaid, setMarkPaid] = useState(false)
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
+  const [paidAt, setPaidAt] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  )
   const [depositLabel, setDepositLabel] = useState("Acompte 30%")
   const [depositAmount, setDepositAmount] = useState<number>(0)
   const [lines, setLines] = useState<Line[]>([])
