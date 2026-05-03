@@ -76,9 +76,12 @@ export function getInvoiceComputed(
     invoice.paymentStatus !== "OVERPAID" &&
     invoice.dueDate.getTime() < Date.now()
 
-  const lastPaidAt = invoice.payments
-    .map((p) => p.paidAt)
-    .sort((a, b) => b.getTime() - a.getTime())[0]
+  let lastPaidAt: Date | null = null
+  for (const p of invoice.payments) {
+    if (!lastPaidAt || p.paidAt.getTime() > lastPaidAt.getTime()) {
+      lastPaidAt = p.paidAt
+    }
+  }
 
   return {
     paidAmount,
