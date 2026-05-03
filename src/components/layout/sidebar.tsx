@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { NAV_SECTIONS, type NavBadgeKey } from "@/lib/navigation"
 import { initials } from "@/lib/format"
 import { authClient } from "@/lib/auth-client"
+import { api } from "@/lib/api-client"
 
 interface SidebarProps {
   user: { name: string; email: string }
@@ -14,19 +15,13 @@ interface SidebarProps {
 
 type NavCounts = Record<NavBadgeKey, number>
 
-async function fetchNavCounts(): Promise<NavCounts> {
-  const res = await fetch("/api/nav-counts", { credentials: "include" })
-  if (!res.ok) throw new Error("Failed to fetch nav counts")
-  return res.json()
-}
-
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
   const { data: counts } = useQuery({
     queryKey: ["nav-counts"],
-    queryFn: fetchNavCounts,
+    queryFn: () => api.get<NavCounts>("/api/nav-counts"),
     staleTime: 30_000,
     placeholderData: { clients: 0, projects: 0, tasks: 0, invoices: 0 },
   })

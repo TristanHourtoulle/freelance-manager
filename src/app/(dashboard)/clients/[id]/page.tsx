@@ -88,17 +88,25 @@ function DesktopClientDetailPage({ id }: { id: string }) {
   }
   const projectById = new Map(client.projects.map((p) => [p.id, p]))
 
-  const totalRevenue = client.invoices.reduce((s, i) => s + i.paidAmount, 0)
-  const sentInvoices = client.invoices.filter(
-    (i) =>
+  let totalRevenue = 0
+  let outstanding = 0
+  let sentCount = 0
+  let paidCount = 0
+  let overdueCount = 0
+  for (const i of client.invoices) {
+    totalRevenue += i.paidAmount
+    if (
       i.status === "SENT" &&
-      (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
-  )
-  const outstanding = sentInvoices.reduce((s, i) => s + i.balanceDue, 0)
-  const paidCount = client.invoices.filter(
-    (i) => i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID",
-  ).length
-  const overdueCount = client.invoices.filter((i) => i.isOverdue).length
+      (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
+    ) {
+      outstanding += i.balanceDue
+      sentCount++
+    }
+    if (i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID") {
+      paidCount++
+    }
+    if (i.isOverdue) overdueCount++
+  }
   const pendingTasks = client.tasks.filter(
     (t) => t.status === "PENDING_INVOICE",
   )
@@ -250,8 +258,8 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             </div>
             <div className="kpi-value warn">{fmtEUR(outstanding)}</div>
             <div className="kpi-sub">
-              {sentInvoices.length} facture{sentInvoices.length > 1 ? "s" : ""}{" "}
-              envoyée{sentInvoices.length > 1 ? "s" : ""}
+              {sentCount} facture{sentCount > 1 ? "s" : ""} envoyée
+              {sentCount > 1 ? "s" : ""}
             </div>
           </div>
           <div className="kpi k-overdue">

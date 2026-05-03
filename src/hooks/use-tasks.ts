@@ -17,18 +17,22 @@ export interface TaskDTO {
   projectId: string
 }
 
-export function useTasks(filters?: {
+interface TaskFilters {
   clientId?: string
   projectId?: string
   status?: string
-}) {
+}
+
+const EMPTY_TASK_FILTERS: TaskFilters = {}
+
+export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
   const qs = new URLSearchParams()
-  if (filters?.clientId) qs.set("clientId", filters.clientId)
-  if (filters?.projectId) qs.set("projectId", filters.projectId)
-  if (filters?.status) qs.set("status", filters.status)
+  if (filters.clientId) qs.set("clientId", filters.clientId)
+  if (filters.projectId) qs.set("projectId", filters.projectId)
+  if (filters.status) qs.set("status", filters.status)
   const search = qs.toString()
   return useQuery({
-    queryKey: ["tasks", filters ?? {}] as const,
+    queryKey: ["tasks", filters] as const,
     queryFn: () =>
       api.get<{ items: TaskDTO[] }>(`/api/tasks${search ? `?${search}` : ""}`),
     select: (d) => d.items,

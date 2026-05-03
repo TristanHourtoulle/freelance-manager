@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
@@ -90,11 +90,6 @@ function DesktopTasksPage() {
       }),
     [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
   )
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPage(1)
-  }, [searchTerm, statusFilter, clientFilter, projectFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -233,7 +228,10 @@ function DesktopTasksPage() {
             style={{ paddingLeft: 34 }}
             placeholder="Rechercher par ID ou titre…"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value)
+              setPage(1)
+            }}
           />
         </div>
         <div className="row gap-12" style={{ flexWrap: "wrap" }}>
@@ -253,7 +251,10 @@ function DesktopTasksPage() {
               <button
                 key={f.id}
                 className={"chip" + (statusFilter === f.id ? " active" : "")}
-                onClick={() => setStatusFilter(f.id)}
+                onClick={() => {
+                  setStatusFilter(f.id)
+                  setPage(1)
+                }}
               >
                 {f.label} <span className="count">{f.count}</span>
               </button>
@@ -266,6 +267,7 @@ function DesktopTasksPage() {
             onChange={(e) => {
               setClientFilter(e.target.value)
               setProjectFilter("all")
+              setPage(1)
             }}
           >
             <option value="all">Tous les clients</option>
@@ -279,7 +281,10 @@ function DesktopTasksPage() {
             className="select"
             style={{ width: 220 }}
             value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            onChange={(e) => {
+              setProjectFilter(e.target.value)
+              setPage(1)
+            }}
           >
             <option value="all">Tous les projets</option>
             {projects
@@ -323,7 +328,12 @@ function DesktopTasksPage() {
             <div
               key={`${g.clientId}${g.projectId}`}
               className="card"
-              style={{ padding: 0, overflow: "hidden" }}
+              style={{
+                padding: 0,
+                overflow: "hidden",
+                contentVisibility: "auto",
+                containIntrinsicSize: "auto 320px",
+              }}
             >
               <div
                 className="row gap-12"

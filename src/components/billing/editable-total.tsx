@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { fmtEURprecise } from "@/lib/format"
 
@@ -30,16 +30,14 @@ export function EditableTotal({
   const [draft, setDraft] = useState("")
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  useEffect(() => {
-    if (editing) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDraft(String(value || ""))
-      requestAnimationFrame(() => {
-        inputRef.current?.focus()
-        inputRef.current?.select()
-      })
-    }
-  }, [editing, value])
+  function startEdit() {
+    setDraft(String(value || ""))
+    setEditing(true)
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    })
+  }
 
   function commit() {
     const n = Number(draft)
@@ -51,7 +49,7 @@ export function EditableTotal({
     return (
       <button
         type="button"
-        onClick={() => setEditing(true)}
+        onClick={startEdit}
         title="Cliquer pour saisir un montant forfaitaire"
         style={{
           display: "inline-flex",

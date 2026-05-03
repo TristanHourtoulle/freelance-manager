@@ -38,8 +38,8 @@ const ICON_PROPS = {
   strokeLinejoin: "round" as const,
 }
 
-const VARIANT_ICONS: Record<ToastVariant, () => ReactElement> = {
-  success: () => (
+const VARIANT_ICONS: Record<ToastVariant, ReactElement> = {
+  success: (
     <svg {...ICON_PROPS}>
       <circle
         cx="12"
@@ -52,7 +52,7 @@ const VARIANT_ICONS: Record<ToastVariant, () => ReactElement> = {
       <polyline points="8 12.5 11 15.5 16 9.5" stroke="currentColor" />
     </svg>
   ),
-  error: () => (
+  error: (
     <svg {...ICON_PROPS}>
       <circle
         cx="12"
@@ -66,7 +66,7 @@ const VARIANT_ICONS: Record<ToastVariant, () => ReactElement> = {
       <line x1="15" y1="9" x2="9" y2="15" />
     </svg>
   ),
-  warning: () => (
+  warning: (
     <svg {...ICON_PROPS}>
       <path
         d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
@@ -79,7 +79,7 @@ const VARIANT_ICONS: Record<ToastVariant, () => ReactElement> = {
       <line x1="12" y1="16.8" x2="12.01" y2="16.8" />
     </svg>
   ),
-  info: () => (
+  info: (
     <svg {...ICON_PROPS}>
       <circle
         cx="12"
@@ -183,7 +183,7 @@ function ToastItem({ toast, onDismiss, mobile }: ToastItemProps) {
     else setDrag(0)
   }
 
-  const Icon = VARIANT_ICONS[toast.variant]
+  const variantIcon = VARIANT_ICONS[toast.variant]
   const cls = [
     "toast-item",
     `t-${toast.variant}`,
@@ -213,9 +213,7 @@ function ToastItem({ toast, onDismiss, mobile }: ToastItemProps) {
       aria-live={toast.variant === "error" ? "assertive" : "polite"}
     >
       <div className="toast-accent" />
-      <div className="toast-icon">
-        <Icon />
-      </div>
+      <div className="toast-icon">{variantIcon}</div>
       <div className="toast-body">
         <div className="toast-title">{toast.title}</div>
         {toast.description && (

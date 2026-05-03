@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useMemo, useState } from "react"
+import { use, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
@@ -9,7 +9,11 @@ import { lineFromTask, sumLines } from "@/lib/billing-math"
 import { useClients } from "@/hooks/use-clients"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
-import { useInvoice, useUpdateInvoice } from "@/hooks/use-invoices"
+import {
+  useInvoice,
+  useUpdateInvoice,
+  type InvoiceDetail,
+} from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { EditableTotal } from "@/components/billing/editable-total"
 
@@ -33,68 +37,75 @@ interface PageProps {
 
 export default function EditInvoicePage({ params }: PageProps) {
   const { id } = use(params)
+  const { data: invoice, isLoading } = useInvoice(id)
+
+  if (isLoading || !invoice) {
+    return (
+      <div className="page">
+        <div className="empty">Chargement…</div>
+      </div>
+    )
+  }
+  return <EditInvoiceForm invoice={invoice} id={id} />
+}
+
+interface EditInvoiceFormProps {
+  invoice: InvoiceDetail
+  id: string
+}
+
+function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
   const router = useRouter()
   const { toast } = useToast()
 
-  const { data: invoice, isLoading } = useInvoice(id)
   const { data: clients = [] } = useClients()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
   const updateInvoice = useUpdateInvoice(id)
 
-  const [projectId, setProjectId] = useState<string>("all")
-  const [issueDate, setIssueDate] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [status, setStatus] = useState<"DRAFT" | "SENT" | "CANCELLED">("DRAFT")
-  const [kind, setKind] = useState<Kind>("STANDARD")
-  const [depositLabel, setDepositLabel] = useState("Acompte 30%")
-  const [depositAmount, setDepositAmount] = useState<number>(0)
-  const [lines, setLines] = useState<Line[]>([])
-  const [taskSearch, setTaskSearch] = useState("")
-  const [dragOver, setDragOver] = useState(false)
-  const [hydrated, setHydrated] = useState(false)
-  const [customNumber, setCustomNumber] = useState("")
-  const [useTotalOverride, setUseTotalOverride] = useState(false)
-  const [totalOverride, setTotalOverride] = useState<number>(0)
-
-  useEffect(() => {
-    if (!invoice || hydrated) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProjectId(invoice.projectId ?? "all")
-    setIssueDate(invoice.issueDate.slice(0, 10))
-    setDueDate(invoice.dueDate.slice(0, 10))
-    setStatus(invoice.status)
-    setKind(invoice.kind)
-    setCustomNumber(invoice.number)
-    if (invoice.totalOverride != null) {
-      setUseTotalOverride(true)
-      setTotalOverride(invoice.totalOverride)
-    }
-    if (invoice.kind === "DEPOSIT" && invoice.lines[0]) {
-      setDepositLabel(invoice.lines[0].label)
-      setDepositAmount(
-        Number(invoice.lines[0].rate) * Number(invoice.lines[0].qty),
-      )
-    } else {
-      setLines(
-        invoice.lines.map((l) => ({
+  const [projectId, setProjectId] = useState<string>(invoice.projectId ?? "all")
+  const [issueDate, setIssueDate] = useState(invoice.issueDate.slice(0, 10))
+  const [dueDate, setDueDate] = useState(invoice.dueDate.slice(0, 10))
+  const [status, setStatus] = useState<"DRAFT" | "SENT" | "CANCELLED">(
+    invoice.status,
+  )
+  const [kind, setKind] = useState<Kind>(invoice.kind)
+  const initialDeposit =
+    invoice.kind === "DEPOSIT" && invoice.lines[0]
+      ? {
+          label: invoice.lines[0].label,
+          amount: Number(invoice.lines[0].rate) * Number(invoice.lines[0].qty),
+        }
+      : { label: "Acompte 30%", amount: 0 }
+  const [depositLabel, setDepositLabel] = useState(initialDeposit.label)
+  const [depositAmount, setDepositAmount] = useState<number>(
+    initialDeposit.amount,
+  )
+  const [lines, setLines] = useState<Line[]>(() =>
+    invoice.kind === "DEPOSIT"
+      ? []
+      : invoice.lines.map((l) => ({
           id: l.id,
           taskId: l.taskId,
           label: l.label,
           qty: l.qty,
           rate: l.rate,
         })),
-      )
-    }
-    setHydrated(true)
-  }, [invoice, hydrated])
+  )
+  const [taskSearch, setTaskSearch] = useState("")
+  const [dragOver, setDragOver] = useState(false)
+  const [customNumber, setCustomNumber] = useState(invoice.number)
+  const [useTotalOverride, setUseTotalOverride] = useState(
+    invoice.totalOverride != null,
+  )
+  const [totalOverride, setTotalOverride] = useState<number>(
+    invoice.totalOverride ?? 0,
+  )
 
-  const client = invoice
-    ? clients.find((c) => c.id === invoice.clientId)
-    : undefined
+  const client = clients.find((c) => c.id === invoice.clientId)
 
   const eligibleTasks = useMemo(() => {
-    if (!client || !invoice) return []
+    if (!client) return []
     const q = taskSearch.trim().toLowerCase()
     const ownIds = new Set(lines.map((l) => l.taskId).filter(Boolean))
     return tasks.filter((t) => {
@@ -108,14 +119,6 @@ export default function EditInvoicePage({ params }: PageProps) {
       return true
     })
   }, [client, invoice, tasks, lines, projectId, taskSearch])
-
-  if (isLoading || !invoice) {
-    return (
-      <div className="page">
-        <div className="empty">Chargement…</div>
-      </div>
-    )
-  }
 
   const hasPayments = invoice.paidAmount > 0
 
