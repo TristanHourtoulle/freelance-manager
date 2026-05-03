@@ -18,7 +18,7 @@ const ZERO_COUNTS: NavCounts = {
 /**
  * Server-rendered sidebar. Reads the badge counts from the cached
  * `getNavCounts(userId)` data fn so navigation between pages doesn't
- * refetch — the cache is invalidated via `updateTag('user-${userId}-nav')`
+ * refetch — the cache is invalidated via `revalidateTag(navTag(userId), 'max')`
  * by mutation routes. Active-link styling and logout live in client
  * islands so this tree never needs to be downloaded as JS.
  */

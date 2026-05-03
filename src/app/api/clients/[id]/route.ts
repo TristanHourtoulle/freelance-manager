@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiNotFound,
@@ -11,6 +12,8 @@ import {
 import { clientUpdateSchema } from "@/lib/schemas/client"
 import { getInvoiceComputed } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
+import { clientsTag } from "@/lib/data/clients"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -177,6 +180,7 @@ export async function PATCH(req: Request, { params }: Params) {
         ...("starred" in data ? { starred: data.starred } : {}),
       },
     })
+    revalidateTag(clientsTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: "CLIENT_UPDATED",
@@ -206,6 +210,8 @@ export async function DELETE(req: Request, { params }: Params) {
       where: { id },
       data: { archivedAt: new Date() },
     })
+    revalidateTag(clientsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: "CLIENT_ARCHIVED",

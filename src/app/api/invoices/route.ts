@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -13,12 +14,17 @@ import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
+import { getInvoicesFirstPage, invoicesTag } from "@/lib/data/invoices"
+import { navTag } from "@/lib/data/nav"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {
     const { cursor, limit } = parsePagination(req)
+    if (!cursor && limit === 50) {
+      return NextResponse.json(await getInvoicesFirstPage(user.id))
+    }
     const rows = await prisma.invoice.findMany({
       where: { userId: user.id },
       orderBy: [{ issueDate: "desc" }, { id: "desc" }],
@@ -178,6 +184,8 @@ export async function POST(req: Request) {
       return inv
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: data.status === "SENT" ? "INVOICE_SENT" : "INVOICE_CREATED",

@@ -1,60 +1,22 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
   apiUnauthorized,
   buildPagedResponse,
-  decimalToNumber,
   getAuthUser,
   parsePagination,
   requireSameOrigin,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
 import { deferActivityLog } from "@/lib/activity"
-
-function serialize(c: {
-  id: string
-  firstName: string
-  lastName: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  website: string | null
-  address: string | null
-  notes: string | null
-  billingMode: "DAILY" | "FIXED" | "HOURLY"
-  rate: import("@/generated/prisma/client").Prisma.Decimal
-  fixedPrice: import("@/generated/prisma/client").Prisma.Decimal | null
-  deposit: import("@/generated/prisma/client").Prisma.Decimal | null
-  paymentTerms: number | null
-  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
-  color: string | null
-  starred: boolean
-  archivedAt: Date | null
-  createdAt: Date
-}) {
-  return {
-    id: c.id,
-    firstName: c.firstName,
-    lastName: c.lastName,
-    company: c.company,
-    email: c.email,
-    phone: c.phone,
-    website: c.website,
-    address: c.address,
-    notes: c.notes,
-    billingMode: c.billingMode,
-    rate: decimalToNumber(c.rate) ?? 0,
-    fixedPrice: decimalToNumber(c.fixedPrice),
-    deposit: decimalToNumber(c.deposit),
-    paymentTerms: c.paymentTerms,
-    category: c.category,
-    color: c.color,
-    starred: c.starred,
-    archived: c.archivedAt != null,
-    createdAt: c.createdAt.toISOString(),
-  }
-}
+import {
+  clientsTag,
+  getClientsFirstPage,
+  serializeClient,
+} from "@/lib/data/clients"
+import { navTag } from "@/lib/data/nav"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -62,6 +24,11 @@ export async function GET(req: Request) {
 
   try {
     const { cursor, limit } = parsePagination(req)
+
+    if (!cursor && limit === 50) {
+      return NextResponse.json(await getClientsFirstPage(user.id))
+    }
+
     const rows = await prisma.client.findMany({
       where: { userId: user.id, archivedAt: null },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -70,7 +37,7 @@ export async function GET(req: Request) {
     })
     const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      data: paged.data.map(serialize),
+      data: paged.data.map(serializeClient),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,
     })
@@ -109,13 +76,15 @@ export async function POST(req: Request) {
         starred: data.starred ?? false,
       },
     })
+    revalidateTag(clientsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: "CLIENT_CREATED",
       title: `Client ${created.company ?? `${created.firstName} ${created.lastName}`} créé`,
       clientId: created.id,
     })
-    return NextResponse.json(serialize(created), { status: 201 })
+    return NextResponse.json(serializeClient(created), { status: 201 })
   } catch (error) {
     return apiServerError(error)
   }

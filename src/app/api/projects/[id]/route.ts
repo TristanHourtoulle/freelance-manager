@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiNotFound,
@@ -7,6 +8,8 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
+import { projectsTag } from "@/lib/data/projects"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -50,6 +53,8 @@ export async function DELETE(req: Request, { params }: Params) {
       }),
       prisma.project.delete({ where: { id: project.id } }),
     ])
+    revalidateTag(projectsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)

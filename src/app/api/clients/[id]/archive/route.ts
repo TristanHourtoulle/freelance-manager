@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiNotFound,
@@ -8,6 +9,8 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { deferActivityLog } from "@/lib/activity"
+import { clientsTag } from "@/lib/data/clients"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -30,6 +33,8 @@ export async function POST(req: Request, { params }: Params) {
       where: { id },
       data: { archivedAt: new Date() },
     })
+    revalidateTag(clientsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,
       kind: "CLIENT_ARCHIVED",

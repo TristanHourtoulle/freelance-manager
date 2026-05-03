@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -7,6 +8,8 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceSplitSchema } from "@/lib/schemas/invoice-split"
+import { invoicesTag } from "@/lib/data/invoices"
+import { navTag } from "@/lib/data/nav"
 
 function formatNumber(year: number, seq: number): string {
   return `${year}-${String(seq).padStart(4, "0")}`
@@ -203,6 +206,8 @@ export async function POST(req: Request) {
       return out
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ items: created }, { status: 201 })
   } catch (error) {
     return apiServerError(error)

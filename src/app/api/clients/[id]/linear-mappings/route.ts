@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -8,6 +9,8 @@ import {
 } from "@/lib/api"
 import { linearMappingCreateSchema } from "@/lib/schemas/linear-mapping"
 import { syncOneProject } from "@/lib/linear"
+import { projectsTag } from "@/lib/data/projects"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -98,6 +101,8 @@ export async function POST(req: Request, { params }: Params) {
         console.warn("[linear] syncOneProject failed", e)
       }
     }
+    revalidateTag(projectsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json(created, { status: 201 })
   } catch (error) {
     return apiServerError(error)

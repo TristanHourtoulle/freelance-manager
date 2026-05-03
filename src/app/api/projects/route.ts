@@ -7,12 +7,16 @@ import {
   getAuthUser,
   parsePagination,
 } from "@/lib/api"
+import { getProjectsFirstPage } from "@/lib/data/projects"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {
     const { cursor, limit } = parsePagination(req)
+    if (!cursor && limit === 50) {
+      return NextResponse.json(await getProjectsFirstPage(user.id))
+    }
     const rows = await prisma.project.findMany({
       where: { userId: user.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],

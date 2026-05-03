@@ -12,17 +12,19 @@ export interface NavCounts {
   invoices: number
 }
 
+export const navTag = (userId: string) => `user-${userId}-nav`
+
 /**
  * Counts shown as badges next to sidebar items, cached per user.
  *
- * Tagged with `user-${userId}-nav` so any mutation that affects these
- * counts can invalidate via `updateTag()` (TRI-633) instead of waiting
- * for `cacheLife('minutes')` to elapse.
+ * Tagged with `navTag(userId)` so any mutation that affects these counts
+ * can invalidate via `revalidateTag(navTag(userId), 'max')` instead of
+ * waiting for `cacheLife('minutes')` to elapse.
  */
 export async function getNavCounts(userId: string): Promise<NavCounts> {
   "use cache"
   cacheLife("minutes")
-  cacheTag(`user-${userId}-nav`)
+  cacheTag(navTag(userId))
 
   const [clients, projects, tasks, invoices] = await Promise.all([
     prisma.client.count({ where: { userId, archivedAt: null } }),
