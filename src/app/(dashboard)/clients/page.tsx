@@ -114,7 +114,19 @@ function DesktopClientsPage() {
     return true
   })
 
-  const totalRevenue = enriched.reduce((s, c) => s + c.revenue, 0)
+  const { totalRevenue, dailyCount, fixedCount, hourlyCount } = useMemo(() => {
+    let totalRevenue = 0
+    let dailyCount = 0
+    let fixedCount = 0
+    let hourlyCount = 0
+    for (const c of enriched) {
+      totalRevenue += c.revenue
+      if (c.billingMode === "DAILY") dailyCount++
+      else if (c.billingMode === "FIXED") fixedCount++
+      else if (c.billingMode === "HOURLY") hourlyCount++
+    }
+    return { totalRevenue, dailyCount, fixedCount, hourlyCount }
+  }, [enriched])
 
   return (
     <div className="page">
@@ -158,24 +170,9 @@ function DesktopClientsPage() {
             {(
               [
                 { id: "all", label: "Tous", count: enriched.length },
-                {
-                  id: "DAILY",
-                  label: "TJM",
-                  count: enriched.filter((c) => c.billingMode === "DAILY")
-                    .length,
-                },
-                {
-                  id: "FIXED",
-                  label: "Forfait",
-                  count: enriched.filter((c) => c.billingMode === "FIXED")
-                    .length,
-                },
-                {
-                  id: "HOURLY",
-                  label: "Horaire",
-                  count: enriched.filter((c) => c.billingMode === "HOURLY")
-                    .length,
-                },
+                { id: "DAILY", label: "TJM", count: dailyCount },
+                { id: "FIXED", label: "Forfait", count: fixedCount },
+                { id: "HOURLY", label: "Horaire", count: hourlyCount },
               ] as { id: FilterId; label: string; count: number }[]
             ).map((f) => (
               <button

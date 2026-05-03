@@ -658,6 +658,10 @@ textarea {
   width: 100%;
   border-collapse: collapse;
 }
+.table tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}
 .table th {
   text-align: left;
   font-size: 11px;
@@ -1057,6 +1061,8 @@ textarea {
     border-color 0.12s,
     transform 0.12s;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 .client-card:hover {
   border-color: var(--border-strong);

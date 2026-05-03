@@ -63,14 +63,21 @@ export function MobileBillingPage() {
     [invoices, filter],
   )
 
-  const counts = {
-    all: invoices.length,
-    draft: invoices.filter((i) => matchesFilter(i, "DRAFT")).length,
-    sent: invoices.filter((i) => matchesFilter(i, "SENT")).length,
-    partial: invoices.filter((i) => matchesFilter(i, "PARTIAL")).length,
-    paid: invoices.filter((i) => matchesFilter(i, "PAID")).length,
-    overdue: invoices.filter((i) => matchesFilter(i, "OVERDUE")).length,
-  }
+  const counts = useMemo(() => {
+    let draft = 0
+    let sent = 0
+    let partial = 0
+    let paid = 0
+    let overdue = 0
+    for (const i of invoices) {
+      if (matchesFilter(i, "DRAFT")) draft++
+      if (matchesFilter(i, "SENT")) sent++
+      if (matchesFilter(i, "PARTIAL")) partial++
+      if (matchesFilter(i, "PAID")) paid++
+      if (matchesFilter(i, "OVERDUE")) overdue++
+    }
+    return { all: invoices.length, draft, sent, partial, paid, overdue }
+  }, [invoices])
 
   return (
     <div className="m-screen">

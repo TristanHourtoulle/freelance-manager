@@ -82,33 +82,51 @@ function DesktopBillingPage() {
     })
   }, [invoices, clientById, filter, searchTerm])
 
-  const counts = {
-    all: invoices.length,
-    draft: invoices.filter((i) => matchesFilter(i, "DRAFT")).length,
-    sent: invoices.filter((i) => matchesFilter(i, "SENT")).length,
-    partial: invoices.filter((i) => matchesFilter(i, "PARTIAL")).length,
-    paid: invoices.filter((i) => matchesFilter(i, "PAID")).length,
-    overpaid: invoices.filter((i) => matchesFilter(i, "OVERPAID")).length,
-    overdue: invoices.filter((i) => matchesFilter(i, "OVERDUE")).length,
-  }
-  const totals = {
-    paid: invoices
-      .filter(
-        (i) => i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID",
-      )
-      .reduce((s, i) => s + i.paidAmount, 0),
-    outstanding: invoices
-      .filter(
-        (i) =>
-          i.status === "SENT" &&
-          (i.paymentStatus === "UNPAID" ||
-            i.paymentStatus === "PARTIALLY_PAID"),
-      )
-      .reduce((s, i) => s + i.balanceDue, 0),
-    overdue: invoices
-      .filter((i) => i.isOverdue)
-      .reduce((s, i) => s + i.balanceDue, 0),
-  }
+  const { counts, totals } = useMemo(() => {
+    let draft = 0
+    let sent = 0
+    let partial = 0
+    let paid = 0
+    let overpaid = 0
+    let overdue = 0
+    let paidTotal = 0
+    let outstandingTotal = 0
+    let overdueTotal = 0
+    for (const i of invoices) {
+      if (matchesFilter(i, "DRAFT")) draft++
+      if (matchesFilter(i, "SENT")) sent++
+      if (matchesFilter(i, "PARTIAL")) partial++
+      if (matchesFilter(i, "PAID")) paid++
+      if (matchesFilter(i, "OVERPAID")) overpaid++
+      if (matchesFilter(i, "OVERDUE")) overdue++
+      if (i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID") {
+        paidTotal += i.paidAmount
+      }
+      if (
+        i.status === "SENT" &&
+        (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
+      ) {
+        outstandingTotal += i.balanceDue
+      }
+      if (i.isOverdue) overdueTotal += i.balanceDue
+    }
+    return {
+      counts: {
+        all: invoices.length,
+        draft,
+        sent,
+        partial,
+        paid,
+        overpaid,
+        overdue,
+      },
+      totals: {
+        paid: paidTotal,
+        outstanding: outstandingTotal,
+        overdue: overdueTotal,
+      },
+    }
+  }, [invoices])
 
   return (
     <div className="page">

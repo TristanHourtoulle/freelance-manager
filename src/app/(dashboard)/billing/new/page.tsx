@@ -47,7 +47,7 @@ function NewInvoicePageContent() {
   )
   const initialClientId = search.get("clientId") ?? ""
 
-  const [clientId, setClientId] = useState(initialClientId)
+  const [pickedClientId, setPickedClientId] = useState(initialClientId)
   const [projectId, setProjectId] = useState<string>("all")
   const [taskSearch, setTaskSearch] = useState("")
   const [issueDate, setIssueDate] = useState(
@@ -87,15 +87,8 @@ function NewInvoicePageContent() {
     [projects],
   )
 
+  const clientId = pickedClientId || clients[0]?.id || ""
   const client = clientById.get(clientId)
-
-  useEffect(() => {
-    if (clientId) return
-    const first = clients[0]
-    if (!first) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setClientId(first.id)
-  }, [clientId, clients])
 
   useEffect(() => {
     if (!client || preselectedTaskIds.length === 0) return
@@ -302,7 +295,7 @@ function NewInvoicePageContent() {
               className="select"
               value={clientId}
               onChange={(e) => {
-                setClientId(e.target.value)
+                setPickedClientId(e.target.value)
                 setLines([])
               }}
             >
