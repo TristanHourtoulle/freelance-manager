@@ -18,7 +18,6 @@ interface PaymentsSectionProps {
   balanceDue: number
   paidAmount: number
   payments?: InvoicePaymentDTO[]
-  paymentStatus: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
   documentStatus: "DRAFT" | "SENT" | "CANCELLED"
 }
 
@@ -30,7 +29,6 @@ export function PaymentsSection({
   balanceDue,
   paidAmount,
   payments: paymentsProp,
-  paymentStatus,
   documentStatus,
 }: PaymentsSectionProps) {
   const payments = paymentsProp ?? []
@@ -135,9 +133,7 @@ export function PaymentsSection({
   }
 
   const formOpen = adding || editingId != null
-  const isOverpaying = amount > balanceDue + (editingId ? 0 : 0)
-  const canAdd =
-    documentStatus !== "CANCELLED" && (paymentStatus !== "PAID" || true)
+  const canAdd = documentStatus !== "CANCELLED"
 
   return (
     <div className="col gap-12">
@@ -345,7 +341,6 @@ export function PaymentsSection({
               {editingId ? "Mettre à jour" : "Enregistrer"}
             </button>
           </div>
-          {void isOverpaying}
         </div>
       )}
 
