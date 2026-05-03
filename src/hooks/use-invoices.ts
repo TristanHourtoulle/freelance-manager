@@ -169,6 +169,7 @@ export function useUpdatePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
   })
 }
@@ -182,6 +183,7 @@ export function useDeletePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
   })
 }
