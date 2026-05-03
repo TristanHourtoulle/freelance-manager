@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db"
 import {
   apiServerError,
   apiUnauthorized,
+  buildPagedResponse,
   decimalToNumber,
   getAuthUser,
+  parsePagination,
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
@@ -12,20 +14,24 @@ import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {
-    const invoices = await prisma.invoice.findMany({
+    const { cursor, limit } = parsePagination(req)
+    const rows = await prisma.invoice.findMany({
       where: { userId: user.id },
-      orderBy: { issueDate: "desc" },
+      orderBy: [{ issueDate: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         _count: { select: { lines: true } },
         payments: { select: { amount: true, paidAt: true } },
       },
     })
+    const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      items: invoices.map((inv) => {
+      data: paged.data.map((inv) => {
         const computed = getInvoiceComputed(inv)
         return {
           id: inv.id,
@@ -49,6 +55,8 @@ export async function GET() {
           linesCount: inv._count.lines,
         }
       }),
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
     })
   } catch (error) {
     return apiServerError(error)

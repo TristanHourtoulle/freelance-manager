@@ -1,7 +1,13 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export interface LinearProjectDTO {
   id: string
@@ -27,11 +33,15 @@ export interface AllMappingsItem {
 
 /** Lists ALL Linear mappings of the current user, across every client. */
 export function useAllLinearMappings(enabled = true) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["linear-mappings"] as const,
-    queryFn: () =>
-      api.get<{ items: AllMappingsItem[] }>("/api/linear-mappings"),
-    select: (d) => d.items,
+    queryFn: ({ pageParam }) =>
+      api.get<PaginatedResponse<AllMappingsItem>>(
+        `/api/linear-mappings?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (d) => d.pages.flatMap((p) => p.data),
     staleTime: 30_000,
     enabled,
   })

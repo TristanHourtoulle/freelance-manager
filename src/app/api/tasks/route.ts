@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db"
 import {
   apiServerError,
   apiUnauthorized,
+  buildPagedResponse,
   decimalToNumber,
   getAuthUser,
+  parsePagination,
 } from "@/lib/api"
 
 export async function GET(req: Request) {
@@ -16,8 +18,9 @@ export async function GET(req: Request) {
     const clientId = url.searchParams.get("clientId") ?? undefined
     const projectId = url.searchParams.get("projectId") ?? undefined
     const status = url.searchParams.get("status") ?? undefined
+    const { cursor, limit } = parsePagination(req)
 
-    const tasks = await prisma.task.findMany({
+    const rows = await prisma.task.findMany({
       where: {
         userId: user.id,
         ...(clientId ? { clientId } : {}),
@@ -37,7 +40,13 @@ export async function GET(req: Request) {
               },
             }),
       },
-      orderBy: [{ projectId: "asc" }, { linearIdentifier: "asc" }],
+      orderBy: [
+        { projectId: "asc" },
+        { linearIdentifier: "asc" },
+        { id: "asc" },
+      ],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: {
         id: true,
         linearIssueId: true,
@@ -53,8 +62,9 @@ export async function GET(req: Request) {
       },
     })
 
+    const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      items: tasks.map((t) => ({
+      data: paged.data.map((t) => ({
         id: t.id,
         linearIssueId: t.linearIssueId,
         linearIdentifier: t.linearIdentifier,
@@ -67,6 +77,8 @@ export async function GET(req: Request) {
         clientId: t.clientId,
         projectId: t.projectId,
       })),
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
     })
   } catch (error) {
     return apiServerError(error)

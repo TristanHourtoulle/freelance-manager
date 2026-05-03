@@ -9,6 +9,7 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
 import dynamic from "next/dynamic"
 
 const MobileBillingPage = dynamic(
@@ -61,7 +62,12 @@ function DesktopBillingPage() {
   const [filter, setFilter] = useState<FilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
 
-  const { data: invoices = [] } = useInvoices()
+  const {
+    data: invoices = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInvoices()
   const { data: clients = [] } = useClients()
 
   const clientById = useMemo(
@@ -340,6 +346,12 @@ function DesktopBillingPage() {
           </tbody>
         </table>
       </div>
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {openId && (
         <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} />

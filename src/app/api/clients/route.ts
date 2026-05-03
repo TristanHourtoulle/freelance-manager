@@ -3,8 +3,10 @@ import { prisma } from "@/lib/db"
 import {
   apiServerError,
   apiUnauthorized,
+  buildPagedResponse,
   decimalToNumber,
   getAuthUser,
+  parsePagination,
   requireSameOrigin,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
@@ -54,16 +56,24 @@ function serialize(c: {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 
   try {
-    const clients = await prisma.client.findMany({
+    const { cursor, limit } = parsePagination(req)
+    const rows = await prisma.client.findMany({
       where: { userId: user.id, archivedAt: null },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     })
-    return NextResponse.json({ items: clients.map(serialize) })
+    const paged = buildPagedResponse(rows, limit)
+    return NextResponse.json({
+      data: paged.data.map(serialize),
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
+    })
   } catch (error) {
     return apiServerError(error)
   }

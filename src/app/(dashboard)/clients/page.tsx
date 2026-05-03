@@ -17,6 +17,7 @@ import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
 import dynamic from "next/dynamic"
 
 const MobileClientsPage = dynamic(
@@ -51,7 +52,12 @@ function DesktopClientsPage() {
   const [view, setView] = useState<ViewMode>("grid")
   const [showNew, setShowNew] = useState(false)
 
-  const { data: clients = [] } = useClients()
+  const {
+    data: clients = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useClients()
   const { data: invoices = [] } = useInvoices()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
@@ -373,6 +379,12 @@ function DesktopClientsPage() {
           </table>
         </div>
       )}
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {showNew && <NewClientModal onClose={() => setShowNew(false)} />}
     </div>

@@ -13,6 +13,7 @@ import { useToast } from "@/components/providers/toast-provider"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -44,7 +45,12 @@ function DesktopTasksPage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
 
-  const { data: tasks = [] } = useTasks()
+  const {
+    data: tasks = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: projects = [] } = useProjects()
   const { data: invoices = [] } = useInvoices()
@@ -505,6 +511,12 @@ function DesktopTasksPage() {
           </div>
         </div>
       )}
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {selected.size > 0 && (
         <div
