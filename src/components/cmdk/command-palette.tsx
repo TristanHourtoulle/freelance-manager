@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  Activity,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -75,24 +76,15 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
-  const [mounted, setMounted] = useState(open)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const itemsRef = useRef(new Map<number, HTMLButtonElement>())
 
   useEffect(() => {
-    if (open) {
-      // Reset palette state on the open transition. Intentional cascade —
-      // we want the input cleared and selection at 0 every time the user
-      // re-opens (parent controls `open`).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setQuery("")
-      setActive(0)
-      setMounted(true)
-      return
-    }
-    const t = setTimeout(() => setMounted(false), 220)
-    return () => clearTimeout(t)
+    if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery("")
+    setActive(0)
   }, [open])
 
   /**
@@ -100,10 +92,10 @@ export function CommandPalette({
    * runs before paint, so the user can start typing immediately after ⌘K.
    */
   useLayoutEffect(() => {
-    if (open && mounted) {
+    if (open) {
       inputRef.current?.focus()
     }
-  }, [open, mounted])
+  }, [open])
 
   const grouped = useMemo<Group[]>(() => {
     const filtered = !query.trim()
@@ -179,87 +171,87 @@ export function CommandPalette({
     [],
   )
 
-  if (!mounted) return null
-
   return (
-    <div
-      className={"cmdk-root" + (open ? " open" : "")}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-    >
-      <div className="cmdk-backdrop" onClick={onClose} />
-      <div className="cmdk-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cmdk-glow" />
-        <div className="cmdk-search">
-          <span className="cmdk-search-icon">
-            <Icon name="search" size={18} />
-          </span>
-          <input
-            ref={inputRef}
-            className="cmdk-input"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setActive(0)
-            }}
-            placeholder={placeholder}
-            spellCheck={false}
-            autoComplete="off"
-          />
-          <div className="cmdk-kbd-hint">
-            <span className="cmdk-kbd">esc</span>
-          </div>
-        </div>
-
-        <div className="cmdk-list" ref={listRef}>
-          {flat.length === 0 ? (
-            <div className="cmdk-empty">
-              <div className="cmdk-empty-glyph">
-                <Icon name="search" size={22} />
-              </div>
-              <div className="cmdk-empty-title">Aucun résultat</div>
-              <div className="cmdk-empty-sub">
-                Essaie avec un autre mot-clé.
-              </div>
+    <Activity mode={open ? "visible" : "hidden"}>
+      <div
+        className={"cmdk-root" + (open ? " open" : "")}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+      >
+        <div className="cmdk-backdrop" onClick={onClose} />
+        <div className="cmdk-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="cmdk-glow" />
+          <div className="cmdk-search">
+            <span className="cmdk-search-icon">
+              <Icon name="search" size={18} />
+            </span>
+            <input
+              ref={inputRef}
+              className="cmdk-input"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setActive(0)
+              }}
+              placeholder={placeholder}
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <div className="cmdk-kbd-hint">
+              <span className="cmdk-kbd">esc</span>
             </div>
-          ) : (
-            grouped.map((g) => (
-              <CmdGroup
-                key={g.label}
-                group={g}
-                activeIndex={active}
-                onHover={setActive}
-                onSelect={(c) => {
-                  c.run()
-                  onClose()
-                }}
-                registerRef={setItemRef}
-              />
-            ))
-          )}
-        </div>
-
-        <div className="cmdk-footer">
-          <div className="cmdk-footer-left">
-            <span className="cmdk-footer-brand-mark">F</span>
-            <span>FreelanceManager · ⌘K</span>
           </div>
-          <div className="cmdk-footer-actions">
-            <span className="cmdk-footer-action">
-              <span className="cmdk-kbd">↑</span>
-              <span className="cmdk-kbd">↓</span> naviguer
-            </span>
-            <span className="cmdk-footer-action">
-              <span className="cmdk-kbd">↵</span> ouvrir
-            </span>
-            <span className="cmdk-footer-action">
-              <span className="cmdk-kbd">esc</span> fermer
-            </span>
+
+          <div className="cmdk-list" ref={listRef}>
+            {flat.length === 0 ? (
+              <div className="cmdk-empty">
+                <div className="cmdk-empty-glyph">
+                  <Icon name="search" size={22} />
+                </div>
+                <div className="cmdk-empty-title">Aucun résultat</div>
+                <div className="cmdk-empty-sub">
+                  Essaie avec un autre mot-clé.
+                </div>
+              </div>
+            ) : (
+              grouped.map((g) => (
+                <CmdGroup
+                  key={g.label}
+                  group={g}
+                  activeIndex={active}
+                  onHover={setActive}
+                  onSelect={(c) => {
+                    c.run()
+                    onClose()
+                  }}
+                  registerRef={setItemRef}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="cmdk-footer">
+            <div className="cmdk-footer-left">
+              <span className="cmdk-footer-brand-mark">F</span>
+              <span>FreelanceManager · ⌘K</span>
+            </div>
+            <div className="cmdk-footer-actions">
+              <span className="cmdk-footer-action">
+                <span className="cmdk-kbd">↑</span>
+                <span className="cmdk-kbd">↓</span> naviguer
+              </span>
+              <span className="cmdk-footer-action">
+                <span className="cmdk-kbd">↵</span> ouvrir
+              </span>
+              <span className="cmdk-footer-action">
+                <span className="cmdk-kbd">esc</span> fermer
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Activity>
   )
 }
 
