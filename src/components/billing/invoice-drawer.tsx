@@ -234,7 +234,6 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
             balanceDue={invoice.balanceDue}
             paidAmount={invoice.paidAmount}
             payments={invoice.payments}
-            paymentStatus={invoice.paymentStatus}
             documentStatus={invoice.status}
           />
         </div>
