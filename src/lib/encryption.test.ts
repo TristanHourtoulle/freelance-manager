@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest"
+import { createCipheriv, randomBytes } from "crypto"
 
-const TEST_KEY = "a".repeat(64)
+const TEST_KEY_V1 = "a".repeat(64)
+const TEST_KEY_V2 = "b".repeat(64)
 
 describe("encryption", () => {
   let encrypt: typeof import("./encryption").encrypt
   let decrypt: typeof import("./encryption").decrypt
-  let maskToken: typeof import("./encryption").maskToken
+  let CURRENT_KEY_VERSION: number
 
   beforeAll(async () => {
-    vi.stubEnv("ENCRYPTION_KEY", TEST_KEY)
+    vi.stubEnv("ENCRYPTION_KEY", TEST_KEY_V1)
+    vi.stubEnv("ENCRYPTION_KEY_V2", TEST_KEY_V2)
     const mod = await import("./encryption")
     encrypt = mod.encrypt
     decrypt = mod.decrypt
-    maskToken = mod.maskToken
+    CURRENT_KEY_VERSION = mod.CURRENT_KEY_VERSION
   })
 
   afterAll(() => {
@@ -21,13 +24,14 @@ describe("encryption", () => {
 
   it("encrypts and decrypts a string roundtrip", () => {
     const plaintext = "my-secret-api-key-12345"
-    const { ciphertext, iv } = encrypt(plaintext)
+    const { ciphertext, iv, keyVersion } = encrypt(plaintext)
 
     expect(ciphertext).toBeInstanceOf(Buffer)
     expect(iv).toBeInstanceOf(Buffer)
     expect(iv.length).toBe(12)
+    expect(keyVersion).toBe(CURRENT_KEY_VERSION)
 
-    const decrypted = decrypt(ciphertext, iv)
+    const decrypted = decrypt(ciphertext, iv, keyVersion)
     expect(decrypted).toBe(plaintext)
   })
 
@@ -41,26 +45,51 @@ describe("encryption", () => {
   })
 
   it("handles empty string", () => {
-    const { ciphertext, iv } = encrypt("")
-    expect(decrypt(ciphertext, iv)).toBe("")
+    const { ciphertext, iv, keyVersion } = encrypt("")
+    expect(decrypt(ciphertext, iv, keyVersion)).toBe("")
   })
 
   it("handles unicode content", () => {
     const plaintext = "Hello, world!"
-    const { ciphertext, iv } = encrypt(plaintext)
-    expect(decrypt(ciphertext, iv)).toBe(plaintext)
+    const { ciphertext, iv, keyVersion } = encrypt(plaintext)
+    expect(decrypt(ciphertext, iv, keyVersion)).toBe(plaintext)
   })
 
   it("fails to decrypt with tampered ciphertext", () => {
-    const { ciphertext, iv } = encrypt("secret")
+    const { ciphertext, iv, keyVersion } = encrypt("secret")
     ciphertext[0] = (ciphertext[0] ?? 0) ^ 0xff
-    expect(() => decrypt(ciphertext, iv)).toThrow()
+    expect(() => decrypt(ciphertext, iv, keyVersion)).toThrow()
   })
 
   it("fails to decrypt with wrong IV", () => {
-    const { ciphertext } = encrypt("secret")
+    const { ciphertext, keyVersion } = encrypt("secret")
     const wrongIv = Buffer.alloc(12, 0)
-    expect(() => decrypt(ciphertext, wrongIv)).toThrow()
+    expect(() => decrypt(ciphertext, wrongIv, keyVersion)).toThrow()
+  })
+
+  it("fails to decrypt v1 ciphertext with v2 key", async () => {
+    const { ciphertext, iv } = encrypt("secret")
+    expect(() => decrypt(ciphertext, iv, 2)).toThrow()
+  })
+
+  it("supports multiple key versions side by side", () => {
+    const v1 = encrypt("first")
+    const key = Buffer.from(TEST_KEY_V2, "hex")
+    const iv = randomBytes(12)
+    const cipher = createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 })
+    const v2Ciphertext = Buffer.concat([
+      cipher.update("second", "utf8"),
+      cipher.final(),
+      cipher.getAuthTag(),
+    ])
+
+    expect(decrypt(v1.ciphertext, v1.iv, 1)).toBe("first")
+    expect(decrypt(v2Ciphertext, iv, 2)).toBe("second")
+  })
+
+  it("throws when the requested key version is not configured", () => {
+    const { ciphertext, iv } = encrypt("secret")
+    expect(() => decrypt(ciphertext, iv, 99)).toThrow(/version 99/)
   })
 })
 
@@ -68,7 +97,7 @@ describe("maskToken", () => {
   let maskToken: typeof import("./encryption").maskToken
 
   beforeAll(async () => {
-    vi.stubEnv("ENCRYPTION_KEY", TEST_KEY)
+    vi.stubEnv("ENCRYPTION_KEY", TEST_KEY_V1)
     const mod = await import("./encryption")
     maskToken = mod.maskToken
   })
