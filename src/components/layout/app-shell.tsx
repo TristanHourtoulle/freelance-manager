@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/mobile/bottom-nav"
 import { CmdKProvider } from "@/components/cmdk/cmdk-provider"
 
 interface AppShellProps {
-  user: { name: string; email: string }
+  user: { id: string; name: string; email: string }
   crumbs: string[]
   children: ReactNode
 }

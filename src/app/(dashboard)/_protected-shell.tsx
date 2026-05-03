@@ -20,7 +20,11 @@ export async function ProtectedDashboardShell({
 
   return (
     <AppShell
-      user={{ name: session.user.name, email: session.user.email }}
+      user={{
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+      }}
       crumbs={["FreelanceManager"]}
     >
       {children}
