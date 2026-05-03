@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  buildPagedResponse,
+  getAuthUser,
+  parsePagination,
+} from "@/lib/api"
 
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {
-    const projects = await prisma.project.findMany({
+    const { cursor, limit } = parsePagination(req)
+    const rows = await prisma.project.findMany({
       where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         client: {
           select: {
@@ -22,8 +31,9 @@ export async function GET() {
         _count: { select: { tasks: true } },
       },
     })
+    const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      items: projects.map((p) => ({
+      data: paged.data.map((p) => ({
         id: p.id,
         clientId: p.clientId,
         client: p.client,
@@ -35,6 +45,8 @@ export async function GET() {
         status: p.status,
         tasksTotal: p._count.tasks,
       })),
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
     })
   } catch (error) {
     return apiServerError(error)

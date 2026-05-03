@@ -5,6 +5,7 @@ import { headers as nextHeaders } from "next/headers"
 import { ZodError } from "zod/v4"
 import { Prisma } from "@/generated/prisma/client"
 import { auth } from "@/lib/auth"
+import { paginationQuerySchema } from "@/lib/schemas/pagination"
 
 export interface ApiUser {
   id: string
@@ -108,6 +109,44 @@ export function requireSameOrigin(request: Request): NextResponse | null {
  * when running behind Vercel/Cloudflare/nginx that strips client-supplied
  * X-Forwarded-For headers.
  */
+/**
+ * Parse and validate `?cursor=&limit=` from a request. Returns sane defaults
+ * (`{ cursor: undefined, limit: 50 }`) when missing, throws ZodError on
+ * malformed input — `apiServerError` already maps that to a 400.
+ *
+ * Pair the result with Prisma's `cursor: { id: cursor }` + `skip: 1` and
+ * `take: limit + 1` so the handler can detect `hasMore` from the overflow row.
+ */
+export function parsePagination(request: Request): {
+  cursor: string | undefined
+  limit: number
+} {
+  const url = new URL(request.url)
+  const parsed = paginationQuerySchema.parse({
+    cursor: url.searchParams.get("cursor") ?? undefined,
+    limit: url.searchParams.get("limit") ?? undefined,
+  })
+  return { cursor: parsed.cursor, limit: parsed.limit }
+}
+
+/**
+ * Slice an over-fetched array (length `limit + 1`) into `{ data, nextCursor,
+ * hasMore }` for the wire response.
+ */
+export function buildPagedResponse<T extends { id: string }>(
+  rows: T[],
+  limit: number,
+): { data: T[]; nextCursor: string | null; hasMore: boolean } {
+  const hasMore = rows.length > limit
+  const data = hasMore ? rows.slice(0, limit) : rows
+  const last = data[data.length - 1]
+  return {
+    data,
+    nextCursor: hasMore && last ? last.id : null,
+    hasMore,
+  }
+}
+
 export function getClientIp(request: Request): string {
   const trustProxy = process.env.TRUST_PROXY === "1"
   if (!trustProxy) return "unknown"

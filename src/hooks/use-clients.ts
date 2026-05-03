@@ -1,8 +1,13 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type { ClientCreateInput, ClientUpdateInput } from "@/lib/schemas/client"
+import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export interface ClientDTO {
   id: string
@@ -29,10 +34,15 @@ export interface ClientDTO {
 const CLIENTS_KEY = ["clients"] as const
 
 export function useClients() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: CLIENTS_KEY,
-    queryFn: () => api.get<{ items: ClientDTO[] }>("/api/clients"),
-    select: (d) => d.items,
+    queryFn: ({ pageParam }) =>
+      api.get<PaginatedResponse<ClientDTO>>(
+        `/api/clients?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (d) => d.pages.flatMap((p) => p.data),
     staleTime: 30_000,
   })
 }

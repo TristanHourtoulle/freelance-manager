@@ -17,6 +17,7 @@ const LinearMappingsModal = dynamic(
   { ssr: false },
 )
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
 import dynamic from "next/dynamic"
 
 const MobileProjectsPage = dynamic(
@@ -69,7 +70,12 @@ function DesktopProjectsPage() {
   const [showLink, setShowLink] = useState(false)
   const sync = useSyncLinear()
 
-  const { data: projects = [] } = useProjects()
+  const {
+    data: projects = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProjects()
   const { data: tasks = [] } = useTasks()
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
@@ -428,6 +434,12 @@ function DesktopProjectsPage() {
           </tbody>
         </table>
       </div>
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {showLink && <LinearMappingsModal onClose={() => setShowLink(false)} />}
     </div>
