@@ -1,5 +1,7 @@
 "use client"
 
+import { memo } from "react"
+
 interface SparklineProps {
   data: number[]
   width?: number
@@ -7,7 +9,11 @@ interface SparklineProps {
 }
 
 /** Smooth-curve sparkline with area fill, used in the analytics hero. */
-export function Sparkline({ data, width = 220, height = 64 }: SparklineProps) {
+export const Sparkline = memo(function Sparkline({
+  data,
+  width = 220,
+  height = 64,
+}: SparklineProps) {
   if (data.length < 2) {
     return (
       <svg className="ana-spark" width={width} height={height}>
@@ -83,14 +89,14 @@ export function Sparkline({ data, width = 220, height = 64 }: SparklineProps) {
       </g>
     </svg>
   )
-}
+})
 
 interface DualChartProps {
   months: { label: string; paid: number; issued: number; isCurrent: boolean }[]
 }
 
 /** Stacked dual chart: bars for "paid" + smooth line for "issued". */
-export function DualChart({ months }: DualChartProps) {
+export const DualChart = memo(function DualChart({ months }: DualChartProps) {
   if (!months.length) return null
   let max = 1
   for (const m of months) {
@@ -206,7 +212,7 @@ export function DualChart({ months }: DualChartProps) {
       ))}
     </svg>
   )
-}
+})
 
 interface DonutSegment {
   label: string
@@ -221,7 +227,11 @@ interface DonutProps {
 }
 
 /** Multi-segment donut with side legend rows. */
-export function Donut({ segments, total, format }: DonutProps) {
+export const Donut = memo(function Donut({
+  segments,
+  total,
+  format,
+}: DonutProps) {
   if (!segments.length) {
     return <div className="muted small">Pas encore de données</div>
   }
@@ -311,14 +321,16 @@ export function Donut({ segments, total, format }: DonutProps) {
       </div>
     </div>
   )
-}
+})
 
 interface ThroughputChartProps {
   weeks: { label: string; done: number; invoiced: number }[]
 }
 
 /** Side-by-side bars for "done" and "invoiced" tasks per week. */
-export function ThroughputChart({ weeks }: ThroughputChartProps) {
+export const ThroughputChart = memo(function ThroughputChart({
+  weeks,
+}: ThroughputChartProps) {
   if (!weeks.length) return null
   let max = 1
   for (const w of weeks) {
@@ -378,7 +390,7 @@ export function ThroughputChart({ weeks }: ThroughputChartProps) {
       })}
     </svg>
   )
-}
+})
 
 interface ActivityHeatmapProps {
   rows: number[][]
@@ -398,7 +410,10 @@ const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
  * Day-of-week × week heatmap. `rows` is 7 arrays of N week counts.
  * Buckets values into 5 intensity levels by max in dataset.
  */
-export function ActivityHeatmap({ rows, weekLabels }: ActivityHeatmapProps) {
+export const ActivityHeatmap = memo(function ActivityHeatmap({
+  rows,
+  weekLabels,
+}: ActivityHeatmapProps) {
   let max = 1
   for (const row of rows) {
     for (const v of row) {
@@ -482,4 +497,4 @@ export function ActivityHeatmap({ rows, weekLabels }: ActivityHeatmapProps) {
       </div>
     </div>
   )
-}
+})
