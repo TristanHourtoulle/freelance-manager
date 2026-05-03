@@ -1,3 +1,7 @@
+"use client"
+
+import { memo } from "react"
+
 interface ClientRevenueChartProps {
   data: { month: string; total: number }[]
 }
@@ -7,7 +11,9 @@ interface ClientRevenueChartProps {
  * "Évolution du revenu" overview card. Pure SVG so it stays light and
  * matches the green accent everywhere else in the app.
  */
-export function ClientRevenueChart({ data }: ClientRevenueChartProps) {
+export const ClientRevenueChart = memo(function ClientRevenueChart({
+  data,
+}: ClientRevenueChartProps) {
   const W = 500
   const H = 90
   const pad = 6
@@ -75,4 +81,4 @@ export function ClientRevenueChart({ data }: ClientRevenueChartProps) {
       )}
     </svg>
   )
-}
+})
