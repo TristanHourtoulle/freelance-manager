@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
-import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
+import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useClients } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
@@ -566,5 +566,3 @@ function DesktopTasksPage() {
     </div>
   )
 }
-
-void fmtRelative

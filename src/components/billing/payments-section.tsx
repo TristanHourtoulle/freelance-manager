@@ -42,7 +42,7 @@ export function PaymentsSection({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const [amount, setAmount] = useState<number>(0)
-  const [paidAt, setPaidAt] = useState<string>(todayISO())
+  const [paidAt, setPaidAt] = useState<string>(() => todayISO())
   const [method, setMethod] = useState<string>("")
   const [note, setNote] = useState<string>("")
 
