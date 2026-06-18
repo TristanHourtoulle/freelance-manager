@@ -74,6 +74,8 @@ export type ActivityKind =
   | "PAYMENT_DELETED"
   | "TASKS_PENDING"
   | "LINEAR_SYNCED"
+  | "ACTION_DONE"
+  | "MEETING_LOGGED"
 
 export interface ActivityItemDTO {
   id: string

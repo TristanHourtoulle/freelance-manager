@@ -35,10 +35,11 @@ const EditClientModal = dynamic(
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientRevenueChart } from "@/components/clients/client-revenue-chart"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
+import { SuiviView } from "@/components/suivi/suivi-view"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobileClientDetailPage } from "./mobile"
 
-type Tab = "overview" | "projects" | "tasks" | "invoices" | "activity"
+type Tab = "overview" | "projects" | "tasks" | "invoices" | "suivi" | "activity"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -307,6 +308,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
               icon: "invoice" as const,
               count: client.invoices.length,
             },
+            { id: "suivi", label: "Suivi", icon: "check-square" as const },
             { id: "activity", label: "Activité", icon: "clock" as const },
           ] as const
         ).map((t) => (
@@ -722,6 +724,12 @@ function DesktopClientDetailPage({ id }: { id: string }) {
               </div>
             ))
           )}
+        </div>
+      </Activity>
+
+      <Activity mode={tab === "suivi" ? "visible" : "hidden"}>
+        <div className="detail-card">
+          <SuiviView clientId={id} />
         </div>
       </Activity>
 
