@@ -1,4 +1,1 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="96" fill="#2563eb"/>
-  <text x="256" y="300" font-family="Inter, system-ui, sans-serif" font-size="240" font-weight="700" fill="white" text-anchor="middle">FD</text>
-</svg>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><rect width="512" height="512" rx="112" fill="#131719"/><rect x="132" y="302" width="44" height="70" rx="12" fill="#ade74e" opacity="0.55"/><rect x="200" y="252" width="44" height="120" rx="12" fill="#ade74e" opacity="0.7"/><rect x="268" y="197" width="44" height="175" rx="12" fill="#ade74e" opacity="0.85"/><rect x="336" y="142" width="44" height="230" rx="12" fill="#ade74e" opacity="1"/></svg>

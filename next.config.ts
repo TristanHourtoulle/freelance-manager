@@ -8,7 +8,9 @@ const isDev = process.env.NODE_ENV !== "production"
  * style attributes used by the design system; tightening to nonces is
  * tracked separately. `frame-ancestors 'none'` and `object-src 'none'`
  * prevent clickjacking and plugin abuse. `connect-src` whitelists the
- * Linear API for outbound XHRs from the dashboard.
+ * Linear API for outbound XHRs from the dashboard. `worker-src` and
+ * `manifest-src` are scoped to `'self'` for the PWA service worker and
+ * web app manifest.
  */
 const csp = [
   "default-src 'self'",
@@ -19,6 +21,8 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self' https://api.linear.app",
+  "worker-src 'self'",
+  "manifest-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "object-src 'none'",
