@@ -1,7 +1,12 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export interface ProjectDTO {
   id: string
@@ -23,11 +28,16 @@ export interface ProjectDTO {
 }
 
 export function useProjects() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["projects"] as const,
-    queryFn: () => api.get<{ items: ProjectDTO[] }>("/api/projects"),
-    select: (d) => d.items,
-    staleTime: 30_000,
+    queryFn: ({ pageParam }) =>
+      api.get<PaginatedResponse<ProjectDTO>>(
+        `/api/projects?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (d) => d.pages.flatMap((p) => p.data),
+    staleTime: 60 * 60_000,
   })
 }
 

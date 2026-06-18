@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiNotFound,
@@ -6,6 +7,7 @@ import {
   apiUnauthorized,
   decimalToNumber,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import {
   invoiceStatusUpdateSchema,
@@ -16,6 +18,9 @@ import {
   recomputeInvoicePayment,
   serializePayment,
 } from "@/lib/payments"
+import { deferActivityLog } from "@/lib/activity"
+import { invoicesTag } from "@/lib/data/invoices"
+import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -79,6 +84,8 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   const { id } = await params
@@ -88,7 +95,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
     const owned = await prisma.invoice.findFirst({
       where: { id, userId: user.id },
-      select: { id: true },
+      select: { id: true, number: true, clientId: true, status: true },
     })
     if (!owned) return apiNotFound()
 
@@ -98,6 +105,27 @@ export async function PATCH(req: Request, { params }: Params) {
         where: { id },
         data: { status: data.status },
       })
+      revalidateTag(invoicesTag(user.id), "max")
+      revalidateTag(navTag(user.id), "max")
+      if (data.status !== owned.status) {
+        deferActivityLog({
+          userId: user.id,
+          kind:
+            data.status === "SENT"
+              ? "INVOICE_SENT"
+              : data.status === "CANCELLED"
+                ? "INVOICE_CANCELLED"
+                : "INVOICE_CREATED",
+          title:
+            data.status === "SENT"
+              ? `Facture ${owned.number} émise`
+              : data.status === "CANCELLED"
+                ? `Facture ${owned.number} annulée`
+                : `Facture ${owned.number} repassée en brouillon`,
+          clientId: owned.clientId,
+          invoiceId: owned.id,
+        })
+      }
       return NextResponse.json({ ok: true })
     }
 
@@ -116,6 +144,23 @@ export async function PATCH(req: Request, { params }: Params) {
         return NextResponse.json(
           { error: `Le numéro de facture "${data.number}" est déjà utilisé` },
           { status: 409 },
+        )
+      }
+    }
+
+    if (data.projectId) {
+      const project = await prisma.project.findFirst({
+        where: {
+          id: data.projectId,
+          userId: user.id,
+          clientId: owned.clientId,
+        },
+        select: { id: true },
+      })
+      if (!project) {
+        return NextResponse.json(
+          { error: "Bad Request", code: "INVALID_PROJECT_FOR_CLIENT" },
+          { status: 400 },
         )
       }
     }
@@ -164,7 +209,11 @@ export async function PATCH(req: Request, { params }: Params) {
 
       if (data.taskIds?.length) {
         await tx.task.updateMany({
-          where: { id: { in: data.taskIds }, userId: user.id },
+          where: {
+            id: { in: data.taskIds },
+            userId: user.id,
+            clientId: owned.clientId,
+          },
           data: { invoiceId: id, status: "DONE" },
         })
       }
@@ -172,13 +221,17 @@ export async function PATCH(req: Request, { params }: Params) {
       await recomputeInvoicePayment(id, tx)
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)
   }
 }
 
-export async function DELETE(_: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   const { id } = await params
@@ -190,6 +243,8 @@ export async function DELETE(_: Request, { params }: Params) {
       }),
       prisma.invoice.deleteMany({ where: { id, userId: user.id } }),
     ])
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
     return apiServerError(error)

@@ -15,6 +15,9 @@ const clientBaseSchema = z.object({
   company: z.string().max(120).trim().optional().nullable(),
   email: z.email().max(160).optional().nullable(),
   phone: z.string().max(40).trim().optional().nullable(),
+  website: z.string().max(240).trim().optional().nullable(),
+  address: z.string().max(240).trim().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
   billingMode: billingModeSchema.default("DAILY"),
   rate: z.coerce.number().min(0).max(100_000).default(0),
   fixedPrice: z.coerce.number().min(0).max(10_000_000).optional().nullable(),
@@ -22,6 +25,7 @@ const clientBaseSchema = z.object({
   paymentTerms: z.coerce.number().int().min(0).max(180).optional().nullable(),
   category: clientCategorySchema.default("FREELANCE"),
   color: z.string().max(160).optional().nullable(),
+  starred: z.coerce.boolean().optional(),
 })
 
 export const clientCreateSchema = clientBaseSchema.superRefine((val, ctx) => {

@@ -1,25 +1,34 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
-import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
+import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useClients } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileTasksPage } from "./mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
+
+const MobileTasksPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileTasksPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 
 export default function TasksPage() {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileTasksPage />
-  return <DesktopTasksPage />
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      {isMobile ? <MobileTasksPage /> : <DesktopTasksPage />}
+    </Suspense>
+  )
 }
 
 function DesktopTasksPage() {
@@ -36,7 +45,12 @@ function DesktopTasksPage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
 
-  const { data: tasks = [] } = useTasks()
+  const {
+    data: tasks = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: projects = [] } = useProjects()
   const { data: invoices = [] } = useInvoices()
@@ -83,11 +97,6 @@ function DesktopTasksPage() {
     [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
   )
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPage(1)
-  }, [searchTerm, statusFilter, clientFilter, projectFilter])
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const paged = useMemo(
@@ -114,12 +123,21 @@ function DesktopTasksPage() {
     return Array.from(m.values())
   }, [paged])
 
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p])),
+    [projects],
+  )
+
   const selectedTasks = filtered.filter((t) => selected.has(t.id))
   const selectedClientIds = new Set(selectedTasks.map((t) => t.clientId))
   const canInvoiceSelected = selectedClientIds.size === 1
 
   const selectedValue = selectedTasks.reduce((s, t) => {
-    const c = clients.find((cc) => cc.id === t.clientId)
+    const c = clientById.get(t.clientId)
     if (!c) return s
     return (
       s +
@@ -216,7 +234,10 @@ function DesktopTasksPage() {
             style={{ paddingLeft: 34 }}
             placeholder="Rechercher par ID ou titre…"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value)
+              setPage(1)
+            }}
           />
         </div>
         <div className="row gap-12" style={{ flexWrap: "wrap" }}>
@@ -236,7 +257,10 @@ function DesktopTasksPage() {
               <button
                 key={f.id}
                 className={"chip" + (statusFilter === f.id ? " active" : "")}
-                onClick={() => setStatusFilter(f.id)}
+                onClick={() => {
+                  setStatusFilter(f.id)
+                  setPage(1)
+                }}
               >
                 {f.label} <span className="count">{f.count}</span>
               </button>
@@ -249,6 +273,7 @@ function DesktopTasksPage() {
             onChange={(e) => {
               setClientFilter(e.target.value)
               setProjectFilter("all")
+              setPage(1)
             }}
           >
             <option value="all">Tous les clients</option>
@@ -262,7 +287,10 @@ function DesktopTasksPage() {
             className="select"
             style={{ width: 220 }}
             value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            onChange={(e) => {
+              setProjectFilter(e.target.value)
+              setPage(1)
+            }}
           >
             <option value="all">Tous les projets</option>
             {projects
@@ -288,8 +316,8 @@ function DesktopTasksPage() {
           </div>
         )}
         {groups.map((g) => {
-          const c = clients.find((cc) => cc.id === g.clientId)
-          const p = projects.find((pp) => pp.id === g.projectId)
+          const c = clientById.get(g.clientId)
+          const p = projectById.get(g.projectId)
           const groupValue = g.tasks.reduce((s, t) => {
             if (!c) return s
             return (
@@ -306,7 +334,12 @@ function DesktopTasksPage() {
             <div
               key={`${g.clientId}${g.projectId}`}
               className="card"
-              style={{ padding: 0, overflow: "hidden" }}
+              style={{
+                padding: 0,
+                overflow: "hidden",
+                contentVisibility: "auto",
+                containIntrinsicSize: "auto 320px",
+              }}
             >
               <div
                 className="row gap-12"
@@ -479,6 +512,12 @@ function DesktopTasksPage() {
         </div>
       )}
 
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
+
       {selected.size > 0 && (
         <div
           style={{
@@ -527,5 +566,3 @@ function DesktopTasksPage() {
     </div>
   )
 }
-
-void fmtRelative

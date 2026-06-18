@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import type {
   InvoiceCreateInput,
@@ -10,6 +15,7 @@ import type {
   PaymentCreateInput,
   PaymentUpdateInput,
 } from "@/lib/schemas/payment"
+import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export type InvoiceDocStatus = "DRAFT" | "SENT" | "CANCELLED"
 export type InvoicePaymentStatus =
@@ -70,11 +76,16 @@ export interface InvoiceDetail extends InvoiceListItem {
 }
 
 export function useInvoices() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["invoices"] as const,
-    queryFn: () => api.get<{ items: InvoiceListItem[] }>("/api/invoices"),
-    select: (d) => d.items,
-    staleTime: 30_000,
+    queryFn: ({ pageParam }) =>
+      api.get<PaginatedResponse<InvoiceListItem>>(
+        `/api/invoices?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (d) => d.pages.flatMap((p) => p.data),
+    staleTime: 60 * 60_000,
   })
 }
 
@@ -158,6 +169,7 @@ export function useUpdatePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
   })
 }
@@ -171,6 +183,7 @@ export function useDeletePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: ["nav-counts"] })
     },
   })
 }

@@ -1,7 +1,12 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export interface TaskDTO {
   id: string
@@ -17,21 +22,30 @@ export interface TaskDTO {
   projectId: string
 }
 
-export function useTasks(filters?: {
+interface TaskFilters {
   clientId?: string
   projectId?: string
   status?: string
-}) {
-  const qs = new URLSearchParams()
-  if (filters?.clientId) qs.set("clientId", filters.clientId)
-  if (filters?.projectId) qs.set("projectId", filters.projectId)
-  if (filters?.status) qs.set("status", filters.status)
-  const search = qs.toString()
-  return useQuery({
-    queryKey: ["tasks", filters ?? {}] as const,
-    queryFn: () =>
-      api.get<{ items: TaskDTO[] }>(`/api/tasks${search ? `?${search}` : ""}`),
-    select: (d) => d.items,
+}
+
+const EMPTY_TASK_FILTERS: TaskFilters = {}
+
+export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
+  const baseQs = new URLSearchParams()
+  if (filters.clientId) baseQs.set("clientId", filters.clientId)
+  if (filters.projectId) baseQs.set("projectId", filters.projectId)
+  if (filters.status) baseQs.set("status", filters.status)
+  baseQs.set("limit", "50")
+  return useInfiniteQuery({
+    queryKey: ["tasks", filters] as const,
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams(baseQs)
+      if (pageParam) qs.set("cursor", pageParam)
+      return api.get<PaginatedResponse<TaskDTO>>(`/api/tasks?${qs.toString()}`)
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    select: (d) => d.pages.flatMap((p) => p.data),
     staleTime: 30_000,
   })
 }

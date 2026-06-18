@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { fmtEUR, initials } from "@/lib/format"
 import { useAnalytics, type AnalyticsRange } from "@/hooks/use-analytics"
@@ -11,8 +11,13 @@ import {
   Sparkline,
   ThroughputChart,
 } from "@/components/analytics/charts"
+import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileAnalyticsPage } from "./mobile"
+
+const MobileAnalyticsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileAnalyticsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -37,6 +42,30 @@ function DesktopAnalyticsPage() {
 
   const monthsCount = range === "3m" ? 3 : range === "6m" ? 6 : 12
 
+  const months = data?.months
+  const byType = data?.byType
+  const weeks = data?.weeks
+
+  const sparkData = useMemo(
+    () => (months ? months.map((m) => m.paid) : []),
+    [months],
+  )
+  const donutSegments = useMemo(
+    () =>
+      byType
+        ? byType.map((b) => ({
+            label: TYPE_LABEL[b.type],
+            value: b.revenue,
+            color: TYPE_COLOR[b.type],
+          }))
+        : [],
+    [byType],
+  )
+  const heatmapWeekLabels = useMemo(
+    () => (weeks ? weeks.map((w, i) => (i % 3 === 0 ? w.label : "")) : []),
+    [weeks],
+  )
+
   if (isLoading || !data) {
     return (
       <div className="page" style={{ maxWidth: 1500 }}>
@@ -50,9 +79,9 @@ function DesktopAnalyticsPage() {
     )
   }
 
-  const { kpi, months, byClient, byType, weeks, heatmap } = data
+  const { kpi, byClient, heatmap } = data
   const trendUp = kpi.trend >= 0
-  const totalByType = byType.reduce((s, b) => s + b.revenue, 0)
+  const totalByType = (byType ?? []).reduce((s, b) => s + b.revenue, 0)
 
   const topMax = byClient[0]?.revenue ?? 1
 
@@ -145,7 +174,7 @@ function DesktopAnalyticsPage() {
               </span>
             </div>
           </div>
-          <Sparkline data={months.map((m) => m.paid)} />
+          <Sparkline data={sparkData} />
         </div>
       </div>
 
@@ -175,7 +204,7 @@ function DesktopAnalyticsPage() {
               </span>
             </div>
           </div>
-          <DualChart months={months} />
+          <DualChart months={months ?? []} />
         </div>
       </div>
 
@@ -244,15 +273,7 @@ function DesktopAnalyticsPage() {
               <div className="ana-card-sub">Part de revenu</div>
             </div>
           </div>
-          <Donut
-            segments={byType.map((b) => ({
-              label: TYPE_LABEL[b.type],
-              value: b.revenue,
-              color: TYPE_COLOR[b.type],
-            }))}
-            total={totalByType}
-            format={fmtEUR}
-          />
+          <Donut segments={donutSegments} total={totalByType} format={fmtEUR} />
         </div>
 
         <div className="ana-card">
@@ -331,7 +352,7 @@ function DesktopAnalyticsPage() {
               </span>
             </div>
           </div>
-          <ThroughputChart weeks={weeks} />
+          <ThroughputChart weeks={weeks ?? []} />
         </div>
 
         <div className="ana-card">
@@ -341,10 +362,7 @@ function DesktopAnalyticsPage() {
               <div className="ana-card-sub">Heatmap tasks terminées</div>
             </div>
           </div>
-          <ActivityHeatmap
-            rows={heatmap}
-            weekLabels={weeks.map((w, i) => (i % 3 === 0 ? w.label : ""))}
-          />
+          <ActivityHeatmap rows={heatmap} weekLabels={heatmapWeekLabels} />
         </div>
       </div>
     </div>

@@ -4,14 +4,26 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
-import { NewClientModal } from "@/components/clients/new-client-modal"
+const NewClientModal = dynamic(
+  () =>
+    import("@/components/clients/new-client-modal").then(
+      (m) => m.NewClientModal,
+    ),
+  { ssr: false },
+)
 import { useClients, type ClientDTO } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileClientsPage } from "./mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
+import dynamic from "next/dynamic"
+
+const MobileClientsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileClientsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type ViewMode = "grid" | "list"
@@ -40,28 +52,59 @@ function DesktopClientsPage() {
   const [view, setView] = useState<ViewMode>("grid")
   const [showNew, setShowNew] = useState(false)
 
-  const { data: clients = [] } = useClients()
+  const {
+    data: clients = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useClients()
   const { data: invoices = [] } = useInvoices()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
 
   const enriched: EnrichedClient[] = useMemo(() => {
+    const invoicesByClient = new Map<string, typeof invoices>()
+    for (const i of invoices) {
+      const arr = invoicesByClient.get(i.clientId) ?? []
+      arr.push(i)
+      invoicesByClient.set(i.clientId, arr)
+    }
+    const pendingTasksByClient = new Map<string, number>()
+    for (const t of tasks) {
+      if (t.status !== "PENDING_INVOICE") continue
+      pendingTasksByClient.set(
+        t.clientId,
+        (pendingTasksByClient.get(t.clientId) ?? 0) + 1,
+      )
+    }
+    const projectsByClient = new Map<string, number>()
+    for (const p of projects) {
+      projectsByClient.set(
+        p.clientId,
+        (projectsByClient.get(p.clientId) ?? 0) + 1,
+      )
+    }
+
     return clients.map((c) => {
-      const myInvoices = invoices.filter((i) => i.clientId === c.id)
-      const revenue = myInvoices.reduce((s, i) => s + i.paidAmount, 0)
-      const outstanding = myInvoices
-        .filter(
-          (i) =>
-            i.status === "SENT" &&
-            (i.paymentStatus === "UNPAID" ||
-              i.paymentStatus === "PARTIALLY_PAID"),
-        )
-        .reduce((s, i) => s + i.balanceDue, 0)
-      const pendingTasksCount = tasks.filter(
-        (t) => t.clientId === c.id && t.status === "PENDING_INVOICE",
-      ).length
-      const projectsCount = projects.filter((p) => p.clientId === c.id).length
-      return { ...c, projectsCount, pendingTasksCount, revenue, outstanding }
+      const myInvoices = invoicesByClient.get(c.id) ?? []
+      let revenue = 0
+      let outstanding = 0
+      for (const i of myInvoices) {
+        revenue += i.paidAmount
+        if (
+          i.status === "SENT" &&
+          (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
+        ) {
+          outstanding += i.balanceDue
+        }
+      }
+      return {
+        ...c,
+        projectsCount: projectsByClient.get(c.id) ?? 0,
+        pendingTasksCount: pendingTasksByClient.get(c.id) ?? 0,
+        revenue,
+        outstanding,
+      }
     })
   }, [clients, invoices, tasks, projects])
 
@@ -77,7 +120,19 @@ function DesktopClientsPage() {
     return true
   })
 
-  const totalRevenue = enriched.reduce((s, c) => s + c.revenue, 0)
+  const { totalRevenue, dailyCount, fixedCount, hourlyCount } = useMemo(() => {
+    let totalRevenue = 0
+    let dailyCount = 0
+    let fixedCount = 0
+    let hourlyCount = 0
+    for (const c of enriched) {
+      totalRevenue += c.revenue
+      if (c.billingMode === "DAILY") dailyCount++
+      else if (c.billingMode === "FIXED") fixedCount++
+      else if (c.billingMode === "HOURLY") hourlyCount++
+    }
+    return { totalRevenue, dailyCount, fixedCount, hourlyCount }
+  }, [enriched])
 
   return (
     <div className="page">
@@ -121,24 +176,9 @@ function DesktopClientsPage() {
             {(
               [
                 { id: "all", label: "Tous", count: enriched.length },
-                {
-                  id: "DAILY",
-                  label: "TJM",
-                  count: enriched.filter((c) => c.billingMode === "DAILY")
-                    .length,
-                },
-                {
-                  id: "FIXED",
-                  label: "Forfait",
-                  count: enriched.filter((c) => c.billingMode === "FIXED")
-                    .length,
-                },
-                {
-                  id: "HOURLY",
-                  label: "Horaire",
-                  count: enriched.filter((c) => c.billingMode === "HOURLY")
-                    .length,
-                },
+                { id: "DAILY", label: "TJM", count: dailyCount },
+                { id: "FIXED", label: "Forfait", count: fixedCount },
+                { id: "HOURLY", label: "Horaire", count: hourlyCount },
               ] as { id: FilterId; label: string; count: number }[]
             ).map((f) => (
               <button
@@ -339,6 +379,12 @@ function DesktopClientsPage() {
           </table>
         </div>
       )}
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {showNew && <NewClientModal onClose={() => setShowNew(false)} />}
     </div>

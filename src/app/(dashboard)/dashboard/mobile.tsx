@@ -1,5 +1,6 @@
 "use client"
 
+import { memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -18,13 +19,22 @@ export function MobileDashboardPage() {
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
-    pipelineValue: 0,
     pipelineCount: 0,
+    pipelineClientCount: 0,
   }
-  const months = data?.months ?? []
+  const months = useMemo(() => data?.months ?? [], [data?.months])
   const overdue = data?.overdue ?? []
   const recentTasks = data?.recentTasks ?? []
   const monthlyTotal = months.reduce((s, m) => s + m.total, 0)
+  const barMonths = useMemo(
+    () =>
+      months.map((m) => ({
+        label: m.month,
+        value: m.total,
+        isCurrent: m.isCurrent,
+      })),
+    [months],
+  )
 
   return (
     <div className="m-screen">
@@ -77,10 +87,18 @@ export function MobileDashboardPage() {
                 <Icon name="clock" size={11} />
                 Pipeline
               </div>
-              <div className="kpi-value">{fmtEUR(kpi.pipelineValue)}</div>
+              <div className="kpi-value">
+                {kpi.pipelineCount}{" "}
+                <span
+                  className="muted"
+                  style={{ fontSize: 12, fontWeight: 500 }}
+                >
+                  tasks
+                </span>
+              </div>
               <div className="kpi-sub muted">
-                {kpi.pipelineCount} task
-                {kpi.pipelineCount > 1 ? "s" : ""}
+                {kpi.pipelineClientCount} client
+                {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
               </div>
             </div>
             <div className="kpi-tile danger">
@@ -98,13 +116,7 @@ export function MobileDashboardPage() {
               <span>Revenus mensuels</span>
               <span className="muted xs num">{fmtEUR(monthlyTotal)}</span>
             </div>
-            <BarChart
-              months={months.map((m) => ({
-                label: m.month,
-                value: m.total,
-                isCurrent: m.isCurrent,
-              }))}
-            />
+            <BarChart months={barMonths} />
           </div>
 
           {overdue.length > 0 && (
@@ -234,7 +246,7 @@ interface BarChartProps {
   months: { label: string; value: number; isCurrent: boolean }[]
 }
 
-function BarChart({ months }: BarChartProps) {
+const BarChart = memo(function BarChart({ months }: BarChartProps) {
   if (!months.length) return null
   const max = Math.max(...months.map((m) => m.value), 1)
   const W = 320,
@@ -285,4 +297,4 @@ function BarChart({ months }: BarChartProps) {
       })}
     </svg>
   )
-}
+})

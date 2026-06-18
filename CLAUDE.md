@@ -25,6 +25,7 @@
 > - `design-reference/src/page-invoice-new.jsx`
 > - `design-reference/src/page-analytics.jsx` — full analytics dashboard with Sparkline, DualChart, Donut, ThroughputChart, ActivityHeatmap helpers
 > - `design-reference/src/page-auth.jsx` — login + register split-screen, AuthSide (gradient + preview cards), OAuth buttons, password strength meter
+> - `design-reference/src/command-palette.jsx` — Linear/Raycast-style ⌘K command palette: fuzzy search, group-by-category, keyboard nav, animated open/close, mobile-responsive
 > - `design-reference/FreelanceManager Mobile.html` — mobile-only HTML/CSS bundle (iPhone-sized device frame, all .stage / .device / .bottom-nav / .nav-tab / .topbar / .kpi-tile / .task-item / .checkbox-circle / .sheet / .sticky-cta / .seg / .list-row / .builder-summary / .auth-screen tokens)
 > - `design-reference/src/mobile/m-app.jsx` — single-file mobile app with all mobile pages (PageLogin, PageRegister, PageDashboard, PageTasks, PageBilling, PageClients, PageClientDetail, PageProjects, PageInvoiceNew, PageAnalytics, PageMore, PageSettings) + BottomNav + helpers
 > - `design-reference/screenshots/` — 2 screenshots showing the rendered Tasks page and Clients page (cross-reference for any visual doubt)

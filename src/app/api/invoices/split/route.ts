@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  getAuthUser,
+  requireSameOrigin,
+} from "@/lib/api"
 import { invoiceSplitSchema } from "@/lib/schemas/invoice-split"
+import { invoicesTag } from "@/lib/data/invoices"
+import { navTag } from "@/lib/data/nav"
 
 function formatNumber(year: number, seq: number): string {
   return `${year}-${String(seq).padStart(4, "0")}`
 }
 
 /**
+ * TODO(TRI-614 follow-up): wrap `allocateNumbers` inside the same
+ * `prisma.$transaction` that creates the invoices, and acquire a
+ * pg_advisory_xact_lock on the user (see src/lib/invoice-numbering.ts)
+ * before the read. As-is, two concurrent POST /api/invoices/split
+ * for the same user could pick the same numbers — currently a single-
+ * user perso app, so deferred.
+ *
  * Allocate `parts` distinct invoice numbers.
  *
  * When a `base` is provided, the trailing digit group is incremented
@@ -109,6 +124,8 @@ function shiftDate(
  * @returns `{ items: [{ id, number, total, dueDate }, …] }`
  */
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 
@@ -189,6 +206,8 @@ export async function POST(req: Request) {
       return out
     })
 
+    revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ items: created }, { status: 201 })
   } catch (error) {
     return apiServerError(error)

@@ -1,5 +1,7 @@
 "use client"
 
+import { useMemo } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
@@ -7,7 +9,11 @@ import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileDashboardPage } from "./mobile"
+
+const MobileDashboardPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileDashboardPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 export default function DashboardPage() {
   const isMobile = useIsMobile()
@@ -18,7 +24,7 @@ export default function DashboardPage() {
 function DesktopDashboardPage() {
   const router = useRouter()
   const { data } = useDashboard()
-  const today = new Date()
+  const today = useMemo(() => new Date(), [])
 
   const months = data?.months ?? []
   const overdue = data?.overdue ?? []
@@ -33,8 +39,8 @@ function DesktopDashboardPage() {
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
-    pipelineValue: 0,
     pipelineCount: 0,
+    pipelineClientCount: 0,
   }
 
   return (
@@ -88,9 +94,17 @@ function DesktopDashboardPage() {
             <Icon name="clock" size={11} />
             Pipeline
           </div>
-          <div className="kpi-value">{fmtEUR(kpi.pipelineValue)}</div>
+          <div className="kpi-value">
+            {kpi.pipelineCount}{" "}
+            <span className="muted" style={{ fontSize: 14, fontWeight: 500 }}>
+              tasks
+            </span>
+          </div>
           <div className="kpi-sub">
-            <span>{kpi.pipelineCount} tasks à facturer</span>
+            <span>
+              {kpi.pipelineClientCount} client
+              {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
+            </span>
           </div>
         </div>
         <div className="kpi kpi-warn">
@@ -188,7 +202,7 @@ function DesktopDashboardPage() {
                 </div>
               )
             })}
-            {kpi.pipelineValue > 5000 && (
+            {kpi.pipelineCount >= 10 && (
               <div
                 className="row gap-12"
                 style={{
@@ -205,8 +219,9 @@ function DesktopDashboardPage() {
                 <div className="grow">
                   <div className="strong small">Pipeline conséquente</div>
                   <div className="xs muted">
-                    {kpi.pipelineCount} tasks à facturer ·{" "}
-                    {fmtEUR(kpi.pipelineValue)}
+                    {kpi.pipelineCount} tasks chez {kpi.pipelineClientCount}{" "}
+                    client
+                    {kpi.pipelineClientCount > 1 ? "s" : ""} à facturer
                   </div>
                 </div>
                 <button

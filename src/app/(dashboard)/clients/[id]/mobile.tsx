@@ -11,9 +11,12 @@ import {
   taskStatusToPill,
 } from "@/components/ui/pill"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
-import { useClientDetail } from "@/hooks/use-client-detail"
+import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
+import { EditClientModal } from "@/components/clients/edit-client-modal"
+import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
+import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 
-type Tab = "overview" | "projects" | "tasks" | "invoices"
+type Tab = "overview" | "projects" | "tasks" | "invoices" | "activity"
 
 interface MobileClientDetailPageProps {
   id: string
@@ -23,6 +26,8 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
   const router = useRouter()
   const { data: client, isLoading } = useClientDetail(id)
   const [tab, setTab] = useState<Tab>("overview")
+  const [showEdit, setShowEdit] = useState(false)
+  const { data: activity } = useClientActivity(tab === "activity" ? id : null)
 
   if (isLoading) {
     return (
@@ -48,6 +53,8 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
     )
   }
 
+  const fullName = `${client.firstName} ${client.lastName}`
+  const clientLabel = client.company ?? fullName
   const projects = client.projects
   const tasks = client.tasks
   const invoices = client.invoices
@@ -61,42 +68,29 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
     )
     .reduce((s, i) => s + i.balanceDue, 0)
   const pendingTasks = tasks.filter((t) => t.status === "PENDING_INVOICE")
-  const pipeline = pendingTasks.reduce((s, t) => {
-    if (client.billingMode === "DAILY") {
-      return s + (t.estimate ?? 0) * client.rate
-    }
-    if (client.billingMode === "HOURLY") {
-      return s + (t.estimate ?? 0) * 8 * client.rate
-    }
-    return s
-  }, 0)
 
-  const gradient =
-    client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
+  const gradient = client.color ?? avatarColor(fullName)
 
   return (
     <div className="m-screen">
-      <MobileTopbar
-        title={client.company ?? `${client.firstName} ${client.lastName}`}
-        back="/clients"
-      />
+      <MobileTopbar title={clientLabel} back="/clients" />
       <div className="m-content">
         <div
           className="row gap-12"
           style={{
-            padding: "8px 14px 16px",
+            padding: "8px 14px 8px",
             alignItems: "flex-start",
           }}
         >
           <div className="av av-lg" style={{ background: gradient }}>
-            {initials(`${client.firstName} ${client.lastName}`)}
+            {initials(fullName)}
           </div>
           <div className="grow" style={{ minWidth: 0 }}>
             <div className="strong" style={{ fontSize: 18 }}>
-              {client.firstName} {client.lastName}
+              {fullName}
             </div>
-            {client.email && (
-              <div className="xs muted truncate">{client.email}</div>
+            {client.company && (
+              <div className="xs muted truncate">{client.company}</div>
             )}
             <div className="row gap-6" style={{ marginTop: 6 }}>
               <BillingTypePill type={client.billingMode} />
@@ -107,6 +101,36 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
               </span>
             </div>
           </div>
+        </div>
+
+        <div
+          className="row gap-8"
+          style={{ padding: "0 14px 14px", flexWrap: "wrap" }}
+        >
+          <button
+            type="button"
+            className="btn btn-primary btn-sm grow"
+            onClick={() => setShowEdit(true)}
+          >
+            <Icon name="edit" size={12} />
+            Modifier
+          </button>
+          {pendingTasks.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm grow"
+              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
+            >
+              <Icon name="plus" size={12} />
+              Facturer ({pendingTasks.length})
+            </button>
+          )}
+          <ClientActionsMenu
+            clientId={client.id}
+            clientLabel={clientLabel}
+            archived={client.archived}
+            onArchived={() => router.push("/clients")}
+          />
         </div>
 
         <div
@@ -129,7 +153,7 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
           </div>
           <div className="kpi-tile warn">
             <div className="kpi-label">À facturer</div>
-            <div className="kpi-value">{fmtEUR(pipeline)}</div>
+            <div className="kpi-value">{pendingTasks.length}</div>
           </div>
           <div className="kpi-tile">
             <div className="kpi-label">Projets</div>
@@ -138,13 +162,14 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
         </div>
 
         <div style={{ padding: "0 14px" }}>
-          <div className="seg">
+          <div className="seg" style={{ overflowX: "auto" }}>
             {(
               [
                 { id: "overview" as Tab, label: "Vue" },
                 { id: "projects" as Tab, label: "Projets" },
                 { id: "tasks" as Tab, label: "Tasks" },
                 { id: "invoices" as Tab, label: "Factures" },
+                { id: "activity" as Tab, label: "Activité" },
               ] as { id: Tab; label: string }[]
             ).map((t) => (
               <button
@@ -171,10 +196,24 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
                       <span className="small">{client.email}</span>
                     </div>
                   )}
-                  <div className="row gap-8">
-                    <Icon name="briefcase" size={13} className="muted" />
-                    <span className="small">{client.category}</span>
-                  </div>
+                  {client.phone && (
+                    <div className="row gap-8">
+                      <Icon name="phone" size={13} className="muted" />
+                      <span className="small mono">{client.phone}</span>
+                    </div>
+                  )}
+                  {client.website && (
+                    <div className="row gap-8">
+                      <Icon name="globe" size={13} className="muted" />
+                      <span className="small truncate">{client.website}</span>
+                    </div>
+                  )}
+                  {client.address && (
+                    <div className="row gap-8">
+                      <Icon name="map" size={13} className="muted" />
+                      <span className="small">{client.address}</span>
+                    </div>
+                  )}
                   <div className="row gap-8">
                     <Icon name="calendar" size={13} className="muted" />
                     <span className="small">
@@ -183,6 +222,22 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
                   </div>
                 </div>
               </div>
+
+              {client.notes && (
+                <div className="card">
+                  <div className="card-title">Notes</div>
+                  <div
+                    className="small"
+                    style={{
+                      color: "var(--text-1)",
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {client.notes}
+                  </div>
+                </div>
+              )}
 
               {client.deposit && client.billingMode === "FIXED" && (
                 <div className="card">
@@ -276,8 +331,18 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
               )}
             </div>
           )}
+
+          {tab === "activity" && (
+            <div className="card">
+              <ClientActivityTimeline items={activity ?? []} />
+            </div>
+          )}
         </div>
       </div>
+
+      {showEdit && (
+        <EditClientModal client={client} onClose={() => setShowEdit(false)} />
+      )}
     </div>
   )
 }

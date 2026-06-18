@@ -1,12 +1,18 @@
 "use client"
 
+import { memo } from "react"
+
 interface MonthData {
   month: string
   total: number
   isCurrent: boolean
 }
 
-export function RevenueChart({ months }: { months: MonthData[] }) {
+export const RevenueChart = memo(function RevenueChart({
+  months,
+}: {
+  months: MonthData[]
+}) {
   const max = Math.max(...months.map((m) => m.total), 1000)
   const W = 600
   const H = 240
@@ -100,4 +106,4 @@ export function RevenueChart({ months }: { months: MonthData[] }) {
       })}
     </svg>
   )
-}
+})

@@ -1,65 +1,54 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
   apiUnauthorized,
-  decimalToNumber,
+  buildPagedResponse,
   getAuthUser,
+  parsePagination,
+  requireSameOrigin,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
+import { deferActivityLog } from "@/lib/activity"
+import {
+  clientsTag,
+  getClientsFirstPage,
+  serializeClient,
+} from "@/lib/data/clients"
+import { navTag } from "@/lib/data/nav"
 
-function serialize(c: {
-  id: string
-  firstName: string
-  lastName: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  billingMode: "DAILY" | "FIXED" | "HOURLY"
-  rate: import("@/generated/prisma/client").Prisma.Decimal
-  fixedPrice: import("@/generated/prisma/client").Prisma.Decimal | null
-  deposit: import("@/generated/prisma/client").Prisma.Decimal | null
-  paymentTerms: number | null
-  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
-  color: string | null
-  archivedAt: Date | null
-  createdAt: Date
-}) {
-  return {
-    id: c.id,
-    firstName: c.firstName,
-    lastName: c.lastName,
-    company: c.company,
-    email: c.email,
-    phone: c.phone,
-    billingMode: c.billingMode,
-    rate: decimalToNumber(c.rate) ?? 0,
-    fixedPrice: decimalToNumber(c.fixedPrice),
-    deposit: decimalToNumber(c.deposit),
-    paymentTerms: c.paymentTerms,
-    category: c.category,
-    color: c.color,
-    archived: c.archivedAt != null,
-    createdAt: c.createdAt.toISOString(),
-  }
-}
-
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 
   try {
-    const clients = await prisma.client.findMany({
+    const { cursor, limit } = parsePagination(req)
+
+    if (!cursor && limit === 50) {
+      return NextResponse.json(await getClientsFirstPage(user.id))
+    }
+
+    const rows = await prisma.client.findMany({
       where: { userId: user.id, archivedAt: null },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     })
-    return NextResponse.json({ items: clients.map(serialize) })
+    const paged = buildPagedResponse(rows, limit)
+    return NextResponse.json({
+      data: paged.data.map(serializeClient),
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
+    })
   } catch (error) {
     return apiServerError(error)
   }
 }
 
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
 
@@ -74,6 +63,9 @@ export async function POST(req: Request) {
         company: data.company ?? null,
         email: data.email ?? null,
         phone: data.phone ?? null,
+        website: data.website ?? null,
+        address: data.address ?? null,
+        notes: data.notes ?? null,
         billingMode: data.billingMode ?? "DAILY",
         rate: data.rate ?? 0,
         fixedPrice: data.fixedPrice ?? null,
@@ -81,9 +73,18 @@ export async function POST(req: Request) {
         paymentTerms: data.paymentTerms ?? null,
         category: data.category ?? "FREELANCE",
         color: data.color ?? null,
+        starred: data.starred ?? false,
       },
     })
-    return NextResponse.json(serialize(created), { status: 201 })
+    revalidateTag(clientsTag(user.id), "max")
+    revalidateTag(navTag(user.id), "max")
+    deferActivityLog({
+      userId: user.id,
+      kind: "CLIENT_CREATED",
+      title: `Client ${created.company ?? `${created.firstName} ${created.lastName}`} créé`,
+      clientId: created.id,
+    })
+    return NextResponse.json(serializeClient(created), { status: 201 })
   } catch (error) {
     return apiServerError(error)
   }

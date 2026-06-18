@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { BillingTypePill } from "@/components/ui/pill"
@@ -30,6 +30,14 @@ function newId() {
 }
 
 export default function NewInvoicePage() {
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      <NewInvoicePageContent />
+    </Suspense>
+  )
+}
+
+function NewInvoicePageContent() {
   const router = useRouter()
   const search = useSearchParams()
   const taskIdsParam = search.get("taskIds") ?? ""
@@ -39,10 +47,10 @@ export default function NewInvoicePage() {
   )
   const initialClientId = search.get("clientId") ?? ""
 
-  const [clientId, setClientId] = useState(initialClientId)
+  const [pickedClientId, setPickedClientId] = useState(initialClientId)
   const [projectId, setProjectId] = useState<string>("all")
   const [taskSearch, setTaskSearch] = useState("")
-  const [issueDate, setIssueDate] = useState(
+  const [issueDate, setIssueDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
   )
   const [dueDate, setDueDate] = useState(() => {
@@ -53,7 +61,9 @@ export default function NewInvoicePage() {
   const [kind, setKind] = useState<Kind>("STANDARD")
   const [initialStatus, setInitialStatus] = useState<"DRAFT" | "SENT">("DRAFT")
   const [markPaid, setMarkPaid] = useState(false)
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10))
+  const [paidAt, setPaidAt] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  )
   const [depositLabel, setDepositLabel] = useState("Acompte 30%")
   const [depositAmount, setDepositAmount] = useState<number>(0)
   const [lines, setLines] = useState<Line[]>([])
@@ -70,15 +80,17 @@ export default function NewInvoicePage() {
   const splitInvoice = useSplitInvoice()
   const { toast } = useToast()
 
-  const client = clients.find((c) => c.id === clientId)
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const projectById = useMemo(
+    () => new Map(projects.map((p) => [p.id, p])),
+    [projects],
+  )
 
-  useEffect(() => {
-    if (clientId) return
-    const first = clients[0]
-    if (!first) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setClientId(first.id)
-  }, [clientId, clients])
+  const clientId = pickedClientId || clients[0]?.id || ""
+  const client = clientById.get(clientId)
 
   useEffect(() => {
     if (!client || preselectedTaskIds.length === 0) return
@@ -285,7 +297,7 @@ export default function NewInvoicePage() {
               className="select"
               value={clientId}
               onChange={(e) => {
-                setClientId(e.target.value)
+                setPickedClientId(e.target.value)
                 setLines([])
               }}
             >
@@ -637,7 +649,7 @@ export default function NewInvoicePage() {
               }}
             >
               {eligibleTasks.map((t) => {
-                const project = projects.find((p) => p.id === t.projectId)
+                const project = projectById.get(t.projectId)
                 const value = client
                   ? lineFromTask({
                       billingMode: client.billingMode,

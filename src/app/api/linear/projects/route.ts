@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
-import { listLinearProjects } from "@/lib/linear"
+import { getLinearProjects } from "@/lib/data/linear"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url)
     const teamId = url.searchParams.get("teamId") ?? undefined
     return NextResponse.json({
-      items: await listLinearProjects(user.id, teamId),
+      items: await getLinearProjects(user.id, teamId),
     })
   } catch (error) {
     return apiServerError(error)

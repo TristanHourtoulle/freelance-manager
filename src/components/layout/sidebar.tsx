@@ -1,46 +1,28 @@
-"use client"
-
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
-import { Icon } from "@/components/ui/icon"
-import { NAV_SECTIONS, type NavBadgeKey } from "@/lib/navigation"
-import { initials } from "@/lib/format"
-import { authClient } from "@/lib/auth-client"
+import { Suspense } from "react"
+import { NAV_SECTIONS } from "@/lib/navigation"
+import { getNavCounts, type NavCounts } from "@/lib/data/nav"
+import { SidebarNavLink } from "./sidebar-nav-link"
+import { SidebarFooter } from "./sidebar-footer"
 
 interface SidebarProps {
-  user: { name: string; email: string }
+  user: { id: string; name: string; email: string }
 }
 
-type NavCounts = Record<NavBadgeKey, number>
-
-async function fetchNavCounts(): Promise<NavCounts> {
-  const res = await fetch("/api/nav-counts", { credentials: "include" })
-  if (!res.ok) throw new Error("Failed to fetch nav counts")
-  return res.json()
+const ZERO_COUNTS: NavCounts = {
+  clients: 0,
+  projects: 0,
+  tasks: 0,
+  invoices: 0,
 }
 
+/**
+ * Server-rendered sidebar. Reads the badge counts from the cached
+ * `getNavCounts(userId)` data fn so navigation between pages doesn't
+ * refetch — the cache is invalidated via `revalidateTag(navTag(userId), 'max')`
+ * by mutation routes. Active-link styling and logout live in client
+ * islands so this tree never needs to be downloaded as JS.
+ */
 export function Sidebar({ user }: SidebarProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-
-  const { data: counts } = useQuery({
-    queryKey: ["nav-counts"],
-    queryFn: fetchNavCounts,
-    staleTime: 30_000,
-    placeholderData: { clients: 0, projects: 0, tasks: 0, invoices: 0 },
-  })
-
-  function isActive(href: string): boolean {
-    if (href === "/dashboard") return pathname === "/dashboard"
-    return pathname.startsWith(href)
-  }
-
-  async function handleLogout() {
-    await authClient.signOut()
-    router.push("/auth/login")
-  }
-
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -51,55 +33,48 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-          flex: 1,
-          overflowY: "auto",
-        }}
-      >
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.title ?? "_"}>
-            {section.title && (
-              <div className="nav-section">{section.title}</div>
-            )}
-            {section.items.map((item) => {
-              const active = isActive(item.href)
-              const badge =
-                item.badgeKey && counts ? counts[item.badgeKey] : undefined
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className={`nav-item${active ? " active" : ""}`}
-                >
-                  <Icon name={item.icon} size={16} />
-                  <span>{item.label}</span>
-                  {badge != null && <span className="badge">{badge}</span>}
-                </Link>
-              )
-            })}
-          </div>
-        ))}
-      </div>
+      <Suspense fallback={<SidebarNav counts={ZERO_COUNTS} />}>
+        <SidebarNavWithCounts userId={user.id} />
+      </Suspense>
 
-      <div className="sidebar-footer">
-        <div className="avatar">{initials(user.name)}</div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="me-name truncate">{user.name}</div>
-          <div className="me-email truncate">{user.email}</div>
-        </div>
-        <button
-          className="icon-btn"
-          title="Déconnexion"
-          onClick={handleLogout}
-          aria-label="Déconnexion"
-        >
-          <Icon name="logout" size={15} />
-        </button>
-      </div>
+      <SidebarFooter user={user} />
     </aside>
+  )
+}
+
+async function SidebarNavWithCounts({ userId }: { userId: string }) {
+  const counts = await getNavCounts(userId)
+  return <SidebarNav counts={counts} />
+}
+
+function SidebarNav({ counts }: { counts: NavCounts }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        flex: 1,
+        overflowY: "auto",
+      }}
+    >
+      {NAV_SECTIONS.map((section) => (
+        <div key={section.title ?? "_"}>
+          {section.title && <div className="nav-section">{section.title}</div>}
+          {section.items.map((item) => {
+            const badge = item.badgeKey ? counts[item.badgeKey] : undefined
+            return (
+              <SidebarNavLink
+                key={item.id}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                badge={badge}
+              />
+            )
+          })}
+        </div>
+      ))}
+    </div>
   )
 }

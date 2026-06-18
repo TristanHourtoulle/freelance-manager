@@ -9,9 +9,21 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useSyncLinear } from "@/hooks/use-tasks"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
-import { LinearMappingsModal } from "@/components/clients/linear-mappings-modal"
+const LinearMappingsModal = dynamic(
+  () =>
+    import("@/components/clients/linear-mappings-modal").then(
+      (m) => m.LinearMappingsModal,
+    ),
+  { ssr: false },
+)
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileProjectsPage } from "./mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
+import dynamic from "next/dynamic"
+
+const MobileProjectsPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileProjectsPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
 type SortKey =
@@ -58,21 +70,40 @@ function DesktopProjectsPage() {
   const [showLink, setShowLink] = useState(false)
   const sync = useSyncLinear()
 
-  const { data: projects = [] } = useProjects()
+  const {
+    data: projects = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProjects()
   const { data: tasks = [] } = useTasks()
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
 
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+  const tasksByProject = useMemo(() => {
+    const m = new Map<string, typeof tasks>()
+    for (const t of tasks) {
+      const arr = m.get(t.projectId) ?? []
+      arr.push(t)
+      m.set(t.projectId, arr)
+    }
+    return m
+  }, [tasks])
+
   const rows: ProjectRow[] = useMemo(() => {
     return projects.map((p) => {
-      const projectTasks = tasks.filter((t) => t.projectId === p.id)
+      const projectTasks = tasksByProject.get(p.id) ?? []
       const pendingTasks = projectTasks.filter(
         (t) => t.status === "PENDING_INVOICE",
       )
       const doneTasks = projectTasks.filter(
         (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
       )
-      const client = clients.find((c) => c.id === p.clientId)
+      const client = clientById.get(p.clientId)
       const pipeline =
         client?.billingMode === "DAILY"
           ? pendingTasks.reduce(
@@ -109,7 +140,7 @@ function DesktopProjectsPage() {
         revenue,
       }
     })
-  }, [projects, tasks, invoices, clients])
+  }, [projects, tasksByProject, invoices, clientById])
 
   const counts = useMemo(
     () => ({
@@ -403,6 +434,12 @@ function DesktopProjectsPage() {
           </tbody>
         </table>
       </div>
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {showLink && <LinearMappingsModal onClose={() => setShowLink(false)} />}
     </div>

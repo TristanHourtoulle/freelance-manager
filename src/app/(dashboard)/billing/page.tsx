@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
@@ -9,7 +9,13 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { MobileBillingPage } from "./mobile"
+import { LoadMoreButton } from "@/components/ui/load-more-button"
+import dynamic from "next/dynamic"
+
+const MobileBillingPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileBillingPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 type FilterId =
   | "all"
@@ -41,8 +47,11 @@ function matchesFilter(
 
 export default function BillingPage() {
   const isMobile = useIsMobile()
-  if (isMobile) return <MobileBillingPage />
-  return <DesktopBillingPage />
+  return (
+    <Suspense fallback={<div className="empty">Chargement…</div>}>
+      {isMobile ? <MobileBillingPage /> : <DesktopBillingPage />}
+    </Suspense>
+  )
 }
 
 function DesktopBillingPage() {
@@ -53,49 +62,77 @@ function DesktopBillingPage() {
   const [filter, setFilter] = useState<FilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
 
-  const { data: invoices = [] } = useInvoices()
+  const {
+    data: invoices = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInvoices()
   const { data: clients = [] } = useClients()
+
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
 
   const filtered = useMemo(() => {
     return invoices.filter((i) => {
       if (!matchesFilter(i, filter)) return false
       if (searchTerm) {
-        const c = clients.find((cc) => cc.id === i.clientId)
+        const c = clientById.get(i.clientId)
         const text =
           `${i.number} ${c?.company ?? ""} ${c?.firstName ?? ""} ${c?.lastName ?? ""}`.toLowerCase()
         if (!text.includes(searchTerm.toLowerCase())) return false
       }
       return true
     })
-  }, [invoices, clients, filter, searchTerm])
+  }, [invoices, clientById, filter, searchTerm])
 
-  const counts = {
-    all: invoices.length,
-    draft: invoices.filter((i) => matchesFilter(i, "DRAFT")).length,
-    sent: invoices.filter((i) => matchesFilter(i, "SENT")).length,
-    partial: invoices.filter((i) => matchesFilter(i, "PARTIAL")).length,
-    paid: invoices.filter((i) => matchesFilter(i, "PAID")).length,
-    overpaid: invoices.filter((i) => matchesFilter(i, "OVERPAID")).length,
-    overdue: invoices.filter((i) => matchesFilter(i, "OVERDUE")).length,
-  }
-  const totals = {
-    paid: invoices
-      .filter(
-        (i) => i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID",
-      )
-      .reduce((s, i) => s + i.paidAmount, 0),
-    outstanding: invoices
-      .filter(
-        (i) =>
-          i.status === "SENT" &&
-          (i.paymentStatus === "UNPAID" ||
-            i.paymentStatus === "PARTIALLY_PAID"),
-      )
-      .reduce((s, i) => s + i.balanceDue, 0),
-    overdue: invoices
-      .filter((i) => i.isOverdue)
-      .reduce((s, i) => s + i.balanceDue, 0),
-  }
+  const { counts, totals } = useMemo(() => {
+    let draft = 0
+    let sent = 0
+    let partial = 0
+    let paid = 0
+    let overpaid = 0
+    let overdue = 0
+    let paidTotal = 0
+    let outstandingTotal = 0
+    let overdueTotal = 0
+    for (const i of invoices) {
+      if (matchesFilter(i, "DRAFT")) draft++
+      if (matchesFilter(i, "SENT")) sent++
+      if (matchesFilter(i, "PARTIAL")) partial++
+      if (matchesFilter(i, "PAID")) paid++
+      if (matchesFilter(i, "OVERPAID")) overpaid++
+      if (matchesFilter(i, "OVERDUE")) overdue++
+      if (i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID") {
+        paidTotal += i.paidAmount
+      }
+      if (
+        i.status === "SENT" &&
+        (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
+      ) {
+        outstandingTotal += i.balanceDue
+      }
+      if (i.isOverdue) overdueTotal += i.balanceDue
+    }
+    return {
+      counts: {
+        all: invoices.length,
+        draft,
+        sent,
+        partial,
+        paid,
+        overpaid,
+        overdue,
+      },
+      totals: {
+        paid: paidTotal,
+        outstanding: outstandingTotal,
+        overdue: overdueTotal,
+      },
+    }
+  }, [invoices])
 
   return (
     <div className="page">
@@ -234,7 +271,7 @@ function DesktopBillingPage() {
               </tr>
             )}
             {filtered.map((inv) => {
-              const client = clients.find((c) => c.id === inv.clientId)
+              const client = clientById.get(inv.clientId)
               return (
                 <tr
                   key={inv.id}
@@ -309,6 +346,12 @@ function DesktopBillingPage() {
           </tbody>
         </table>
       </div>
+
+      <LoadMoreButton
+        onClick={() => fetchNextPage()}
+        isLoading={isFetchingNextPage}
+        hasMore={Boolean(hasNextPage)}
+      />
 
       {openId && (
         <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} />

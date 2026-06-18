@@ -5,6 +5,7 @@ import {
   apiUnauthorized,
   decimalToNumber,
   getAuthUser,
+  requireSameOrigin,
 } from "@/lib/api"
 import { settingsUpdateSchema } from "@/lib/schemas/settings"
 import { decrypt, maskToken } from "@/lib/encryption"
@@ -25,6 +26,7 @@ export async function GET() {
         const plain = decrypt(
           Buffer.from(settings.linearApiTokenEncrypted),
           Buffer.from(settings.linearApiTokenIv),
+          settings.linearApiTokenKeyVersion ?? 1,
         )
         linearTokenPreview = maskToken(plain)
       } catch (e) {
@@ -46,6 +48,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
+  const csrf = requireSameOrigin(req)
+  if (csrf) return csrf
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
   try {

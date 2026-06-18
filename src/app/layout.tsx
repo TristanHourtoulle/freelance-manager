@@ -1,22 +1,51 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { ToastProvider } from "@/components/providers/toast-provider"
+import { ServiceWorkerRegister } from "@/components/providers/service-worker-register"
 
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
 })
 
 const jetbrains = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
-  title: "FreelanceManager",
+  title: {
+    default: "FreelanceManager",
+    template: "%s · FreelanceManager",
+  },
   description: "Gestion freelance — clients, projets, tasks, factures",
+  applicationName: "FreelanceManager",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Freelance",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b0e10",
+  colorScheme: "dark",
 }
 
 export default function RootLayout({
@@ -28,6 +57,7 @@ export default function RootLayout({
         <QueryProvider>
           <ToastProvider>{children}</ToastProvider>
         </QueryProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   )

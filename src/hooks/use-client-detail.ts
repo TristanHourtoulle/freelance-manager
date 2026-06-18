@@ -10,6 +10,9 @@ export interface ClientDetailDTO {
   company: string | null
   email: string | null
   phone: string | null
+  website: string | null
+  address: string | null
+  notes: string | null
   billingMode: "DAILY" | "FIXED" | "HOURLY"
   rate: number
   fixedPrice: number | null
@@ -17,8 +20,10 @@ export interface ClientDetailDTO {
   paymentTerms: number | null
   category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
   color: string | null
+  starred: boolean
   archived: boolean
   createdAt: string
+  monthlyRevenue: { month: string; total: number }[]
   projects: {
     id: string
     name: string
@@ -57,11 +62,45 @@ export interface ClientDetailDTO {
   }[]
 }
 
+export type ActivityKind =
+  | "CLIENT_CREATED"
+  | "CLIENT_UPDATED"
+  | "CLIENT_ARCHIVED"
+  | "CLIENT_DUPLICATED"
+  | "INVOICE_CREATED"
+  | "INVOICE_SENT"
+  | "INVOICE_CANCELLED"
+  | "PAYMENT_RECORDED"
+  | "PAYMENT_DELETED"
+  | "TASKS_PENDING"
+  | "LINEAR_SYNCED"
+
+export interface ActivityItemDTO {
+  id: string
+  kind: ActivityKind
+  title: string
+  meta: string | null
+  createdAt: string
+  invoiceId: string | null
+  projectId: string | null
+}
+
 export function useClientDetail(id: string | null | undefined) {
   return useQuery({
     queryKey: ["client", id] as const,
     queryFn: () => api.get<ClientDetailDTO>(`/api/clients/${id}`),
     enabled: Boolean(id),
     staleTime: 60_000,
+  })
+}
+
+export function useClientActivity(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["client-activity", id] as const,
+    queryFn: () =>
+      api.get<{ items: ActivityItemDTO[] }>(`/api/clients/${id}/activity`),
+    select: (d) => d.items,
+    enabled: Boolean(id),
+    staleTime: 30_000,
   })
 }
