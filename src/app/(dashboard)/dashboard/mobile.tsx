@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, fmtRelative } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
+import { TodayBlock } from "@/components/suivi/today-block"
 
 export function MobileDashboardPage() {
   const router = useRouter()
@@ -110,6 +111,8 @@ export function MobileDashboardPage() {
               <div className="kpi-sub muted">{kpi.overdueCount} en retard</div>
             </div>
           </div>
+
+          <TodayBlock />
 
           <div className="card">
             <div className="card-title">

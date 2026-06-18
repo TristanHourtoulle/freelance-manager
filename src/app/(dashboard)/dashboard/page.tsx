@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { TodayBlock } from "@/components/suivi/today-block"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -124,6 +125,8 @@ function DesktopDashboardPage() {
           </div>
         </div>
       </div>
+
+      <TodayBlock />
 
       <div className="chart-grid">
         <div className="chart-card">

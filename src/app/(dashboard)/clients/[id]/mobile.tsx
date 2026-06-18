@@ -15,8 +15,9 @@ import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
 import { EditClientModal } from "@/components/clients/edit-client-modal"
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
+import { SuiviView } from "@/components/suivi/suivi-view"
 
-type Tab = "overview" | "projects" | "tasks" | "invoices" | "activity"
+type Tab = "overview" | "projects" | "tasks" | "invoices" | "suivi" | "activity"
 
 interface MobileClientDetailPageProps {
   id: string
@@ -169,6 +170,7 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
                 { id: "projects" as Tab, label: "Projets" },
                 { id: "tasks" as Tab, label: "Tasks" },
                 { id: "invoices" as Tab, label: "Factures" },
+                { id: "suivi" as Tab, label: "Suivi" },
                 { id: "activity" as Tab, label: "Activité" },
               ] as { id: Tab; label: string }[]
             ).map((t) => (
@@ -329,6 +331,12 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
                   <div className="empty-title">Aucune facture</div>
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === "suivi" && (
+            <div className="card">
+              <SuiviView clientId={id} />
             </div>
           )}
 

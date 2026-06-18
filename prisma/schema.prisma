@@ -28,6 +28,8 @@ model User {
   invoices Invoice[]
   payments Payment[]
   activity ActivityLog[]
+  clientActions ClientAction[]
+  meetings      Meeting[]
   settings UserSettings?
 
   @@map("users")
@@ -200,6 +202,8 @@ model Client {
   tasks          Task[]
   invoices       Invoice[]
   activity       ActivityLog[]
+  clientActions  ClientAction[]
+  meetings       Meeting[]
 
   @@index([userId])
   @@index([userId, archivedAt])
@@ -349,6 +353,7 @@ model Invoice {
   tasks    Task[]
   payments Payment[]
   activity ActivityLog[]
+  clientActions ClientAction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -399,6 +404,8 @@ enum ActivityKind {
   PAYMENT_DELETED
   TASKS_PENDING
   LINEAR_SYNCED
+  ACTION_DONE
+  MEETING_LOGGED
 }
 
 model ActivityLog {
@@ -455,4 +462,88 @@ model InvoiceFile {
 
   @@index([invoiceId])
   @@map("invoice_files")
+}
+
+// =====================================================================
+// SUIVI — non-dev client ops (manual, NOT mirrored from Linear)
+// =====================================================================
+
+enum ClientActionType {
+  RELANCE
+  LINK
+  RDV
+  OTHER
+}
+
+enum ClientActionStatus {
+  TODO
+  DONE
+}
+
+// ---------- ClientAction (manual to-do attached to a client) ----------
+//
+// Distinct from the Linear-mirrored `Task`. Used for follow-ups: invoice
+// reminders (RELANCE, optionally linked to an invoice), sending links
+// (LINK), meetings (RDV, optionally linked to a Meeting), or anything else.
+
+model ClientAction {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  type    ClientActionType   @default(OTHER)
+  title   String
+  link    String?
+  notes   String?            @db.Text
+  status  ClientActionStatus @default(TODO)
+  dueDate DateTime?
+  doneAt  DateTime?
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  meetingId String?
+  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, status, dueDate])
+  @@index([clientId])
+  @@index([invoiceId])
+  @@index([meetingId])
+  @@map("client_actions")
+}
+
+// ---------- Meeting (Teams meeting log) ----------
+//
+// The meeting is created externally (Teams); we store its link, who attended,
+// the real duration, and a markdown summary written by the user.
+
+model Meeting {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  title           String
+  teamsUrl        String?
+  heldAt          DateTime
+  durationMinutes Int      @default(0)
+  participants    String[]
+  summaryMd       String?  @db.Text
+
+  actions ClientAction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, heldAt(sort: Desc)])
+  @@index([clientId, heldAt(sort: Desc)])
+  @@map("meetings")
 }
