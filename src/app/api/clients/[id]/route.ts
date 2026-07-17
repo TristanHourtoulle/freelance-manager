@@ -39,6 +39,15 @@ export async function GET(_: Request, { params }: Params) {
       prisma.task.findMany({
         where: { clientId: id, userId: user.id },
         orderBy: { lastSyncedAt: "desc" },
+        select: {
+          id: true,
+          linearIdentifier: true,
+          title: true,
+          status: true,
+          estimate: true,
+          projectId: true,
+          invoiceId: true,
+        },
       }),
       prisma.invoice.findMany({
         where: { clientId: id, userId: user.id },

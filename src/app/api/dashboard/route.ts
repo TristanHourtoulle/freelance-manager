@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -18,11 +19,18 @@ export async function GET() {
     const yearStart = new Date(today.getFullYear(), 0, 1)
     const chartStart = new Date(today.getFullYear(), today.getMonth() - 7, 1)
 
+    const pendingTasksWhere: Prisma.TaskWhereInput = {
+      userId: user.id,
+      status: "PENDING_INVOICE",
+      client: { billingMode: { in: ["DAILY", "HOURLY"] } },
+    }
+
     const [
       openInvoices,
       paymentTotals,
       paymentBuckets,
-      pendingTasks,
+      pipelineCount,
+      pipelineClients,
       recentInvoices,
       recentTasks,
       lastSync,
@@ -67,14 +75,8 @@ export async function GET() {
         GROUP BY 1
         ORDER BY 1
       `,
-      prisma.task.findMany({
-        where: {
-          userId: user.id,
-          status: "PENDING_INVOICE",
-          client: { billingMode: { in: ["DAILY", "HOURLY"] } },
-        },
-        select: { clientId: true },
-      }),
+      prisma.task.count({ where: pendingTasksWhere }),
+      prisma.task.groupBy({ by: ["clientId"], where: pendingTasksWhere }),
       prisma.invoice.findMany({
         where: { userId: user.id },
         orderBy: { issueDate: "desc" },
@@ -95,7 +97,13 @@ export async function GET() {
         where: { userId: user.id, completedAt: { not: null } },
         orderBy: { completedAt: "desc" },
         take: 6,
-        include: { project: { select: { key: true } } },
+        select: {
+          id: true,
+          linearIdentifier: true,
+          title: true,
+          status: true,
+          project: { select: { key: true } },
+        },
       }),
       prisma.userSettings.findUnique({
         where: { userId: user.id },
@@ -121,8 +129,7 @@ export async function GET() {
       0,
     )
 
-    const pipelineClientCount = new Set(pendingTasks.map((t) => t.clientId))
-      .size
+    const pipelineClientCount = pipelineClients.length
 
     const bucketByMonth = new Map(
       paymentBuckets.map(
@@ -149,7 +156,7 @@ export async function GET() {
         sentCount: openInvoices.length,
         overdueAmount,
         overdueCount: overdueList.length,
-        pipelineCount: pendingTasks.length,
+        pipelineCount,
         pipelineClientCount,
       },
       months,

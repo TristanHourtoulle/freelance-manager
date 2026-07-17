@@ -38,5 +38,6 @@ export function useAnalytics(range: AnalyticsRange) {
     queryKey: ["analytics", range] as const,
     queryFn: () => api.get<AnalyticsDTO>(`/api/analytics?range=${range}`),
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
