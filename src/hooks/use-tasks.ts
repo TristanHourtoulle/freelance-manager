@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
@@ -41,7 +42,7 @@ export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
   if (filters.status) baseQs.set("status", filters.status)
   baseQs.set("limit", "50")
   return useInfiniteQuery({
-    queryKey: ["tasks", filters] as const,
+    queryKey: qk.tasks.list(filters),
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams(baseQs)
       if (pageParam) qs.set("cursor", pageParam)
@@ -50,7 +51,7 @@ export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
   })
 }
 
@@ -77,9 +78,9 @@ export function useSyncLinear() {
         description: "Les résultats apparaîtront dans quelques instants.",
       })
       window.setTimeout(() => {
-        qc.invalidateQueries({ queryKey: ["tasks"] })
-        qc.invalidateQueries({ queryKey: ["projects"] })
-        qc.invalidateQueries({ queryKey: ["dashboard"] })
+        qc.invalidateQueries({ queryKey: qk.tasks.all() })
+        qc.invalidateQueries({ queryKey: qk.projects() })
+        qc.invalidateQueries({ queryKey: qk.dashboard() })
         router.refresh()
       }, SYNC_SETTLE_DELAY_MS)
     },

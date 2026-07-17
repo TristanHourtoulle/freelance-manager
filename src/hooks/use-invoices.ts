@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
+import { invalidateInvoiceGraph, qk, STALE_TIME } from "@/hooks/query-keys"
 import type {
   InvoiceCreateInput,
   InvoiceUpdateInput,
@@ -78,7 +79,7 @@ export interface InvoiceDetail extends InvoiceListItem {
 
 export function useInvoices() {
   return useInfiniteQuery({
-    queryKey: ["invoices"] as const,
+    queryKey: qk.invoices(),
     queryFn: ({ pageParam }) =>
       api.get<PaginatedResponse<InvoiceListItem>>(
         `/api/invoices?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
@@ -86,16 +87,16 @@ export function useInvoices() {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 60 * 60_000,
+    staleTime: STALE_TIME.hour,
   })
 }
 
 export function useInvoice(id: string | null | undefined) {
   return useQuery({
-    queryKey: ["invoice", id] as const,
+    queryKey: qk.invoice(id),
     queryFn: () => api.get<InvoiceDetail>(`/api/invoices/${id}`),
     enabled: Boolean(id),
-    staleTime: 60_000,
+    staleTime: STALE_TIME.detail,
   })
 }
 
@@ -106,9 +107,9 @@ export function useCreateInvoice() {
     mutationFn: (input: InvoiceCreateInput) =>
       api.post<{ id: string }>("/api/invoices", input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: qk.invoices() })
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
+      qc.invalidateQueries({ queryKey: qk.dashboard() })
       router.refresh()
     },
   })
@@ -121,10 +122,8 @@ export function useUpdateInvoice(id: string) {
     mutationFn: (input: InvoiceUpdateInput) =>
       api.patch(`/api/invoices/${id}`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", id] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, id)
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
       router.refresh()
     },
   })
@@ -137,9 +136,7 @@ export function useUpdateInvoiceStatus() {
     mutationFn: (input: { id: string; status: InvoiceDocStatus }) =>
       api.patch(`/api/invoices/${input.id}`, { status: input.status }),
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", vars.id] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, vars.id)
       router.refresh()
     },
   })
@@ -152,9 +149,7 @@ export function useCreatePayment(invoiceId: string) {
     mutationFn: (input: PaymentCreateInput) =>
       api.post<InvoicePaymentDTO>(`/api/invoices/${invoiceId}/payments`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })
@@ -172,9 +167,7 @@ export function useUpdatePayment(invoiceId: string) {
       )
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })
@@ -187,9 +180,7 @@ export function useDeletePayment(invoiceId: string) {
     mutationFn: (paymentId: string) =>
       api.delete(`/api/invoices/${invoiceId}/payments/${paymentId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })
