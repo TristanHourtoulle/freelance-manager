@@ -1,30 +1,12 @@
 import "server-only"
 import { cacheLife, cacheTag } from "next/cache"
 import { prisma } from "@/lib/db"
-import { decimalToNumber } from "@/lib/api"
+import { serializeClient } from "@/domain/clients/serialize"
+import type { ClientWireRow } from "@/domain/clients/types"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
-export interface ClientWireRow {
-  id: string
-  firstName: string
-  lastName: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  website: string | null
-  address: string | null
-  notes: string | null
-  billingMode: "DAILY" | "FIXED" | "HOURLY"
-  rate: number
-  fixedPrice: number | null
-  deposit: number | null
-  paymentTerms: number | null
-  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
-  color: string | null
-  starred: boolean
-  archived: boolean
-  createdAt: string
-}
+export { serializeClient } from "@/domain/clients/serialize"
+export type { ClientWireRow } from "@/domain/clients/types"
 
 export const clientsTag = (userId: string) => `user-${userId}-clients`
 
@@ -56,49 +38,5 @@ export async function getClientsFirstPage(
     data,
     nextCursor: hasMore && last ? last.id : null,
     hasMore,
-  }
-}
-
-export function serializeClient(c: {
-  id: string
-  firstName: string
-  lastName: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  website: string | null
-  address: string | null
-  notes: string | null
-  billingMode: "DAILY" | "FIXED" | "HOURLY"
-  rate: import("@/generated/prisma/client").Prisma.Decimal
-  fixedPrice: import("@/generated/prisma/client").Prisma.Decimal | null
-  deposit: import("@/generated/prisma/client").Prisma.Decimal | null
-  paymentTerms: number | null
-  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
-  color: string | null
-  starred: boolean
-  archivedAt: Date | null
-  createdAt: Date
-}): ClientWireRow {
-  return {
-    id: c.id,
-    firstName: c.firstName,
-    lastName: c.lastName,
-    company: c.company,
-    email: c.email,
-    phone: c.phone,
-    website: c.website,
-    address: c.address,
-    notes: c.notes,
-    billingMode: c.billingMode,
-    rate: decimalToNumber(c.rate) ?? 0,
-    fixedPrice: decimalToNumber(c.fixedPrice),
-    deposit: decimalToNumber(c.deposit),
-    paymentTerms: c.paymentTerms,
-    category: c.category,
-    color: c.color,
-    starred: c.starred,
-    archived: c.archivedAt != null,
-    createdAt: c.createdAt.toISOString(),
   }
 }
