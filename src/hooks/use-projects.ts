@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
@@ -43,13 +44,14 @@ export function useProjects() {
 
 export function useDeleteProject() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (projectId: string) => api.delete(`/api/projects/${projectId}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
       qc.invalidateQueries({ queryKey: ["client"] })
       qc.invalidateQueries({ queryKey: ["client-linear-mappings"] })
       qc.invalidateQueries({ queryKey: ["linear-mappings"] })

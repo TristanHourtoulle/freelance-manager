@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type {
   InvoiceCreateInput,
@@ -100,6 +101,7 @@ export function useInvoice(id: string | null | undefined) {
 
 export function useCreateInvoice() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: InvoiceCreateInput) =>
       api.post<{ id: string }>("/api/invoices", input),
@@ -107,13 +109,14 @@ export function useCreateInvoice() {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useUpdateInvoice(id: string) {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: InvoiceUpdateInput) =>
       api.patch(`/api/invoices/${id}`, input),
@@ -122,13 +125,14 @@ export function useUpdateInvoice(id: string) {
       qc.invalidateQueries({ queryKey: ["invoice", id] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useUpdateInvoiceStatus() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: { id: string; status: InvoiceDocStatus }) =>
       api.patch(`/api/invoices/${input.id}`, { status: input.status }),
@@ -136,13 +140,14 @@ export function useUpdateInvoiceStatus() {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", vars.id] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useCreatePayment(invoiceId: string) {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: PaymentCreateInput) =>
       api.post<InvoicePaymentDTO>(`/api/invoices/${invoiceId}/payments`, input),
@@ -150,13 +155,14 @@ export function useCreatePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useUpdatePayment(invoiceId: string) {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: { paymentId: string } & PaymentUpdateInput) => {
       const { paymentId, ...rest } = input
@@ -169,13 +175,14 @@ export function useUpdatePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useDeletePayment(invoiceId: string) {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (paymentId: string) =>
       api.delete(`/api/invoices/${invoiceId}/payments/${paymentId}`),
@@ -183,7 +190,7 @@ export function useDeletePayment(invoiceId: string) {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
