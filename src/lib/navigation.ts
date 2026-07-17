@@ -14,7 +14,7 @@ export interface NavSection {
   items: NavItem[]
 }
 
-/** Keys for the badge counters fetched in /api/dashboard/nav-counts. */
+/** Keys for the sidebar badge counters. */
 export type NavBadgeKey = "clients" | "projects" | "tasks" | "invoices"
 
 export const NAV_SECTIONS: NavSection[] = [
