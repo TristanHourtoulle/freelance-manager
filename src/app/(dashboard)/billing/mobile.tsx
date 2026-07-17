@@ -20,42 +20,27 @@ import {
 } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useToast } from "@/components/providers/toast-provider"
-
-type Filter = "all" | "DRAFT" | "SENT" | "PARTIAL" | "PAID" | "OVERDUE"
-
-function matchesFilter(
-  i: {
-    status: string
-    paymentStatus: string
-    isOverdue: boolean
-  },
-  f: Filter,
-): boolean {
-  if (f === "all") return true
-  if (f === "DRAFT") return i.status === "DRAFT"
-  if (f === "SENT")
-    return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
-  if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
-  if (f === "PAID") return i.paymentStatus === "PAID"
-  if (f === "OVERDUE") return i.isOverdue
-  return true
-}
+import {
+  matchesInvoiceFilter,
+  summarizeInvoices,
+  type InvoiceFilterId,
+} from "@/domain/billing/filters"
 
 export function MobileBillingPage() {
   const router = useRouter()
   const search = useSearchParams()
   const initialId = search.get("invoiceId")
-  const initialFilter = (search.get("filter") as Filter) ?? "all"
+  const initialFilter = (search.get("filter") as InvoiceFilterId) ?? "all"
 
   const { data: invoices = [] } = useInvoices()
   const { data: clients = [] } = useClients()
-  const [filter, setFilter] = useState<Filter>(initialFilter)
+  const [filter, setFilter] = useState<InvoiceFilterId>(initialFilter)
   const [openId, setOpenId] = useState<string | null>(initialId)
 
   const filtered = useMemo(
     () =>
       invoices
-        .filter((i) => matchesFilter(i, filter))
+        .filter((i) => matchesInvoiceFilter(i, filter))
         .sort(
           (a, b) =>
             new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime(),
@@ -63,21 +48,7 @@ export function MobileBillingPage() {
     [invoices, filter],
   )
 
-  const counts = useMemo(() => {
-    let draft = 0
-    let sent = 0
-    let partial = 0
-    let paid = 0
-    let overdue = 0
-    for (const i of invoices) {
-      if (matchesFilter(i, "DRAFT")) draft++
-      if (matchesFilter(i, "SENT")) sent++
-      if (matchesFilter(i, "PARTIAL")) partial++
-      if (matchesFilter(i, "PAID")) paid++
-      if (matchesFilter(i, "OVERDUE")) overdue++
-    }
-    return { all: invoices.length, draft, sent, partial, paid, overdue }
-  }, [invoices])
+  const { counts } = useMemo(() => summarizeInvoices(invoices), [invoices])
 
   return (
     <div className="m-screen">
@@ -100,25 +71,37 @@ export function MobileBillingPage() {
           <div className="chip-row">
             {(
               [
-                { id: "all" as Filter, label: "Toutes", count: counts.all },
                 {
-                  id: "DRAFT" as Filter,
+                  id: "all" as InvoiceFilterId,
+                  label: "Toutes",
+                  count: counts.all,
+                },
+                {
+                  id: "DRAFT" as InvoiceFilterId,
                   label: "Brouillon",
                   count: counts.draft,
                 },
-                { id: "SENT" as Filter, label: "Émise", count: counts.sent },
                 {
-                  id: "PARTIAL" as Filter,
+                  id: "SENT" as InvoiceFilterId,
+                  label: "Émise",
+                  count: counts.sent,
+                },
+                {
+                  id: "PARTIAL" as InvoiceFilterId,
                   label: "Partielle",
                   count: counts.partial,
                 },
-                { id: "PAID" as Filter, label: "Payée", count: counts.paid },
                 {
-                  id: "OVERDUE" as Filter,
+                  id: "PAID" as InvoiceFilterId,
+                  label: "Payée",
+                  count: counts.paid,
+                },
+                {
+                  id: "OVERDUE" as InvoiceFilterId,
                   label: "En retard",
                   count: counts.overdue,
                 },
-              ] as { id: Filter; label: string; count: number }[]
+              ] as { id: InvoiceFilterId; label: string; count: number }[]
             ).map((f) => (
               <button
                 key={f.id}

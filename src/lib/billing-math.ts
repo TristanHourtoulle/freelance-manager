@@ -33,6 +33,8 @@ export function pipelineValueForTask(opts: {
   return qty * rate
 }
 
-export function sumLines(lines: { qty: number; rate: number }[]): number {
+export function sumLines(
+  lines: readonly { qty: number; rate: number }[],
+): number {
   return lines.reduce((s, l) => s + l.qty * l.rate, 0)
 }
