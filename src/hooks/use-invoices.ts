@@ -18,70 +18,27 @@ import type {
   PaymentUpdateInput,
 } from "@/lib/schemas/payment"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
+import type {
+  InvoiceDetail,
+  InvoiceDocStatus,
+  InvoicePaymentDTO,
+  InvoiceWireRow,
+} from "@/domain/billing/types"
 
-export type InvoiceDocStatus = "DRAFT" | "SENT" | "CANCELLED"
-export type InvoicePaymentStatus =
-  | "UNPAID"
-  | "PARTIALLY_PAID"
-  | "PAID"
-  | "OVERPAID"
-
-export interface InvoicePaymentDTO {
-  id: string
-  amount: number
-  paidAt: string
-  method: string | null
-  note: string | null
-  createdAt: string
-}
-
-export interface InvoiceListItem {
-  id: string
-  number: string
-  clientId: string
-  projectId: string | null
-  status: InvoiceDocStatus
-  paymentStatus: InvoicePaymentStatus
-  isOverdue: boolean
-  kind: "STANDARD" | "DEPOSIT"
-  issueDate: string
-  dueDate: string
-  paidAmount: number
-  balanceDue: number
-  lastPaidAt: string | null
-  subtotal: number
-  tax: number
-  total: number
-  totalOverride: number | null
-  notes: string | null
-  linesCount: number
-}
-
-export interface InvoiceDetail extends InvoiceListItem {
-  client: {
-    id: string
-    firstName: string
-    lastName: string
-    company: string | null
-    email: string | null
-    billingMode: "DAILY" | "FIXED" | "HOURLY"
-    color: string | null
-  }
-  lines: {
-    id: string
-    taskId: string | null
-    label: string
-    qty: number
-    rate: number
-  }[]
-  payments: InvoicePaymentDTO[]
-}
+export type {
+  InvoiceDetail,
+  InvoiceDocStatus,
+  InvoiceKind,
+  InvoicePaymentDTO,
+  InvoicePaymentStatus,
+  InvoiceWireRow,
+} from "@/domain/billing/types"
 
 export function useInvoices() {
   return useInfiniteQuery({
     queryKey: qk.invoices(),
     queryFn: ({ pageParam }) =>
-      api.get<PaginatedResponse<InvoiceListItem>>(
+      api.get<PaginatedResponse<InvoiceWireRow>>(
         `/api/invoices?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
       ),
     initialPageParam: null as string | null,

@@ -10,28 +10,10 @@ import { api } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { ClientCreateInput, ClientUpdateInput } from "@/lib/schemas/client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
+import type { ClientWireRow } from "@/domain/clients/types"
 
-export interface ClientDTO {
-  id: string
-  firstName: string
-  lastName: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  website: string | null
-  address: string | null
-  notes: string | null
-  billingMode: "DAILY" | "FIXED" | "HOURLY"
-  rate: number
-  fixedPrice: number | null
-  deposit: number | null
-  paymentTerms: number | null
-  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
-  color: string | null
-  starred: boolean
-  archived: boolean
-  createdAt: string
-}
+export type { ClientWireRow } from "@/domain/clients/types"
+export type ClientDTO = ClientWireRow
 
 export function useClients() {
   return useInfiniteQuery({
