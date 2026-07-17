@@ -115,17 +115,24 @@ export async function GET(req: Request) {
         ? Math.round(((lastMonth - prevMonth) / prevMonth) * 100)
         : 0
 
-    const paidByInvoice = new Map<string, number>()
+    const paidByInvoice = new Map<string, { paid: number; lastPaidAt: Date }>()
     for (const p of payments) {
+      const amount = decimalToNumber(p.amount) ?? 0
+      const prev = paidByInvoice.get(p.invoiceId)
       paidByInvoice.set(
         p.invoiceId,
-        (paidByInvoice.get(p.invoiceId) ?? 0) +
-          (decimalToNumber(p.amount) ?? 0),
+        prev
+          ? {
+              paid: prev.paid + amount,
+              lastPaidAt:
+                p.paidAt > prev.lastPaidAt ? p.paidAt : prev.lastPaidAt,
+            }
+          : { paid: amount, lastPaidAt: p.paidAt },
       )
     }
     const revByClient = new Map<string, number>()
     for (const inv of invoices) {
-      const paid = paidByInvoice.get(inv.id) ?? 0
+      const paid = paidByInvoice.get(inv.id)?.paid ?? 0
       if (paid > 0)
         revByClient.set(
           inv.clientId,
@@ -167,46 +174,46 @@ export async function GET(req: Request) {
     startOfWeek0.setDate(
       startOfWeek0.getDate() - ((startOfWeek0.getDay() + 6) % 7),
     )
-    const weeks = []
-    for (let i = weekCount - 1; i >= 0; i--) {
-      const wStart = new Date(startOfWeek0.getTime() - i * weekMs)
-      const wEnd = new Date(wStart.getTime() + weekMs)
-      const done = tasks.filter(
-        (t) => t.completedAt && t.completedAt >= wStart && t.completedAt < wEnd,
-      ).length
-      const invoiced = tasks.filter(
-        (t) =>
-          t.completedAt &&
-          t.completedAt >= wStart &&
-          t.completedAt < wEnd &&
-          t.invoiceId,
-      ).length
-      const w = new Date(wStart)
-      const oneJan = new Date(w.getFullYear(), 0, 1)
-      const weekNum = Math.ceil(
-        ((w.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7,
-      )
-      weeks.push({ label: `S${weekNum}`, done, invoiced })
+    const dayMs = 24 * 60 * 60 * 1000
+    const weekStartMs = startOfWeek0.getTime()
+    const weekCounts = Array.from({ length: weekCount }, () => ({
+      done: 0,
+      invoiced: 0,
+    }))
+    const heatmap = Array.from({ length: 7 }, () =>
+      new Array<number>(weekCount).fill(0),
+    )
+    for (const t of tasks) {
+      if (!t.completedAt) continue
+      const offsetMs = t.completedAt.getTime() - weekStartMs
+      const dayOffset = Math.floor(offsetMs / dayMs)
+      const weekBack = Math.floor(dayOffset / 7)
+      const col = weekCount - 1 + weekBack
+      if (col < 0 || col >= weekCount) continue
+      const bucket = weekCounts[col]!
+      bucket.done += 1
+      if (t.invoiceId) bucket.invoiced += 1
+      const dayIdx = dayOffset - 7 * weekBack
+      heatmap[dayIdx]![col]! += 1
     }
 
-    const heatmap = []
-    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-      const row = []
-      for (let i = weekCount - 1; i >= 0; i--) {
-        const wStart = new Date(startOfWeek0.getTime() - i * weekMs)
-        const dayStart = new Date(
-          wStart.getTime() + dayIdx * 24 * 60 * 60 * 1000,
-        )
-        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
-        const count = tasks.filter(
-          (t) =>
-            t.completedAt &&
-            t.completedAt >= dayStart &&
-            t.completedAt < dayEnd,
-        ).length
-        row.push(count)
-      }
-      heatmap.push(row)
+    const weeks = []
+    for (let i = weekCount - 1; i >= 0; i--) {
+      const col = weekCount - 1 - i
+      const wStart = new Date(weekStartMs - i * weekMs)
+      const oneJan = new Date(wStart.getFullYear(), 0, 1)
+      const weekNum = Math.ceil(
+        ((wStart.getTime() - oneJan.getTime()) / 86400000 +
+          oneJan.getDay() +
+          1) /
+          7,
+      )
+      const bucket = weekCounts[col]!
+      weeks.push({
+        label: `S${weekNum}`,
+        done: bucket.done,
+        invoiced: bucket.invoiced,
+      })
     }
 
     const fullyPaidInvoices = invoices.filter(
@@ -214,14 +221,11 @@ export async function GET(req: Request) {
     )
     const delays = fullyPaidInvoices
       .map((inv) => {
-        const inv_payments = payments.filter((p) => p.invoiceId === inv.id)
-        if (!inv_payments.length) return null
-        const last = inv_payments.reduce(
-          (max, p) => (p.paidAt > max ? p.paidAt : max),
-          inv_payments[0]!.paidAt,
-        )
+        const entry = paidByInvoice.get(inv.id)
+        if (!entry) return null
         return Math.round(
-          (last.getTime() - inv.issueDate.getTime()) / (1000 * 60 * 60 * 24),
+          (entry.lastPaidAt.getTime() - inv.issueDate.getTime()) /
+            (1000 * 60 * 60 * 24),
         )
       })
       .filter((x): x is number => x !== null && x >= 0)
