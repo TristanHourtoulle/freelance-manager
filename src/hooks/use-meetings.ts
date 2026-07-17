@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 import type { ActionClientRef } from "@/hooks/use-actions"
 
@@ -52,7 +53,7 @@ export function useMeetings(filters: MeetingFilters = EMPTY_FILTERS) {
   if (filters.clientId) baseQs.set("clientId", filters.clientId)
   baseQs.set("limit", "50")
   return useInfiniteQuery({
-    queryKey: ["meetings", filters] as const,
+    queryKey: qk.meetings.list(filters),
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams(baseQs)
       if (pageParam) qs.set("cursor", pageParam)
@@ -63,7 +64,7 @@ export function useMeetings(filters: MeetingFilters = EMPTY_FILTERS) {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
   })
 }
 
@@ -71,10 +72,10 @@ function invalidateMeeting(
   qc: ReturnType<typeof useQueryClient>,
   clientId?: string,
 ) {
-  qc.invalidateQueries({ queryKey: ["meetings"] })
-  qc.invalidateQueries({ queryKey: ["actions"] })
-  qc.invalidateQueries({ queryKey: ["dashboard"] })
-  if (clientId) qc.invalidateQueries({ queryKey: ["client", clientId] })
+  qc.invalidateQueries({ queryKey: qk.meetings.all() })
+  qc.invalidateQueries({ queryKey: qk.actions.all() })
+  qc.invalidateQueries({ queryKey: qk.dashboard() })
+  if (clientId) qc.invalidateQueries({ queryKey: qk.client.detail(clientId) })
 }
 
 export function useCreateMeeting() {

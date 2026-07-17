@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export interface LinearProjectDTO {
@@ -35,7 +36,7 @@ export interface AllMappingsItem {
 /** Lists ALL Linear mappings of the current user, across every client. */
 export function useAllLinearMappings(enabled = true) {
   return useInfiniteQuery({
-    queryKey: ["linear-mappings"] as const,
+    queryKey: qk.linear.mappings(),
     queryFn: ({ pageParam }) =>
       api.get<PaginatedResponse<AllMappingsItem>>(
         `/api/linear-mappings?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
@@ -43,7 +44,7 @@ export function useAllLinearMappings(enabled = true) {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
     enabled,
   })
 }
@@ -51,25 +52,25 @@ export function useAllLinearMappings(enabled = true) {
 /** Lists all Linear projects accessible with the user's token. */
 export function useLinearProjects(enabled = true) {
   return useQuery({
-    queryKey: ["linear-projects"] as const,
+    queryKey: qk.linear.projects(),
     queryFn: () =>
       api.get<{ items: LinearProjectDTO[] }>("/api/linear/projects"),
     select: (d) => d.items,
-    staleTime: 60 * 60_000,
+    staleTime: STALE_TIME.hour,
     enabled,
   })
 }
 
 export function useClientLinearMappings(clientId: string | null | undefined) {
   return useQuery({
-    queryKey: ["client-linear-mappings", clientId] as const,
+    queryKey: qk.linear.clientMappings.detail(clientId),
     queryFn: () =>
       api.get<{ items: LinearMappingDTO[] }>(
         `/api/clients/${clientId}/linear-mappings`,
       ),
     select: (d) => d.items,
     enabled: Boolean(clientId),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
   })
 }
 
@@ -83,13 +84,13 @@ export function useAddLinearMapping(clientId: string) {
       }),
     onSuccess: () => {
       qc.invalidateQueries({
-        queryKey: ["client-linear-mappings", clientId],
+        queryKey: qk.linear.clientMappings.detail(clientId),
       })
-      qc.invalidateQueries({ queryKey: ["linear-mappings"] })
-      qc.invalidateQueries({ queryKey: ["client", clientId] })
-      qc.invalidateQueries({ queryKey: ["projects"] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: qk.linear.mappings() })
+      qc.invalidateQueries({ queryKey: qk.client.detail(clientId) })
+      qc.invalidateQueries({ queryKey: qk.projects() })
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
+      qc.invalidateQueries({ queryKey: qk.dashboard() })
       router.refresh()
     },
   })
@@ -102,10 +103,10 @@ export function useRemoveLinearMapping(clientId: string) {
       api.delete(`/api/clients/${clientId}/linear-mappings/${mappingId}`),
     onSuccess: () => {
       qc.invalidateQueries({
-        queryKey: ["client-linear-mappings", clientId],
+        queryKey: qk.linear.clientMappings.detail(clientId),
       })
-      qc.invalidateQueries({ queryKey: ["linear-mappings"] })
-      qc.invalidateQueries({ queryKey: ["client", clientId] })
+      qc.invalidateQueries({ queryKey: qk.linear.mappings() })
+      qc.invalidateQueries({ queryKey: qk.client.detail(clientId) })
     },
   })
 }

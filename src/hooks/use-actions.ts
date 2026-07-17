@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export type ClientActionType = "RELANCE" | "LINK" | "RDV" | "OTHER"
@@ -73,7 +74,7 @@ export function useActions(filters: ActionFilters = EMPTY_FILTERS) {
   if (filters.type) baseQs.set("type", filters.type)
   baseQs.set("limit", "50")
   return useInfiniteQuery({
-    queryKey: ["actions", filters] as const,
+    queryKey: qk.actions.list(filters),
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams(baseQs)
       if (pageParam) qs.set("cursor", pageParam)
@@ -84,7 +85,7 @@ export function useActions(filters: ActionFilters = EMPTY_FILTERS) {
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
   })
 }
 
@@ -92,9 +93,9 @@ function invalidateAction(
   qc: ReturnType<typeof useQueryClient>,
   clientId?: string,
 ) {
-  qc.invalidateQueries({ queryKey: ["actions"] })
-  qc.invalidateQueries({ queryKey: ["dashboard"] })
-  if (clientId) qc.invalidateQueries({ queryKey: ["client", clientId] })
+  qc.invalidateQueries({ queryKey: qk.actions.all() })
+  qc.invalidateQueries({ queryKey: qk.dashboard() })
+  if (clientId) qc.invalidateQueries({ queryKey: qk.client.detail(clientId) })
 }
 
 export function useCreateAction() {

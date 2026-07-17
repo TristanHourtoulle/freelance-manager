@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 
 export type AnalyticsRange = "3m" | "6m" | "12m"
 
@@ -35,9 +36,9 @@ export interface AnalyticsDTO {
 
 export function useAnalytics(range: AnalyticsRange) {
   return useQuery({
-    queryKey: ["analytics", range] as const,
+    queryKey: qk.analytics(range),
     queryFn: () => api.get<AnalyticsDTO>(`/api/analytics?range=${range}`),
-    staleTime: 60_000,
+    staleTime: STALE_TIME.detail,
     refetchOnWindowFocus: false,
   })
 }

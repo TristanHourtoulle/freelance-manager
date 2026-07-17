@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 
 export interface DashboardDTO {
   kpi: {
@@ -52,9 +53,9 @@ export interface DashboardDTO {
 
 export function useDashboard() {
   return useQuery({
-    queryKey: ["dashboard"] as const,
+    queryKey: qk.dashboard(),
     queryFn: () => api.get<DashboardDTO>("/api/dashboard"),
-    staleTime: 60_000,
+    staleTime: STALE_TIME.detail,
     refetchOnWindowFocus: false,
   })
 }
