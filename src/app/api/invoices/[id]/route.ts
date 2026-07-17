@@ -35,7 +35,17 @@ export async function GET(_: Request, { params }: Params) {
       where: { id, userId: user.id },
       include: {
         lines: { orderBy: { position: "asc" } },
-        client: true,
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            company: true,
+            email: true,
+            billingMode: true,
+            color: true,
+          },
+        },
         payments: { orderBy: { paidAt: "asc" } },
       },
     })

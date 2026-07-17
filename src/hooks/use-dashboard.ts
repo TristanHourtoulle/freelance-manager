@@ -54,6 +54,7 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"] as const,
     queryFn: () => api.get<DashboardDTO>("/api/dashboard"),
-    staleTime: 30_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
