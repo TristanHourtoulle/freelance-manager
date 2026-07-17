@@ -77,20 +77,7 @@ export function LinearIntegrationCard() {
   }
 
   function handleSync() {
-    sync.mutate(undefined, {
-      onSuccess: (r) =>
-        toast({
-          variant: "success",
-          title: "Sync Linear terminée",
-          description: `${r.tasks} tasks · ${r.projects} projets`,
-        }),
-      onError: (e) =>
-        toast({
-          variant: "error",
-          title: "Sync échouée",
-          description: e instanceof Error ? e.message : String(e),
-        }),
-    })
+    sync.mutate()
   }
 
   return (
