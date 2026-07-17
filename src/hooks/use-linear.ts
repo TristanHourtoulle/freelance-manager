@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
@@ -74,6 +75,7 @@ export function useClientLinearMappings(clientId: string | null | undefined) {
 
 export function useAddLinearMapping(clientId: string) {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (linearProjectId: string) =>
       api.post(`/api/clients/${clientId}/linear-mappings`, {
@@ -88,7 +90,7 @@ export function useAddLinearMapping(clientId: string) {
       qc.invalidateQueries({ queryKey: ["projects"] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }

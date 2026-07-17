@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type { InvoiceSplitInput } from "@/lib/schemas/invoice-split"
 
@@ -10,6 +11,7 @@ export interface SplitResult {
 
 export function useSplitInvoice() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: InvoiceSplitInput) =>
       api.post<SplitResult>("/api/invoices/split", input),
@@ -17,7 +19,7 @@ export function useSplitInvoice() {
       qc.invalidateQueries({ queryKey: ["invoices"] })
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }

@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
@@ -52,6 +53,7 @@ export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
 
 export function useSyncLinear() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: () =>
       api.post<{ projects: number; tasks: number }>("/api/linear/refresh"),
@@ -59,7 +61,7 @@ export function useSyncLinear() {
       qc.invalidateQueries({ queryKey: ["tasks"] })
       qc.invalidateQueries({ queryKey: ["projects"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }

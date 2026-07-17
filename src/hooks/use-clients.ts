@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
 import type { ClientCreateInput, ClientUpdateInput } from "@/lib/schemas/client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
@@ -49,12 +50,13 @@ export function useClients() {
 
 export function useCreateClient() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (input: ClientCreateInput) =>
       api.post<ClientDTO>("/api/clients", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CLIENTS_KEY })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
@@ -74,36 +76,39 @@ export function useUpdateClient(id: string) {
 
 export function useArchiveClient() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (id: string) => api.post(`/api/clients/${id}/archive`),
     onSuccess: (_d, id) => {
       qc.invalidateQueries({ queryKey: CLIENTS_KEY })
       qc.invalidateQueries({ queryKey: ["client", id] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useDuplicateClient() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (id: string) =>
       api.post<{ id: string }>(`/api/clients/${id}/duplicate`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CLIENTS_KEY })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
 
 export function useDeleteClient() {
   const qc = useQueryClient()
+  const router = useRouter()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/clients/${id}`),
     onSuccess: (_d, id) => {
       qc.invalidateQueries({ queryKey: CLIENTS_KEY })
       qc.invalidateQueries({ queryKey: ["client", id] })
-      qc.invalidateQueries({ queryKey: ["nav-counts"] })
+      router.refresh()
     },
   })
 }
