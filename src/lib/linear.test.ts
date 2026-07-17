@@ -1,11 +1,38 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { LinearClient } from "@linear/sdk"
+
+const { prismaMock, rawRequest, LinearClientMock, decryptMock } = vi.hoisted(
+  () => {
+    const rawRequest = vi.fn()
+    const prismaMock = {
+      userSettings: { findUnique: vi.fn(), upsert: vi.fn() },
+      linearMapping: { findMany: vi.fn() },
+      task: { findMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+      project: { upsert: vi.fn(), update: vi.fn() },
+      $transaction: vi.fn(),
+    }
+    return {
+      prismaMock,
+      rawRequest,
+      LinearClientMock: vi.fn(function LinearClient() {
+        return { client: { rawRequest } }
+      }),
+      decryptMock: vi.fn(() => "fake-token"),
+    }
+  },
+)
+
+vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
+vi.mock("@/lib/encryption", () => ({ decrypt: decryptMock, encrypt: vi.fn() }))
+vi.mock("@linear/sdk", () => ({ LinearClient: LinearClientMock }))
+
 import {
   fetchIssuesWithRelations,
   keyFromIdentifier,
   mapLinearPriority,
   mapLinearStateType,
   normalizeIssueNode,
+  syncFromLinear,
 } from "@/lib/linear"
 
 interface RawNode {
@@ -177,5 +204,145 @@ describe("fetchIssuesWithRelations", () => {
     })
 
     expect(result).toEqual([])
+  })
+})
+
+describe("syncFromLinear", () => {
+  const TOKEN_SETTINGS = {
+    linearApiTokenEncrypted: new Uint8Array([1, 2, 3]),
+    linearApiTokenIv: new Uint8Array([4, 5, 6]),
+    linearApiTokenKeyVersion: 1,
+    linearLastSyncedAt: null as Date | null,
+  }
+
+  function issueNode(overrides: Partial<RawNode> = {}): RawNode {
+    return {
+      id: "issue-1",
+      identifier: "TRI-1",
+      title: "Task one",
+      description: null,
+      priority: 0,
+      estimate: null,
+      completedAt: null,
+      createdAt: null,
+      updatedAt: null,
+      state: { name: "Todo", type: "unstarted" },
+      team: { id: "team-1", key: "TRI" },
+      project: {
+        id: "lp-1",
+        name: "Alpha",
+        description: null,
+        state: "started",
+        createdAt: null,
+      },
+      ...overrides,
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.userSettings.findUnique.mockResolvedValue({ ...TOKEN_SETTINGS })
+    prismaMock.userSettings.upsert.mockResolvedValue({})
+    prismaMock.linearMapping.findMany.mockResolvedValue([
+      {
+        clientId: "client-1",
+        linearProjectId: "lp-1",
+        linearTeamId: null,
+        client: { userId: "user-1" },
+      },
+    ])
+    prismaMock.task.findMany.mockResolvedValue([])
+    prismaMock.task.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.task.update.mockResolvedValue({})
+    prismaMock.project.upsert.mockResolvedValue({ id: "local-project-1" })
+    prismaMock.project.update.mockResolvedValue({})
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock),
+    )
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [] } },
+    })
+  })
+
+  it("creates new issues via createMany and never updates", async () => {
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [issueNode()] } },
+    })
+
+    const result = await syncFromLinear("user-1")
+
+    expect(prismaMock.task.createMany).toHaveBeenCalledTimes(1)
+    const arg = prismaMock.task.createMany.mock.calls[0]![0]
+    expect(arg.skipDuplicates).toBe(true)
+    expect(arg.data).toHaveLength(1)
+    expect(arg.data[0]).toMatchObject({
+      linearIssueId: "issue-1",
+      clientId: "client-1",
+      projectId: "local-project-1",
+      linearIdentifier: "TRI-1",
+    })
+    expect(prismaMock.task.update).not.toHaveBeenCalled()
+    expect(result.tasks).toBe(1)
+  })
+
+  it("updates existing issues without clobbering invoiceId and keeps DONE status", async () => {
+    prismaMock.task.findMany.mockResolvedValue([
+      { linearIssueId: "issue-1", invoiceId: "inv-1" },
+    ])
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: {
+        issues: {
+          nodes: [issueNode({ state: { name: "Done", type: "completed" } })],
+        },
+      },
+    })
+
+    await syncFromLinear("user-1")
+
+    expect(prismaMock.task.createMany).not.toHaveBeenCalled()
+    expect(prismaMock.task.update).toHaveBeenCalledTimes(1)
+    const arg = prismaMock.task.update.mock.calls[0]![0]
+    expect(arg.where).toEqual({ linearIssueId: "issue-1" })
+    expect(arg.data).not.toHaveProperty("invoiceId")
+    expect(arg.data.status).toBe("DONE")
+  })
+
+  it("adds an incremental updatedAt filter when linearLastSyncedAt is set", async () => {
+    const since = new Date("2026-01-01T00:00:00.000Z")
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      ...TOKEN_SETTINGS,
+      linearLastSyncedAt: since,
+    })
+
+    await syncFromLinear("user-1")
+
+    expect(rawRequest).toHaveBeenCalledTimes(1)
+    const [, variables] = rawRequest.mock.calls[0]!
+    expect(variables.filter).toEqual({
+      project: { id: { eq: "lp-1" } },
+      updatedAt: { gt: since.toISOString() },
+    })
+  })
+
+  it("writes no task rows on a no-op incremental sync", async () => {
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      ...TOKEN_SETTINGS,
+      linearLastSyncedAt: new Date("2026-01-01T00:00:00.000Z"),
+    })
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [] } },
+    })
+
+    const result = await syncFromLinear("user-1")
+
+    expect(prismaMock.task.createMany).not.toHaveBeenCalled()
+    expect(prismaMock.task.update).not.toHaveBeenCalled()
+    expect(prismaMock.task.findMany).not.toHaveBeenCalled()
+    expect(result.tasks).toBe(0)
+    expect(prismaMock.userSettings.upsert).toHaveBeenCalledTimes(1)
   })
 })
