@@ -129,27 +129,149 @@ function projectStatus(
   return "ACTIVE"
 }
 
-/**
- * Run `fn` over `items` with at most `concurrency` parallel executions.
- * Used in `syncFromLinear` to keep Linear's SDK from opening 750+
- * simultaneous fetches (which trips ETIMEDOUT on busy networks).
- */
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length)
-  let i = 0
-  async function worker() {
-    while (true) {
-      const idx = i++
-      if (idx >= items.length) return
-      results[idx] = await fn(items[idx]!)
+type IssueSyncFilter =
+  | { project: { id: { eq: string } } }
+  | { team: { id: { eq: string } } }
+
+interface IssuesQueryVariables extends Record<string, unknown> {
+  filter: IssueSyncFilter
+  first: number
+}
+
+interface RawIssueState {
+  name: string | null
+  type: string | null
+}
+
+interface RawIssueTeam {
+  id: string
+  key: string | null
+}
+
+interface RawIssueProject {
+  id: string
+  name: string
+  description: string | null
+  state: string | null
+  createdAt: string | null
+}
+
+interface RawIssueNode {
+  id: string
+  identifier: string
+  title: string
+  description: string | null
+  priority: number | null
+  estimate: number | null
+  completedAt: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  state: RawIssueState | null
+  team: RawIssueTeam | null
+  project: RawIssueProject | null
+}
+
+interface IssuesQueryData {
+  issues: { nodes: RawIssueNode[] }
+}
+
+interface EnrichedIssue {
+  issue: {
+    id: string
+    identifier: string
+    title: string
+    description: string | null
+    priority: number | null
+    estimate: number | null
+    completedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+  project: {
+    id: string
+    name: string
+    description: string | null
+    state: string | null
+    createdAt: Date | null
+  } | null
+  team: { id: string; key: string | null } | null
+  state: { name: string | null; type: string | null } | null
+}
+
+const ISSUES_SYNC_QUERY = `
+  query SyncIssues($filter: IssueFilter, $first: Int) {
+    issues(filter: $filter, first: $first) {
+      nodes {
+        id
+        identifier
+        title
+        description
+        priority
+        estimate
+        completedAt
+        createdAt
+        updatedAt
+        state { name type }
+        team { id key }
+        project { id name description state createdAt }
+      }
     }
   }
-  await Promise.all(Array.from({ length: concurrency }, worker))
-  return results
+`
+
+function toDate(value: string | null | undefined): Date | null {
+  return value ? new Date(value) : null
+}
+
+/** Normalize a raw GraphQL issue node into the shape the write phase consumes. */
+export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
+  return {
+    issue: {
+      id: node.id,
+      identifier: node.identifier,
+      title: node.title,
+      description: node.description ?? null,
+      priority: node.priority ?? null,
+      estimate: node.estimate ?? null,
+      completedAt: toDate(node.completedAt),
+      createdAt: toDate(node.createdAt),
+      updatedAt: toDate(node.updatedAt),
+    },
+    project: node.project
+      ? {
+          id: node.project.id,
+          name: node.project.name,
+          description: node.project.description ?? null,
+          state: node.project.state ?? null,
+          createdAt: toDate(node.project.createdAt),
+        }
+      : null,
+    team: node.team ? { id: node.team.id, key: node.team.key ?? null } : null,
+    state: node.state
+      ? { name: node.state.name ?? null, type: node.state.type ?? null }
+      : null,
+  }
+}
+
+/**
+ * Fetch up to 250 issues matching `filter` with `project`, `team` and `state`
+ * resolved inline in a single GraphQL request (instead of one lazy relation
+ * fetch per issue, which was the sync N+1).
+ *
+ * @param client Linear SDK client whose raw GraphQL transport is used.
+ * @param filter Scope filter (`project.id.eq` or `team.id.eq`).
+ * @returns Normalized issues ready for the DB write phase.
+ */
+export async function fetchIssuesWithRelations(
+  client: LinearClient,
+  filter: IssueSyncFilter,
+): Promise<EnrichedIssue[]> {
+  const response = await client.client.rawRequest<
+    IssuesQueryData,
+    IssuesQueryVariables
+  >(ISSUES_SYNC_QUERY, { filter, first: 250 })
+  const nodes = response.data?.issues?.nodes ?? []
+  return nodes.map(normalizeIssueNode)
 }
 
 /**
@@ -159,9 +281,10 @@ async function mapWithConcurrency<T, R>(
  * The function is split into two phases to keep the database transaction
  * short and never wait on Linear API I/O while holding row locks:
  *
- *   PHASE 1 — pull (no DB): for every mapping, fetch the issues page
- *     and resolve `project`, `team`, `state` for each issue in parallel
- *     via Promise.all. Builds an in-memory list of `enriched` records.
+ *   PHASE 1 — pull (no DB): for every mapping, fetch the issues page with
+ *     `project`, `team`, `state` resolved inline in a single GraphQL request
+ *     (one query per mapping, not 1 + 3N). Builds an in-memory list of
+ *     `enriched` records.
  *
  *   PHASE 2 — write (single transaction): one batched findMany to learn
  *     which tasks already exist (so we can preserve invoiceId), then
@@ -184,51 +307,19 @@ export async function syncFromLinear(userId: string): Promise<SyncResult> {
     include: { client: true },
   })
 
-  // Phase 1 — pull: process mappings sequentially (one Linear workspace
-  // at a time) and resolve issue → (project, team, state) with a small
-  // concurrency cap. The Linear SDK's GraphQL layer struggles when given
-  // hundreds of simultaneous relation accesses (ETIMEDOUT under load),
-  // so we keep peak concurrency low.
-  const ISSUE_CONCURRENCY = 4
   const enrichedByMapping: {
     mapping: (typeof mappings)[number]
-    issues: {
-      issue: Awaited<ReturnType<typeof client.issues>>["nodes"][number]
-      project: Awaited<
-        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["project"]
-      >
-      team: Awaited<
-        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["team"]
-      >
-      state: Awaited<
-        Awaited<ReturnType<typeof client.issues>>["nodes"][number]["state"]
-      >
-    }[]
+    issues: EnrichedIssue[]
   }[] = []
   for (const m of mappings) {
     if (!m.linearProjectId && !m.linearTeamId) {
       enrichedByMapping.push({ mapping: m, issues: [] })
       continue
     }
-    const filter = m.linearProjectId
+    const filter: IssueSyncFilter = m.linearProjectId
       ? { project: { id: { eq: m.linearProjectId } } }
       : { team: { id: { eq: m.linearTeamId! } } }
-    const issuesPage = await client.issues({
-      filter: filter as never,
-      first: 250,
-    })
-    const enriched = await mapWithConcurrency(
-      issuesPage.nodes,
-      ISSUE_CONCURRENCY,
-      async (issue) => {
-        const [project, team, state] = await Promise.all([
-          issue.project,
-          issue.team,
-          issue.state,
-        ])
-        return { issue, project, team, state }
-      },
-    )
+    const enriched = await fetchIssuesWithRelations(client, filter)
     enrichedByMapping.push({ mapping: m, issues: enriched })
   }
 
@@ -391,24 +482,15 @@ export async function syncOneProject(opts: {
     },
   })
 
-  const issues = await client.issues({
-    filter: { project: { id: { eq: linearProject.id } } } as never,
-    first: 250,
+  const enriched = await fetchIssuesWithRelations(client, {
+    project: { id: { eq: linearProject.id } },
   })
 
-  const issueIds = issues.nodes.map((i) => i.id)
-  const [enriched, existingTasks] = await Promise.all([
-    Promise.all(
-      issues.nodes.map(async (issue) => {
-        const [team, state] = await Promise.all([issue.team, issue.state])
-        return { issue, team, state }
-      }),
-    ),
-    prisma.task.findMany({
-      where: { linearIssueId: { in: issueIds } },
-      select: { linearIssueId: true, invoiceId: true },
-    }),
-  ])
+  const issueIds = enriched.map((e) => e.issue.id)
+  const existingTasks = await prisma.task.findMany({
+    where: { linearIssueId: { in: issueIds } },
+    select: { linearIssueId: true, invoiceId: true },
+  })
 
   const invoiceByIssueId = new Map(
     existingTasks.map((t) => [t.linearIssueId, t.invoiceId]),
