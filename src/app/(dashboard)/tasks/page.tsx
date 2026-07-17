@@ -9,7 +9,6 @@ import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useClients } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
-import { useToast } from "@/components/providers/toast-provider"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -57,7 +56,6 @@ function DesktopTasksPage() {
   const { data: projects = [] } = useProjects()
   const { data: invoices = [] } = useInvoices()
   const sync = useSyncLinear()
-  const { toast } = useToast()
 
   const counts = useMemo(
     () => ({
@@ -152,20 +150,7 @@ function DesktopTasksPage() {
   }, 0)
 
   function doSync() {
-    sync.mutate(undefined, {
-      onSuccess: (r) =>
-        toast({
-          variant: "success",
-          title: "Sync Linear terminée",
-          description: `${r.tasks} tasks · ${r.projects} projets`,
-        }),
-      onError: (e) =>
-        toast({
-          variant: "error",
-          title: "Sync échouée",
-          description: e instanceof Error ? e.message : String(e),
-        }),
-    })
+    sync.mutate()
   }
 
   return (

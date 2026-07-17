@@ -104,21 +104,8 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         hint: "Tirer les dernières tasks et projets",
         icon: "sync",
         keywords: ["linear", "refresh", "pull"],
-        run: async () => {
-          try {
-            const data = await syncLinear.mutateAsync()
-            toast({
-              variant: "success",
-              title: "Sync Linear terminée",
-              description: `${data.tasks} tasks · ${data.projects} projets`,
-            })
-          } catch (e) {
-            toast({
-              variant: "error",
-              title: "Sync échouée",
-              description: e instanceof Error ? e.message : String(e),
-            })
-          }
+        run: () => {
+          syncLinear.mutate()
         },
       },
       {
