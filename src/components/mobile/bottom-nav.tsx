@@ -89,6 +89,7 @@ export function BottomNav() {
             key={t.href}
             href={t.href}
             className={"nav-tab" + (active ? " active" : "")}
+            aria-current={active ? "page" : undefined}
           >
             {t.icon}
             <span className="lbl">{t.label}</span>
