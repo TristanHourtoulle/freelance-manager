@@ -121,7 +121,7 @@ export function useInvoiceBuilder(
     editInvoice?.totalOverride ?? 0,
   )
 
-  const [initialStatus, setInitialStatus] = useState<CreateStatus>("DRAFT")
+  const [initialStatus, setInitialStatus] = useState<CreateStatus>("SENT")
   const [markPaid, setMarkPaid] = useState(false)
   const [paidAt, setPaidAt] = useState(() => todayIso())
   const [showSplit, setShowSplit] = useState(false)
@@ -275,7 +275,7 @@ export function useInvoiceBuilder(
       lines: buildLinesPayload({ kind, lines, depositLabel, depositAmount }),
       taskIds: buildTaskIds(kind, lines),
       initialPayment:
-        markPaid && effectiveTotal > 0
+        markPaid && target === "SENT" && effectiveTotal > 0
           ? { amount: effectiveTotal, paidAt, method: null, note: null }
           : null,
     }
