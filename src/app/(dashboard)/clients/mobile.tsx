@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -10,6 +11,14 @@ import { useClients } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
+
+const NewClientModal = dynamic(
+  () =>
+    import("@/components/clients/new-client-modal").then(
+      (m) => m.NewClientModal,
+    ),
+  { ssr: false },
+)
 
 type Filter = "all" | "DAILY" | "FIXED" | "HOURLY"
 
@@ -21,6 +30,7 @@ export function MobileClientsPage() {
   const { data: projects = [] } = useProjects()
   const [filter, setFilter] = useState<Filter>("all")
   const [search, setSearch] = useState("")
+  const [showNew, setShowNew] = useState(false)
 
   const enriched = useMemo(() => {
     return clients
@@ -51,7 +61,7 @@ export function MobileClientsPage() {
           <button
             type="button"
             className="m-topbar-action primary"
-            onClick={() => router.push("/clients?new=1")}
+            onClick={() => setShowNew(true)}
             aria-label="Nouveau client"
           >
             <Icon name="plus" size={16} />
@@ -192,6 +202,8 @@ export function MobileClientsPage() {
           </div>
         </div>
       </div>
+
+      {showNew && <NewClientModal onClose={() => setShowNew(false)} />}
     </div>
   )
 }
