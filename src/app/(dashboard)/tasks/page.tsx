@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
@@ -132,7 +133,7 @@ function DesktopTasksPage() {
     [projects],
   )
 
-  const selectedTasks = filtered.filter((t) => selected.has(t.id))
+  const selectedTasks = tasks.filter((t) => selected.has(t.id))
   const selectedClientIds = new Set(selectedTasks.map((t) => t.clientId))
   const canInvoiceSelected = selectedClientIds.size === 1
 
@@ -148,6 +149,12 @@ function DesktopTasksPage() {
       })
     )
   }, 0)
+
+  const selectedInViewCount = filtered.reduce(
+    (n, t) => (selected.has(t.id) ? n + 1 : n),
+    0,
+  )
+  const hiddenSelectedCount = selectedTasks.length - selectedInViewCount
 
   function doSync() {
     sync.mutate()
@@ -262,7 +269,7 @@ function DesktopTasksPage() {
                       label: "À facturer",
                       count: counts.pending,
                     },
-                    { id: "done", label: "Facturée", count: counts.done },
+                    { id: "done", label: "Done", count: counts.done },
                     {
                       id: "in_progress",
                       label: "En cours",
@@ -478,9 +485,13 @@ function DesktopTasksPage() {
                             </td>
                             <td style={{ paddingRight: 18 }}>
                               {inv ? (
-                                <span className="mono xs muted">
+                                <Link
+                                  href={`/billing?invoiceId=${t.invoiceId}`}
+                                  className="mono xs"
+                                  style={{ color: "var(--accent)" }}
+                                >
                                   {inv.number}
-                                </span>
+                                </Link>
                               ) : (
                                 <span className="muted xs">—</span>
                               )}
@@ -568,6 +579,14 @@ function DesktopTasksPage() {
               </span>
               <span className="muted xs">·</span>
               <span className="num strong">{fmtEUR(selectedValue)}</span>
+              {hiddenSelectedCount > 0 && (
+                <span
+                  className="pill pill-no-dot xs pill-draft"
+                  title="Sélections masquées par les filtres actuels"
+                >
+                  {hiddenSelectedCount} hors filtre
+                </span>
+              )}
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setSelected(new Set())}

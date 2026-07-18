@@ -19,7 +19,7 @@ interface StatusPillProps {
 
 const STATUS_LABELS: Record<PillStatus, { label: string; cls: string }> = {
   pending_invoice: { label: "À facturer", cls: "pill-pending" },
-  done: { label: "Facturée", cls: "pill-done" },
+  done: { label: "Terminée", cls: "pill-done" },
   in_progress: { label: "En cours", cls: "pill-draft" },
   backlog: { label: "Backlog", cls: "pill-draft" },
   draft: { label: "Brouillon", cls: "pill-draft" },
