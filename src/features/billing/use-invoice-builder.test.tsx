@@ -140,6 +140,52 @@ describe("useInvoiceBuilder (create mode)", () => {
     expect(result.current.lines[0]).toMatchObject({ taskId: "t2", qty: 1 })
   })
 
+  it("does not re-seed when a new array with the same ids is passed on re-render", () => {
+    const { result, rerender } = renderHook(
+      ({ ids }: { ids: string[] }) =>
+        useInvoiceBuilder({
+          mode: "create",
+          preselectedTaskIds: ids,
+          initialClientId: "c1",
+        }),
+      { initialProps: { ids: ["t1"] } },
+    )
+
+    expect(result.current.lines).toHaveLength(1)
+    const seededLine = result.current.lines[0]
+
+    act(() => {
+      result.current.addTask(tasks[1]!)
+    })
+    expect(result.current.lines).toHaveLength(2)
+
+    rerender({ ids: ["t1"] })
+    rerender({ ids: ["t1"] })
+
+    expect(result.current.lines).toHaveLength(2)
+    expect(result.current.lines[0]).toBe(seededLine)
+  })
+
+  it("re-seeds when the preselected ids genuinely change", () => {
+    const { result, rerender } = renderHook(
+      ({ ids }: { ids: string[] }) =>
+        useInvoiceBuilder({
+          mode: "create",
+          preselectedTaskIds: ids,
+          initialClientId: "c1",
+        }),
+      { initialProps: { ids: ["t1"] } },
+    )
+
+    expect(result.current.lines).toHaveLength(1)
+    expect(result.current.lines[0]).toMatchObject({ taskId: "t1" })
+
+    rerender({ ids: ["t1", "t2"] })
+
+    expect(result.current.lines).toHaveLength(2)
+    expect(result.current.lines.map((l) => l.taskId)).toEqual(["t1", "t2"])
+  })
+
   it("applies a manual total override and clears it", () => {
     const { result } = renderHook(() =>
       useInvoiceBuilder({
