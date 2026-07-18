@@ -14,6 +14,7 @@ import {
   avatarColor,
 } from "@/lib/format"
 import {
+  useCreatePayment,
   useInvoice,
   useInvoices,
   useUpdateInvoiceStatus,
@@ -25,6 +26,8 @@ import {
   summarizeInvoices,
   type InvoiceFilterId,
 } from "@/domain/billing/filters"
+
+const todayISO = () => new Date().toISOString().slice(0, 10)
 
 export function MobileBillingPage() {
   const router = useRouter()
@@ -209,8 +212,10 @@ function MobileInvoiceSheet({
 }) {
   const { data: invoice } = useInvoice(invoiceId)
   const updateStatus = useUpdateInvoiceStatus()
+  const createPayment = useCreatePayment(invoiceId)
   const { toast } = useToast()
   const router = useRouter()
+  const [partialOpen, setPartialOpen] = useState(false)
 
   if (!invoice) {
     return (
@@ -240,9 +245,35 @@ function MobileInvoiceSheet({
     )
   }
 
+  function markPaid() {
+    if (!invoice) return
+    createPayment.mutate(
+      {
+        amount: invoice.balanceDue,
+        paidAt: todayISO(),
+        method: null,
+        note: null,
+      },
+      {
+        onSuccess: () => {
+          toast({ variant: "success", title: "Facture payée" })
+          onClose()
+        },
+        onError: (e) =>
+          toast({
+            variant: "error",
+            title: "Erreur",
+            description: e instanceof Error ? e.message : String(e),
+          }),
+      },
+    )
+  }
+
   const c = invoice.client
   const isFullyPaid =
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
+  const canRecordPayment =
+    invoice.status === "SENT" && !isFullyPaid && invoice.balanceDue > 0
 
   return (
     <MobileSheet onClose={onClose}>
@@ -373,6 +404,28 @@ function MobileInvoiceSheet({
             Émettre
           </button>
         )}
+        {canRecordPayment && (
+          <button
+            type="button"
+            className="btn btn-primary grow"
+            onClick={markPaid}
+            disabled={createPayment.isPending}
+          >
+            <Icon name="check" size={13} />
+            Marquer payée
+          </button>
+        )}
+        {canRecordPayment && (
+          <button
+            type="button"
+            className="btn btn-secondary grow"
+            onClick={() => setPartialOpen(true)}
+            disabled={createPayment.isPending}
+          >
+            <Icon name="euro" size={13} />
+            Paiement partiel
+          </button>
+        )}
         {!isFullyPaid && (
           <button
             type="button"
@@ -386,6 +439,115 @@ function MobileInvoiceSheet({
         <button type="button" className="btn btn-ghost" onClick={onClose}>
           Fermer
         </button>
+      </div>
+
+      {partialOpen && (
+        <MobilePartialPaymentSheet
+          invoiceId={invoice.id}
+          balanceDue={invoice.balanceDue}
+          onClose={() => setPartialOpen(false)}
+        />
+      )}
+    </MobileSheet>
+  )
+}
+
+function MobilePartialPaymentSheet({
+  invoiceId,
+  balanceDue,
+  onClose,
+}: {
+  invoiceId: string
+  balanceDue: number
+  onClose: () => void
+}) {
+  const createPayment = useCreatePayment(invoiceId)
+  const { toast } = useToast()
+  const [amount, setAmount] = useState<number>(0)
+  const [paidAt, setPaidAt] = useState<string>(() => todayISO())
+
+  function submit() {
+    if (amount <= 0) {
+      toast({
+        variant: "error",
+        title: "Montant requis",
+        description: "Le montant doit être supérieur à 0.",
+      })
+      return
+    }
+    createPayment.mutate(
+      { amount, paidAt, method: null, note: null },
+      {
+        onSuccess: () => {
+          toast({ variant: "success", title: "Paiement enregistré" })
+          onClose()
+        },
+        onError: (e) =>
+          toast({
+            variant: "error",
+            title: "Erreur",
+            description: e instanceof Error ? e.message : String(e),
+          }),
+      },
+    )
+  }
+
+  return (
+    <MobileSheet
+      onClose={onClose}
+      title="Paiement partiel"
+      description={`Reste dû ${fmtEUR(balanceDue)}`}
+    >
+      <div className="col gap-12">
+        <div className="field">
+          <label className="field-label">Montant</label>
+          <input
+            className="input num"
+            type="number"
+            step="0.01"
+            min="0"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label className="field-label">Date</label>
+          <input
+            className="input"
+            type="date"
+            value={paidAt}
+            onChange={(e) => setPaidAt(e.target.value)}
+          />
+        </div>
+
+        {amount > 0 && amount < balanceDue && (
+          <div className="muted xs">
+            Restera{" "}
+            <span className="num strong">{fmtEUR(balanceDue - amount)}</span> à
+            recevoir.
+          </div>
+        )}
+        {amount > balanceDue && (
+          <div className="xs" style={{ color: "var(--purple)" }}>
+            {fmtEUR(amount - balanceDue)} en trop-perçu.
+          </div>
+        )}
+
+        <div className="row gap-8" style={{ marginTop: 4 }}>
+          <button
+            type="button"
+            className="btn btn-primary grow"
+            onClick={submit}
+            disabled={createPayment.isPending || amount <= 0}
+          >
+            <Icon name="check" size={13} />
+            Enregistrer
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Annuler
+          </button>
+        </div>
       </div>
     </MobileSheet>
   )
