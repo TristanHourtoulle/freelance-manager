@@ -334,7 +334,12 @@ textarea {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  opacity: 0.85;
+  opacity: 1;
+}
+/* Raise Nucleo Fill Duo secondary-tone legibility on the dark bg (data-color="color-2" appears only in these duotone icons). */
+[data-color="color-2"] {
+  opacity: 0.5;
+  fill-opacity: 0.5;
 }
 .nav-item .badge {
   margin-left: auto;
