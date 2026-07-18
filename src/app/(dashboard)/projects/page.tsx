@@ -379,7 +379,15 @@ function DesktopProjectsPage() {
                   </div>
                 </td>
                 <td>
-                  <div className="row gap-8">
+                  <button
+                    type="button"
+                    className="row gap-8"
+                    style={{ padding: 0, textAlign: "left" }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(`/clients/${p.clientId}`)
+                    }}
+                  >
                     <div
                       className="av av-sm"
                       style={{
@@ -393,7 +401,7 @@ function DesktopProjectsPage() {
                       {initials(`${p.clientFirstName} ${p.clientLastName}`)}
                     </div>
                     <span className="small">{p.clientLabel}</span>
-                  </div>
+                  </button>
                 </td>
                 <td>
                   <span className="task-id">{p.key}</span>

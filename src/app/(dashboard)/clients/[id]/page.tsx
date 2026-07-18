@@ -145,9 +145,20 @@ function DesktopClientDetailPage({ id }: { id: string }) {
             <Icon name="link" size={13} />
             Lier projets Linear
           </button>
-          <button className="btn btn-primary" onClick={() => setShowEdit(true)}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowEdit(true)}
+          >
             <Icon name="edit" size={13} />
             Modifier
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
+            disabled={pendingTasks.length === 0}
+          >
+            <Icon name="plus" size={13} />
+            Facturer ({pendingTasks.length})
           </button>
           <ClientActionsMenu
             clientId={client.id}
@@ -227,16 +238,6 @@ function DesktopClientDetailPage({ id }: { id: string }) {
                 </span>
               )}
             </div>
-          </div>
-          <div className="hero-actions">
-            <button
-              className="btn btn-primary"
-              onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
-              disabled={pendingTasks.length === 0}
-            >
-              <Icon name="plus" size={13} />
-              Facturer ({pendingTasks.length})
-            </button>
           </div>
         </div>
 
