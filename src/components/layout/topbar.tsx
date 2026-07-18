@@ -1,15 +1,15 @@
 "use client"
 
 import { Fragment } from "react"
+import { usePathname } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { useCmdK } from "@/components/cmdk/cmdk-provider"
+import { deriveCrumbs } from "@/lib/breadcrumbs"
 
-interface TopbarProps {
-  crumbs: string[]
-}
-
-export function Topbar({ crumbs }: TopbarProps) {
+export function Topbar() {
   const cmdk = useCmdK()
+  const pathname = usePathname()
+  const crumbs = deriveCrumbs(pathname)
   return (
     <div className="topbar">
       <div className="crumbs">
