@@ -1,5 +1,6 @@
-import type { Prisma } from "@/generated/prisma/client"
+import type { BillingMode, Prisma } from "@/generated/prisma/client"
 import { decimalToNumber } from "@/lib/api"
+import { pipelineValueForTask } from "@/lib/billing-math"
 import { getInvoiceComputed } from "@/lib/payments"
 import type {
   InvoiceDocStatus,
@@ -22,8 +23,15 @@ export interface OpenInvoiceRow {
 
 export interface PaymentTotalsRow {
   paid_count: bigint
+  paid_count_month: bigint
   revenue_month: number
   revenue_year: number
+}
+
+export interface PipelineTaskRow {
+  estimate: DecimalLike | null
+  billingMode: BillingMode
+  rate: DecimalLike
 }
 
 export interface PaymentBucketRow {
@@ -56,7 +64,7 @@ export interface DashboardKpiInput {
   openInvoices: OpenInvoiceRow[]
   paymentTotals: PaymentTotalsRow[]
   paymentBuckets: PaymentBucketRow[]
-  pipelineCount: number
+  pipelineTasks: PipelineTaskRow[]
   pipelineClients: { clientId: string }[]
   recentInvoices: RecentInvoiceRow[]
 }
@@ -65,11 +73,13 @@ export interface DashboardKpi {
   revenueMonth: number
   revenueYear: number
   paidCount: number
+  paidCountMonth: number
   outstanding: number
   sentCount: number
   overdueAmount: number
   overdueCount: number
   pipelineCount: number
+  pipelineEur: number
   pipelineClientCount: number
 }
 
@@ -121,13 +131,14 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     openInvoices,
     paymentTotals,
     paymentBuckets,
-    pipelineCount,
+    pipelineTasks,
     pipelineClients,
     recentInvoices,
   } = input
 
   const totals = paymentTotals[0]
   const paidCount = totals ? Number(totals.paid_count) : 0
+  const paidCountMonth = totals ? Number(totals.paid_count_month) : 0
   const revenueMonth = totals?.revenue_month ?? 0
   const revenueYear = totals?.revenue_year ?? 0
 
@@ -144,6 +155,17 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     0,
   )
 
+  const pipelineCount = pipelineTasks.length
+  const pipelineEur = pipelineTasks.reduce(
+    (sum, task) =>
+      sum +
+      pipelineValueForTask({
+        billingMode: task.billingMode,
+        rate: decimalToNumber(task.rate) ?? 0,
+        estimateDays: decimalToNumber(task.estimate),
+      }),
+    0,
+  )
   const pipelineClientCount = pipelineClients.length
 
   const bucketByMonth = new Map(
@@ -193,11 +215,13 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
       revenueMonth,
       revenueYear,
       paidCount,
+      paidCountMonth,
       outstanding,
       sentCount: openInvoices.length,
       overdueAmount,
       overdueCount: overdueList.length,
       pipelineCount,
+      pipelineEur,
       pipelineClientCount,
     },
     months,

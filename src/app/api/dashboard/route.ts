@@ -24,7 +24,7 @@ export async function GET() {
       openInvoices,
       paymentTotals,
       paymentBuckets,
-      pipelineCount,
+      pipelineTasks,
       pipelineClients,
       recentInvoices,
       recentTasks,
@@ -50,12 +50,14 @@ export async function GET() {
       prisma.$queryRaw<
         {
           paid_count: bigint
+          paid_count_month: bigint
           revenue_month: number
           revenue_year: number
         }[]
       >`
         SELECT
           COUNT(*)::bigint AS paid_count,
+          COUNT(*) FILTER (WHERE "paidAt" >= ${monthStart})::bigint AS paid_count_month,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${monthStart}), 0)::float AS revenue_month,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${yearStart}), 0)::float AS revenue_year
         FROM payments
@@ -70,7 +72,13 @@ export async function GET() {
         GROUP BY 1
         ORDER BY 1
       `,
-      prisma.task.count({ where: pendingTasksWhere }),
+      prisma.task.findMany({
+        where: pendingTasksWhere,
+        select: {
+          estimate: true,
+          client: { select: { billingMode: true, rate: true } },
+        },
+      }),
       prisma.task.groupBy({ by: ["clientId"], where: pendingTasksWhere }),
       prisma.invoice.findMany({
         where: { userId: user.id },
@@ -116,7 +124,11 @@ export async function GET() {
       openInvoices,
       paymentTotals,
       paymentBuckets,
-      pipelineCount,
+      pipelineTasks: pipelineTasks.map((task) => ({
+        estimate: task.estimate,
+        billingMode: task.client.billingMode,
+        rate: task.client.rate,
+      })),
       pipelineClients,
       recentInvoices,
     })
