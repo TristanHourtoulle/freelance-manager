@@ -60,10 +60,20 @@ function buildInput(): DashboardKpiInput {
       },
     ],
     paymentTotals: [
-      { paid_count: BigInt(5), revenue_month: 1200, revenue_year: 9000 },
+      {
+        paid_count: BigInt(5),
+        paid_count_month: BigInt(2),
+        revenue_month: 1200,
+        revenue_year: 9000,
+      },
     ],
     paymentBuckets,
-    pipelineCount: 4,
+    pipelineTasks: [
+      { estimate: 2, billingMode: "DAILY", rate: 500 },
+      { estimate: 1, billingMode: "DAILY", rate: 500 },
+      { estimate: 3, billingMode: "HOURLY", rate: 100 },
+      { estimate: 5, billingMode: "FIXED", rate: 1000 },
+    ],
     pipelineClients: [{ clientId: "c1" }, { clientId: "c2" }],
     recentInvoices: [
       {
@@ -104,13 +114,22 @@ describe("computeDashboardKpis", () => {
       revenueMonth: 1200,
       revenueYear: 9000,
       paidCount: 5,
+      paidCountMonth: 2,
       outstanding: 2100,
       sentCount: 3,
       overdueAmount: 1800,
       overdueCount: 2,
       pipelineCount: 4,
+      pipelineEur: 3900,
       pipelineClientCount: 2,
     })
+  })
+
+  it("sums the pipeline value across DAILY and HOURLY tasks, excluding FIXED", () => {
+    const { kpi } = computeDashboardKpis(buildInput())
+
+    expect(kpi.pipelineCount).toBe(4)
+    expect(kpi.pipelineEur).toBe(3900)
   })
 
   it("lists only overdue invoices with their balance due", () => {
@@ -188,7 +207,7 @@ describe("computeDashboardKpis", () => {
       openInvoices: [],
       paymentTotals: [],
       paymentBuckets: [],
-      pipelineCount: 0,
+      pipelineTasks: [],
       pipelineClients: [],
       recentInvoices: [],
     })
@@ -197,11 +216,13 @@ describe("computeDashboardKpis", () => {
       revenueMonth: 0,
       revenueYear: 0,
       paidCount: 0,
+      paidCountMonth: 0,
       outstanding: 0,
       sentCount: 0,
       overdueAmount: 0,
       overdueCount: 0,
       pipelineCount: 0,
+      pipelineEur: 0,
       pipelineClientCount: 0,
     })
     expect(overdue).toEqual([])

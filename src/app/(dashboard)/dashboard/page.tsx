@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { TodayBlock } from "@/components/suivi/today-block"
+import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -24,8 +25,10 @@ export default function DashboardPage() {
 
 function DesktopDashboardPage() {
   const router = useRouter()
-  const { data } = useDashboard()
+  const { data, isPending } = useDashboard()
   const today = useMemo(() => new Date(), [])
+
+  if (isPending) return <DashboardSkeleton today={today} />
 
   const months = data?.months ?? []
   const overdue = data?.overdue ?? []
@@ -36,11 +39,13 @@ function DesktopDashboardPage() {
     revenueMonth: 0,
     revenueYear: 0,
     paidCount: 0,
+    paidCountMonth: 0,
     outstanding: 0,
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
     pipelineCount: 0,
+    pipelineEur: 0,
     pipelineClientCount: 0,
   }
 
@@ -77,7 +82,7 @@ function DesktopDashboardPage() {
           </div>
           <div className="kpi-value">{fmtEUR(kpi.revenueMonth)}</div>
           <div className="kpi-sub">
-            <span>{kpi.paidCount} factures payées</span>
+            <span>{kpi.paidCountMonth} factures payées</span>
           </div>
         </div>
         <div className="kpi">
@@ -95,17 +100,9 @@ function DesktopDashboardPage() {
             <Icon name="clock" size={11} />
             Pipeline
           </div>
-          <div className="kpi-value">
-            {kpi.pipelineCount}{" "}
-            <span className="muted" style={{ fontSize: 14, fontWeight: 500 }}>
-              tasks
-            </span>
-          </div>
+          <div className="kpi-value">{fmtEUR(kpi.pipelineEur)}</div>
           <div className="kpi-sub">
-            <span>
-              {kpi.pipelineClientCount} client
-              {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
-            </span>
+            <span>{kpi.pipelineCount} tasks à facturer</span>
           </div>
         </div>
         <div className="kpi kpi-warn">
@@ -205,7 +202,7 @@ function DesktopDashboardPage() {
                 </div>
               )
             })}
-            {kpi.pipelineCount >= 10 && (
+            {kpi.pipelineEur > 5000 && (
               <div
                 className="row gap-12"
                 style={{
@@ -222,9 +219,8 @@ function DesktopDashboardPage() {
                 <div className="grow">
                   <div className="strong small">Pipeline conséquente</div>
                   <div className="xs muted">
-                    {kpi.pipelineCount} tasks chez {kpi.pipelineClientCount}{" "}
-                    client
-                    {kpi.pipelineClientCount > 1 ? "s" : ""} à facturer
+                    {kpi.pipelineCount} tasks à facturer ·{" "}
+                    {fmtEUR(kpi.pipelineEur)}
                   </div>
                 </div>
                 <button
@@ -321,6 +317,14 @@ function DesktopDashboardPage() {
                   <td colSpan={5}>
                     <div className="empty">
                       <div className="empty-title">Aucune facture</div>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: 12 }}
+                        onClick={() => router.push("/billing/new")}
+                      >
+                        <Icon name="plus" size={14} />
+                        Nouvelle facture
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -375,6 +379,67 @@ function DesktopDashboardPage() {
             {recentTasks.length === 0 && (
               <div className="muted small">Aucune task terminée</div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface DashboardSkeletonProps {
+  today: Date
+}
+
+function DashboardSkeleton({ today }: DashboardSkeletonProps) {
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <div className="page-sub">Vue d&apos;ensemble · {fmtDate(today)}</div>
+        </div>
+      </div>
+
+      <div className="kpi-grid">
+        {Array.from({ length: 4 }, (_, i) => (
+          <SkeletonKpi key={i} />
+        ))}
+      </div>
+
+      <div className="chart-grid">
+        <div className="chart-card">
+          <Skeleton width="40%" height={16} />
+          <Skeleton
+            height={220}
+            radius="var(--radius)"
+            className="mt-[18px]"
+          />
+        </div>
+        <div className="chart-card">
+          <Skeleton width="30%" height={16} />
+          <div className="col gap-12 mt-4">
+            {Array.from({ length: 3 }, (_, i) => (
+              <Skeleton key={i} height={56} radius="var(--radius-sm)" />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="chart-grid">
+        <div className="chart-card">
+          <Skeleton width="35%" height={16} />
+          <div className="col mt-4">
+            {Array.from({ length: 5 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        </div>
+        <div className="chart-card">
+          <Skeleton width="45%" height={16} />
+          <div className="col mt-4">
+            {Array.from({ length: 6 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </div>
         </div>
       </div>
