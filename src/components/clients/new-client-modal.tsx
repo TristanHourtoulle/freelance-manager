@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { useCreateClient } from "@/hooks/use-clients"
 import { useToast } from "@/components/providers/toast-provider"
@@ -29,6 +30,7 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
 
   const createClient = useCreateClient()
   const { toast } = useToast()
+  const router = useRouter()
 
   const isValid = firstName.length > 0 && lastName.length > 0
 
@@ -53,6 +55,7 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
             title: `${created.firstName} ${created.lastName} ajouté`,
           })
           onClose()
+          router.push(`/clients/${created.id}`)
         },
         onError: (e) => {
           toast({
