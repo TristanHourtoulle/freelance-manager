@@ -76,7 +76,7 @@ function DesktopBillingPage() {
         <div>
           <h1 className="page-title">Factures</h1>
           <div className="page-sub">
-            {invoices.length} factures · {fmtEUR(totals.paid)} encaissées ·{" "}
+            {invoices.length} factures · {fmtEUR(totals.paid)} payées ·{" "}
             {fmtEUR(totals.outstanding)} en attente
           </div>
         </div>
@@ -108,7 +108,7 @@ function DesktopBillingPage() {
         <div className="kpi kpi-info">
           <div className="kpi-label">
             <Icon name="send" size={11} />
-            En attente
+            Envoyées · en attente
           </div>
           <div className="kpi-value">{fmtEUR(totals.outstanding)}</div>
           <div className="kpi-sub">
@@ -164,7 +164,7 @@ function DesktopBillingPage() {
             [
               { id: "all", label: "Toutes", count: counts.all },
               { id: "DRAFT", label: "Brouillon", count: counts.draft },
-              { id: "SENT", label: "Émise", count: counts.sent },
+              { id: "SENT", label: "Envoyée", count: counts.sent },
               { id: "PARTIAL", label: "Partielle", count: counts.partial },
               { id: "PAID", label: "Payée", count: counts.paid },
               { id: "OVERPAID", label: "Trop-perçu", count: counts.overpaid },
@@ -188,7 +188,7 @@ function DesktopBillingPage() {
             <tr>
               <th style={{ paddingLeft: 20 }}>Numéro</th>
               <th>Client</th>
-              <th>Date</th>
+              <th>Émise</th>
               <th>Échéance</th>
               <th>Type</th>
               <th>Statut</th>
