@@ -14,6 +14,7 @@ import { pipelineValueForTask } from "@/lib/billing-math"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { SuiviView } from "@/components/suivi/suivi-view"
 
 const MobileTasksPage = dynamic(
@@ -32,7 +33,7 @@ export default function TasksPage() {
   )
 }
 
-function DesktopTasksPage() {
+export function DesktopTasksPage() {
   const router = useRouter()
   const search = useSearchParams()
   const initialClient = search.get("clientId") ?? "all"
@@ -52,6 +53,7 @@ function DesktopTasksPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading,
   } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: projects = [] } = useProjects()
@@ -133,6 +135,37 @@ function DesktopTasksPage() {
     [projects],
   )
 
+  const pendingPipeline = useMemo(() => {
+    let value = 0
+    let count = 0
+    for (const t of tasks) {
+      if (t.status !== "PENDING_INVOICE") continue
+      count += 1
+      const c = clientById.get(t.clientId)
+      if (!c) continue
+      value += pipelineValueForTask({
+        billingMode: c.billingMode,
+        rate: c.rate,
+        estimateDays: t.estimate,
+      })
+    }
+    return { value, count }
+  }, [tasks, clientById])
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    statusFilter !== "all" ||
+    clientFilter !== "all" ||
+    projectFilter !== "all"
+
+  function resetFilters() {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setClientFilter("all")
+    setProjectFilter("all")
+    setPage(1)
+  }
+
   const selectedTasks = tasks.filter((t) => selected.has(t.id))
   const selectedClientIds = new Set(selectedTasks.map((t) => t.clientId))
   const canInvoiceSelected = selectedClientIds.size === 1
@@ -166,9 +199,25 @@ function DesktopTasksPage() {
         <div>
           <h1 className="page-title">Tasks</h1>
           <div className="page-sub">
-            {mode === "dev"
-              ? `Synchronisées depuis Linear · ${counts.all} tasks visibles`
-              : "Actions & réunions client"}
+            {mode === "dev" ? (
+              <>
+                Synchronisées depuis Linear · {counts.all} tasks visibles
+                {pendingPipeline.count > 0 && (
+                  <>
+                    {" · "}
+                    <span className="strong" style={{ color: "var(--accent)" }}>
+                      À facturer : {fmtEUR(pendingPipeline.value)}
+                    </span>{" "}
+                    <span className="muted">
+                      ({pendingPipeline.count} task
+                      {pendingPipeline.count > 1 ? "s" : ""})
+                    </span>
+                  </>
+                )}
+              </>
+            ) : (
+              "Actions & réunions client"
+            )}
           </div>
         </div>
         {mode === "dev" && (
@@ -333,177 +382,204 @@ function DesktopTasksPage() {
           </div>
 
           <div className="col gap-16">
-            {groups.length === 0 && (
+            {isLoading && <TasksLoadingSkeleton />}
+            {!isLoading && groups.length === 0 && tasks.length === 0 && (
               <div className="card">
                 <div className="empty">
                   <div className="empty-title">Aucune task</div>
-                  <div>Ajuste les filtres ou lance une sync</div>
+                  <div>Lance une sync Linear pour importer tes issues</div>
                 </div>
               </div>
             )}
-            {groups.map((g) => {
-              const c = clientById.get(g.clientId)
-              const p = projectById.get(g.projectId)
-              const groupValue = g.tasks.reduce((s, t) => {
-                if (!c) return s
+            {!isLoading && groups.length === 0 && tasks.length > 0 && (
+              <div className="card">
+                <div className="empty">
+                  <div className="empty-title">Aucun résultat</div>
+                  <div>Aucune task ne correspond aux filtres actuels</div>
+                  {hasActiveFilters && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ marginTop: 12 }}
+                      onClick={resetFilters}
+                    >
+                      <Icon name="x" size={12} />
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            {!isLoading &&
+              groups.map((g) => {
+                const c = clientById.get(g.clientId)
+                const p = projectById.get(g.projectId)
+                const groupValue = g.tasks.reduce((s, t) => {
+                  if (!c) return s
+                  return (
+                    s +
+                    pipelineValueForTask({
+                      billingMode: c.billingMode,
+                      rate: c.rate,
+                      estimateDays: t.estimate,
+                    })
+                  )
+                }, 0)
+                const allSelected = g.tasks.every((t) => selected.has(t.id))
                 return (
-                  s +
-                  pipelineValueForTask({
-                    billingMode: c.billingMode,
-                    rate: c.rate,
-                    estimateDays: t.estimate,
-                  })
-                )
-              }, 0)
-              const allSelected = g.tasks.every((t) => selected.has(t.id))
-              return (
-                <div
-                  key={`${g.clientId}${g.projectId}`}
-                  className="card"
-                  style={{
-                    padding: 0,
-                    overflow: "hidden",
-                    contentVisibility: "auto",
-                    containIntrinsicSize: "auto 320px",
-                  }}
-                >
                   <div
-                    className="row gap-12"
+                    key={`${g.clientId}${g.projectId}`}
+                    className="card"
                     style={{
-                      padding: "14px 18px",
-                      borderBottom: "1px solid var(--border)",
-                      background: "var(--bg-2)",
+                      padding: 0,
+                      overflow: "hidden",
+                      contentVisibility: "auto",
+                      containIntrinsicSize: "auto 320px",
                     }}
                   >
                     <div
-                      className="av av-sm"
+                      className="row gap-12"
                       style={{
-                        background: c
-                          ? (c.color ??
-                            avatarColor(`${c.firstName}${c.lastName}`))
-                          : undefined,
+                        padding: "14px 18px",
+                        borderBottom: "1px solid var(--border)",
+                        background: "var(--bg-2)",
                       }}
                     >
-                      {c ? initials(`${c.firstName} ${c.lastName}`) : ""}
-                    </div>
-                    <div>
-                      <div className="strong small">
-                        {c?.company ?? "—"} ·{" "}
-                        <span className="muted">{p?.name ?? "—"}</span>
+                      <div
+                        className="av av-sm"
+                        style={{
+                          background: c
+                            ? (c.color ??
+                              avatarColor(`${c.firstName}${c.lastName}`))
+                            : undefined,
+                        }}
+                      >
+                        {c ? initials(`${c.firstName} ${c.lastName}`) : ""}
                       </div>
-                      <div className="xs muted">
-                        {g.tasks.length} task{g.tasks.length > 1 ? "s" : ""} ·{" "}
-                        {c?.billingMode === "DAILY"
-                          ? `${c.rate}€/j`
-                          : c?.billingMode === "HOURLY"
-                            ? `${c.rate}€/h`
-                            : "Forfait"}
+                      <div>
+                        <div className="strong small">
+                          {c?.company ?? "—"} ·{" "}
+                          <span className="muted">{p?.name ?? "—"}</span>
+                        </div>
+                        <div className="xs muted">
+                          {g.tasks.length} task{g.tasks.length > 1 ? "s" : ""} ·{" "}
+                          {c?.billingMode === "DAILY"
+                            ? `${c.rate}€/j`
+                            : c?.billingMode === "HOURLY"
+                              ? `${c.rate}€/h`
+                              : "Forfait"}
+                        </div>
+                      </div>
+                      <div
+                        style={{ marginLeft: "auto" }}
+                        className="num strong"
+                      >
+                        {groupValue > 0 ? fmtEUR(groupValue) : "—"}
                       </div>
                     </div>
-                    <div style={{ marginLeft: "auto" }} className="num strong">
-                      {groupValue > 0 ? fmtEUR(groupValue) : "—"}
-                    </div>
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th style={{ paddingLeft: 18, width: 40 }}>
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={(e) => {
+                                const next = new Set(selected)
+                                g.tasks.forEach((t) =>
+                                  e.target.checked
+                                    ? next.add(t.id)
+                                    : next.delete(t.id),
+                                )
+                                setSelected(next)
+                              }}
+                            />
+                          </th>
+                          <th style={{ width: 88 }}>ID</th>
+                          <th>Title</th>
+                          <th style={{ width: 130 }}>Statut</th>
+                          <th className="right" style={{ width: 90 }}>
+                            Estimate
+                          </th>
+                          <th className="right" style={{ width: 110 }}>
+                            Valeur
+                          </th>
+                          <th style={{ width: 110, paddingRight: 18 }}>
+                            Facturée
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.tasks.map((t) => {
+                          const value = c
+                            ? pipelineValueForTask({
+                                billingMode: c.billingMode,
+                                rate: c.rate,
+                                estimateDays: t.estimate,
+                              })
+                            : 0
+                          const inv = t.invoiceId
+                            ? invoices.find((i) => i.id === t.invoiceId)
+                            : null
+                          const isSel = selected.has(t.id)
+                          return (
+                            <tr
+                              key={t.id}
+                              style={
+                                isSel
+                                  ? { background: "var(--accent-soft)" }
+                                  : {}
+                              }
+                            >
+                              <td style={{ paddingLeft: 18 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSel}
+                                  onChange={(e) => {
+                                    const next = new Set(selected)
+                                    if (e.target.checked) next.add(t.id)
+                                    else next.delete(t.id)
+                                    setSelected(next)
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <span className="task-id">
+                                  {t.linearIdentifier}
+                                </span>
+                              </td>
+                              <td className="strong">{t.title}</td>
+                              <td>
+                                <StatusPill
+                                  status={taskStatusToPill(t.status)}
+                                />
+                              </td>
+                              <td className="right num">
+                                {t.estimate ? `${t.estimate}j` : "—"}
+                              </td>
+                              <td className="right num">
+                                {value > 0 ? fmtEUR(value) : "—"}
+                              </td>
+                              <td style={{ paddingRight: 18 }}>
+                                {inv ? (
+                                  <Link
+                                    href={`/billing?invoiceId=${t.invoiceId}`}
+                                    className="mono xs"
+                                    style={{ color: "var(--accent)" }}
+                                  >
+                                    {inv.number}
+                                  </Link>
+                                ) : (
+                                  <span className="muted xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th style={{ paddingLeft: 18, width: 40 }}>
-                          <input
-                            type="checkbox"
-                            checked={allSelected}
-                            onChange={(e) => {
-                              const next = new Set(selected)
-                              g.tasks.forEach((t) =>
-                                e.target.checked
-                                  ? next.add(t.id)
-                                  : next.delete(t.id),
-                              )
-                              setSelected(next)
-                            }}
-                          />
-                        </th>
-                        <th style={{ width: 88 }}>ID</th>
-                        <th>Title</th>
-                        <th style={{ width: 130 }}>Statut</th>
-                        <th className="right" style={{ width: 90 }}>
-                          Estimate
-                        </th>
-                        <th className="right" style={{ width: 110 }}>
-                          Valeur
-                        </th>
-                        <th style={{ width: 110, paddingRight: 18 }}>
-                          Facturée
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {g.tasks.map((t) => {
-                        const value = c
-                          ? pipelineValueForTask({
-                              billingMode: c.billingMode,
-                              rate: c.rate,
-                              estimateDays: t.estimate,
-                            })
-                          : 0
-                        const inv = t.invoiceId
-                          ? invoices.find((i) => i.id === t.invoiceId)
-                          : null
-                        const isSel = selected.has(t.id)
-                        return (
-                          <tr
-                            key={t.id}
-                            style={
-                              isSel ? { background: "var(--accent-soft)" } : {}
-                            }
-                          >
-                            <td style={{ paddingLeft: 18 }}>
-                              <input
-                                type="checkbox"
-                                checked={isSel}
-                                onChange={(e) => {
-                                  const next = new Set(selected)
-                                  if (e.target.checked) next.add(t.id)
-                                  else next.delete(t.id)
-                                  setSelected(next)
-                                }}
-                              />
-                            </td>
-                            <td>
-                              <span className="task-id">
-                                {t.linearIdentifier}
-                              </span>
-                            </td>
-                            <td className="strong">{t.title}</td>
-                            <td>
-                              <StatusPill status={taskStatusToPill(t.status)} />
-                            </td>
-                            <td className="right num">
-                              {t.estimate ? `${t.estimate}j` : "—"}
-                            </td>
-                            <td className="right num">
-                              {value > 0 ? fmtEUR(value) : "—"}
-                            </td>
-                            <td style={{ paddingRight: 18 }}>
-                              {inv ? (
-                                <Link
-                                  href={`/billing?invoiceId=${t.invoiceId}`}
-                                  className="mono xs"
-                                  style={{ color: "var(--accent)" }}
-                                >
-                                  {inv.number}
-                                </Link>
-                              ) : (
-                                <span className="muted xs">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            })}
+                )
+              })}
           </div>
 
           {filtered.length > PAGE_SIZE && (
@@ -611,5 +687,46 @@ function DesktopTasksPage() {
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * Placeholder group cards shown while the first tasks page is loading, so the
+ * true empty state never flashes during the initial fetch.
+ */
+function TasksLoadingSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 2 }, (_, gi) => (
+        <div
+          key={gi}
+          className="card"
+          style={{ padding: 0, overflow: "hidden" }}
+        >
+          <div
+            className="row gap-12"
+            style={{
+              padding: "14px 18px",
+              borderBottom: "1px solid var(--border)",
+              background: "var(--bg-2)",
+            }}
+          >
+            <Skeleton width={22} height={22} radius="var(--radius-sm)" />
+            <div className="col gap-8">
+              <Skeleton width={180} height={12} />
+              <Skeleton width={120} height={10} />
+            </div>
+            <div style={{ marginLeft: "auto" }}>
+              <Skeleton width={80} height={14} />
+            </div>
+          </div>
+          <div style={{ padding: "8px 18px" }}>
+            {Array.from({ length: 4 }, (_, ri) => (
+              <SkeletonRow key={ri} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   )
 }
