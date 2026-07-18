@@ -6,8 +6,8 @@ import { ClientSummaryBar } from "@/features/billing/invoice-builder-parts"
 
 /**
  * The create-mode configuration card: client and project pickers, invoice
- * number, dates, kind and initial-status toggles, and the optional
- * mark-as-paid control.
+ * kind toggle, dates, auto number, and the mark-as-paid control (applied on
+ * the emit path).
  */
 export function CreateInvoiceConfigCard({
   builder,
@@ -53,35 +53,6 @@ export function CreateInvoiceConfigCard({
               ))}
           </select>
         </div>
-        <div className="field" style={{ width: 200 }}>
-          <label className="field-label">
-            Numéro <span className="muted xs">— auto si vide</span>
-          </label>
-          <input
-            className="input mono"
-            placeholder="2026-1042"
-            value={b.customNumber}
-            onChange={(e) => b.setCustomNumber(e.target.value)}
-          />
-        </div>
-        <div className="field" style={{ width: 180 }}>
-          <label className="field-label">Émise le</label>
-          <input
-            className="input"
-            type="date"
-            value={b.issueDate}
-            onChange={(e) => b.setIssueDate(e.target.value)}
-          />
-        </div>
-        <div className="field" style={{ width: 180 }}>
-          <label className="field-label">Échéance</label>
-          <input
-            className="input"
-            type="date"
-            value={b.dueDate}
-            onChange={(e) => b.setDueDate(e.target.value)}
-          />
-        </div>
         <div className="field" style={{ width: 220 }}>
           <label className="field-label">Type</label>
           <div
@@ -111,82 +82,71 @@ export function CreateInvoiceConfigCard({
             ))}
           </div>
         </div>
-        <div className="field" style={{ width: 280 }}>
-          <label className="field-label">Statut initial</label>
+        <div className="field" style={{ width: 180 }}>
+          <label className="field-label">Émise le</label>
+          <input
+            className="input"
+            type="date"
+            value={b.issueDate}
+            onChange={(e) => b.setIssueDate(e.target.value)}
+          />
+        </div>
+        <div className="field" style={{ width: 180 }}>
+          <label className="field-label">Échéance</label>
+          <input
+            className="input"
+            type="date"
+            value={b.dueDate}
+            onChange={(e) => b.setDueDate(e.target.value)}
+          />
+        </div>
+        <div className="field" style={{ width: 200 }}>
+          <label className="field-label">
+            Numéro <span className="muted xs">— auto si vide</span>
+          </label>
+          <input
+            className="input mono"
+            placeholder="2026-1042"
+            value={b.customNumber}
+            onChange={(e) => b.setCustomNumber(e.target.value)}
+          />
+        </div>
+        <div className="field" style={{ width: 320 }}>
+          <label className="field-label">Marquer comme payée</label>
           <div
-            className="row gap-4"
+            className="row gap-8"
             style={{
               background: "var(--bg-2)",
-              borderRadius: 7,
-              padding: 3,
               border: "1px solid var(--border)",
+              borderRadius: 7,
+              padding: "8px 10px",
+              height: 40,
             }}
           >
-            {(
-              [
-                { id: "DRAFT", label: "Brouillon" },
-                { id: "SENT", label: "Émise" },
-              ] as { id: "DRAFT" | "SENT"; label: string }[]
-            ).map((s) => (
-              <button
-                key={s.id}
-                className="chip"
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  background:
-                    b.initialStatus === s.id ? "var(--accent)" : "transparent",
-                  color:
-                    b.initialStatus === s.id
-                      ? "var(--accent-text)"
-                      : "var(--text-1)",
-                  border: "none",
-                }}
-                onClick={() => b.setInitialStatus(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
+            <input
+              type="checkbox"
+              id="markPaid"
+              checked={b.markPaid}
+              onChange={(e) => b.setMarkPaid(e.target.checked)}
+            />
+            <label
+              htmlFor="markPaid"
+              className="small"
+              style={{ flex: 1, cursor: "pointer" }}
+            >
+              Paiement total reçu
+            </label>
+            {b.markPaid && (
+              <input
+                className="input"
+                type="date"
+                value={b.paidAt}
+                onChange={(e) => b.setPaidAt(e.target.value)}
+                style={{ width: 140 }}
+              />
+            )}
           </div>
         </div>
-        {b.initialStatus === "SENT" && (
-          <div className="field" style={{ width: 320 }}>
-            <label className="field-label">Marquer comme payée</label>
-            <div
-              className="row gap-8"
-              style={{
-                background: "var(--bg-2)",
-                border: "1px solid var(--border)",
-                borderRadius: 7,
-                padding: "8px 10px",
-                height: 40,
-              }}
-            >
-              <input
-                type="checkbox"
-                id="markPaid"
-                checked={b.markPaid}
-                onChange={(e) => b.setMarkPaid(e.target.checked)}
-              />
-              <label
-                htmlFor="markPaid"
-                className="small"
-                style={{ flex: 1, cursor: "pointer" }}
-              >
-                Paiement total reçu
-              </label>
-              {b.markPaid && (
-                <input
-                  className="input"
-                  type="date"
-                  value={b.paidAt}
-                  onChange={(e) => b.setPaidAt(e.target.value)}
-                  style={{ width: 140 }}
-                />
-              )}
-            </div>
-          </div>
-        )}
       </div>
       {client && <ClientSummaryBar client={client} />}
     </div>

@@ -116,18 +116,23 @@ function NewInvoicePageContent() {
                 <Icon name="grid" size={14} />
                 Diviser en plusieurs
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => b.submit(b.initialStatus)}
-                disabled={!effectiveTotal || b.isPending}
-              >
-                <Icon name="check" size={14} />
-                {b.initialStatus === "DRAFT"
-                  ? "Sauver le brouillon"
-                  : b.markPaid
-                    ? "Émettre et marquer payée"
-                    : "Émettre la facture"}
-              </button>
+              <div className="row gap-8">
+                <button
+                  className="btn btn-secondary"
+                  disabled={!effectiveTotal || b.isPending}
+                  onClick={() => b.submit("DRAFT")}
+                >
+                  Sauver brouillon
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={!effectiveTotal || b.isPending}
+                  onClick={() => b.submit("SENT")}
+                >
+                  <Icon name="send" size={14} />
+                  Émettre
+                </button>
+              </div>
             </div>
           }
         />
@@ -186,18 +191,25 @@ function NewInvoicePageContent() {
             }
             actions={
               <div className="col gap-8" style={{ marginTop: 18 }}>
-                <button
-                  className="btn btn-primary"
-                  disabled={lines.length === 0 || b.isPending}
-                  onClick={() => b.submit(b.initialStatus)}
-                >
-                  <Icon name="check" size={14} />
-                  {b.initialStatus === "DRAFT"
-                    ? "Sauver le brouillon"
-                    : b.initialStatus === "SENT"
-                      ? "Émettre la facture"
-                      : "Créer la facture (payée)"}
-                </button>
+                <div className="row gap-8">
+                  <button
+                    className="btn btn-secondary"
+                    style={{ flex: 1, justifyContent: "center" }}
+                    disabled={lines.length === 0 || b.isPending}
+                    onClick={() => b.submit("DRAFT")}
+                  >
+                    Sauver brouillon
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, justifyContent: "center" }}
+                    disabled={lines.length === 0 || b.isPending}
+                    onClick={() => b.submit("SENT")}
+                  >
+                    <Icon name="send" size={14} />
+                    Émettre
+                  </button>
+                </div>
                 <button
                   className="btn btn-secondary"
                   disabled={!effectiveTotal || b.isPending}
