@@ -16,6 +16,7 @@ import {
   avatarColor,
 } from "@/lib/format"
 import {
+  useCreatePayment,
   useInvoice,
   useUpdateInvoiceStatus,
   type InvoiceDocStatus,
@@ -28,10 +29,13 @@ interface InvoiceDrawerProps {
   onClose: () => void
 }
 
+const todayISO = () => new Date().toISOString().slice(0, 10)
+
 export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
   const router = useRouter()
   const { data: invoice, isLoading } = useInvoice(invoiceId)
   const updateStatus = useUpdateInvoiceStatus()
+  const createPayment = useCreatePayment(invoiceId)
   const { toast } = useToast()
 
   if (isLoading || !invoice) {
@@ -47,6 +51,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
   const hasOverride = invoice.totalOverride != null
   const isFullyPaid =
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
+  const canMarkPaid = invoice.status === "SENT" && !isFullyPaid
 
   function setStatus(status: InvoiceDocStatus) {
     updateStatus.mutate(
@@ -66,6 +71,27 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
     )
   }
 
+  function markPaid() {
+    createPayment.mutate(
+      {
+        amount: invoice!.balanceDue,
+        paidAt: todayISO(),
+        method: null,
+        note: null,
+      },
+      {
+        onSuccess: () =>
+          toast({ variant: "success", title: "Facture soldée" }),
+        onError: (e) =>
+          toast({
+            variant: "error",
+            title: "Erreur",
+            description: e instanceof Error ? e.message : String(e),
+          }),
+      },
+    )
+  }
+
   const footer = (
     <>
       {canEdit && (
@@ -77,14 +103,20 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
           Modifier
         </button>
       )}
-      <button className="btn btn-ghost">
-        <Icon name="download" size={14} />
-        PDF
-      </button>
       {invoice.status === "DRAFT" && (
-        <button className="btn btn-secondary" onClick={() => setStatus("SENT")}>
+        <button className="btn btn-primary" onClick={() => setStatus("SENT")}>
           <Icon name="send" size={14} />
           Émettre
+        </button>
+      )}
+      {canMarkPaid && (
+        <button
+          className="btn btn-primary"
+          onClick={markPaid}
+          disabled={createPayment.isPending}
+        >
+          <Icon name="check" size={14} />
+          Marquer payée
         </button>
       )}
       {isFullyPaid && (
@@ -132,7 +164,21 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
         </div>
         <div
           className="row gap-12"
-          style={{ padding: 12, background: "var(--bg-2)", borderRadius: 8 }}
+          role="link"
+          tabIndex={0}
+          onClick={() => router.push(`/clients/${invoice.clientId}`)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              router.push(`/clients/${invoice.clientId}`)
+            }
+          }}
+          style={{
+            padding: 12,
+            background: "var(--bg-2)",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
         >
           <div
             className="av av-lg"
@@ -152,6 +198,11 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
             <div className="muted xs truncate">{client.email ?? ""}</div>
           </div>
           <BillingTypePill type={client.billingMode} />
+          <Icon
+            name="chevron-right"
+            size={16}
+            style={{ color: "var(--text-3)", flexShrink: 0 }}
+          />
         </div>
         {invoice.notes && (
           <div className="muted xs" style={{ whiteSpace: "pre-wrap" }}>

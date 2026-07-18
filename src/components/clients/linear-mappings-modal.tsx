@@ -1,11 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
 import { useAddLinearMapping, useLinearProjects } from "@/hooks/use-linear"
 import { useDeleteProject, useProjects } from "@/hooks/use-projects"
 import { useClients } from "@/hooks/use-clients"
+import { useSettings } from "@/hooks/use-settings"
 import { useToast } from "@/components/providers/toast-provider"
 import { initials, avatarColor } from "@/lib/format"
 
@@ -34,11 +36,16 @@ export function LinearMappingsModal({
 }: LinearMappingsModalProps) {
   const [clientId, setClientId] = useState(initialClientId ?? "")
   const [search, setSearch] = useState("")
+  const [justLinked, setJustLinked] = useState<Set<string>>(new Set())
   const { toast } = useToast()
+  const router = useRouter()
+
+  const { data: settings } = useSettings()
+  const hasNoLinearToken = settings?.hasLinearToken === false
 
   const { data: clients = [] } = useClients()
   const { data: linearProjects = [], isLoading: loadingProjects } =
-    useLinearProjects(Boolean(clientId))
+    useLinearProjects(Boolean(clientId) && !hasNoLinearToken)
   const { data: localProjects = [] } = useProjects()
   const addMapping = useAddLinearMapping(clientId)
   const deleteProject = useDeleteProject()
@@ -86,8 +93,10 @@ export function LinearMappingsModal({
 
   function link(linearProjectId: string) {
     addMapping.mutate(linearProjectId, {
-      onSuccess: () =>
-        toast({ variant: "success", title: "Projet lié et synchronisé" }),
+      onSuccess: () => {
+        setJustLinked((prev) => new Set(prev).add(linearProjectId))
+        toast({ variant: "success", title: "Projet lié et synchronisé" })
+      },
       onError: (e) =>
         toast({
           variant: "error",
@@ -112,6 +121,16 @@ export function LinearMappingsModal({
           description: e instanceof Error ? e.message : String(e),
         }),
     })
+  }
+
+  function goToSettings() {
+    onClose()
+    router.push("/settings")
+  }
+
+  function openTasks(localProjectId: string) {
+    onClose()
+    router.push(`/tasks?projectId=${localProjectId}`)
   }
 
   const client = clients.find((c) => c.id === clientId)
@@ -173,7 +192,38 @@ export function LinearMappingsModal({
         </div>
       )}
 
-      {clientId && (
+      {hasNoLinearToken && (
+        <div
+          className="col gap-8"
+          style={{
+            padding: 24,
+            textAlign: "center",
+            alignItems: "center",
+            background: "var(--bg-2)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}
+        >
+          <Icon name="link" size={20} className="muted" />
+          <div className="strong small">
+            Connecte d&apos;abord ton token Linear
+          </div>
+          <div className="muted xs" style={{ maxWidth: 360 }}>
+            Aucun projet Linear ne peut être lié tant que ton token n&apos;est
+            pas configuré dans les réglages.
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: 4 }}
+            onClick={goToSettings}
+          >
+            <Icon name="settings" size={12} />
+            Configurer le token
+          </button>
+        </div>
+      )}
+
+      {!hasNoLinearToken && clientId && (
         <>
           <div style={{ position: "relative" }}>
             <Icon
@@ -240,14 +290,25 @@ export function LinearMappingsModal({
                       ) : null}
                     </div>
                     {isLinkedHere && linked ? (
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        disabled={pending}
-                        onClick={() => unlink(linked.localProjectId)}
-                      >
-                        <Icon name="x" size={12} />
-                        Délier
-                      </button>
+                      <div className="row gap-8">
+                        {justLinked.has(p.id) && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => openTasks(linked.localProjectId)}
+                          >
+                            <Icon name="list" size={12} />
+                            Voir les tasks
+                          </button>
+                        )}
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          disabled={pending}
+                          onClick={() => unlink(linked.localProjectId)}
+                        >
+                          <Icon name="x" size={12} />
+                          Délier
+                        </button>
+                      </div>
                     ) : lockedByOther ? (
                       <span
                         className="pill pill-no-dot xs"

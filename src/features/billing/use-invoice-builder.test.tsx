@@ -209,6 +209,59 @@ describe("useInvoiceBuilder (create mode)", () => {
     expect(result.current.effectiveTotal).toBe(1000)
   })
 
+  it("defaults the initial status to SENT (send-first)", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: NONE,
+        initialClientId: "c1",
+      }),
+    )
+    expect(result.current.initialStatus).toBe("SENT")
+  })
+
+  it("attaches a payment when emitting with markPaid enabled", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: PRE_T1,
+        initialClientId: "c1",
+      }),
+    )
+
+    act(() => {
+      result.current.setMarkPaid(true)
+    })
+    act(() => {
+      result.current.submit("SENT")
+    })
+
+    const payload = h.createMutate.mock.calls[0]![0]
+    expect(payload.status).toBe("SENT")
+    expect(payload.initialPayment).toMatchObject({ amount: 1000 })
+  })
+
+  it("never attaches a payment when saving a draft, even with markPaid enabled", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: PRE_T1,
+        initialClientId: "c1",
+      }),
+    )
+
+    act(() => {
+      result.current.setMarkPaid(true)
+    })
+    act(() => {
+      result.current.submit("DRAFT")
+    })
+
+    const payload = h.createMutate.mock.calls[0]![0]
+    expect(payload.status).toBe("DRAFT")
+    expect(payload.initialPayment).toBeNull()
+  })
+
   it("submits a create payload built from the current state", () => {
     const { result } = renderHook(() =>
       useInvoiceBuilder({

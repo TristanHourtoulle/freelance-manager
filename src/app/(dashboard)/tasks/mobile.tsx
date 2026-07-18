@@ -27,7 +27,7 @@ export function MobileTasksPage() {
     return tasks
       .filter((t) => {
         if (filter === "pending") return t.status === "PENDING_INVOICE"
-        if (filter === "done") return t.status === "DONE" && !t.invoiceId
+        if (filter === "done") return t.status === "DONE"
         if (filter === "invoiced") return t.invoiceId != null
         return (
           t.status === "PENDING_INVOICE" ||

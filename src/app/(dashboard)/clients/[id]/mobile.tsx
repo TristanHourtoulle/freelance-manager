@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -17,6 +18,14 @@ import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
 
+const LinearMappingsModal = dynamic(
+  () =>
+    import("@/components/clients/linear-mappings-modal").then(
+      (m) => m.LinearMappingsModal,
+    ),
+  { ssr: false },
+)
+
 type Tab = "overview" | "projects" | "tasks" | "invoices" | "suivi" | "activity"
 
 interface MobileClientDetailPageProps {
@@ -28,6 +37,7 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
   const { data: client, isLoading } = useClientDetail(id)
   const [tab, setTab] = useState<Tab>("overview")
   const [showEdit, setShowEdit] = useState(false)
+  const [showLink, setShowLink] = useState(false)
   const { data: activity } = useClientActivity(tab === "activity" ? id : null)
 
   if (isLoading) {
@@ -115,6 +125,14 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
           >
             <Icon name="edit" size={12} />
             Modifier
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm grow"
+            onClick={() => setShowLink(true)}
+          >
+            <Icon name="link" size={12} />
+            Lier projets Linear
           </button>
           {pendingTasks.length > 0 && (
             <button
@@ -282,6 +300,16 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
               {projects.length === 0 && (
                 <div className="empty">
                   <div className="empty-title">Aucun projet</div>
+                  <div>Lie un projet Linear pour synchroniser les tasks.</div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setShowLink(true)}
+                    style={{ marginTop: 12 }}
+                  >
+                    <Icon name="link" size={12} />
+                    Lier projets Linear
+                  </button>
                 </div>
               )}
             </div>
@@ -350,6 +378,12 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
 
       {showEdit && (
         <EditClientModal client={client} onClose={() => setShowEdit(false)} />
+      )}
+      {showLink && (
+        <LinearMappingsModal
+          initialClientId={client.id}
+          onClose={() => setShowLink(false)}
+        />
       )}
     </div>
   )
