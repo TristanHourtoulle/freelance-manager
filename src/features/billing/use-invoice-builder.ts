@@ -146,6 +146,11 @@ export function useInvoiceBuilder(
   const preselectedTaskIds =
     args.mode === "create" ? args.preselectedTaskIds : undefined
 
+  const preselectedKey = useMemo(
+    () => (preselectedTaskIds ? [...preselectedTaskIds].sort().join(",") : ""),
+    [preselectedTaskIds],
+  )
+
   useEffect(() => {
     if (isEdit) return
     if (!client || !preselectedTaskIds || preselectedTaskIds.length === 0)
@@ -156,9 +161,9 @@ export function useInvoiceBuilder(
       if (!t) continue
       seeded.push(buildTaskLine(newLineId(), client, t))
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLines(seeded)
-  }, [isEdit, client, preselectedTaskIds, tasks])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, client, preselectedKey, tasks])
 
   const eligibleTasks = useMemo(
     () =>
