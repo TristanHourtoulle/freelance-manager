@@ -24,13 +24,17 @@ export async function GET(req: Request) {
 
   try {
     const { cursor, limit } = parsePagination(req)
+    const archived = new URL(req.url).searchParams.get("archived") === "true"
 
-    if (!cursor && limit === 50) {
+    if (!cursor && limit === 50 && !archived) {
       return NextResponse.json(await getClientsFirstPage(user.id))
     }
 
     const rows = await prisma.client.findMany({
-      where: { userId: user.id, archivedAt: null },
+      where: {
+        userId: user.id,
+        archivedAt: archived ? { not: null } : null,
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
