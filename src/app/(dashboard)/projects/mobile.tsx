@@ -1,12 +1,23 @@
 "use client"
 
+import { useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
+import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useProjects } from "@/hooks/use-projects"
-import { useTasks } from "@/hooks/use-tasks"
+import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
+
+const LinearMappingsModal = dynamic(
+  () =>
+    import("@/components/clients/linear-mappings-modal").then(
+      (m) => m.LinearMappingsModal,
+    ),
+  { ssr: false },
+)
 
 export function MobileProjectsPage() {
   const router = useRouter()
@@ -14,6 +25,8 @@ export function MobileProjectsPage() {
   const { data: tasks = [] } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: invoices = [] } = useInvoices()
+  const sync = useSyncLinear()
+  const [showLink, setShowLink] = useState(false)
 
   return (
     <div className="m-screen">
@@ -25,6 +38,30 @@ export function MobileProjectsPage() {
             {projects.length} projet{projects.length > 1 ? "s" : ""} ·
             synchronisés Linear
           </div>
+        </div>
+
+        <div className="row gap-8" style={{ padding: "0 14px 4px" }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm grow"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <Icon
+              name="sync"
+              size={12}
+              className={sync.isPending ? "spin" : ""}
+            />
+            {sync.isPending ? "Synchronisation…" : "Sync Linear"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm grow"
+            onClick={() => setShowLink(true)}
+          >
+            <Icon name="link" size={12} />
+            Lier projets Linear
+          </button>
         </div>
 
         <div className="m-stack">
@@ -41,7 +78,7 @@ export function MobileProjectsPage() {
                 key={p.id}
                 type="button"
                 className="card"
-                onClick={() => c && router.push(`/clients/${c.id}`)}
+                onClick={() => router.push(`/tasks?projectId=${p.id}`)}
                 style={{ textAlign: "left", width: "100%" }}
               >
                 <div className="row gap-12">
@@ -115,11 +152,22 @@ export function MobileProjectsPage() {
           {projects.length === 0 && (
             <div className="empty">
               <div className="empty-title">Aucun projet</div>
-              <div>Lie un projet Linear depuis un client.</div>
+              <div>Lie un projet Linear pour synchroniser les tasks.</div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowLink(true)}
+                style={{ marginTop: 12 }}
+              >
+                <Icon name="link" size={12} />
+                Lier projets Linear
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {showLink && <LinearMappingsModal onClose={() => setShowLink(false)} />}
     </div>
   )
 }
