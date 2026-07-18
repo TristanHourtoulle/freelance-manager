@@ -6,7 +6,6 @@ import { CmdKProvider } from "@/components/cmdk/cmdk-provider"
 
 interface AppShellProps {
   user: { id: string; name: string; email: string }
-  crumbs: string[]
   children: ReactNode
 }
 
@@ -17,7 +16,7 @@ interface AppShellProps {
  * so server and client agree on the markup and there's no hydration
  * mismatch when the viewport is narrow.
  */
-export function AppShell({ user, crumbs, children }: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
   return (
     <CmdKProvider>
       <div className="app">
@@ -26,7 +25,7 @@ export function AppShell({ user, crumbs, children }: AppShellProps) {
         </div>
         <div className="main">
           <div className="desktop-only">
-            <Topbar crumbs={crumbs} />
+            <Topbar />
           </div>
           {children}
         </div>

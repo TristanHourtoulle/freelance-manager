@@ -25,7 +25,6 @@ export async function ProtectedDashboardShell({
         name: session.user.name,
         email: session.user.email,
       }}
-      crumbs={["FreelanceManager"]}
     >
       {children}
     </AppShell>
