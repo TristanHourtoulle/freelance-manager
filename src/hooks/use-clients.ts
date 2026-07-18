@@ -15,12 +15,22 @@ import type { ClientWireRow } from "@/domain/clients/types"
 export type { ClientWireRow } from "@/domain/clients/types"
 export type ClientDTO = ClientWireRow
 
-export function useClients() {
+interface UseClientsOptions {
+  archived?: boolean
+}
+
+/**
+ * Paginated client list. Active clients by default; pass `archived` to read
+ * the archived set instead (distinct query key so the two never collide).
+ *
+ * @param options - `archived` switches the list to archived clients.
+ */
+export function useClients({ archived = false }: UseClientsOptions = {}) {
   return useInfiniteQuery({
-    queryKey: qk.clients(),
+    queryKey: archived ? [...qk.clients(), "archived"] : qk.clients(),
     queryFn: ({ pageParam }) =>
       api.get<PaginatedResponse<ClientDTO>>(
-        `/api/clients?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
+        `/api/clients?limit=50${archived ? "&archived=true" : ""}${pageParam ? `&cursor=${pageParam}` : ""}`,
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,

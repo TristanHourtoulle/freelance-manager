@@ -18,6 +18,7 @@ import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { SkeletonCard, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 
 const MobileClientsPage = dynamic(
@@ -51,13 +52,15 @@ function DesktopClientsPage() {
   const [search, setSearch] = useState("")
   const [view, setView] = useState<ViewMode>("grid")
   const [showNew, setShowNew] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
 
   const {
     data: clients = [],
+    isLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useClients()
+  } = useClients({ archived: showArchived })
   const { data: invoices = [] } = useInvoices()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
@@ -134,14 +137,44 @@ function DesktopClientsPage() {
     return { totalRevenue, dailyCount, fixedCount, hourlyCount }
   }, [enriched])
 
+  const isTrulyEmpty = enriched.length === 0
+  const emptyBlock = isTrulyEmpty ? (
+    <div className="empty">
+      <div className="empty-title">
+        {showArchived ? "Aucun client archivé" : "Aucun client"}
+      </div>
+      {showArchived ? (
+        <div>Les clients que tu archives apparaîtront ici.</div>
+      ) : (
+        <>
+          <div>Crée ton premier client pour démarrer.</div>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 14 }}
+            onClick={() => setShowNew(true)}
+          >
+            <Icon name="plus" size={14} />
+            Nouveau client
+          </button>
+        </>
+      )}
+    </div>
+  ) : (
+    <div className="empty">
+      <div className="empty-title">Aucun résultat</div>
+      <div>Aucun client ne correspond à ta recherche ou à ce filtre.</div>
+    </div>
+  )
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Clients</h1>
           <div className="page-sub">
-            {enriched.length} clients actifs · {fmtEUR(totalRevenue)} de revenus
-            cumulés
+            {showArchived
+              ? `${enriched.length} client${enriched.length > 1 ? "s" : ""} archivé${enriched.length > 1 ? "s" : ""}`
+              : `${enriched.length} clients actifs · ${fmtEUR(totalRevenue)} de revenus cumulés`}
           </div>
         </div>
         <div className="page-actions">
@@ -189,6 +222,13 @@ function DesktopClientsPage() {
                 {f.label} <span className="count">{f.count}</span>
               </button>
             ))}
+            <button
+              className={"chip" + (showArchived ? " active" : "")}
+              onClick={() => setShowArchived((v) => !v)}
+              title="Afficher les clients archivés"
+            >
+              <Icon name="archive" size={12} /> Archivés
+            </button>
           </div>
           <div
             className="row gap-4"
@@ -225,7 +265,21 @@ function DesktopClientsPage() {
         </div>
       </div>
 
-      {view === "grid" ? (
+      {isLoading ? (
+        view === "grid" ? (
+          <div className="client-grid">
+            {Array.from({ length: 6 }, (_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="card">
+            {Array.from({ length: 6 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        )
+      ) : view === "grid" ? (
         <div className="client-grid">
           {filtered.map((c) => (
             <div
@@ -297,10 +351,7 @@ function DesktopClientsPage() {
           ))}
           {filtered.length === 0 && (
             <div className="card" style={{ gridColumn: "1 / -1" }}>
-              <div className="empty">
-                <div className="empty-title">Aucun client</div>
-                <div>Crée ton premier client pour démarrer.</div>
-              </div>
+              {emptyBlock}
             </div>
           )}
         </div>
@@ -313,7 +364,7 @@ function DesktopClientsPage() {
                 <th>Type</th>
                 <th>Taux</th>
                 <th>Projets</th>
-                <th>Pending</th>
+                <th>À facturer</th>
                 <th className="right">Revenu</th>
                 <th className="right" style={{ paddingRight: 20 }}>
                   Encours
@@ -368,11 +419,7 @@ function DesktopClientsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7}>
-                    <div className="empty">
-                      <div className="empty-title">Aucun client</div>
-                    </div>
-                  </td>
+                  <td colSpan={7}>{emptyBlock}</td>
                 </tr>
               )}
             </tbody>
