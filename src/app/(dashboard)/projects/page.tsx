@@ -18,6 +18,7 @@ const LinearMappingsModal = dynamic(
 )
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 
 const MobileProjectsPage = dynamic(
@@ -75,6 +76,7 @@ function DesktopProjectsPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isPending,
   } = useProjects()
   const { data: tasks = [] } = useTasks()
   const { data: invoices = [] } = useInvoices()
@@ -217,7 +219,11 @@ function DesktopProjectsPage() {
         <div>
           <h1 className="page-title">Projets</h1>
           <div className="page-sub">
-            {projects.length} projets · synchronisés depuis Linear
+            {isPending ? (
+              <Skeleton width={200} height={13} />
+            ) : (
+              `${projects.length} projets · synchronisés depuis Linear`
+            )}
           </div>
         </div>
         <div className="page-actions">
@@ -339,7 +345,18 @@ function DesktopProjectsPage() {
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 && (
+            {isPending &&
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`skeleton-${i}`}>
+                  <td
+                    colSpan={7}
+                    style={{ paddingLeft: 20, paddingRight: 20 }}
+                  >
+                    <SkeletonRow />
+                  </td>
+                </tr>
+              ))}
+            {!isPending && sorted.length === 0 && (
               <tr>
                 <td colSpan={7}>
                   <div className="empty">
@@ -352,7 +369,8 @@ function DesktopProjectsPage() {
                 </td>
               </tr>
             )}
-            {sorted.map((p) => (
+            {!isPending &&
+              sorted.map((p) => (
               <tr
                 key={p.id}
                 style={{ cursor: "pointer" }}
