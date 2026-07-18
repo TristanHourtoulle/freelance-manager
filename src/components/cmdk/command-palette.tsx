@@ -28,6 +28,7 @@ interface CommandPaletteProps {
   onClose: () => void
   commands: CommandItem[]
   placeholder?: string
+  onQueryChange?: (query: string) => void
 }
 
 function fuzzyScore(text: string, q: string): number {
@@ -73,6 +74,7 @@ export function CommandPalette({
   onClose,
   commands,
   placeholder = "Tape une commande ou cherche…",
+  onQueryChange,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
@@ -96,6 +98,10 @@ export function CommandPalette({
       inputRef.current?.focus()
     }
   }, [open])
+
+  useEffect(() => {
+    onQueryChange?.(query)
+  }, [query, onQueryChange])
 
   const grouped = useMemo<Group[]>(() => {
     const filtered = !query.trim()
