@@ -15,7 +15,13 @@ import {
   initials,
   avatarColor,
 } from "@/lib/format"
-import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
+import {
+  useClientActivity,
+  useClientDetail,
+  type ClientDetailDTO,
+} from "@/hooks/use-client-detail"
+import { pipelineValueForTask } from "@/lib/billing-math"
+import { Skeleton, SkeletonKpi } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 
 const LinearMappingsModal = dynamic(
@@ -45,6 +51,40 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
+interface ClientBillingSummary {
+  billableTasks: ClientDetailDTO["tasks"]
+  pipelineValue: number
+}
+
+/**
+ * Derive the client's billable pipeline from its cached tasks.
+ *
+ * "Billable" is the same gate the invoice builder uses: a task must be
+ * `PENDING_INVOICE` and not already attached to an invoice. The pipeline value
+ * sums `pipelineValueForTask` over that set (FIXED clients contribute 0).
+ *
+ * @param client - Billing mode, rate and tasks from the client detail DTO.
+ * @returns The billable task subset and its total pipeline value in euros.
+ */
+export function deriveClientBilling(
+  client: Pick<ClientDetailDTO, "billingMode" | "rate" | "tasks">,
+): ClientBillingSummary {
+  const billableTasks = client.tasks.filter(
+    (t) => t.status === "PENDING_INVOICE" && !t.invoiceId,
+  )
+  const pipelineValue = billableTasks.reduce(
+    (sum, t) =>
+      sum +
+      pipelineValueForTask({
+        billingMode: client.billingMode,
+        rate: client.rate,
+        estimateDays: t.estimate,
+      }),
+    0,
+  )
+  return { billableTasks, pipelineValue }
+}
+
 export default function ClientDetailPage({ params }: PageProps) {
   const { id } = use(params)
   const isMobile = useIsMobile()
@@ -61,11 +101,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
   const { data: activity } = useClientActivity(tab === "activity" ? id : null)
 
   if (isLoading) {
-    return (
-      <div className="page">
-        <div className="empty">Chargement…</div>
-      </div>
-    )
+    return <ClientDetailSkeleton />
   }
   if (!client) {
     return (
@@ -108,9 +144,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
     }
     if (i.isOverdue) overdueCount++
   }
-  const pendingTasks = client.tasks.filter(
-    (t) => t.status === "PENDING_INVOICE",
-  )
+  const { billableTasks, pipelineValue } = deriveClientBilling(client)
   const billingLabel =
     client.billingMode === "DAILY"
       ? `TJM · ${client.rate} €/j`
@@ -155,10 +189,10 @@ function DesktopClientDetailPage({ id }: { id: string }) {
           <button
             className="btn btn-primary"
             onClick={() => router.push(`/billing/new?clientId=${client.id}`)}
-            disabled={pendingTasks.length === 0}
+            disabled={billableTasks.length === 0}
           >
             <Icon name="plus" size={13} />
-            Facturer ({pendingTasks.length})
+            Facturer ({billableTasks.length})
           </button>
           <ClientActionsMenu
             clientId={client.id}
@@ -283,6 +317,19 @@ function DesktopClientDetailPage({ id }: { id: string }) {
               </span>
             </div>
             <div className="kpi-sub">à relancer</div>
+          </div>
+          <div className="kpi k-pipeline">
+            <div className="kpi-label">
+              <Icon name="tasks" size={11} />
+              Pipeline
+            </div>
+            <div className="kpi-value" style={{ color: "var(--info)" }}>
+              {fmtEUR(pipelineValue)}
+            </div>
+            <div className="kpi-sub">
+              {billableTasks.length} task{billableTasks.length > 1 ? "s" : ""} à
+              facturer
+            </div>
           </div>
         </div>
       </div>
@@ -752,6 +799,58 @@ function DesktopClientDetailPage({ id }: { id: string }) {
       {showEdit && (
         <EditClientModal client={client} onClose={() => setShowEdit(false)} />
       )}
+    </div>
+  )
+}
+
+function ClientDetailSkeleton() {
+  return (
+    <div className="page">
+      <div
+        className="row gap-8"
+        style={{ marginBottom: 16, justifyContent: "space-between" }}
+      >
+        <Skeleton width={150} height={28} radius={8} />
+        <div className="row gap-8">
+          <Skeleton width={150} height={34} radius={8} />
+          <Skeleton width={110} height={34} radius={8} />
+          <Skeleton width={130} height={34} radius={8} />
+        </div>
+      </div>
+
+      <div className="detail-hero">
+        <div className="hero-top">
+          <Skeleton width={64} height={64} radius={12} />
+          <div className="hero-info col gap-8" style={{ minWidth: 0 }}>
+            <Skeleton width={240} height={22} radius={6} />
+            <Skeleton width={320} height={13} radius={6} />
+            <Skeleton width={280} height={13} radius={6} />
+          </div>
+        </div>
+        <div className="kpi-grid">
+          <SkeletonKpi />
+          <SkeletonKpi />
+          <SkeletonKpi />
+          <SkeletonKpi />
+        </div>
+      </div>
+
+      <div className="tabs" role="tablist" aria-hidden>
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} width={96} height={30} radius={8} />
+        ))}
+      </div>
+
+      <div className="detail-cols">
+        <div className="col gap-12" style={{ minWidth: 0 }}>
+          <Skeleton height={220} radius={10} />
+          <Skeleton height={260} radius={10} />
+        </div>
+        <div className="col gap-12" style={{ minWidth: 0 }}>
+          <Skeleton height={200} radius={10} />
+          <Skeleton height={140} radius={10} />
+        </div>
+      </div>
     </div>
   )
 }
