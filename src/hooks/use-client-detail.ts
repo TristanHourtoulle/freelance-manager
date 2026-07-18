@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
+import { qk, STALE_TIME } from "@/hooks/query-keys"
 
 export interface ClientDetailDTO {
   id: string
@@ -89,20 +90,20 @@ export interface ActivityItemDTO {
 
 export function useClientDetail(id: string | null | undefined) {
   return useQuery({
-    queryKey: ["client", id] as const,
+    queryKey: qk.client.detail(id),
     queryFn: () => api.get<ClientDetailDTO>(`/api/clients/${id}`),
     enabled: Boolean(id),
-    staleTime: 60_000,
+    staleTime: STALE_TIME.detail,
   })
 }
 
 export function useClientActivity(id: string | null | undefined) {
   return useQuery({
-    queryKey: ["client-activity", id] as const,
+    queryKey: qk.client.activity(id),
     queryFn: () =>
       api.get<{ items: ActivityItemDTO[] }>(`/api/clients/${id}/activity`),
     select: (d) => d.items,
     enabled: Boolean(id),
-    staleTime: 30_000,
+    staleTime: STALE_TIME.list,
   })
 }

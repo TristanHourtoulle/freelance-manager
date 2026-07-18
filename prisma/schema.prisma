@@ -320,7 +320,6 @@ model Task {
   @@index([invoiceId])
   @@index([invoiceId, userId])
   @@index([status])
-  @@index([userId, completedAt(sort: Desc)])
   @@index([clientId, lastSyncedAt(sort: Desc)])
   @@map("tasks")
 }

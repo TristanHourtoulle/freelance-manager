@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api-client"
+import { invalidateInvoiceGraph, qk, STALE_TIME } from "@/hooks/query-keys"
 import type {
   InvoiceCreateInput,
   InvoiceUpdateInput,
@@ -17,85 +18,42 @@ import type {
   PaymentUpdateInput,
 } from "@/lib/schemas/payment"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
+import type {
+  InvoiceDetail,
+  InvoiceDocStatus,
+  InvoicePaymentDTO,
+  InvoiceWireRow,
+} from "@/domain/billing/types"
 
-export type InvoiceDocStatus = "DRAFT" | "SENT" | "CANCELLED"
-export type InvoicePaymentStatus =
-  | "UNPAID"
-  | "PARTIALLY_PAID"
-  | "PAID"
-  | "OVERPAID"
-
-export interface InvoicePaymentDTO {
-  id: string
-  amount: number
-  paidAt: string
-  method: string | null
-  note: string | null
-  createdAt: string
-}
-
-export interface InvoiceListItem {
-  id: string
-  number: string
-  clientId: string
-  projectId: string | null
-  status: InvoiceDocStatus
-  paymentStatus: InvoicePaymentStatus
-  isOverdue: boolean
-  kind: "STANDARD" | "DEPOSIT"
-  issueDate: string
-  dueDate: string
-  paidAmount: number
-  balanceDue: number
-  lastPaidAt: string | null
-  subtotal: number
-  tax: number
-  total: number
-  totalOverride: number | null
-  notes: string | null
-  linesCount: number
-}
-
-export interface InvoiceDetail extends InvoiceListItem {
-  client: {
-    id: string
-    firstName: string
-    lastName: string
-    company: string | null
-    email: string | null
-    billingMode: "DAILY" | "FIXED" | "HOURLY"
-    color: string | null
-  }
-  lines: {
-    id: string
-    taskId: string | null
-    label: string
-    qty: number
-    rate: number
-  }[]
-  payments: InvoicePaymentDTO[]
-}
+export type {
+  InvoiceDetail,
+  InvoiceDocStatus,
+  InvoiceKind,
+  InvoicePaymentDTO,
+  InvoicePaymentStatus,
+  InvoiceWireRow,
+} from "@/domain/billing/types"
 
 export function useInvoices() {
   return useInfiniteQuery({
-    queryKey: ["invoices"] as const,
+    queryKey: qk.invoices(),
     queryFn: ({ pageParam }) =>
-      api.get<PaginatedResponse<InvoiceListItem>>(
+      api.get<PaginatedResponse<InvoiceWireRow>>(
         `/api/invoices?limit=50${pageParam ? `&cursor=${pageParam}` : ""}`,
       ),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
-    staleTime: 60 * 60_000,
+    staleTime: STALE_TIME.hour,
   })
 }
 
 export function useInvoice(id: string | null | undefined) {
   return useQuery({
-    queryKey: ["invoice", id] as const,
+    queryKey: qk.invoice(id),
     queryFn: () => api.get<InvoiceDetail>(`/api/invoices/${id}`),
     enabled: Boolean(id),
-    staleTime: 60_000,
+    staleTime: STALE_TIME.detail,
   })
 }
 
@@ -106,9 +64,9 @@ export function useCreateInvoice() {
     mutationFn: (input: InvoiceCreateInput) =>
       api.post<{ id: string }>("/api/invoices", input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      qc.invalidateQueries({ queryKey: qk.invoices() })
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
+      qc.invalidateQueries({ queryKey: qk.dashboard() })
       router.refresh()
     },
   })
@@ -121,10 +79,8 @@ export function useUpdateInvoice(id: string) {
     mutationFn: (input: InvoiceUpdateInput) =>
       api.patch(`/api/invoices/${id}`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", id] })
-      qc.invalidateQueries({ queryKey: ["tasks"] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, id)
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
       router.refresh()
     },
   })
@@ -137,9 +93,7 @@ export function useUpdateInvoiceStatus() {
     mutationFn: (input: { id: string; status: InvoiceDocStatus }) =>
       api.patch(`/api/invoices/${input.id}`, { status: input.status }),
     onSuccess: (_d, vars) => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", vars.id] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, vars.id)
       router.refresh()
     },
   })
@@ -152,9 +106,7 @@ export function useCreatePayment(invoiceId: string) {
     mutationFn: (input: PaymentCreateInput) =>
       api.post<InvoicePaymentDTO>(`/api/invoices/${invoiceId}/payments`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })
@@ -172,9 +124,7 @@ export function useUpdatePayment(invoiceId: string) {
       )
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })
@@ -187,9 +137,7 @@ export function useDeletePayment(invoiceId: string) {
     mutationFn: (paymentId: string) =>
       api.delete(`/api/invoices/${invoiceId}/payments/${paymentId}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] })
-      qc.invalidateQueries({ queryKey: ["invoice", invoiceId] })
-      qc.invalidateQueries({ queryKey: ["dashboard"] })
+      invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()
     },
   })

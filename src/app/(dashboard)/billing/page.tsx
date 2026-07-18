@@ -10,40 +10,17 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
+import {
+  matchesInvoiceFilter,
+  summarizeInvoices,
+  type InvoiceFilterId,
+} from "@/domain/billing/filters"
 import dynamic from "next/dynamic"
 
 const MobileBillingPage = dynamic(
   () => import("./mobile").then((m) => m.MobileBillingPage),
   { ssr: false, loading: () => <div className="empty">Chargement…</div> },
 )
-
-type FilterId =
-  | "all"
-  | "DRAFT"
-  | "SENT"
-  | "PARTIAL"
-  | "PAID"
-  | "OVERPAID"
-  | "OVERDUE"
-
-function matchesFilter(
-  i: {
-    status: string
-    paymentStatus: string
-    isOverdue: boolean
-  },
-  f: FilterId,
-): boolean {
-  if (f === "all") return true
-  if (f === "DRAFT") return i.status === "DRAFT"
-  if (f === "SENT")
-    return i.status === "SENT" && i.paymentStatus === "UNPAID" && !i.isOverdue
-  if (f === "PARTIAL") return i.paymentStatus === "PARTIALLY_PAID"
-  if (f === "PAID") return i.paymentStatus === "PAID"
-  if (f === "OVERPAID") return i.paymentStatus === "OVERPAID"
-  if (f === "OVERDUE") return i.isOverdue
-  return true
-}
 
 export default function BillingPage() {
   const isMobile = useIsMobile()
@@ -59,7 +36,7 @@ function DesktopBillingPage() {
   const search = useSearchParams()
   const initialId = search.get("invoiceId")
   const [openId, setOpenId] = useState<string | null>(initialId)
-  const [filter, setFilter] = useState<FilterId>("all")
+  const [filter, setFilter] = useState<InvoiceFilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
 
   const {
@@ -77,7 +54,7 @@ function DesktopBillingPage() {
 
   const filtered = useMemo(() => {
     return invoices.filter((i) => {
-      if (!matchesFilter(i, filter)) return false
+      if (!matchesInvoiceFilter(i, filter)) return false
       if (searchTerm) {
         const c = clientById.get(i.clientId)
         const text =
@@ -88,51 +65,10 @@ function DesktopBillingPage() {
     })
   }, [invoices, clientById, filter, searchTerm])
 
-  const { counts, totals } = useMemo(() => {
-    let draft = 0
-    let sent = 0
-    let partial = 0
-    let paid = 0
-    let overpaid = 0
-    let overdue = 0
-    let paidTotal = 0
-    let outstandingTotal = 0
-    let overdueTotal = 0
-    for (const i of invoices) {
-      if (matchesFilter(i, "DRAFT")) draft++
-      if (matchesFilter(i, "SENT")) sent++
-      if (matchesFilter(i, "PARTIAL")) partial++
-      if (matchesFilter(i, "PAID")) paid++
-      if (matchesFilter(i, "OVERPAID")) overpaid++
-      if (matchesFilter(i, "OVERDUE")) overdue++
-      if (i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID") {
-        paidTotal += i.paidAmount
-      }
-      if (
-        i.status === "SENT" &&
-        (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID")
-      ) {
-        outstandingTotal += i.balanceDue
-      }
-      if (i.isOverdue) overdueTotal += i.balanceDue
-    }
-    return {
-      counts: {
-        all: invoices.length,
-        draft,
-        sent,
-        partial,
-        paid,
-        overpaid,
-        overdue,
-      },
-      totals: {
-        paid: paidTotal,
-        outstanding: outstandingTotal,
-        overdue: overdueTotal,
-      },
-    }
-  }, [invoices])
+  const { counts, totals } = useMemo(
+    () => summarizeInvoices(invoices),
+    [invoices],
+  )
 
   return (
     <div className="page">
@@ -233,7 +169,7 @@ function DesktopBillingPage() {
               { id: "PAID", label: "Payée", count: counts.paid },
               { id: "OVERPAID", label: "Trop-perçu", count: counts.overpaid },
               { id: "OVERDUE", label: "En retard", count: counts.overdue },
-            ] as { id: FilterId; label: string; count: number }[]
+            ] as { id: InvoiceFilterId; label: string; count: number }[]
           ).map((f) => (
             <button
               key={f.id}

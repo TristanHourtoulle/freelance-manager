@@ -5,13 +5,13 @@ import {
   apiServerError,
   apiUnauthorized,
   buildPagedResponse,
-  decimalToNumber,
   getAuthUser,
   parsePagination,
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
-import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
+import { recomputeInvoicePayment } from "@/lib/payments"
+import { serializeInvoice } from "@/domain/billing/serialize"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { getInvoicesFirstPage, invoicesTag } from "@/lib/data/invoices"
@@ -37,30 +37,7 @@ export async function GET(req: Request) {
     })
     const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      data: paged.data.map((inv) => {
-        const computed = getInvoiceComputed(inv)
-        return {
-          id: inv.id,
-          number: inv.number,
-          clientId: inv.clientId,
-          projectId: inv.projectId,
-          status: inv.status,
-          paymentStatus: inv.paymentStatus,
-          isOverdue: computed.isOverdue,
-          kind: inv.kind,
-          issueDate: inv.issueDate.toISOString(),
-          dueDate: inv.dueDate.toISOString(),
-          paidAmount: computed.paidAmount,
-          balanceDue: computed.balanceDue,
-          lastPaidAt: computed.lastPaidAt,
-          subtotal: decimalToNumber(inv.subtotal) ?? 0,
-          tax: decimalToNumber(inv.tax) ?? 0,
-          total: decimalToNumber(inv.total) ?? 0,
-          totalOverride: decimalToNumber(inv.totalOverride),
-          notes: inv.notes,
-          linesCount: inv._count.lines,
-        }
-      }),
+      data: paged.data.map(serializeInvoice),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,
     })
