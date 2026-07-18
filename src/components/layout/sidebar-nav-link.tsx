@@ -28,7 +28,11 @@ export function SidebarNavLink({
       ? pathname === "/dashboard"
       : pathname.startsWith(href)
   return (
-    <Link href={href} className={`nav-item${active ? " active" : ""}`}>
+    <Link
+      href={href}
+      className={`nav-item${active ? " active" : ""}`}
+      aria-current={active ? "page" : undefined}
+    >
       <Icon name={icon} size={16} />
       <span>{label}</span>
       {badge != null && <span className="badge">{badge}</span>}
