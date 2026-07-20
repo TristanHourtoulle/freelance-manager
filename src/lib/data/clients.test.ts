@@ -98,3 +98,58 @@ describe("getClientsBillableSummary", () => {
     expect(summary.byClient["a"]).toEqual({ count: 3, value: 1000 })
   })
 })
+
+describe("getClientsBillableSummary — client stage", () => {
+  beforeEach(() => {
+    queryRaw.mockReset()
+  })
+
+  it("does not filter on the client stage, so a LEAD's pending tasks still count", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        clientId: "lead-1",
+        billingMode: "DAILY",
+        rate: 500,
+        taskCount: 2,
+        estimateDays: 3,
+      },
+    ])
+
+    const summary = await getClientsBillableSummary("user-1")
+
+    const [strings] = queryRaw.mock.calls[0] as [TemplateStringsArray]
+    expect(strings.join("?")).not.toContain("stage")
+    expect(summary.byClient["lead-1"]).toEqual({ count: 2, value: 1500 })
+  })
+})
+
+describe("serializeClient", () => {
+  it("emits the client stage on the wire row", async () => {
+    const { serializeClient } = await import("@/domain/clients/serialize")
+
+    const row = serializeClient({
+      id: "c1",
+      firstName: "Lea",
+      lastName: "Prospect",
+      company: null,
+      email: null,
+      phone: null,
+      website: null,
+      address: null,
+      notes: null,
+      billingMode: "DAILY",
+      rate: 500 as unknown as never,
+      fixedPrice: null,
+      deposit: null,
+      paymentTerms: null,
+      category: "FREELANCE",
+      stage: "LEAD",
+      color: null,
+      starred: false,
+      archivedAt: null,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+    })
+
+    expect(row.stage).toBe("LEAD")
+  })
+})

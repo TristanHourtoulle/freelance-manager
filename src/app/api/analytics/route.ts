@@ -44,7 +44,11 @@ export async function GET(req: Request) {
           select: { invoiceId: true, amount: true, paidAt: true },
         }),
         prisma.client.findMany({
-          where: { userId: user.id, archivedAt: null },
+          where: {
+            userId: user.id,
+            archivedAt: null,
+            stage: { not: "LEAD" },
+          },
           select: {
             id: true,
             firstName: true,
@@ -254,7 +258,7 @@ export async function GET(req: Request) {
         (inv.paymentStatus === "UNPAID" ||
           inv.paymentStatus === "PARTIALLY_PAID"),
     ).length
-    const conversion =
+    const collectionRate =
       fullyPaidInvoices.length + sentCount > 0
         ? Math.round(
             (fullyPaidInvoices.length /
@@ -278,7 +282,7 @@ export async function GET(req: Request) {
         paidCount: fullyPaidInvoices.length,
         avgDelay,
         avgInvoice,
-        conversion,
+        collectionRate,
         runRate: avgRevenue * 12,
       },
       byClient,

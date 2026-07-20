@@ -33,7 +33,7 @@ const MobileClientsPage = dynamic(
   },
 )
 
-type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
+type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY" | "LEAD" | "DORMANT"
 type ViewMode = "grid" | "list"
 
 interface EnrichedClient extends ClientDTO {
@@ -118,22 +118,42 @@ function DesktopClientsPage() {
         .includes(search.toLowerCase())
     )
       return false
-    if (filter !== "all" && c.billingMode !== filter) return false
+    if (filter === "LEAD" || filter === "DORMANT") {
+      if (c.stage !== filter) return false
+    } else if (filter !== "all" && c.billingMode !== filter) return false
     return true
   })
 
-  const { totalRevenue, dailyCount, fixedCount, hourlyCount } = useMemo(() => {
+  const {
+    totalRevenue,
+    dailyCount,
+    fixedCount,
+    hourlyCount,
+    leadCount,
+    dormantCount,
+  } = useMemo(() => {
     let totalRevenue = 0
     let dailyCount = 0
     let fixedCount = 0
     let hourlyCount = 0
+    let leadCount = 0
+    let dormantCount = 0
     for (const c of enriched) {
       totalRevenue += c.revenue
       if (c.billingMode === "DAILY") dailyCount++
       else if (c.billingMode === "FIXED") fixedCount++
       else if (c.billingMode === "HOURLY") hourlyCount++
+      if (c.stage === "LEAD") leadCount++
+      else if (c.stage === "DORMANT") dormantCount++
     }
-    return { totalRevenue, dailyCount, fixedCount, hourlyCount }
+    return {
+      totalRevenue,
+      dailyCount,
+      fixedCount,
+      hourlyCount,
+      leadCount,
+      dormantCount,
+    }
   }, [enriched])
 
   const isTrulyEmpty = enriched.length === 0
@@ -211,6 +231,8 @@ function DesktopClientsPage() {
                 { id: "DAILY", label: "TJM", count: dailyCount },
                 { id: "FIXED", label: "Forfait", count: fixedCount },
                 { id: "HOURLY", label: "Horaire", count: hourlyCount },
+                { id: "LEAD", label: "Prospects", count: leadCount },
+                { id: "DORMANT", label: "Dormants", count: dormantCount },
               ] as { id: FilterId; label: string; count: number }[]
             ).map((f) => (
               <button
@@ -303,6 +325,12 @@ function DesktopClientsPage() {
                   </div>
                   <div className="muted small truncate">{c.company ?? "—"}</div>
                 </div>
+                {c.stage === "LEAD" && (
+                  <span className="pill pill-sent">Prospect</span>
+                )}
+                {c.stage === "DORMANT" && (
+                  <span className="pill pill-draft">Dormant</span>
+                )}
                 <BillingTypePill type={c.billingMode} />
               </div>
               <div className="client-stats">
@@ -395,6 +423,12 @@ function DesktopClientsPage() {
                         </div>
                         <div className="muted xs">{c.company ?? "—"}</div>
                       </div>
+                      {c.stage === "LEAD" && (
+                        <span className="pill pill-sent">Prospect</span>
+                      )}
+                      {c.stage === "DORMANT" && (
+                        <span className="pill pill-draft">Dormant</span>
+                      )}
                     </div>
                   </td>
                   <td>

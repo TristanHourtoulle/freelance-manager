@@ -16,7 +16,7 @@ export interface AnalyticsDTO {
     paidCount: number
     avgDelay: number
     avgInvoice: number
-    conversion: number
+    collectionRate: number
     runRate: number
   }
   byClient: {

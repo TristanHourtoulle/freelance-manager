@@ -199,8 +199,8 @@ export function MobileAnalyticsPage() {
               </div>
               <div className="divider" style={{ margin: 0 }} />
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="small muted">Taux de conversion</span>
-                <span className="num strong">{kpi.conversion}%</span>
+                <span className="small muted">Taux d&apos;encaissement</span>
+                <span className="num strong">{kpi.collectionRate}%</span>
               </div>
               <div className="divider" style={{ margin: 0 }} />
               <div className="row" style={{ justifyContent: "space-between" }}>

@@ -16,6 +16,7 @@ type ClientRow = {
   company: string | null
   color: string
   billingMode: string
+  stage?: "LEAD" | "ACTIVE" | "DORMANT"
 }
 type TaskRow = {
   id: string
@@ -241,7 +242,7 @@ function referenceAnalytics(
       (inv.paymentStatus === "UNPAID" ||
         inv.paymentStatus === "PARTIALLY_PAID"),
   ).length
-  const conversion =
+  const collectionRate =
     fullyPaidInvoices.length + sentCount > 0
       ? Math.round(
           (fullyPaidInvoices.length / (fullyPaidInvoices.length + sentCount)) *
@@ -264,7 +265,7 @@ function referenceAnalytics(
       paidCount: fullyPaidInvoices.length,
       avgDelay,
       avgInvoice,
-      conversion,
+      collectionRate,
       runRate: avgRevenue * 12,
     },
     byClient,
@@ -428,14 +429,19 @@ function buildDataset(): Dataset {
 }
 
 function wireMocks(data: Dataset) {
-  findMany.mockImplementation((model: string) => {
+  findMany.mockImplementation((model: string, args?: { where?: unknown }) => {
     switch (model) {
       case "invoice":
         return Promise.resolve(data.invoices)
       case "payment":
         return Promise.resolve(data.payments)
-      case "client":
+      case "client": {
+        const where = (args?.where ?? {}) as { stage?: { not?: string } }
+        if (where.stage?.not === "LEAD") {
+          return Promise.resolve(data.clients.filter((c) => c.stage !== "LEAD"))
+        }
         return Promise.resolve(data.clients)
+      }
       case "task":
         return Promise.resolve(data.tasks)
       default:
@@ -494,6 +500,75 @@ describe("GET /api/analytics", () => {
       "3m",
     )
     expect(body).toEqual(expected)
+  })
+
+  it("excludes LEAD clients from the revenue attribution query", async () => {
+    const data = buildDataset()
+    wireMocks(data)
+    const { GET } = await import("./route")
+    await GET(new Request("http://localhost/api/analytics?range=12m"))
+
+    const clientCall = findMany.mock.calls.find((c) => c[0] === "client")
+    expect(clientCall).toBeDefined()
+    expect(
+      (clientCall![1] as { where: Record<string, unknown> }).where,
+    ).toEqual({
+      userId: "user-1",
+      archivedAt: null,
+      stage: { not: "LEAD" },
+    })
+  })
+
+  it("keeps a revenue-bearing LEAD out of byClient and byType", async () => {
+    const data = buildDataset()
+    data.clients.push({
+      id: "c4",
+      firstName: "Lea",
+      lastName: "Prospect",
+      company: "Lead SAS",
+      color: "#999999",
+      billingMode: "DAILY",
+      stage: "LEAD",
+    })
+    data.invoices.push({
+      id: "i6",
+      clientId: "c4",
+      status: "PAID",
+      paymentStatus: "PAID",
+      issueDate: new Date(2026, 1, 2),
+      total: 9999,
+    })
+    data.payments.push({
+      invoiceId: "i6",
+      amount: 9999,
+      paidAt: new Date(2026, 1, 3),
+    })
+    wireMocks(data)
+    const { GET } = await import("./route")
+    const res = await GET(
+      new Request("http://localhost/api/analytics?range=12m"),
+    )
+    const body = await res.json()
+
+    expect(
+      body.byClient.some(
+        (x: { client: { id: string } }) => x.client.id === "c4",
+      ),
+    ).toBe(false)
+    const daily = body.byType.find((x: { type: string }) => x.type === "DAILY")
+    expect(daily?.revenue ?? 0).toBe(1200)
+  })
+
+  it("exposes the payment collection rate as collectionRate", async () => {
+    const data = buildDataset()
+    wireMocks(data)
+    const { GET } = await import("./route")
+    const res = await GET(
+      new Request("http://localhost/api/analytics?range=12m"),
+    )
+    const body = await res.json()
+    expect(body.kpi.collectionRate).toBe(60)
+    expect(body.kpi.conversion).toBeUndefined()
   })
 
   it("collapses multiple payments into one delay per invoice", async () => {

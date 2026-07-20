@@ -9,6 +9,8 @@ export const clientCategorySchema = z.enum([
   "SIDE_PROJECT",
 ])
 
+export const clientStageSchema = z.enum(["LEAD", "ACTIVE", "DORMANT"])
+
 const clientBaseSchema = z.object({
   firstName: z.string().min(1).max(80).trim(),
   lastName: z.string().min(1).max(80).trim(),
@@ -24,6 +26,7 @@ const clientBaseSchema = z.object({
   deposit: z.coerce.number().min(0).max(10_000_000).optional().nullable(),
   paymentTerms: z.coerce.number().int().min(0).max(180).optional().nullable(),
   category: clientCategorySchema.default("FREELANCE"),
+  stage: clientStageSchema.default("ACTIVE"),
   color: z.string().max(160).optional().nullable(),
   starred: z.coerce.boolean().optional(),
 })
@@ -44,6 +47,7 @@ export const clientFilterSchema = z.object({
   search: z.string().optional(),
   billingMode: billingModeSchema.optional(),
   category: clientCategorySchema.optional(),
+  stage: clientStageSchema.optional(),
   archived: z.coerce.boolean().optional(),
 })
 
