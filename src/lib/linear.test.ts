@@ -806,6 +806,7 @@ describe("Project mirror whitelist", () => {
       completedAt: null,
       createdAt: null,
       updatedAt: null,
+      dueDate: null,
       state: { name: "Todo", type: "unstarted" },
       team: { id: "team-1", key: "TRI" },
       project: {
@@ -814,6 +815,8 @@ describe("Project mirror whitelist", () => {
         description: null,
         state: "started",
         createdAt: null,
+        startDate: null,
+        targetDate: null,
       },
     }
   }

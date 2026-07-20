@@ -505,7 +505,9 @@ export const LINEAR_MIRRORED_PROJECT_FIELDS = [
   "linearCreatedAt",
   "linearTeamId",
   "name",
+  "startDate",
   "status",
+  "targetDate",
 ] as const
 
 /**
