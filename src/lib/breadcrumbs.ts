@@ -10,12 +10,10 @@ const SEGMENT_LABELS = new Map<string, string>(
   ),
 )
 
-const NESTED_LABELS = new Map<string, string>([
-  ["billing/new", "Nouvelle facture"],
-])
+const NESTED_LABELS = new Map<string, string>([["billing/new", "Nouvelle"]])
 
 const ENTITY_LABELS = new Map<string, string>([
-  ["clients", "Fiche client"],
+  ["clients", "—"],
   ["billing", "Facture"],
 ])
 
@@ -23,10 +21,16 @@ const ENTITY_LABELS = new Map<string, string>([
  * Derive the topbar breadcrumb trail from the current pathname.
  *
  * @param pathname Current route path (e.g. `/clients/abc123`).
+ * @param resolvedLabel Human label for the entity segment (e.g. the client
+ * full name). When omitted, the entity crumb falls back to the placeholder
+ * used by the design (`—` for a client that cannot be resolved).
  * @returns Ordered crumb labels, always starting with the app root. The
  * last entry is styled as the current page by the Topbar.
  */
-export function deriveCrumbs(pathname: string): string[] {
+export function deriveCrumbs(
+  pathname: string,
+  resolvedLabel?: string,
+): string[] {
   const segments = pathname.split("/").filter(Boolean)
   const crumbs = [ROOT_CRUMB]
 
@@ -43,6 +47,11 @@ export function deriveCrumbs(pathname: string): string[] {
   const nestedLabel = NESTED_LABELS.get(`${root}/${child}`)
   if (nestedLabel) {
     crumbs.push(nestedLabel)
+    return crumbs
+  }
+
+  if (resolvedLabel) {
+    crumbs.push(resolvedLabel)
     return crumbs
   }
 
