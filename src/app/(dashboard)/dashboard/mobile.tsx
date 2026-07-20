@@ -7,6 +7,7 @@ import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, fmtRelative } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { TodayBlock } from "@/components/suivi/today-block"
+import { RelanceButton } from "@/components/dashboard/relance-button"
 
 export function MobileDashboardPage() {
   const router = useRouter()
@@ -155,6 +156,7 @@ export function MobileDashboardPage() {
                   >
                     {fmtEUR(o.total)}
                   </div>
+                  <RelanceButton invoiceId={o.id} clientId={o.clientId} />
                 </div>
               ))}
               <button

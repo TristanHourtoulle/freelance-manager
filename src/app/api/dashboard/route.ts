@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 import { computeDashboardKpis } from "@/domain/billing/kpis"
+import { sweepOverdueRelances } from "@/lib/relance"
 
 export async function GET() {
   const user = await getAuthUser()
@@ -131,6 +132,12 @@ export async function GET() {
         rate: task.client.rate,
       })),
       recentInvoices,
+    })
+
+    await sweepOverdueRelances({
+      userId: user.id,
+      now: today,
+      invoices: openInvoices,
     })
 
     return NextResponse.json({
