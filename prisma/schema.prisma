@@ -30,6 +30,7 @@ model User {
   activity ActivityLog[]
   clientActions ClientAction[]
   meetings      Meeting[]
+  linearSyncRuns LinearSyncRun[]
   settings UserSettings?
 
   @@map("users")
@@ -547,4 +548,34 @@ model Meeting {
   @@index([userId, heldAt(sort: Desc)])
   @@index([clientId, heldAt(sort: Desc)])
   @@map("meetings")
+}
+
+enum LinearSyncRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model LinearSyncRun {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status LinearSyncRunStatus @default(RUNNING)
+
+  totalMappings Int     @default(0)
+  doneMappings  Int     @default(0)
+  currentLabel  String?
+
+  projectsUpserted Int @default(0)
+  tasksUpserted    Int @default(0)
+
+  errorMessage String?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, startedAt])
+  @@map("linear_sync_runs")
 }

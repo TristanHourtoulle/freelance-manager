@@ -26,6 +26,13 @@ vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 vi.mock("@/lib/encryption", () => ({ decrypt: decryptMock, encrypt: vi.fn() }))
 vi.mock("@linear/sdk", () => ({ LinearClient: LinearClientMock }))
 
+const touchSyncRun = vi.fn()
+const completeSyncRun = vi.fn()
+vi.mock("@/lib/linear-sync-progress", () => ({
+  touchSyncRun: (...a: unknown[]) => touchSyncRun(...a),
+  completeSyncRun: (...a: unknown[]) => completeSyncRun(...a),
+}))
+
 import {
   fetchIssuesWithRelations,
   keyFromIdentifier,
@@ -248,7 +255,12 @@ describe("syncFromLinear", () => {
         clientId: "client-1",
         linearProjectId: "lp-1",
         linearTeamId: null,
-        client: { userId: "user-1" },
+        client: {
+          userId: "user-1",
+          company: "Acme",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
       },
     ])
     prismaMock.task.findMany.mockResolvedValue([])
@@ -344,5 +356,95 @@ describe("syncFromLinear", () => {
     expect(prismaMock.task.findMany).not.toHaveBeenCalled()
     expect(result.tasks).toBe(0)
     expect(prismaMock.userSettings.upsert).toHaveBeenCalledTimes(1)
+  })
+
+  describe("progress reporting", () => {
+    function mapping(id: string, company: string | null) {
+      return {
+        clientId: `client-${id}`,
+        linearProjectId: `lp-${id}`,
+        linearTeamId: null,
+        client: {
+          userId: "user-1",
+          company,
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      }
+    }
+
+    it("touches the run once per mapping, in order, before each fetch", async () => {
+      prismaMock.linearMapping.findMany.mockResolvedValue([
+        mapping("1", "Acme"),
+        mapping("2", "Globex"),
+        mapping("3", "Initech"),
+      ])
+
+      await syncFromLinear("user-1", "run-1")
+
+      expect(touchSyncRun).toHaveBeenCalledTimes(3)
+      expect(touchSyncRun.mock.calls.map((c) => c[1])).toEqual([
+        { doneMappings: 0, currentLabel: "Acme" },
+        { doneMappings: 1, currentLabel: "Globex" },
+        { doneMappings: 2, currentLabel: "Initech" },
+      ])
+      expect(touchSyncRun.mock.calls.every((c) => c[0] === "run-1")).toBe(true)
+    })
+
+    it("falls back to the client's full name when no company is set", async () => {
+      prismaMock.linearMapping.findMany.mockResolvedValue([mapping("1", null)])
+
+      await syncFromLinear("user-1", "run-1")
+
+      expect(touchSyncRun).toHaveBeenCalledWith("run-1", {
+        doneMappings: 0,
+        currentLabel: "Ada Lovelace",
+      })
+    })
+
+    it("completes the run exactly once with the final counters", async () => {
+      rawRequest.mockResolvedValue({
+        status: 200,
+        data: { issues: { nodes: [issueNode()] } },
+      })
+
+      await syncFromLinear("user-1", "run-1")
+
+      expect(completeSyncRun).toHaveBeenCalledTimes(1)
+      expect(completeSyncRun).toHaveBeenCalledWith("run-1", {
+        projectsUpserted: 1,
+        tasksUpserted: 1,
+      })
+    })
+
+    it("never writes progress from inside the phase-2 transaction", async () => {
+      let insideTransaction = false
+      prismaMock.$transaction.mockImplementation(
+        async (fn: (tx: typeof prismaMock) => unknown) => {
+          insideTransaction = true
+          const out = await fn(prismaMock)
+          insideTransaction = false
+          return out
+        },
+      )
+      touchSyncRun.mockImplementation(() => {
+        expect(insideTransaction).toBe(false)
+      })
+      rawRequest.mockResolvedValue({
+        status: 200,
+        data: { issues: { nodes: [issueNode()] } },
+      })
+
+      await syncFromLinear("user-1", "run-1")
+
+      expect(completeSyncRun).toHaveBeenCalledTimes(1)
+    })
+
+    it("reports no progress when called without a runId", async () => {
+      await syncFromLinear("user-1")
+
+      expect(touchSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
+      expect(completeSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
+    })
   })
 })
