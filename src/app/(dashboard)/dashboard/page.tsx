@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { RelanceButton } from "@/components/dashboard/relance-button"
 import { TodayBlock } from "@/components/suivi/today-block"
 import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
@@ -218,10 +219,10 @@ function DesktopDashboardPage() {
                           Échue il y a {daysLate}j · {fmtEUR(inv.total)}
                         </div>
                       </div>
-                      <button className="btn btn-sm btn-secondary">
-                        <Icon name="mail" size={12} />
-                        Relancer
-                      </button>
+                      <RelanceButton
+                        invoiceId={inv.id}
+                        clientId={inv.clientId}
+                      />
                     </div>
                   )
                 })}

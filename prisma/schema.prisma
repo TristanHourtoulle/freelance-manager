@@ -508,6 +508,13 @@ model ClientAction {
   meetingId String?
   meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
+  // Idempotency guard for auto-generated relances: holds the invoice id for
+  // rows created by the overdue detector, NULL for every manual action.
+  // Postgres allows unlimited NULLs in a unique index, so manual actions stay
+  // unconstrained while an invoice can only ever spawn one auto-relance.
+  // Never cleared — not even when the action is marked DONE.
+  relanceInvoiceId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
