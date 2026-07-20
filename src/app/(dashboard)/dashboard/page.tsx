@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { RelanceButton } from "@/components/dashboard/relance-button"
-import { TodayBlock } from "@/components/suivi/today-block"
+import { TodayPanel } from "@/components/suivi/today-panel"
 import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
@@ -144,7 +144,7 @@ function DesktopDashboardPage() {
         </div>
       )}
 
-      <TodayBlock />
+      <TodayPanel />
 
       {isPending ? (
         <DashboardChartsSkeleton />
