@@ -13,10 +13,21 @@ import {
 } from "@/components/analytics/charts"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const MobileAnalyticsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileAnalyticsPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Analytics"
+        variant="list"
+        rows={4}
+        back="/more"
+      />
+    ),
+  },
 )
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {

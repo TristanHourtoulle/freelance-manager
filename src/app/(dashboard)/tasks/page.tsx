@@ -18,10 +18,22 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Tasks"
+        heading="Linear · Tasks"
+        variant="list"
+        rows={7}
+      />
+    ),
+  },
 )
 
 type StatusFilterId = "all" | "pending" | "done" | "in_progress"
@@ -29,7 +41,7 @@ type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 export default function TasksPage() {
   const isMobile = useIsMobile()
   return (
-    <Suspense fallback={<div className="empty">Chargement…</div>}>
+    <Suspense fallback={<PageSkeleton rows={10} />}>
       {isMobile ? <MobileTasksPage /> : <DesktopTasksPage />}
     </Suspense>
   )

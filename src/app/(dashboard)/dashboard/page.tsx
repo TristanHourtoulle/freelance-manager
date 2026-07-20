@@ -11,10 +11,22 @@ import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const MobileDashboardPage = dynamic(
   () => import("./mobile").then((m) => m.MobileDashboardPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Pilotage"
+        heading="Pilotage"
+        subtitle="Vue d'ensemble du mois"
+        variant="tiles"
+        rows={4}
+      />
+    ),
+  },
 )
 
 export default function DashboardPage() {
