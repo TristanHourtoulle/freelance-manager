@@ -9,6 +9,8 @@ import { api } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
+export { UNASSIGNED_CLIENT_FILTER } from "@/lib/schemas/action"
+
 export type ClientActionType = "RELANCE" | "LINK" | "RDV" | "OTHER"
 export type ClientActionStatus = "TODO" | "WAITING" | "DONE"
 
@@ -22,8 +24,8 @@ export interface ActionClientRef {
 
 export interface ActionDTO {
   id: string
-  clientId: string
-  client: ActionClientRef
+  clientId: string | null
+  client: ActionClientRef | null
   type: ClientActionType
   title: string
   link: string | null
@@ -38,7 +40,7 @@ export interface ActionDTO {
 }
 
 export interface ActionCreateBody {
-  clientId: string
+  clientId?: string | null
   type?: ClientActionType
   title: string
   link?: string | null
@@ -49,6 +51,7 @@ export interface ActionCreateBody {
 }
 
 export interface ActionUpdateBody {
+  clientId?: string | null
   type?: ClientActionType
   title?: string
   link?: string | null
@@ -102,7 +105,7 @@ export function useActions(filters: ActionFilters = EMPTY_FILTERS) {
 
 function invalidateAction(
   qc: ReturnType<typeof useQueryClient>,
-  clientId?: string,
+  clientId?: string | null,
 ) {
   qc.invalidateQueries({ queryKey: qk.actions.all() })
   qc.invalidateQueries({ queryKey: qk.dashboard() })
@@ -138,7 +141,7 @@ export function useRelanceInvoice() {
   })
 }
 
-export function useUpdateAction(clientId?: string) {
+export function useUpdateAction(clientId?: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: ActionUpdateBody }) =>
@@ -147,7 +150,7 @@ export function useUpdateAction(clientId?: string) {
   })
 }
 
-export function useDeleteAction(clientId?: string) {
+export function useDeleteAction(clientId?: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/actions/${id}`),

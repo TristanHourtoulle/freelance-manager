@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const invoiceFindMany = vi.fn()
 const taskFindMany = vi.fn()
+const taskCount = vi.fn()
 const userSettingsFindUnique = vi.fn()
 const queryRaw = vi.fn()
 
@@ -10,6 +11,7 @@ vi.mock("@/lib/db", () => ({
     invoice: { findMany: (...a: unknown[]) => invoiceFindMany(...a) },
     task: {
       findMany: (...a: unknown[]) => taskFindMany(...a),
+      count: (...a: unknown[]) => taskCount(...a),
     },
     userSettings: {
       findUnique: (...a: unknown[]) => userSettingsFindUnique(...a),
@@ -47,14 +49,19 @@ type TaskFindManyArgs = {
 }
 
 /**
- * Route runs three `task.findMany` calls (pipeline, open workload and recently
- * completed) through one mock; branch on the where clause to return each
- * dataset, the open-workload call resolving empty.
+ * Route runs four `task.findMany` calls (pipeline, open workload, recently
+ * completed and in-progress) through one mock; branch on the where clause
+ * status to return each dataset, the open-workload call resolving empty.
  */
-function mockTaskFindMany(pipeline: unknown[], recent: unknown[]) {
+function mockTaskFindMany(
+  pipeline: unknown[],
+  recent: unknown[],
+  inProgress: unknown[] = [],
+) {
   taskFindMany.mockImplementation((args: TaskFindManyArgs) => {
     const status = args?.where?.status
     if (status === "PENDING_INVOICE") return Promise.resolve(pipeline)
+    if (status === "IN_PROGRESS") return Promise.resolve(inProgress)
     if (typeof status === "object" && status !== null) {
       return Promise.resolve([])
     }
@@ -89,6 +96,8 @@ describe("GET /api/dashboard", () => {
     vi.setSystemTime(new Date(2026, 2, 15, 12, 0, 0))
     invoiceFindMany.mockReset()
     taskFindMany.mockReset()
+    taskCount.mockReset()
+    taskCount.mockResolvedValue(0)
     userSettingsFindUnique.mockReset()
     queryRaw.mockReset()
   })
@@ -136,7 +145,7 @@ describe("GET /api/dashboard", () => {
     const pipelineArgs = pipelineCall?.[0] as TaskFindManyArgs
     expect(pipelineArgs.where).toEqual(PENDING_WHERE)
     expect(pipelineArgs.select?.clientId).toBe(true)
-    expect(taskFindMany).toHaveBeenCalledTimes(3)
+    expect(taskFindMany).toHaveBeenCalledTimes(4)
   })
 
   it("counts FIXED pending tasks without adding to the pipeline value", async () => {
@@ -209,5 +218,43 @@ describe("GET /api/dashboard", () => {
     expect(body.kpi.pipelineCount).toBe(0)
     expect(body.kpi.pipelineEur).toBe(0)
     expect(body.kpi.pipelineClientCount).toBe(0)
+  })
+
+  it("returns the in-progress task count and top rows", async () => {
+    invoiceFindMany.mockResolvedValue([])
+    mockTaskFindMany(
+      [],
+      [],
+      [
+        {
+          id: "t1",
+          linearIdentifier: "TRI-1",
+          linearUrl: "https://linear.app/x",
+          title: "Refactor",
+          project: { key: "TRI" },
+        },
+      ],
+    )
+    taskCount.mockResolvedValue(7)
+    userSettingsFindUnique.mockResolvedValue({ linearLastSyncedAt: null })
+    mockPaymentTotals()
+
+    const { GET } = await import("./route")
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.inProgress.count).toBe(7)
+    expect(body.inProgress.top).toEqual([
+      {
+        id: "t1",
+        linearIdentifier: "TRI-1",
+        linearUrl: "https://linear.app/x",
+        title: "Refactor",
+        projectKey: "TRI",
+      },
+    ])
+    expect(taskCount).toHaveBeenCalledWith({
+      where: { userId: "user-1", status: "IN_PROGRESS" },
+    })
   })
 })

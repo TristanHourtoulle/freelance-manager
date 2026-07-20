@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import {
+  apiBadRequest,
   apiNotFound,
   apiServerError,
   apiUnauthorized,
@@ -13,6 +14,7 @@ import {
   actionCreateSchema,
   actionFilterSchema,
   clientActionStatusSchema,
+  UNASSIGNED_CLIENT_FILTER,
 } from "@/lib/schemas/action"
 import { ACTION_INCLUDE, serializeAction } from "@/lib/data/actions"
 import type { ClientActionStatus } from "@/lib/data/actions"
@@ -37,6 +39,13 @@ function buildStatusWhere(raw: string[]): {
   return { status: { in: unique } }
 }
 
+/**
+ * List follow-up actions, newest first.
+ *
+ * @param req - Request whose `clientId` query param accepts a client id, or
+ * the `"none"` sentinel to return only unclassified (inbox) actions.
+ * @returns A cursor-paginated page of serialized actions.
+ */
 export async function GET(req: Request) {
   const user = await getAuthUser()
   if (!user) return apiUnauthorized()
@@ -47,13 +56,19 @@ export async function GET(req: Request) {
       clientId: url.searchParams.get("clientId") ?? undefined,
       type: url.searchParams.get("type") ?? undefined,
     })
+    const clientWhere =
+      filters.clientId === UNASSIGNED_CLIENT_FILTER
+        ? { clientId: null }
+        : filters.clientId
+          ? { clientId: filters.clientId }
+          : {}
     const statusWhere = buildStatusWhere(url.searchParams.getAll("status"))
     const { cursor, limit } = parsePagination(req)
 
     const rows = await prisma.clientAction.findMany({
       where: {
         userId: user.id,
-        ...(filters.clientId ? { clientId: filters.clientId } : {}),
+        ...clientWhere,
         ...statusWhere,
         ...(filters.type ? { type: filters.type } : {}),
       },
@@ -82,31 +97,40 @@ export async function POST(req: Request) {
   try {
     const data = actionCreateSchema.parse(await req.json())
 
-    const client = await prisma.client.findFirst({
-      where: { id: data.clientId, userId: user.id },
-      select: { id: true },
-    })
-    if (!client) return apiNotFound()
-
-    if (data.invoiceId) {
-      const inv = await prisma.invoice.findFirst({
-        where: { id: data.invoiceId, userId: user.id, clientId: data.clientId },
-        select: { id: true },
-      })
-      if (!inv) return apiNotFound()
+    if (!data.clientId && (data.invoiceId || data.meetingId)) {
+      return apiBadRequest(
+        "Un client est requis pour lier une facture ou une réunion",
+      )
     }
-    if (data.meetingId) {
-      const m = await prisma.meeting.findFirst({
-        where: { id: data.meetingId, userId: user.id, clientId: data.clientId },
+
+    if (data.clientId) {
+      const clientId = data.clientId
+      const client = await prisma.client.findFirst({
+        where: { id: clientId, userId: user.id },
         select: { id: true },
       })
-      if (!m) return apiNotFound()
+      if (!client) return apiNotFound()
+
+      if (data.invoiceId) {
+        const inv = await prisma.invoice.findFirst({
+          where: { id: data.invoiceId, userId: user.id, clientId },
+          select: { id: true },
+        })
+        if (!inv) return apiNotFound()
+      }
+      if (data.meetingId) {
+        const m = await prisma.meeting.findFirst({
+          where: { id: data.meetingId, userId: user.id, clientId },
+          select: { id: true },
+        })
+        if (!m) return apiNotFound()
+      }
     }
 
     const created = await prisma.clientAction.create({
       data: {
         userId: user.id,
-        clientId: data.clientId,
+        clientId: data.clientId ?? null,
         type: data.type ?? "OTHER",
         title: data.title,
         link: data.link ?? null,

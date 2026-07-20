@@ -16,15 +16,21 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Toggles a Command Palette via ⌘K (Mac) / Ctrl+K (others).
- * While the palette is closed the shortcut is ignored on editable targets so
+ * Toggles a Command Palette via ⌘K (Mac) / Ctrl+K (others), and opens quick
+ * capture via ⌘N / Ctrl+N.
+ * While the palette is closed the ⌘K shortcut is ignored on editable targets so
  * it never steals a keystroke from a form field; while it is open the shortcut
  * always closes it, since focus then lives in the palette's own search input.
  *
+ * @param onQuickCapture - Opens the quick-capture dialog, when available.
  * @returns `{ open, setOpen }` so callers can also open programmatically
  * (e.g. from a topbar button).
+ * @remarks The ⌘-chords are deliberately not gated on an editable target: the
+ * palette focuses its own search input on open, so gating ⌘K would make it
+ * impossible to close the palette with the shortcut that opened it. Only bare
+ * key sequences are gated (see `useKeySequence`).
  */
-export function useCommandPalette() {
+export function useCommandPalette(onQuickCapture?: () => void) {
   const [open, setOpen] = useState(false)
   const openRef = useRef(open)
 
@@ -34,14 +40,21 @@ export function useCommandPalette() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey) || (e.key !== "k" && e.key !== "K")) return
-      if (!openRef.current && isEditableTarget(e.target)) return
-      e.preventDefault()
-      setOpen((o) => !o)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        if (!openRef.current && isEditableTarget(e.target)) return
+        e.preventDefault()
+        setOpen((o) => !o)
+        return
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "n" || e.key === "N")) {
+        e.preventDefault()
+        onQuickCapture?.()
+        return
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  }, [onQuickCapture])
 
   return { open, setOpen }
 }

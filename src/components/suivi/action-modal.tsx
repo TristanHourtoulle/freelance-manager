@@ -76,11 +76,11 @@ export function ActionModal({
   )
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const targetClientId = clientId ?? action?.clientId ?? selectedClient
+  const targetClientId = selectedClient || (clientId ?? "")
   const clientInvoices = (invoices ?? []).filter(
     (inv) => inv.clientId === targetClientId,
   )
-  const isValid = title.trim().length > 0 && targetClientId.length > 0
+  const isValid = title.trim().length > 0
   const isPending = create.isPending || update.isPending
 
   function handleSubmit() {
@@ -96,7 +96,14 @@ export function ActionModal({
     }
     if (isEdit && action) {
       update.mutate(
-        { id: action.id, input: { ...payload, status } },
+        {
+          id: action.id,
+          input: {
+            ...payload,
+            status,
+            ...(clientId ? {} : { clientId: targetClientId || null }),
+          },
+        },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Action mise à jour" })
@@ -112,7 +119,7 @@ export function ActionModal({
       )
     } else {
       create.mutate(
-        { clientId: targetClientId, ...payload },
+        { clientId: targetClientId || null, ...payload },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Action créée" })
@@ -211,7 +218,7 @@ export function ActionModal({
         </div>
 
         <div className="modal-section">
-          {!clientId && !isEdit && (
+          {!clientId && (
             <div className="field" style={{ marginBottom: 12 }}>
               <label className="field-label" htmlFor={`${fieldId}-client`}>
                 Client
@@ -222,7 +229,7 @@ export function ActionModal({
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
               >
-                <option value="">Sélectionner…</option>
+                <option value="">Non classé</option>
                 {(clients ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company || `${c.firstName} ${c.lastName}`}
@@ -259,7 +266,7 @@ export function ActionModal({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            {type === "RELANCE" && (
+            {type === "RELANCE" && targetClientId && (
               <div className="field">
                 <label
                   className="field-label"

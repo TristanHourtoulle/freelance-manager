@@ -37,6 +37,8 @@ export async function GET() {
       recentInvoices,
       recentTasks,
       openTasks,
+      inProgressTasks,
+      inProgressCount,
       lastSync,
     ] = await Promise.all([
       prisma.invoice.findMany({
@@ -124,6 +126,21 @@ export async function GET() {
         where: openTasksWhere,
         select: { estimate: true },
       }),
+      prisma.task.findMany({
+        where: { userId: user.id, status: "IN_PROGRESS" },
+        orderBy: [{ priority: "desc" }, { linearUpdatedAt: "desc" }],
+        take: 3,
+        select: {
+          id: true,
+          linearIdentifier: true,
+          linearUrl: true,
+          title: true,
+          project: { select: { key: true } },
+        },
+      }),
+      prisma.task.count({
+        where: { userId: user.id, status: "IN_PROGRESS" },
+      }),
       prisma.userSettings.findUnique({
         where: { userId: user.id },
         select: { linearLastSyncedAt: true, workingDaysPerWeek: true },
@@ -178,6 +195,16 @@ export async function GET() {
         workingDaysPerWeek: clampWorkingDaysPerWeek(
           lastSync?.workingDaysPerWeek,
         ),
+      },
+      inProgress: {
+        count: inProgressCount,
+        top: inProgressTasks.map((t) => ({
+          id: t.id,
+          linearIdentifier: t.linearIdentifier,
+          linearUrl: t.linearUrl,
+          title: t.title,
+          projectKey: t.project?.key ?? null,
+        })),
       },
       lastSync: lastSync?.linearLastSyncedAt?.toISOString() ?? null,
     })

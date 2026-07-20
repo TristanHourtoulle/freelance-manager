@@ -10,7 +10,7 @@ import {
   formatWorkloadCoverage,
   formatWorkloadDays,
 } from "@/domain/capacity/workload"
-import { TodayBlock } from "@/components/suivi/today-block"
+import { TodayPanel } from "@/components/suivi/today-panel"
 import { RelanceButton } from "@/components/dashboard/relance-button"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 
@@ -76,6 +76,8 @@ export function MobileDashboardPage() {
         </div>
 
         <div className="m-stack">
+          <TodayPanel />
+
           <div
             style={{
               display: "grid",
@@ -132,8 +134,6 @@ export function MobileDashboardPage() {
               </div>
             </div>
           </div>
-
-          <TodayBlock />
 
           <div className="card">
             <div className="card-title">
