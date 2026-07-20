@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { fmtDate, fmtEUR, fmtEURprecise } from "@/lib/format"
@@ -31,6 +31,7 @@ export function PaymentsSection({
   payments: paymentsProp,
   documentStatus,
 }: PaymentsSectionProps) {
+  const fieldId = useId()
   const payments = paymentsProp ?? []
   const create = useCreatePayment(invoiceId)
   const update = useUpdatePayment(invoiceId)
@@ -264,8 +265,11 @@ export function PaymentsSection({
         >
           <div className="row gap-8" style={{ flexWrap: "wrap" }}>
             <div className="field" style={{ flex: 1, minWidth: 130 }}>
-              <label className="field-label">Montant (€)</label>
+              <label className="field-label" htmlFor={`${fieldId}-montant`}>
+                Montant (€)
+              </label>
               <input
+                id={`${fieldId}-montant`}
                 className="input num"
                 type="number"
                 step="0.01"
@@ -274,8 +278,11 @@ export function PaymentsSection({
               />
             </div>
             <div className="field" style={{ width: 160 }}>
-              <label className="field-label">Date</label>
+              <label className="field-label" htmlFor={`${fieldId}-date`}>
+                Date
+              </label>
               <input
+                id={`${fieldId}-date`}
                 className="input"
                 type="date"
                 value={paidAt}
@@ -283,8 +290,14 @@ export function PaymentsSection({
               />
             </div>
             <div className="field" style={{ flex: 1, minWidth: 140 }}>
-              <label className="field-label">Méthode (optionnel)</label>
+              <label
+                className="field-label"
+                htmlFor={`${fieldId}-methode-optionnel`}
+              >
+                Méthode (optionnel)
+              </label>
               <input
+                id={`${fieldId}-methode-optionnel`}
                 className="input"
                 placeholder="Virement, CB, Espèces…"
                 value={method}
@@ -293,8 +306,14 @@ export function PaymentsSection({
             </div>
           </div>
           <div className="field">
-            <label className="field-label">Note (optionnel)</label>
+            <label
+              className="field-label"
+              htmlFor={`${fieldId}-note-optionnel`}
+            >
+              Note (optionnel)
+            </label>
             <input
+              id={`${fieldId}-note-optionnel`}
               className="input"
               placeholder="Référence, remarque…"
               value={note}

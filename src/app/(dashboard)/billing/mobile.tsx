@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -480,6 +480,7 @@ function MobilePartialPaymentSheet({
   balanceDue: number
   onClose: () => void
 }) {
+  const fieldId = useId()
   const createPayment = useCreatePayment(invoiceId)
   const { toast } = useToast()
   const [amount, setAmount] = useState<number>(0)
@@ -519,8 +520,11 @@ function MobilePartialPaymentSheet({
     >
       <div className="col gap-12">
         <div className="field">
-          <label className="field-label">Montant</label>
+          <label className="field-label" htmlFor={`${fieldId}-montant`}>
+            Montant
+          </label>
           <input
+            id={`${fieldId}-montant`}
             className="input num"
             type="number"
             step="0.01"
@@ -531,8 +535,11 @@ function MobilePartialPaymentSheet({
           />
         </div>
         <div className="field">
-          <label className="field-label">Date</label>
+          <label className="field-label" htmlFor={`${fieldId}-date`}>
+            Date
+          </label>
           <input
+            id={`${fieldId}-date`}
             className="input"
             type="date"
             value={paidAt}

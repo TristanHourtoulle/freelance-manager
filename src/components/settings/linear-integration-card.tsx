@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
@@ -21,6 +21,7 @@ import { fmtRelative } from "@/lib/format"
  * dialog. The PAT field is hidden by default; an eye toggle reveals it.
  */
 export function LinearIntegrationCard() {
+  const fieldId = useId()
   const { data: settings } = useSettings()
   const setToken = useSetLinearToken()
   const clearToken = useClearLinearToken()
@@ -163,12 +164,13 @@ export function LinearIntegrationCard() {
       </div>
 
       <div className="field">
-        <label className="field-label">
+        <label className="field-label" htmlFor={`${fieldId}-field-0`}>
           {connected ? "Remplacer le token" : "Token API Linear"}
         </label>
         <div className="row gap-8">
           <div style={{ position: "relative", flex: 1 }}>
             <input
+              id={`${fieldId}-field-0`}
               className="input mono"
               type={revealing ? "text" : "password"}
               placeholder={preview ?? "lin_api_…"}

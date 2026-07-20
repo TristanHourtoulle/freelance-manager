@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Icon } from "@/components/ui/icon"
@@ -8,6 +8,7 @@ import { GithubGlyph, GoogleGlyph } from "@/components/auth/auth-side"
 import { useToast } from "@/components/providers/toast-provider"
 
 export function MobileLoginPage() {
+  const fieldId = useId()
   const router = useRouter()
   const { toast } = useToast()
   const [email, setEmail] = useState("")
@@ -59,10 +60,13 @@ export function MobileLoginPage() {
 
       <form className="auth-form" onSubmit={onSubmit}>
         <div className="field">
-          <label className="field-label">Email</label>
+          <label className="field-label" htmlFor={`${fieldId}-email`}>
+            Email
+          </label>
           <div className="auth-input-wrap">
             <Icon name="mail" size={16} className="lead-ic" />
             <input
+              id={`${fieldId}-email`}
               className="auth-input"
               type="email"
               value={email}
@@ -74,10 +78,13 @@ export function MobileLoginPage() {
           </div>
         </div>
         <div className="field">
-          <label className="field-label">Mot de passe</label>
+          <label className="field-label" htmlFor={`${fieldId}-mot-de-passe`}>
+            Mot de passe
+          </label>
           <div className="auth-input-wrap">
             <Icon name="lock" size={16} className="lead-ic" />
             <input
+              id={`${fieldId}-mot-de-passe`}
               className="auth-input"
               type={showPwd ? "text" : "password"}
               value={password}
