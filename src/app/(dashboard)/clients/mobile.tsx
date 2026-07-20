@@ -7,9 +7,8 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { BillingTypePill } from "@/components/ui/pill"
-import { useClients } from "@/hooks/use-clients"
+import { useClients, useClientsBillable } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
-import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 
 const NewClientModal = dynamic(
@@ -26,7 +25,7 @@ export function MobileClientsPage() {
   const router = useRouter()
   const { data: clients = [] } = useClients()
   const { data: invoices = [] } = useInvoices()
-  const { data: tasks = [] } = useTasks()
+  const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
   const [filter, setFilter] = useState<Filter>("all")
   const [search, setSearch] = useState("")
@@ -45,13 +44,11 @@ export function MobileClientsPage() {
       .map((c) => {
         const myInvoices = invoices.filter((i) => i.clientId === c.id)
         const revenue = myInvoices.reduce((s, i) => s + i.paidAmount, 0)
-        const pendingTasksCount = tasks.filter(
-          (t) => t.clientId === c.id && t.status === "PENDING_INVOICE",
-        ).length
+        const pendingTasksCount = billable?.byClient[c.id]?.count ?? 0
         const projectsCount = projects.filter((p) => p.clientId === c.id).length
         return { ...c, projectsCount, pendingTasksCount, revenue }
       })
-  }, [clients, invoices, tasks, projects, filter, search])
+  }, [clients, invoices, billable, projects, filter, search])
 
   return (
     <div className="m-screen">
