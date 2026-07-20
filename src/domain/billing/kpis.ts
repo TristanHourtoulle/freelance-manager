@@ -2,6 +2,10 @@ import type { BillingMode, Prisma } from "@/generated/prisma/client"
 import { decimalToNumber } from "@/lib/api"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import { getInvoiceComputed } from "@/lib/payments"
+import {
+  buildPipelineAging,
+  type PipelineAging,
+} from "@/domain/billing/pipeline-aging"
 import type {
   InvoiceDocStatus,
   InvoiceKind,
@@ -34,6 +38,7 @@ export interface PipelineTaskRow {
   estimate: DecimalLike | null
   billingMode: BillingMode
   rate: DecimalLike
+  completedAt: Date | null
 }
 
 export interface PaymentBucketRow {
@@ -117,6 +122,7 @@ export interface DashboardKpis {
   months: DashboardMonthBucket[]
   overdue: DashboardOverdueRow[]
   recentInvoices: DashboardRecentInvoice[]
+  pipelineAging: PipelineAging
 }
 
 /**
@@ -159,16 +165,16 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
   )
 
   const pipelineCount = pipelineTasks.length
-  const pipelineEur = pipelineTasks.reduce(
-    (sum, task) =>
-      sum +
-      pipelineValueForTask({
-        billingMode: task.billingMode,
-        rate: decimalToNumber(task.rate) ?? 0,
-        estimateDays: decimalToNumber(task.estimate),
-      }),
-    0,
-  )
+  const pipelineValues = pipelineTasks.map((task) => ({
+    completedAt: task.completedAt,
+    value: pipelineValueForTask({
+      billingMode: task.billingMode,
+      rate: decimalToNumber(task.rate) ?? 0,
+      estimateDays: decimalToNumber(task.estimate),
+    }),
+  }))
+  const pipelineEur = pipelineValues.reduce((sum, row) => sum + row.value, 0)
+  const pipelineAging = buildPipelineAging(now, pipelineValues)
   const pipelineClientCount = new Set(pipelineTasks.map((t) => t.clientId)).size
 
   const bucketByMonth = new Map(
@@ -231,5 +237,6 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     months,
     overdue,
     recentInvoices: recent,
+    pipelineAging,
   }
 }

@@ -53,7 +53,9 @@ const CATEGORY_LABEL: Record<ClientCategoryKey, string> = {
   SIDE_PROJECT: "Side project",
 }
 
-function concentrationColor(level: "ok" | "warn" | "danger"): string | undefined {
+function concentrationColor(
+  level: "ok" | "warn" | "danger",
+): string | undefined {
   if (level === "danger") return "var(--danger)"
   if (level === "warn") return "var(--warn)"
   return undefined
@@ -118,8 +120,14 @@ function DesktopAnalyticsPage() {
     )
   }
 
-  const { kpi, byClient, heatmap, concentration, estimateAccuracy, categoryMix } =
-    data
+  const {
+    kpi,
+    byClient,
+    heatmap,
+    concentration,
+    estimateAccuracy,
+    categoryMix,
+  } = data
   const accuracy = estimateAccuracy.overall
   const nonFreelanceRows = categoryMix.rows.filter(
     (r) => r.category !== "FREELANCE",

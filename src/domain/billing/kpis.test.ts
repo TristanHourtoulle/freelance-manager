@@ -11,6 +11,11 @@ import {
 } from "./kpis"
 
 const NOW = new Date(2026, 2, 15, 12, 0, 0)
+const DAY_MS = 86_400_000
+
+function daysBefore(days: number): Date {
+  return new Date(NOW.getTime() - days * DAY_MS)
+}
 
 /**
  * Fixed dataset exercising every KPI path: overdue filtering (SENT + unpaid +
@@ -70,10 +75,34 @@ function buildInput(): DashboardKpiInput {
     ],
     paymentBuckets,
     pipelineTasks: [
-      { clientId: "c1", estimate: 2, billingMode: "DAILY", rate: 500 },
-      { clientId: "c1", estimate: 1, billingMode: "DAILY", rate: 500 },
-      { clientId: "c2", estimate: 3, billingMode: "HOURLY", rate: 100 },
-      { clientId: "c2", estimate: 5, billingMode: "FIXED", rate: 1000 },
+      {
+        clientId: "c1",
+        estimate: 2,
+        billingMode: "DAILY",
+        rate: 500,
+        completedAt: daysBefore(2),
+      },
+      {
+        clientId: "c1",
+        estimate: 1,
+        billingMode: "DAILY",
+        rate: 500,
+        completedAt: daysBefore(45),
+      },
+      {
+        clientId: "c2",
+        estimate: 3,
+        billingMode: "HOURLY",
+        rate: 100,
+        completedAt: daysBefore(20),
+      },
+      {
+        clientId: "c2",
+        estimate: 5,
+        billingMode: "FIXED",
+        rate: 1000,
+        completedAt: null,
+      },
     ],
     recentInvoices: [
       {
@@ -151,9 +180,27 @@ describe("computeDashboardKpis", () => {
     const { kpi } = computeDashboardKpis({
       ...buildInput(),
       pipelineTasks: [
-        { clientId: "c1", estimate: 1, billingMode: "DAILY", rate: 100 },
-        { clientId: "c1", estimate: 1, billingMode: "DAILY", rate: 100 },
-        { clientId: "c9", estimate: 1, billingMode: "FIXED", rate: 100 },
+        {
+          clientId: "c1",
+          estimate: 1,
+          billingMode: "DAILY",
+          rate: 100,
+          completedAt: null,
+        },
+        {
+          clientId: "c1",
+          estimate: 1,
+          billingMode: "DAILY",
+          rate: 100,
+          completedAt: null,
+        },
+        {
+          clientId: "c9",
+          estimate: 1,
+          billingMode: "FIXED",
+          rate: 100,
+          completedAt: null,
+        },
       ],
     })
 
@@ -257,5 +304,42 @@ describe("computeDashboardKpis", () => {
     })
     expect(overdue).toEqual([])
     expect(recentInvoices).toEqual([])
+  })
+
+  it("ages the billable pipeline without moving any existing KPI", () => {
+    const input = buildInput()
+    const { kpi, pipelineAging } = computeDashboardKpis(input)
+
+    expect(kpi.pipelineCount).toBe(4)
+    expect(kpi.pipelineEur).toBe(3900)
+    expect(kpi.pipelineClientCount).toBe(2)
+
+    expect(pipelineAging.oldestDays).toBe(45)
+    expect(pipelineAging.buckets).toEqual({
+      fresh: 1,
+      warm: 1,
+      stale: 1,
+      undated: 1,
+    })
+    expect(pipelineAging.staleCount).toBe(1)
+    expect(pipelineAging.staleValue).toBe(500)
+  })
+
+  it("reports an empty aging profile when nothing is pending", () => {
+    const { pipelineAging } = computeDashboardKpis({
+      now: NOW,
+      openInvoices: [],
+      paymentTotals: [],
+      paymentBuckets: [],
+      pipelineTasks: [],
+      recentInvoices: [],
+    })
+
+    expect(pipelineAging).toEqual({
+      oldestDays: null,
+      staleCount: 0,
+      staleValue: 0,
+      buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+    })
   })
 })

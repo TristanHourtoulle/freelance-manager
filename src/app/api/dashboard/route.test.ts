@@ -43,7 +43,7 @@ const PENDING_WHERE = {
 
 type TaskFindManyArgs = {
   where?: { status?: string }
-  select?: { clientId?: boolean; estimate?: boolean }
+  select?: { clientId?: boolean; estimate?: boolean; completedAt?: boolean }
 }
 
 /**
@@ -100,16 +100,19 @@ describe("GET /api/dashboard", () => {
         {
           clientId: "c1",
           estimate: 2,
+          completedAt: null,
           client: { billingMode: "DAILY", rate: 500 },
         },
         {
           clientId: "c2",
           estimate: 3,
+          completedAt: null,
           client: { billingMode: "HOURLY", rate: 100 },
         },
         {
           clientId: "c2",
           estimate: 1,
+          completedAt: null,
           client: { billingMode: "HOURLY", rate: 100 },
         },
       ],
@@ -132,6 +135,7 @@ describe("GET /api/dashboard", () => {
     const pipelineArgs = pipelineCall?.[0] as TaskFindManyArgs
     expect(pipelineArgs.where).toEqual(PENDING_WHERE)
     expect(pipelineArgs.select?.clientId).toBe(true)
+    expect(pipelineArgs.select?.completedAt).toBe(true)
     expect(taskFindMany).toHaveBeenCalledTimes(2)
   })
 
@@ -142,11 +146,13 @@ describe("GET /api/dashboard", () => {
         {
           clientId: "c1",
           estimate: 2,
+          completedAt: null,
           client: { billingMode: "DAILY", rate: 500 },
         },
         {
           clientId: "c4",
           estimate: 6,
+          completedAt: null,
           client: { billingMode: "FIXED", rate: 900 },
         },
       ],
@@ -205,5 +211,68 @@ describe("GET /api/dashboard", () => {
     expect(body.kpi.pipelineCount).toBe(0)
     expect(body.kpi.pipelineEur).toBe(0)
     expect(body.kpi.pipelineClientCount).toBe(0)
+  })
+
+  it("ages the pipeline from the task completion dates", async () => {
+    const dayMs = 86_400_000
+    const now = new Date(2026, 2, 15, 12, 0, 0).getTime()
+    invoiceFindMany.mockResolvedValue([])
+    mockTaskFindMany(
+      [
+        {
+          clientId: "c1",
+          estimate: 2,
+          completedAt: new Date(now - 3 * dayMs),
+          client: { billingMode: "DAILY", rate: 500 },
+        },
+        {
+          clientId: "c2",
+          estimate: 1,
+          completedAt: new Date(now - 60 * dayMs),
+          client: { billingMode: "DAILY", rate: 500 },
+        },
+        {
+          clientId: "c3",
+          estimate: 1,
+          completedAt: null,
+          client: { billingMode: "DAILY", rate: 500 },
+        },
+      ],
+      [],
+    )
+    userSettingsFindUnique.mockResolvedValue({ linearLastSyncedAt: null })
+    mockPaymentTotals()
+
+    const { GET } = await import("./route")
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.pipelineAging.oldestDays).toBe(60)
+    expect(body.pipelineAging.staleCount).toBe(1)
+    expect(body.pipelineAging.staleValue).toBe(500)
+    expect(body.pipelineAging.buckets).toEqual({
+      fresh: 1,
+      warm: 0,
+      stale: 1,
+      undated: 1,
+    })
+  })
+
+  it("returns an empty aging profile with no pending tasks", async () => {
+    invoiceFindMany.mockResolvedValue([])
+    mockTaskFindMany([], [])
+    userSettingsFindUnique.mockResolvedValue({ linearLastSyncedAt: null })
+    mockPaymentTotals()
+
+    const { GET } = await import("./route")
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.pipelineAging).toEqual({
+      oldestDays: null,
+      staleCount: 0,
+      staleValue: 0,
+      buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+    })
   })
 })

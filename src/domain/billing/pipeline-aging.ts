@@ -50,7 +50,7 @@ export function buildPipelineAging(
   const buckets = { fresh: 0, warm: 0, stale: 0, undated: 0 }
 
   for (const row of rows) {
-    if (row.completedAt === null) {
+    if (row.completedAt == null) {
       buckets.undated += 1
       continue
     }

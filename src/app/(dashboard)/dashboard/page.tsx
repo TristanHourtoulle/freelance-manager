@@ -61,6 +61,12 @@ function DesktopDashboardPage() {
     pipelineEur: 0,
     pipelineClientCount: 0,
   }
+  const pipelineAging = data?.pipelineAging ?? {
+    oldestDays: null,
+    staleCount: 0,
+    staleValue: 0,
+    buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+  }
 
   return (
     <div className="page">
@@ -246,6 +252,37 @@ function DesktopDashboardPage() {
                       <div className="xs muted">
                         {kpi.pipelineCount} tasks à facturer ·{" "}
                         {fmtEUR(kpi.pipelineEur)}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => router.push("/billing/new")}
+                    >
+                      Facturer
+                    </button>
+                  </div>
+                )}
+                {pipelineAging.staleCount > 0 && (
+                  <div
+                    className="row gap-12"
+                    style={{
+                      padding: 12,
+                      background: "var(--warn-soft)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Icon
+                      name="alert"
+                      size={16}
+                      style={{ color: "var(--warn)" }}
+                    />
+                    <div className="grow">
+                      <div className="strong small">Pipeline vieillissante</div>
+                      <div className="xs muted">
+                        La plus ancienne attend {pipelineAging.oldestDays} j ·{" "}
+                        {pipelineAging.staleCount} task
+                        {pipelineAging.staleCount > 1 ? "s" : ""} &gt; 30 j ·{" "}
+                        {fmtEUR(pipelineAging.staleValue)}
                       </div>
                     </div>
                     <button
