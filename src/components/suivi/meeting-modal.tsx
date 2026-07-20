@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useToast } from "@/components/providers/toast-provider"
@@ -11,7 +11,11 @@ import {
   useUpdateMeeting,
   type MeetingDTO,
 } from "@/hooks/use-meetings"
+import { useActions } from "@/hooks/use-actions"
+import { useMeetings } from "@/hooks/use-meetings"
+import { ActionModal } from "@/components/suivi/action-modal"
 import { Markdown } from "@/lib/markdown"
+import { fmtRelative } from "@/lib/format"
 
 function todayInput(): string {
   return new Date().toISOString().slice(0, 10)
@@ -61,13 +65,39 @@ export function MeetingModal({
   const [participants, setParticipants] = useState(
     (meeting?.participants ?? []).join(", "),
   )
+  const [agendaMd, setAgendaMd] = useState(meeting?.agendaMd ?? "")
+  const [agendaPreview, setAgendaPreview] = useState(false)
   const [summaryMd, setSummaryMd] = useState(meeting?.summaryMd ?? "")
   const [preview, setPreview] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [newAction, setNewAction] = useState(false)
 
   const targetClientId = clientId ?? meeting?.clientId ?? selectedClient
   const isValid = title.trim().length > 0 && targetClientId.length > 0
   const isPending = create.isPending || update.isPending
+
+  const { data: clientMeetings } = useMeetings(
+    targetClientId ? { clientId: targetClientId } : undefined,
+  )
+  const { data: clientActions } = useActions(
+    meeting ? { clientId: meeting.clientId } : undefined,
+  )
+
+  const participantSuggestions = useMemo(
+    () =>
+      [...new Set((clientMeetings ?? []).flatMap((m) => m.participants))].sort(
+        (a, b) => a.localeCompare(b, "fr"),
+      ),
+    [clientMeetings],
+  )
+
+  const meetingActions = useMemo(
+    () =>
+      meeting
+        ? (clientActions ?? []).filter((a) => a.meetingId === meeting.id)
+        : [],
+    [clientActions, meeting],
+  )
 
   function buildPayload() {
     return {
@@ -79,6 +109,7 @@ export function MeetingModal({
         .split(/[,\n]/)
         .map((p) => p.trim())
         .filter(Boolean),
+      agendaMd: agendaMd.trim() || null,
       summaryMd: summaryMd.trim() || null,
     }
   }
@@ -256,11 +287,53 @@ export function MeetingModal({
             <input
               id={`${fieldId}-participants`}
               className="input"
+              list={`${fieldId}-participants-list`}
               value={participants}
               onChange={(e) => setParticipants(e.target.value)}
               placeholder="Séparés par des virgules"
             />
+            <datalist id={`${fieldId}-participants-list`}>
+              {participantSuggestions.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
           </div>
+        </div>
+
+        <div className="modal-section">
+          <div
+            className="row"
+            style={{ justifyContent: "space-between", marginBottom: 8 }}
+          >
+            <label className="field-label" htmlFor={`${fieldId}-agenda-md`}>
+              Ordre du jour (markdown)
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setAgendaPreview((p) => !p)}
+            >
+              {agendaPreview ? "Éditer" : "Aperçu"}
+            </button>
+          </div>
+          {agendaPreview ? (
+            <div className="suivi-md-preview">
+              {agendaMd.trim() ? (
+                <Markdown source={agendaMd} />
+              ) : (
+                <span style={{ color: "var(--text-3)" }}>Rien à afficher.</span>
+              )}
+            </div>
+          ) : (
+            <textarea
+              id={`${fieldId}-agenda-md`}
+              className="textarea mono"
+              rows={6}
+              value={agendaMd}
+              onChange={(e) => setAgendaMd(e.target.value)}
+              placeholder={"## À aborder\n- …"}
+            />
+          )}
         </div>
 
         <div className="modal-section">
@@ -298,8 +371,63 @@ export function MeetingModal({
             />
           )}
         </div>
+
+        {isEdit && meeting && (
+          <div className="modal-section">
+            <div className="modal-section-title">
+              Actions issues de cette réunion
+            </div>
+            {meetingActions.length === 0 ? (
+              <div className="muted small">
+                Aucune action issue de cette réunion.
+              </div>
+            ) : (
+              <div className="suivi-list">
+                {meetingActions.map((a) => (
+                  <div key={a.id} className="suivi-item">
+                    <div className="suivi-main">
+                      <div className="suivi-title">{a.title}</div>
+                      <div className="suivi-meta">
+                        {a.status === "WAITING" && (
+                          <span className="pill pill-no-dot pill-waiting">
+                            En attente
+                          </span>
+                        )}
+                        {a.status === "DONE" && (
+                          <span className="pill pill-no-dot pill-done">
+                            Fait
+                          </span>
+                        )}
+                        {a.dueDate && (
+                          <span className="suivi-due">
+                            {fmtRelative(a.dueDate)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: 10 }}
+              onClick={() => setNewAction(true)}
+            >
+              Créer une action depuis cette réunion
+            </button>
+          </div>
+        )}
       </Modal>
 
+      {newAction && meeting && (
+        <ActionModal
+          clientId={meeting.clientId}
+          defaultMeetingId={meeting.id}
+          onClose={() => setNewAction(false)}
+        />
+      )}
       {confirmDelete && (
         <ConfirmDialog
           title="Supprimer cette réunion ?"

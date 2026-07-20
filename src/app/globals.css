@@ -857,6 +857,10 @@ textarea {
   background: var(--cyan-soft);
   color: var(--cyan);
 }
+.pill-waiting {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
 
 .chip-row {
   display: flex;

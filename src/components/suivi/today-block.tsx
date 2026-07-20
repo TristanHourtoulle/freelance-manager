@@ -10,6 +10,8 @@ import {
 import { useMeetings } from "@/hooks/use-meetings"
 import { avatarColor, fmtRelative, initials } from "@/lib/format"
 
+const TODO_ONLY = { statuses: ["TODO"] } as const
+
 function dayBounds(): { start: number; end: number } {
   const s = new Date()
   s.setHours(0, 0, 0, 0)
@@ -32,7 +34,7 @@ function clientLabel(c: {
  * nothing for today so the dashboard stays clean.
  */
 export function TodayBlock() {
-  const { data: actions = [] } = useActions({ status: "TODO" })
+  const { data: actions = [] } = useActions(TODO_ONLY)
   const { data: meetings = [] } = useMeetings()
   const update = useUpdateAction()
 
