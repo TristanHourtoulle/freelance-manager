@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useSettings } from "@/hooks/use-settings"
 import { useClients, useClientsBillable } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
@@ -76,6 +77,8 @@ export function DesktopTasksPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: settings } = useSettings()
   const sync = useSyncLinear()
+  const syncProgress = useLinearSyncProgress()
+  const isSyncing = sync.isPending || syncProgress.isRunning
 
   const counts = useMemo(
     () => ({
@@ -231,14 +234,10 @@ export function DesktopTasksPage() {
             <button
               className="btn btn-secondary"
               onClick={doSync}
-              disabled={sync.isPending}
+              disabled={isSyncing}
             >
-              <Icon
-                name="sync"
-                size={14}
-                className={sync.isPending ? "spin" : ""}
-              />
-              {sync.isPending ? "Synchronisation…" : "Sync Linear"}
+              <Icon name="sync" size={14} className={isSyncing ? "spin" : ""} />
+              {isSyncing ? syncProgress.buttonLabel : "Sync Linear"}
             </button>
             {selected.size > 0 && canInvoiceSelected && (
               <button

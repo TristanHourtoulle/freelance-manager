@@ -8,6 +8,7 @@ import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useProjects } from "@/hooks/use-projects"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 
@@ -26,6 +27,8 @@ export function MobileProjectsPage() {
   const { data: clients = [] } = useClients()
   const { data: invoices = [] } = useInvoices()
   const sync = useSyncLinear()
+  const syncProgress = useLinearSyncProgress()
+  const isSyncing = sync.isPending || syncProgress.isRunning
   const [showLink, setShowLink] = useState(false)
 
   return (
@@ -45,14 +48,10 @@ export function MobileProjectsPage() {
             type="button"
             className="btn btn-secondary btn-sm grow"
             onClick={() => sync.mutate()}
-            disabled={sync.isPending}
+            disabled={isSyncing}
           >
-            <Icon
-              name="sync"
-              size={12}
-              className={sync.isPending ? "spin" : ""}
-            />
-            {sync.isPending ? "Synchronisation…" : "Sync Linear"}
+            <Icon name="sync" size={12} className={isSyncing ? "spin" : ""} />
+            {isSyncing ? syncProgress.buttonLabel : "Sync Linear"}
           </button>
           <button
             type="button"

@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { ProtectedDashboardShell } from "./_protected-shell"
+import { LinearSyncWatcher } from "./_linear-sync-watcher"
 
 export default function DashboardLayout({
   children,
@@ -8,7 +9,10 @@ export default function DashboardLayout({
 }) {
   return (
     <Suspense fallback={<div className="empty">Chargement…</div>}>
-      <ProtectedDashboardShell>{children}</ProtectedDashboardShell>
+      <ProtectedDashboardShell>
+        <LinearSyncWatcher />
+        {children}
+      </ProtectedDashboardShell>
     </Suspense>
   )
 }
