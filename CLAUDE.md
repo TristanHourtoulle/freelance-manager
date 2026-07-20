@@ -104,7 +104,11 @@ tasks no longer appear in the "eligible" list of the new-invoice page.
   mandatory to keep data private)
 - **TanStack Query v5** for ALL server state (see "Data fetching" section)
 - **Linear SDK** (`@linear/sdk`) for project/task sync
-- **dnd-kit** for the drag & drop invoice builder
+- **Native HTML5 drag-and-drop API** for the desktop invoice builder
+  (`draggable` + `onDragStart` / `onDragOver`, see
+  `src/features/billing/invoice-builder-parts.tsx`); the mobile builder replaces
+  drag & drop with tap-to-add / tap-to-remove rows (see
+  `src/app/(dashboard)/billing/new/mobile.tsx`)
 - **Inter** + **JetBrains Mono** (numerics get `font-feature-settings: 'tnum' 1`
   via the `.num` / `.mono` classes)
 - Package manager: **pnpm**
