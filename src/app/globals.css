@@ -1162,6 +1162,10 @@ textarea {
   background: var(--bg-1);
   margin-bottom: 6px;
   cursor: grab;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   transition:
     background 0.1s,
     border-color 0.1s;

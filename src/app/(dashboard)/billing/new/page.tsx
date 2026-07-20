@@ -12,16 +12,24 @@ import {
 } from "@/features/billing/invoice-builder-parts"
 import { CreateInvoiceConfigCard } from "@/features/billing/create-invoice-config-card"
 import { SplitDialog } from "@/components/billing/split-dialog"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import dynamic from "next/dynamic"
+
+const MobileInvoiceNewPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileInvoiceNewPage),
+  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+)
 
 export default function NewInvoicePage() {
+  const isMobile = useIsMobile()
   return (
     <Suspense fallback={<div className="empty">Chargement…</div>}>
-      <NewInvoicePageContent />
+      {isMobile ? <MobileInvoiceNewPage /> : <DesktopNewInvoicePage />}
     </Suspense>
   )
 }
 
-function NewInvoicePageContent() {
+export function DesktopNewInvoicePage() {
   const router = useRouter()
   const search = useSearchParams()
   const taskIdsParam = search.get("taskIds") ?? ""

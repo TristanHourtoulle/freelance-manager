@@ -155,8 +155,9 @@ export function EligibleTaskColumn({
               })
             : { qty: 0, rate: 0 }
           return (
-            <div
+            <button
               key={t.id}
+              type="button"
               className="task-pickable"
               draggable
               onDragStart={(e) => {
@@ -180,7 +181,7 @@ export function EligibleTaskColumn({
                 {b.useTotalOverride ? "" : fmtEUR(value.qty * value.rate)}
               </span>
               <Icon name="plus" size={14} className="muted" />
-            </div>
+            </button>
           )
         })}
       </div>
