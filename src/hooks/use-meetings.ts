@@ -19,7 +19,9 @@ export interface MeetingDTO {
   heldAt: string
   durationMinutes: number
   participants: string[]
+  agendaMd: string | null
   summaryMd: string | null
+  actionsCount: number
   createdAt: string
 }
 
@@ -30,6 +32,7 @@ export interface MeetingCreateBody {
   heldAt: string
   durationMinutes?: number
   participants?: string[]
+  agendaMd?: string | null
   summaryMd?: string | null
 }
 
@@ -39,6 +42,7 @@ export interface MeetingUpdateBody {
   heldAt?: string
   durationMinutes?: number
   participants?: string[]
+  agendaMd?: string | null
   summaryMd?: string | null
 }
 

@@ -9,13 +9,33 @@ import {
   parsePagination,
   requireSameOrigin,
 } from "@/lib/api"
-import { actionCreateSchema } from "@/lib/schemas/action"
 import {
-  ACTION_INCLUDE,
-  serializeAction,
-  type ClientActionStatus,
-  type ClientActionType,
-} from "@/lib/data/actions"
+  actionCreateSchema,
+  actionFilterSchema,
+  clientActionStatusSchema,
+} from "@/lib/schemas/action"
+import { ACTION_INCLUDE, serializeAction } from "@/lib/data/actions"
+import type { ClientActionStatus } from "@/lib/data/actions"
+
+/**
+ * Build the Prisma `status` clause from the repeated `status` query parameter.
+ *
+ * @param raw - Every `status` value present on the request URL.
+ * @returns An empty object when no status was requested, an equality clause for
+ * a single value, or an `in` clause for several.
+ * @throws When a value is not a member of `ClientActionStatus`.
+ */
+function buildStatusWhere(raw: string[]): {
+  status?: ClientActionStatus | { in: ClientActionStatus[] }
+} {
+  const parsed = raw
+    .filter((v) => v.length > 0)
+    .map((v) => clientActionStatusSchema.parse(v))
+  const unique = [...new Set(parsed)]
+  if (unique.length === 0) return {}
+  if (unique.length === 1) return { status: unique[0] }
+  return { status: { in: unique } }
+}
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -23,19 +43,19 @@ export async function GET(req: Request) {
 
   try {
     const url = new URL(req.url)
-    const clientId = url.searchParams.get("clientId") ?? undefined
-    const status =
-      (url.searchParams.get("status") as ClientActionStatus | null) ?? undefined
-    const type =
-      (url.searchParams.get("type") as ClientActionType | null) ?? undefined
+    const filters = actionFilterSchema.parse({
+      clientId: url.searchParams.get("clientId") ?? undefined,
+      type: url.searchParams.get("type") ?? undefined,
+    })
+    const statusWhere = buildStatusWhere(url.searchParams.getAll("status"))
     const { cursor, limit } = parsePagination(req)
 
     const rows = await prisma.clientAction.findMany({
       where: {
         userId: user.id,
-        ...(clientId ? { clientId } : {}),
-        ...(status ? { status } : {}),
-        ...(type ? { type } : {}),
+        ...(filters.clientId ? { clientId: filters.clientId } : {}),
+        ...statusWhere,
+        ...(filters.type ? { type: filters.type } : {}),
       },
       include: ACTION_INCLUDE,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],

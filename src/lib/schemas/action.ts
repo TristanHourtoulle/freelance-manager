@@ -6,7 +6,7 @@ export const clientActionTypeSchema = z.enum([
   "RDV",
   "OTHER",
 ])
-export const clientActionStatusSchema = z.enum(["TODO", "DONE"])
+export const clientActionStatusSchema = z.enum(["TODO", "WAITING", "DONE"])
 
 const actionBaseSchema = z.object({
   type: clientActionTypeSchema.default("OTHER"),

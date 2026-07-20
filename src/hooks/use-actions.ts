@@ -10,7 +10,7 @@ import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 
 export type ClientActionType = "RELANCE" | "LINK" | "RDV" | "OTHER"
-export type ClientActionStatus = "TODO" | "DONE"
+export type ClientActionStatus = "TODO" | "WAITING" | "DONE"
 
 export interface ActionClientRef {
   id: string
@@ -72,7 +72,7 @@ export interface RelanceVariables {
 
 interface ActionFilters {
   clientId?: string
-  status?: ClientActionStatus
+  statuses?: readonly ClientActionStatus[]
   type?: ClientActionType
 }
 
@@ -81,7 +81,7 @@ const EMPTY_FILTERS: ActionFilters = {}
 export function useActions(filters: ActionFilters = EMPTY_FILTERS) {
   const baseQs = new URLSearchParams()
   if (filters.clientId) baseQs.set("clientId", filters.clientId)
-  if (filters.status) baseQs.set("status", filters.status)
+  for (const s of filters.statuses ?? []) baseQs.append("status", s)
   if (filters.type) baseQs.set("type", filters.type)
   baseQs.set("limit", "50")
   return useInfiniteQuery({

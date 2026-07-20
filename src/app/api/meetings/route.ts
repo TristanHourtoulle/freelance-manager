@@ -64,6 +64,7 @@ export async function POST(req: Request) {
         heldAt: data.heldAt,
         durationMinutes: data.durationMinutes ?? 0,
         participants: data.participants ?? [],
+        agendaMd: data.agendaMd ?? null,
         summaryMd: data.summaryMd ?? null,
       },
       include: MEETING_INCLUDE,

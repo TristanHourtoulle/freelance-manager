@@ -11,7 +11,9 @@ export interface MeetingWireRow {
   heldAt: string
   durationMinutes: number
   participants: string[]
+  agendaMd: string | null
   summaryMd: string | null
+  actionsCount: number
   createdAt: string
 }
 
@@ -25,6 +27,7 @@ export const MEETING_INCLUDE = {
       color: true,
     },
   },
+  _count: { select: { actions: true } },
 } satisfies Prisma.MeetingInclude
 
 type MeetingRow = Prisma.MeetingGetPayload<{ include: typeof MEETING_INCLUDE }>
@@ -45,7 +48,9 @@ export function serializeMeeting(m: MeetingRow): MeetingWireRow {
     heldAt: m.heldAt.toISOString(),
     durationMinutes: m.durationMinutes,
     participants: m.participants,
+    agendaMd: m.agendaMd,
     summaryMd: m.summaryMd,
+    actionsCount: m._count.actions,
     createdAt: m.createdAt.toISOString(),
   }
 }
