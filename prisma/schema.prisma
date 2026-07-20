@@ -254,6 +254,11 @@ model Project {
   description String?
   status      ProjectStatus @default(ACTIVE)
 
+  repoUrl    String?
+  stagingUrl String?
+  prodUrl    String?
+  runbook    String?
+
   linearCreatedAt DateTime?
   lastSyncedAt    DateTime  @default(now())
   createdAt       DateTime  @default(now())
