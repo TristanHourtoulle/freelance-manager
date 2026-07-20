@@ -65,5 +65,12 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@11.13.1"
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
 }
