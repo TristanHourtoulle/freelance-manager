@@ -4,9 +4,15 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import ClientsPage from "./page"
 import type { ClientDTO } from "@/hooks/use-clients"
 
-const { useClientsMock, useClientsBillableMock, pushMock } = vi.hoisted(() => ({
+const {
+  useClientsMock,
+  useClientsBillableMock,
+  useClientsRecencyMock,
+  pushMock,
+} = vi.hoisted(() => ({
   useClientsMock: vi.fn(),
   useClientsBillableMock: vi.fn(),
+  useClientsRecencyMock: vi.fn(),
   pushMock: vi.fn(),
 }))
 
@@ -25,6 +31,7 @@ vi.mock("@/hooks/use-is-mobile", () => ({
 vi.mock("@/hooks/use-clients", () => ({
   useClients: (options?: { archived?: boolean }) => useClientsMock(options),
   useClientsBillable: () => useClientsBillableMock(),
+  useClientsRecency: () => useClientsRecencyMock(),
 }))
 
 vi.mock("@/hooks/use-invoices", () => ({
@@ -93,6 +100,8 @@ describe("ClientsPage (desktop)", () => {
   beforeEach(() => {
     useClientsMock.mockReset()
     useClientsBillableMock.mockReset()
+    useClientsRecencyMock.mockReset()
+    useClientsRecencyMock.mockReturnValue({ data: { byClient: {} } })
     pushMock.mockReset()
     useClientsBillableMock.mockReturnValue(billableResult())
   })
@@ -127,6 +136,46 @@ describe("ClientsPage (desktop)", () => {
 
     const card = container.querySelector(".client-card")
     expect(card?.textContent).toMatch(/2\s*à facturer/)
+  })
+
+  it("badges a silent client from the server-side recency aggregate", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+    useClientsRecencyMock.mockReturnValue({
+      data: {
+        byClient: {
+          "client-1": {
+            lastContactAt: "2026-01-01T00:00:00.000Z",
+            silentDays: 62,
+            isSilent: true,
+          },
+        },
+      },
+    })
+
+    render(<ClientsPage />)
+
+    expect(
+      screen.getAllByText("Silencieux depuis 62 j").length,
+    ).toBeGreaterThan(0)
+  })
+
+  it("shows no silence badge for a recently contacted client", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+    useClientsRecencyMock.mockReturnValue({
+      data: {
+        byClient: {
+          "client-1": {
+            lastContactAt: "2026-03-01T00:00:00.000Z",
+            silentDays: 3,
+            isSilent: false,
+          },
+        },
+      },
+    })
+
+    render(<ClientsPage />)
+
+    expect(screen.queryByText(/Silencieux depuis/)).not.toBeInTheDocument()
   })
 
   it("shows a billable count larger than one task page", () => {

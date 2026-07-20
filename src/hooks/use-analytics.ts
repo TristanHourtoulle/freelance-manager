@@ -3,6 +3,16 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
+import type { ConcentrationSummary } from "@/domain/analytics/concentration"
+import type { AccuracyResult } from "@/domain/analytics/estimate-accuracy"
+import type { CategoryMix } from "@/domain/analytics/category-mix"
+
+export type { AccuracyResult } from "@/domain/analytics/estimate-accuracy"
+export type {
+  CategoryMix,
+  CategoryMixRow,
+  ClientCategoryKey,
+} from "@/domain/analytics/category-mix"
 
 export type AnalyticsRange = "3m" | "6m" | "12m"
 
@@ -32,10 +42,19 @@ export interface AnalyticsDTO {
     revenue: number
     days: number
     effectiveRate: number | null
+    revenueShare: number | null
+    daysShare: number | null
   }[]
   byType: { type: "DAILY" | "FIXED" | "HOURLY"; revenue: number }[]
   weeks: { label: string; done: number; invoiced: number }[]
   heatmap: number[][]
+  concentration: Omit<ConcentrationSummary, "rows">
+  estimateAccuracy: {
+    overall: AccuracyResult
+    byBillingMode: Record<"DAILY" | "FIXED" | "HOURLY", AccuracyResult>
+    byClient: Record<string, AccuracyResult>
+  }
+  categoryMix: CategoryMix
 }
 
 export function useAnalytics(range: AnalyticsRange) {

@@ -90,6 +90,7 @@ export async function GET() {
         select: {
           clientId: true,
           estimate: true,
+          completedAt: true,
           client: { select: { billingMode: true, rate: true } },
         },
       }),
@@ -154,6 +155,7 @@ export async function GET() {
       months,
       overdue,
       recentInvoices: recentInvoicesOut,
+      pipelineAging,
     } = computeDashboardKpis({
       now: today,
       openInvoices,
@@ -164,6 +166,7 @@ export async function GET() {
         estimate: task.estimate,
         billingMode: task.client.billingMode,
         rate: task.client.rate,
+        completedAt: task.completedAt,
       })),
       recentInvoices,
     })
@@ -178,6 +181,7 @@ export async function GET() {
       kpi,
       months,
       overdue,
+      pipelineAging,
       recentInvoices: recentInvoicesOut,
       recentTasks: recentTasks.map((t) => ({
         id: t.id,

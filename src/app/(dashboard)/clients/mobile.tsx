@@ -7,7 +7,11 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { BillingTypePill } from "@/components/ui/pill"
-import { useClients, useClientsBillable } from "@/hooks/use-clients"
+import {
+  useClients,
+  useClientsBillable,
+  useClientsRecency,
+} from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useProjects } from "@/hooks/use-projects"
 
@@ -27,6 +31,7 @@ export function MobileClientsPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
+  const { data: recency } = useClientsRecency()
   const [filter, setFilter] = useState<Filter>("all")
   const [search, setSearch] = useState("")
   const [showNew, setShowNew] = useState(false)
@@ -49,9 +54,17 @@ export function MobileClientsPage() {
         const revenue = myInvoices.reduce((s, i) => s + i.paidAmount, 0)
         const pendingTasksCount = billable?.byClient[c.id]?.count ?? 0
         const projectsCount = projects.filter((p) => p.clientId === c.id).length
-        return { ...c, projectsCount, pendingTasksCount, revenue }
+        const recent = recency?.byClient[c.id]
+        return {
+          ...c,
+          projectsCount,
+          pendingTasksCount,
+          revenue,
+          silentDays: recent?.silentDays ?? null,
+          isSilent: recent?.isSilent ?? false,
+        }
       })
-  }, [clients, invoices, billable, projects, filter, search])
+  }, [clients, invoices, billable, projects, recency, filter, search])
 
   return (
     <div className="m-screen">
@@ -138,6 +151,13 @@ export function MobileClientsPage() {
                   )}
                   <BillingTypePill type={c.billingMode} />
                 </div>
+                {c.isSilent && (
+                  <div className="row" style={{ marginTop: 8 }}>
+                    <span className="pill pill-overdue pill-no-dot">
+                      Silencieux depuis {c.silentDays} j
+                    </span>
+                  </div>
+                )}
                 <div className="divider" style={{ margin: "10px 0" }} />
                 <div
                   style={{

@@ -70,9 +70,10 @@ User ─┬─> Client ─┬─> Project (linked to Linear) ─> Task (synced f
   `FREE`** — removed in the rework.
 - **Client.category**: a stored classification (`FREELANCE` / `SIDE_PROJECT` /
   `PERSONAL` / `STUDY`) persisted on the client and exposed through the client
-  API and DTOs, but **not** surfaced in any UI filter today. The chips on the
-  Tasks page are status filters (`Tout` / `À facturer` / `Done` /
-  `In progress`).
+  API and DTOs. It is used as an analytics dimension (effort-days and task
+  counts are broken down by category on /analytics), but is **not** a filter on
+  the Tasks page: the chips there are status filters (`Tout` / `À facturer` /
+  `Done` / `In progress`).
 
 ### Task → Invoice line mapping
 

@@ -14,6 +14,7 @@ const NewClientModal = dynamic(
 import {
   useClients,
   useClientsBillable,
+  useClientsRecency,
   type ClientDTO,
 } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
@@ -41,6 +42,8 @@ interface EnrichedClient extends ClientDTO {
   pendingTasksCount: number
   revenue: number
   outstanding: number
+  silentDays: number | null
+  isSilent: boolean
 }
 
 function gradient(c: ClientDTO): string {
@@ -70,6 +73,7 @@ function DesktopClientsPage() {
   } = useClients({ archived: showArchived })
   const { data: invoices = [] } = useInvoices()
   const { data: billable } = useClientsBillable()
+  const { data: recency } = useClientsRecency()
   const { data: projects = [] } = useProjects()
 
   const enriched: EnrichedClient[] = useMemo(() => {
@@ -100,15 +104,18 @@ function DesktopClientsPage() {
           outstanding += i.balanceDue
         }
       }
+      const recent = recency?.byClient[c.id]
       return {
         ...c,
         projectsCount: projectsByClient.get(c.id) ?? 0,
         pendingTasksCount: billable?.byClient[c.id]?.count ?? 0,
         revenue,
         outstanding,
+        silentDays: recent?.silentDays ?? null,
+        isSilent: recent?.isSilent ?? false,
       }
     })
-  }, [clients, invoices, billable, projects])
+  }, [clients, invoices, billable, recency, projects])
 
   const filtered = enriched.filter((c) => {
     if (
@@ -332,6 +339,11 @@ function DesktopClientsPage() {
                   <span className="pill pill-draft">Dormant</span>
                 )}
                 <BillingTypePill type={c.billingMode} />
+                {c.isSilent && (
+                  <span className="pill pill-overdue pill-no-dot">
+                    Silencieux depuis {c.silentDays} j
+                  </span>
+                )}
               </div>
               <div className="client-stats">
                 <div className="client-stat">
@@ -432,7 +444,14 @@ function DesktopClientsPage() {
                     </div>
                   </td>
                   <td>
-                    <BillingTypePill type={c.billingMode} />
+                    <div className="row gap-4">
+                      <BillingTypePill type={c.billingMode} />
+                      {c.isSilent && (
+                        <span className="pill pill-overdue pill-no-dot">
+                          Silencieux depuis {c.silentDays} j
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="num">
                     {c.billingMode === "DAILY"

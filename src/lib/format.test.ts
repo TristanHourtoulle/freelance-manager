@@ -7,6 +7,8 @@ import {
   fmtRelative,
   initials,
   avatarColor,
+  fmtSharePct,
+  fmtRatio,
 } from "@/lib/format"
 
 describe("fmtEUR", () => {
@@ -91,5 +93,32 @@ describe("avatarColor", () => {
 
   it("returns a CSS linear-gradient", () => {
     expect(avatarColor("Henri")).toContain("linear-gradient")
+  })
+})
+
+describe("fmtSharePct", () => {
+  it("rounds a fraction to a glued percentage", () => {
+    expect(fmtSharePct(0.423)).toBe("42%")
+    expect(fmtSharePct(1)).toBe("100%")
+    expect(fmtSharePct(0)).toBe("0%")
+  })
+
+  it("returns a dash for null and non-finite input", () => {
+    expect(fmtSharePct(null)).toBe("—")
+    expect(fmtSharePct(undefined)).toBe("—")
+    expect(fmtSharePct(Number.NaN)).toBe("—")
+    expect(fmtSharePct(Number.POSITIVE_INFINITY)).toBe("—")
+  })
+})
+
+describe("fmtRatio", () => {
+  it("uses a French decimal comma and a multiplication sign", () => {
+    expect(fmtRatio(1.15)).toBe("1,15\u00d7")
+    expect(fmtRatio(2)).toBe("2\u00d7")
+  })
+
+  it("returns a dash for null and non-finite input", () => {
+    expect(fmtRatio(null)).toBe("—")
+    expect(fmtRatio(Number.NaN)).toBe("—")
   })
 })

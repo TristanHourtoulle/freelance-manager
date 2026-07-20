@@ -13,9 +13,14 @@ import type { ClientCreateInput, ClientUpdateInput } from "@/lib/schemas/client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 import type { ClientWireRow } from "@/domain/clients/types"
 import type { ClientsBillableSummary } from "@/domain/clients/billable"
+import type { ClientsRecencySummary } from "@/domain/clients/recency"
 
 export type { ClientWireRow } from "@/domain/clients/types"
 export type { ClientsBillableSummary } from "@/domain/clients/billable"
+export type {
+  ClientsRecencySummary,
+  ClientRecencyEntry,
+} from "@/domain/clients/recency"
 export type ClientDTO = ClientWireRow
 
 interface UseClientsOptions {
@@ -60,6 +65,23 @@ export function useClientsBillable() {
     queryKey: [...qk.clients(), "billable"],
     queryFn: () =>
       api.get<ClientsBillableSummary>("/api/clients?summary=billable"),
+    staleTime: STALE_TIME.list,
+  })
+}
+
+/**
+ * Per-client silence aggregate, computed server-side over activity logs,
+ * meetings and completed tasks.
+ *
+ * Kept out of {@link useClients} on purpose: that list is paginated and cached
+ * for an hour, and none of the three source tables invalidate it. Own key under
+ * the `clients` prefix so client mutations still invalidate it.
+ */
+export function useClientsRecency() {
+  return useQuery({
+    queryKey: [...qk.clients(), "recency"],
+    queryFn: () =>
+      api.get<ClientsRecencySummary>("/api/clients?summary=recency"),
     staleTime: STALE_TIME.list,
   })
 }

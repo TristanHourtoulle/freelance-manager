@@ -39,6 +39,12 @@ export function MobileDashboardPage() {
     missingEstimateCount: 0,
     workingDaysPerWeek: 5,
   }
+  const pipelineAging = data?.pipelineAging ?? {
+    oldestDays: null,
+    staleCount: 0,
+    staleValue: 0,
+    buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+  }
   const months = useMemo(() => data?.months ?? [], [data?.months])
   const overdue = data?.overdue ?? []
   const recentTasks = data?.recentTasks ?? []
@@ -190,6 +196,32 @@ export function MobileDashboardPage() {
                 onClick={() => router.push("/billing?filter=overdue")}
               >
                 Tout voir
+              </button>
+            </div>
+          )}
+
+          {pipelineAging.staleCount > 0 && (
+            <div
+              className="card"
+              style={{ borderLeft: "2px solid var(--warn)" }}
+            >
+              <div className="row gap-8" style={{ marginBottom: 8 }}>
+                <Icon name="alert" size={14} style={{ color: "var(--warn)" }} />
+                <div className="strong small">Pipeline vieillissante</div>
+              </div>
+              <div className="xs muted">
+                La plus ancienne attend {pipelineAging.oldestDays} j ·{" "}
+                {pipelineAging.staleCount} task
+                {pipelineAging.staleCount > 1 ? "s" : ""} &gt; 30 j ·{" "}
+                {fmtEUR(pipelineAging.staleValue)}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: 8, width: "100%" }}
+                onClick={() => router.push("/billing/new")}
+              >
+                Facturer
               </button>
             </div>
           )}

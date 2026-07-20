@@ -4,6 +4,15 @@ import type { AnalyticsDTO } from "@/hooks/use-analytics"
 
 type ClientRow = AnalyticsDTO["byClient"][number]
 
+const EMPTY_ACCURACY = {
+  ratio: null,
+  n: 0,
+  coverage: null,
+  sumEstimate: 0,
+  sumActual: 0,
+  reliable: false,
+}
+
 function makeClient(
   overrides: Partial<ClientRow["client"]> = {},
   rest: Partial<Omit<ClientRow, "client">> = {},
@@ -20,6 +29,8 @@ function makeClient(
     revenue: 42000,
     days: 84,
     effectiveRate: 500,
+    revenueShare: 1,
+    daysShare: 1,
     ...rest,
   }
 }
@@ -47,6 +58,23 @@ function makeData(overrides: Partial<AnalyticsDTO> = {}): AnalyticsDTO {
     byType: [],
     weeks: [],
     heatmap: [],
+    concentration: {
+      totalRevenue: 42000,
+      totalDays: 84,
+      topClientShare: 1,
+      topThreeShare: 1,
+      level: "ok",
+    },
+    estimateAccuracy: {
+      overall: EMPTY_ACCURACY,
+      byBillingMode: {
+        DAILY: EMPTY_ACCURACY,
+        FIXED: EMPTY_ACCURACY,
+        HOURLY: EMPTY_ACCURACY,
+      },
+      byClient: {},
+    },
+    categoryMix: { rows: [], totalDays: 0, nonFreelanceDaysShare: null },
     ...overrides,
   }
 }
