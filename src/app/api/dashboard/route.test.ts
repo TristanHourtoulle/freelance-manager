@@ -42,20 +42,24 @@ const PENDING_WHERE = {
 } as const
 
 type TaskFindManyArgs = {
-  where?: { status?: string }
+  where?: { status?: string | { in?: string[] } }
   select?: { clientId?: boolean; estimate?: boolean }
 }
 
 /**
- * Route runs two `task.findMany` calls (pipeline + recently completed) through
- * one mock; branch on the pending-invoice where clause to return each dataset.
+ * Route runs three `task.findMany` calls (pipeline, open workload and recently
+ * completed) through one mock; branch on the where clause to return each
+ * dataset, the open-workload call resolving empty.
  */
 function mockTaskFindMany(pipeline: unknown[], recent: unknown[]) {
-  taskFindMany.mockImplementation((args: TaskFindManyArgs) =>
-    Promise.resolve(
-      args?.where?.status === "PENDING_INVOICE" ? pipeline : recent,
-    ),
-  )
+  taskFindMany.mockImplementation((args: TaskFindManyArgs) => {
+    const status = args?.where?.status
+    if (status === "PENDING_INVOICE") return Promise.resolve(pipeline)
+    if (typeof status === "object" && status !== null) {
+      return Promise.resolve([])
+    }
+    return Promise.resolve(recent)
+  })
 }
 
 function mockPaymentTotals(
@@ -132,7 +136,7 @@ describe("GET /api/dashboard", () => {
     const pipelineArgs = pipelineCall?.[0] as TaskFindManyArgs
     expect(pipelineArgs.where).toEqual(PENDING_WHERE)
     expect(pipelineArgs.select?.clientId).toBe(true)
-    expect(taskFindMany).toHaveBeenCalledTimes(2)
+    expect(taskFindMany).toHaveBeenCalledTimes(3)
   })
 
   it("counts FIXED pending tasks without adding to the pipeline value", async () => {

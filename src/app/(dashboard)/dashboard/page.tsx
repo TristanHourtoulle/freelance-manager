@@ -11,6 +11,10 @@ import { TodayBlock } from "@/components/suivi/today-block"
 import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
+import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
@@ -62,6 +66,14 @@ function DesktopDashboardPage() {
     pipelineClientCount: 0,
   }
 
+  const capacity = data?.capacity ?? {
+    days: 0,
+    taskCount: 0,
+    estimatedTaskCount: 0,
+    missingEstimateCount: 0,
+    workingDaysPerWeek: 5,
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -88,13 +100,13 @@ function DesktopDashboardPage() {
       </div>
 
       {isPending ? (
-        <div className="kpi-grid">
-          {Array.from({ length: 4 }, (_, i) => (
+        <div className="kpi-grid kpi-grid-5">
+          {Array.from({ length: 5 }, (_, i) => (
             <SkeletonKpi key={i} />
           ))}
         </div>
       ) : (
-        <div className="kpi-grid">
+        <div className="kpi-grid kpi-grid-5">
           <div className="kpi kpi-accent">
             <div className="kpi-label">
               <Icon name="euro" size={11} />
@@ -139,6 +151,18 @@ function DesktopDashboardPage() {
                   {fmtEUR(kpi.overdueAmount)} en retard
                 </span>
               )}
+            </div>
+          </div>
+          <div className="kpi kpi-purple">
+            <div className="kpi-label">
+              <Icon name="clock" size={11} />
+              Charge
+            </div>
+            <div className="kpi-value num">
+              {formatWorkloadDays(capacity.days)}
+            </div>
+            <div className="kpi-sub">
+              <span>{formatWorkloadCoverage(capacity)}</span>
             </div>
           </div>
         </div>
