@@ -12,18 +12,23 @@ export function Topbar() {
   const crumbs = deriveCrumbs(pathname)
   return (
     <div className="topbar">
-      <div className="crumbs">
+      <nav className="crumbs" aria-label="Fil d'Ariane">
         {crumbs.map((c, i) => (
           <Fragment key={i}>
             {i > 0 && (
-              <span className="sep">
+              <span className="sep" aria-hidden="true">
                 <Icon name="chevron-right" size={12} />
               </span>
             )}
-            <span className={i === crumbs.length - 1 ? "cur" : ""}>{c}</span>
+            <span
+              className={i === crumbs.length - 1 ? "cur" : ""}
+              aria-current={i === crumbs.length - 1 ? "page" : undefined}
+            >
+              {c}
+            </span>
           </Fragment>
         ))}
-      </div>
+      </nav>
       <button
         type="button"
         className="topbar-search"

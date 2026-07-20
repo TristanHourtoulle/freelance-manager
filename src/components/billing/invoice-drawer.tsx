@@ -62,7 +62,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
             variant: "success",
             title:
               status === "SENT"
-                ? "Facture émise"
+                ? "Facture envoyée"
                 : status === "CANCELLED"
                   ? "Facture annulée"
                   : "Statut mis à jour",
@@ -103,7 +103,7 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
         </button>
       )}
       {invoice.status === "DRAFT" && (
-        <button className="btn btn-primary" onClick={() => setStatus("SENT")}>
+        <button className="btn btn-secondary" onClick={() => setStatus("SENT")}>
           <Icon name="send" size={14} />
           Marquer envoyée
         </button>

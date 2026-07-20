@@ -15,11 +15,25 @@ describe("deriveCrumbs", () => {
     expect(deriveCrumbs("/settings")).toEqual(["FreelanceManager", "Réglages"])
   })
 
-  it("appends a generic entity label for client detail", () => {
+  it("stops at the id-less parent for client detail without a resolved label", () => {
     expect(deriveCrumbs("/clients/abc123")).toEqual([
       "FreelanceManager",
       "Clients",
-      "Fiche client",
+    ])
+  })
+
+  it("uses the resolved client name as the last crumb", () => {
+    expect(deriveCrumbs("/clients/abc123", "Marie Dupont")).toEqual([
+      "FreelanceManager",
+      "Clients",
+      "Marie Dupont",
+    ])
+  })
+
+  it("ignores a resolved label on a top-level route", () => {
+    expect(deriveCrumbs("/clients", "Marie Dupont")).toEqual([
+      "FreelanceManager",
+      "Clients",
     ])
   })
 
@@ -27,7 +41,7 @@ describe("deriveCrumbs", () => {
     expect(deriveCrumbs("/billing/new")).toEqual([
       "FreelanceManager",
       "Factures",
-      "Nouvelle facture",
+      "Nouvelle",
     ])
   })
 
