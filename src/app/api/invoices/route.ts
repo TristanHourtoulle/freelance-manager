@@ -7,6 +7,7 @@ import {
   buildPagedResponse,
   getAuthUser,
   parsePagination,
+  parseSearchQuery,
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
@@ -22,28 +23,77 @@ export async function GET(req: Request) {
   if (!user) return apiUnauthorized()
   try {
     const { cursor, limit } = parsePagination(req)
-    if (!cursor && limit === 50) {
+    const q = parseSearchQuery(req)
+    if (!cursor && limit === 50 && !q) {
       return NextResponse.json(await getInvoicesFirstPage(user.id))
     }
     const rows = await prisma.invoice.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(q
+          ? {
+              OR: [
+                { number: { contains: q, mode: "insensitive" as const } },
+                {
+                  client: {
+                    OR: [
+                      {
+                        firstName: {
+                          contains: q,
+                          mode: "insensitive" as const,
+                        },
+                      },
+                      {
+                        lastName: { contains: q, mode: "insensitive" as const },
+                      },
+                      {
+                        company: { contains: q, mode: "insensitive" as const },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       orderBy: [{ issueDate: "desc" }, { id: "desc" }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         _count: { select: { lines: true } },
         payments: { select: { amount: true, paidAt: true } },
+        client: {
+          select: { firstName: true, lastName: true, company: true },
+        },
       },
     })
     const paged = buildPagedResponse(rows, limit)
     return NextResponse.json({
-      data: paged.data.map(serializeInvoice),
+      data: paged.data.map((inv) =>
+        q
+          ? { ...serializeInvoice(inv), clientName: invoiceClientName(inv) }
+          : serializeInvoice(inv),
+      ),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,
     })
   } catch (error) {
     return apiServerError(error)
   }
+}
+
+/**
+ * Human-readable name of the client an invoice belongs to, used to label
+ * search hits found through the client relation.
+ *
+ * @param inv - Invoice row carrying its client's name fields.
+ * @returns The company when set, otherwise the first/last name pair.
+ */
+function invoiceClientName(inv: {
+  client: { firstName: string; lastName: string; company: string | null }
+}): string {
+  const { firstName, lastName, company } = inv.client
+  return company ?? `${firstName} ${lastName}`.trim()
 }
 
 export async function POST(req: Request) {

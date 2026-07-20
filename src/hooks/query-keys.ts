@@ -28,6 +28,9 @@ export const qk = {
 
   projects: () => ["projects"] as const,
 
+  search: (resource: string, term: string) =>
+    ["search", resource, term] as const,
+
   tasks: {
     all: () => ["tasks"] as const,
     list: <F>(filters: F) => ["tasks", filters] as const,

@@ -7,6 +7,7 @@ import {
   decimalToNumber,
   getAuthUser,
   parsePagination,
+  parseSearchQuery,
 } from "@/lib/api"
 
 export async function GET(req: Request) {
@@ -19,12 +20,26 @@ export async function GET(req: Request) {
     const projectId = url.searchParams.get("projectId") ?? undefined
     const status = url.searchParams.get("status") ?? undefined
     const { cursor, limit } = parsePagination(req)
+    const q = parseSearchQuery(req)
 
     const rows = await prisma.task.findMany({
       where: {
         userId: user.id,
         ...(clientId ? { clientId } : {}),
         ...(projectId ? { projectId } : {}),
+        ...(q
+          ? {
+              OR: [
+                {
+                  linearIdentifier: {
+                    contains: q,
+                    mode: "insensitive" as const,
+                  },
+                },
+                { title: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
         ...(status
           ? {
               status: status as
