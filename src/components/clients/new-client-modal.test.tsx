@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { NewClientModal } from "./new-client-modal"
 
-const { push, mutate } = vi.hoisted(() => ({
+const { push, mutate, settings } = vi.hoisted(() => ({
   push: vi.fn(),
   mutate: vi.fn(),
+  settings: vi.fn<() => { defaultRate: number } | undefined>(() => undefined),
 }))
 
 vi.mock("next/navigation", () => ({
@@ -17,6 +18,10 @@ vi.mock("@/hooks/use-clients", () => ({
 
 vi.mock("@/components/providers/toast-provider", () => ({
   useToast: () => ({ toast: vi.fn() }),
+}))
+
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: () => ({ data: settings() }),
 }))
 
 describe("NewClientModal", () => {
@@ -81,5 +86,25 @@ describe("NewClientModal", () => {
     expect(
       screen.getByRole("group", { name: "Type de facturation" }),
     ).toBeInTheDocument()
+  })
+
+  it("prefills the rate with the user's default rate when it is set", async () => {
+    settings.mockReturnValue({ defaultRate: 750 })
+    render(<NewClientModal onClose={vi.fn()} />)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Taux (€/jour)")).toHaveValue(750),
+    )
+    settings.mockReturnValue(undefined)
+  })
+
+  it("keeps the fallback rate when the default rate is zero", async () => {
+    settings.mockReturnValue({ defaultRate: 0 })
+    render(<NewClientModal onClose={vi.fn()} />)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Taux (€/jour)")).toHaveValue(500),
+    )
+    settings.mockReturnValue(undefined)
   })
 })

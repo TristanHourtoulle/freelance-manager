@@ -64,6 +64,9 @@ vi.mock("@/components/providers/toast-provider", () => ({
 vi.mock("@/hooks/use-projects", () => ({
   useProjects: () => ({ data: [] }),
 }))
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: () => ({ data: undefined }),
+}))
 vi.mock("@/hooks/use-invoice-split", () => ({
   useSplitInvoice: () => ({ mutate: h.splitMutate, isPending: false }),
 }))
