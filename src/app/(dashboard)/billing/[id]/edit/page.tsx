@@ -13,6 +13,7 @@ import {
   InvoiceLinesPanel,
 } from "@/features/billing/invoice-builder-parts"
 import type { InvoiceKind } from "@/domain/billing/types"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -23,11 +24,7 @@ export default function EditInvoicePage({ params }: PageProps) {
   const { data: invoice, isLoading } = useInvoice(id)
 
   if (isLoading || !invoice) {
-    return (
-      <div className="page">
-        <div className="empty">Chargement…</div>
-      </div>
-    )
+    return <PageSkeleton kpis={0} rows={6} />
   }
   return <EditInvoiceForm invoice={invoice} id={id} />
 }

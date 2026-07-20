@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   buildLinesPayload,
@@ -16,6 +16,7 @@ import type { InvoiceCreateInput } from "@/lib/schemas/invoice"
 import { useClients } from "@/hooks/use-clients"
 import { useTasks, type TaskDTO } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
+import { useSettings } from "@/hooks/use-settings"
 import { useCreateInvoice, useUpdateInvoice } from "@/hooks/use-invoices"
 import { useSplitInvoice } from "@/hooks/use-invoice-split"
 import { useToast } from "@/components/providers/toast-provider"
@@ -37,6 +38,8 @@ export type {
   EditInvoiceBuilder,
   InvoiceBuilder,
 } from "@/features/billing/invoice-builder-types"
+
+const FALLBACK_PAYMENT_DAYS = 30
 
 function newLineId(): string {
   return "L" + Math.random().toString(36).slice(2, 8)
@@ -63,6 +66,7 @@ export function useInvoiceBuilder(
   const { data: clients = [] } = useClients()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
+  const { data: settings } = useSettings()
 
   const createInvoice = useCreateInvoice()
   const splitInvoice = useSplitInvoice()
@@ -83,7 +87,9 @@ export function useInvoiceBuilder(
     editInvoice ? editInvoice.issueDate.slice(0, 10) : todayIso(),
   )
   const [dueDate, setDueDate] = useState(() =>
-    editInvoice ? editInvoice.dueDate.slice(0, 10) : plusDaysIso(30),
+    editInvoice
+      ? editInvoice.dueDate.slice(0, 10)
+      : plusDaysIso(FALLBACK_PAYMENT_DAYS),
   )
   const [kind, setKind] = useState<InvoiceKind>(editInvoice?.kind ?? "STANDARD")
   const [customNumber, setCustomNumber] = useState(editInvoice?.number ?? "")
@@ -128,6 +134,24 @@ export function useInvoiceBuilder(
   const [status, setStatus] = useState<EditStatus>(
     editInvoice?.status ?? "DRAFT",
   )
+
+  const dueDateEditedRef = useRef(false)
+  const defaultDueDateAppliedRef = useRef(false)
+
+  const setDueDateValue = useCallback((value: string) => {
+    dueDateEditedRef.current = true
+    setDueDate(value)
+  }, [])
+
+  const defaultPaymentDays = settings?.defaultPaymentDays
+
+  useEffect(() => {
+    if (isEdit || defaultPaymentDays == null) return
+    if (defaultDueDateAppliedRef.current || dueDateEditedRef.current) return
+    defaultDueDateAppliedRef.current = true
+    if (defaultPaymentDays === FALLBACK_PAYMENT_DAYS) return
+    setDueDate(plusDaysIso(defaultPaymentDays))
+  }, [isEdit, defaultPaymentDays])
 
   const clientById = useMemo(
     () => new Map(clients.map((c) => [c.id, c])),
@@ -234,7 +258,7 @@ export function useInvoiceBuilder(
     issueDate,
     setIssueDate,
     dueDate,
-    setDueDate,
+    setDueDate: setDueDateValue,
     kind,
     setKind,
     customNumber,

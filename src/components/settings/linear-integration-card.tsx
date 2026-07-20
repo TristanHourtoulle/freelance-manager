@@ -12,6 +12,7 @@ import { useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useToast } from "@/components/providers/toast-provider"
 import { fmtRelative } from "@/lib/format"
+import { isSyncStale, SYNC_STALE_LABEL } from "@/lib/sync-staleness"
 
 /**
  * Settings card for the Linear integration.
@@ -36,6 +37,10 @@ export function LinearIntegrationCard() {
 
   const connected = Boolean(settings?.hasLinearToken)
   const preview = settings?.linearTokenPreview ?? null
+  const showStaleWarning =
+    connected &&
+    !progress.isRunning &&
+    isSyncStale(settings?.linearLastSyncedAt)
 
   function handleConnect() {
     const token = tokenInput.trim()
@@ -151,6 +156,17 @@ export function LinearIntegrationCard() {
             {progress.isRunning
               ? "Synchronisation en cours"
               : "Dernière synchronisation"}
+            {showStaleWarning && (
+              <>
+                {" "}
+                <span
+                  className="pill pill-partial"
+                  title="Plus de 24 h sans synchronisation : les tâches affichées peuvent être obsolètes."
+                >
+                  {SYNC_STALE_LABEL}
+                </span>
+              </>
+            )}
           </div>
           <div className="muted xs">
             {progress.isRunning

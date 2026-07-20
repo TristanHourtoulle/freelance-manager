@@ -8,6 +8,7 @@ import { fmtEUR, fmtEURprecise, initials, avatarColor } from "@/lib/format"
 import { lineFromTask } from "@/lib/billing-math"
 import type { ClientDTO } from "@/hooks/use-clients"
 import type { InvoiceBuilder } from "@/features/billing/invoice-builder-types"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 /**
  * The client identity strip (avatar, name, billing mode) shown under the
@@ -170,7 +171,12 @@ export function EligibleTaskColumn({
               <Icon name="grip" size={14} className="muted" />
               <div>
                 <div className="row gap-8">
-                  <span className="task-id">{t.linearIdentifier}</span>
+                  <TaskIdLink
+                    identifier={t.linearIdentifier}
+                    url={t.linearUrl}
+                    className="task-id"
+                    stopPropagation
+                  />
                   <span className="strong small truncate">{t.title}</span>
                 </div>
                 <div className="xs muted" style={{ marginTop: 2 }}>

@@ -1,7 +1,5 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton"
+
 export default function DashboardLoading() {
-  return (
-    <div className="page">
-      <div className="empty">Chargement…</div>
-    </div>
-  )
+  return <PageSkeleton showChart />
 }

@@ -294,12 +294,14 @@ model Task {
   linearIdentifier String // e.g. "TRI-543" — displayed in tables
   linearStateName  String?
   linearStateType  String?
+  linearUrl        String? // deep link to the issue on linear.app
 
   title       String
   description String?      @db.Text
   status      TaskStatus   @default(BACKLOG)
   priority    TaskPriority @default(NONE)
   estimate    Decimal?     @db.Decimal(6, 2)
+  actualDays  Decimal?     @db.Decimal(6, 2)
 
   completedAt     DateTime?
   linearCreatedAt DateTime?
@@ -507,6 +509,13 @@ model ClientAction {
   invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   meetingId String?
   meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  // Idempotency guard for auto-generated relances: holds the invoice id for
+  // rows created by the overdue detector, NULL for every manual action.
+  // Postgres allows unlimited NULLs in a unique index, so manual actions stay
+  // unconstrained while an invoice can only ever spawn one auto-relance.
+  // Never cleared — not even when the action is marked DONE.
+  relanceInvoiceId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

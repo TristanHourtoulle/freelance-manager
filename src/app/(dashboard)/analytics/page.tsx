@@ -13,10 +13,22 @@ import {
 } from "@/components/analytics/charts"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 const MobileAnalyticsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileAnalyticsPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Analytics"
+        variant="list"
+        rows={4}
+        back="/more"
+      />
+    ),
+  },
 )
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
@@ -68,14 +80,13 @@ function DesktopAnalyticsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="page" style={{ maxWidth: 1500 }}>
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Analytics</h1>
-            <div className="page-sub">Chargement…</div>
-          </div>
-        </div>
-      </div>
+      <PageSkeleton
+        title="Analytics"
+        maxWidth={1500}
+        kpis={4}
+        showChart
+        rows={6}
+      />
     )
   }
 
@@ -213,7 +224,9 @@ function DesktopAnalyticsPage() {
           <div className="ana-card-head">
             <div>
               <h3 className="ana-card-title">Top clients</h3>
-              <div className="ana-card-sub">Revenu cumulé par client</div>
+              <div className="ana-card-sub">
+                Revenu cumulé par client · TJM effectif estimé
+              </div>
             </div>
           </div>
           <div>
@@ -255,11 +268,16 @@ function DesktopAnalyticsPage() {
                     }}
                   />
                 </div>
-                <div
-                  className="num strong"
-                  style={{ minWidth: 80, textAlign: "right" }}
-                >
-                  {fmtEUR(x.revenue)}
+                <div style={{ minWidth: 96, textAlign: "right" }}>
+                  <div className="num strong">{fmtEUR(x.revenue)}</div>
+                  <div
+                    className="xs muted num"
+                    title="TJM effectif estimé — revenu encaissé rapporté au temps saisi ou estimé"
+                  >
+                    {x.effectiveRate !== null
+                      ? `${fmtEUR(x.effectiveRate)}/j`
+                      : "—"}
+                  </div>
                 </div>
               </div>
             ))}

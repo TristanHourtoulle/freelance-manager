@@ -7,6 +7,7 @@ import {
   decimalToNumber,
   getAuthUser,
   parsePagination,
+  parseSearchQuery,
 } from "@/lib/api"
 
 export async function GET(req: Request) {
@@ -19,12 +20,26 @@ export async function GET(req: Request) {
     const projectId = url.searchParams.get("projectId") ?? undefined
     const status = url.searchParams.get("status") ?? undefined
     const { cursor, limit } = parsePagination(req)
+    const q = parseSearchQuery(req)
 
     const rows = await prisma.task.findMany({
       where: {
         userId: user.id,
         ...(clientId ? { clientId } : {}),
         ...(projectId ? { projectId } : {}),
+        ...(q
+          ? {
+              OR: [
+                {
+                  linearIdentifier: {
+                    contains: q,
+                    mode: "insensitive" as const,
+                  },
+                },
+                { title: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
         ...(status
           ? {
               status: status as
@@ -51,10 +66,12 @@ export async function GET(req: Request) {
         id: true,
         linearIssueId: true,
         linearIdentifier: true,
+        linearUrl: true,
         title: true,
         status: true,
         priority: true,
         estimate: true,
+        actualDays: true,
         completedAt: true,
         invoiceId: true,
         clientId: true,
@@ -68,10 +85,12 @@ export async function GET(req: Request) {
         id: t.id,
         linearIssueId: t.linearIssueId,
         linearIdentifier: t.linearIdentifier,
+        linearUrl: t.linearUrl,
         title: t.title,
         status: t.status,
         priority: t.priority,
         estimate: decimalToNumber(t.estimate),
+        actualDays: decimalToNumber(t.actualDays),
         completedAt: t.completedAt?.toISOString() ?? null,
         invoiceId: t.invoiceId,
         clientId: t.clientId,

@@ -14,6 +14,7 @@ export const qk = {
   dashboard: () => ["dashboard"] as const,
   settings: () => ["settings"] as const,
   analytics: <R>(range: R) => ["analytics", range] as const,
+  analyticsAll: () => ["analytics"] as const,
 
   clients: () => ["clients"] as const,
   client: {
@@ -27,6 +28,9 @@ export const qk = {
   invoice: (id: string | null | undefined) => ["invoice", id] as const,
 
   projects: () => ["projects"] as const,
+
+  search: (resource: string, term: string) =>
+    ["search", resource, term] as const,
 
   tasks: {
     all: () => ["tasks"] as const,

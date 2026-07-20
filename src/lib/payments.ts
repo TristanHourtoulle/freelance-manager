@@ -61,8 +61,10 @@ export async function recomputeInvoicePayment(
 /**
  * Compute derived attributes from an invoice + its payments.
  *
- * `isOverdue` is true when the invoice is SENT, not fully paid, and past
- * its due date. `balanceDue` is total minus payments (negative if overpaid).
+ * `isOverdue` is true when the invoice is SENT, past its due date, and still
+ * owes money. The remaining balance is recomputed from the payment rows, so a
+ * stale `paymentStatus` column can never mark a settled invoice as overdue.
+ * `balanceDue` is total minus payments (negative if overpaid).
  */
 export function getInvoiceComputed(
   invoice: InvoiceForCompute,
@@ -74,6 +76,7 @@ export function getInvoiceComputed(
     invoice.status === "SENT" &&
     invoice.paymentStatus !== "PAID" &&
     invoice.paymentStatus !== "OVERPAID" &&
+    balanceDue > 0 &&
     invoice.dueDate.getTime() < Date.now()
 
   let lastPaidAt: Date | null = null

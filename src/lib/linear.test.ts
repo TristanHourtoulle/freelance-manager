@@ -34,10 +34,13 @@ vi.mock("@/lib/linear-sync-progress", () => ({
 }))
 
 import {
+  fetchAllPages,
   fetchIssuesWithRelations,
+  ISSUES_PAGE_SIZE,
   keyFromIdentifier,
   mapLinearPriority,
   mapLinearStateType,
+  MAX_SYNC_PAGES,
   normalizeIssueNode,
   syncFromLinear,
 } from "@/lib/linear"
@@ -45,6 +48,7 @@ import {
 interface RawNode {
   id: string
   identifier: string
+  url: string | null
   title: string
   description: string | null
   priority: number | null
@@ -80,6 +84,7 @@ describe("normalizeIssueNode", () => {
     const node: RawNode = {
       id: "issue-1",
       identifier: "TRI-543",
+      url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
       title: "Ship the thing",
       description: "details",
       priority: 2,
@@ -103,6 +108,7 @@ describe("normalizeIssueNode", () => {
     expect(result.issue).toEqual({
       id: "issue-1",
       identifier: "TRI-543",
+      url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
       title: "Ship the thing",
       description: "details",
       priority: 2,
@@ -126,6 +132,7 @@ describe("normalizeIssueNode", () => {
     const node: RawNode = {
       id: "issue-2",
       identifier: "TRI-9",
+      url: null,
       title: "Backlog item",
       description: null,
       priority: null,
@@ -140,6 +147,7 @@ describe("normalizeIssueNode", () => {
 
     const result = normalizeIssueNode(node)
 
+    expect(result.issue.url).toBeNull()
     expect(result.issue.description).toBeNull()
     expect(result.issue.priority).toBeNull()
     expect(result.issue.estimate).toBeNull()
@@ -169,6 +177,7 @@ describe("fetchIssuesWithRelations", () => {
       {
         id: "issue-1",
         identifier: "TRI-543",
+        url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
         title: "Ship the thing",
         description: "details",
         priority: 1,
@@ -214,6 +223,163 @@ describe("fetchIssuesWithRelations", () => {
   })
 })
 
+describe("fetchIssuesWithRelations pagination", () => {
+  function node(id: string): RawNode {
+    return {
+      id,
+      identifier: `TRI-${id}`,
+      title: `Issue ${id}`,
+      url: null,
+      description: null,
+      priority: null,
+      estimate: null,
+      completedAt: null,
+      createdAt: null,
+      updatedAt: null,
+      state: null,
+      team: null,
+      project: null,
+    }
+  }
+
+  function pagedClient(pages: RawNode[][]): {
+    client: LinearClient
+    rawRequest: ReturnType<typeof vi.fn>
+  } {
+    let call = 0
+    const rawRequest = vi.fn().mockImplementation(async () => {
+      const nodes = pages[call] ?? []
+      const hasNextPage = call < pages.length - 1
+      call++
+      return {
+        status: 200,
+        data: {
+          issues: {
+            nodes,
+            pageInfo: {
+              hasNextPage,
+              endCursor: hasNextPage ? `cursor-${call}` : null,
+            },
+          },
+        },
+      }
+    })
+    return {
+      client: { client: { rawRequest } } as unknown as LinearClient,
+      rawRequest,
+    }
+  }
+
+  const FILTER = { project: { id: { eq: "p" } } } as const
+
+  it("stops after one request when the first page is the last", async () => {
+    const { client, rawRequest } = pagedClient([[node("a"), node("b")]])
+
+    const result = await fetchIssuesWithRelations(client, FILTER)
+
+    expect(rawRequest).toHaveBeenCalledTimes(1)
+    expect(result).toHaveLength(2)
+    expect(rawRequest.mock.calls[0]![1]).toEqual({
+      filter: FILTER,
+      first: ISSUES_PAGE_SIZE,
+    })
+  })
+
+  it("accumulates every node across 3 full pages and follows the cursor", async () => {
+    const pages = [0, 1, 2].map((p) =>
+      Array.from({ length: ISSUES_PAGE_SIZE }, (_, i) => node(`p${p}-${i}`)),
+    )
+    const { client, rawRequest } = pagedClient(pages)
+
+    const result = await fetchIssuesWithRelations(client, FILTER)
+
+    expect(rawRequest).toHaveBeenCalledTimes(3)
+    expect(result).toHaveLength(ISSUES_PAGE_SIZE * 3)
+    expect(result[0]!.issue.id).toBe("p0-0")
+    expect(result.at(-1)!.issue.id).toBe(`p2-${ISSUES_PAGE_SIZE - 1}`)
+    expect(rawRequest.mock.calls[0]![1].after).toBeUndefined()
+    expect(rawRequest.mock.calls[1]![1].after).toBe("cursor-1")
+    expect(rawRequest.mock.calls[2]![1].after).toBe("cursor-2")
+  })
+
+  it("returns an empty result without a second request on an empty last page", async () => {
+    const { client, rawRequest } = pagedClient([[]])
+
+    const result = await fetchIssuesWithRelations(client, FILTER)
+
+    expect(rawRequest).toHaveBeenCalledTimes(1)
+    expect(result).toEqual([])
+  })
+
+  it("warns once and returns a partial result when the page cap is reached", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const rawRequest = vi.fn().mockImplementation(async () => ({
+      status: 200,
+      data: {
+        issues: {
+          nodes: [node("x")],
+          pageInfo: { hasNextPage: true, endCursor: "next" },
+        },
+      },
+    }))
+    const client = { client: { rawRequest } } as unknown as LinearClient
+
+    const result = await fetchIssuesWithRelations(client, FILTER)
+
+    expect(rawRequest).toHaveBeenCalledTimes(MAX_SYNC_PAGES)
+    expect(result).toHaveLength(MAX_SYNC_PAGES)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+})
+
+describe("fetchAllPages", () => {
+  function connection(totalPages: number) {
+    let page = 1
+    const conn = {
+      nodes: [`item-1`],
+      pageInfo: { hasNextPage: totalPages > 1 },
+      fetchNext: vi.fn(async () => {
+        page++
+        conn.nodes.push(`item-${page}`)
+        conn.pageInfo.hasNextPage = page < totalPages
+        return conn
+      }),
+    }
+    return conn
+  }
+
+  it("returns the first page untouched when there is no next page", async () => {
+    const conn = connection(1)
+
+    const nodes = await fetchAllPages(conn, "teams")
+
+    expect(conn.fetchNext).not.toHaveBeenCalled()
+    expect(nodes).toEqual(["item-1"])
+  })
+
+  it("drains every page into the accumulated nodes array", async () => {
+    const conn = connection(4)
+
+    const nodes = await fetchAllPages(conn, "projects")
+
+    expect(conn.fetchNext).toHaveBeenCalledTimes(3)
+    expect(nodes).toHaveLength(4)
+  })
+
+  it("warns once and returns partial nodes at the page cap", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const conn = connection(MAX_SYNC_PAGES + 5)
+
+    const nodes = await fetchAllPages(conn, "teams")
+
+    expect(conn.fetchNext).toHaveBeenCalledTimes(MAX_SYNC_PAGES - 1)
+    expect(nodes).toHaveLength(MAX_SYNC_PAGES)
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+})
+
 describe("syncFromLinear", () => {
   const TOKEN_SETTINGS = {
     linearApiTokenEncrypted: new Uint8Array([1, 2, 3]),
@@ -226,6 +392,7 @@ describe("syncFromLinear", () => {
     return {
       id: "issue-1",
       identifier: "TRI-1",
+      url: "https://linear.app/acme/issue/TRI-1/task-one",
       title: "Task one",
       description: null,
       priority: 0,
@@ -320,6 +487,41 @@ describe("syncFromLinear", () => {
     expect(arg.where).toEqual({ linearIssueId: "issue-1" })
     expect(arg.data).not.toHaveProperty("invoiceId")
     expect(arg.data.status).toBe("DONE")
+  })
+
+  it("pulls every issue page before opening the write transaction", async () => {
+    let insideTransaction = false
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => {
+        insideTransaction = true
+        const out = await fn(prismaMock)
+        insideTransaction = false
+        return out
+      },
+    )
+    let call = 0
+    rawRequest.mockImplementation(async () => {
+      expect(insideTransaction).toBe(false)
+      call++
+      return {
+        status: 200,
+        data: {
+          issues: {
+            nodes: [issueNode({ id: `issue-${call}` })],
+            pageInfo: {
+              hasNextPage: call < 3,
+              endCursor: call < 3 ? `cursor-${call}` : null,
+            },
+          },
+        },
+      }
+    })
+
+    const result = await syncFromLinear("user-1")
+
+    expect(rawRequest).toHaveBeenCalledTimes(3)
+    expect(result.tasks).toBe(3)
+    expect(prismaMock.task.createMany.mock.calls[0]![0].data).toHaveLength(3)
   })
 
   it("adds an incremental updatedAt filter when linearLastSyncedAt is set", async () => {

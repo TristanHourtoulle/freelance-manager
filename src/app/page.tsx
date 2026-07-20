@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { AppBootSkeleton } from "@/components/ui/app-boot-skeleton"
 
 async function RootRedirect(): Promise<null> {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -10,7 +11,7 @@ async function RootRedirect(): Promise<null> {
 
 export default function Root() {
   return (
-    <Suspense fallback={<div className="empty">Chargement…</div>}>
+    <Suspense fallback={<AppBootSkeleton />}>
       <RootRedirect />
     </Suspense>
   )

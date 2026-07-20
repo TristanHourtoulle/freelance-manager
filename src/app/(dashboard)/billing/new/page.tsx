@@ -14,16 +14,23 @@ import { CreateInvoiceConfigCard } from "@/features/billing/create-invoice-confi
 import { SplitDialog } from "@/components/billing/split-dialog"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import dynamic from "next/dynamic"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 const MobileInvoiceNewPage = dynamic(
   () => import("./mobile").then((m) => m.MobileInvoiceNewPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton title="Nouvelle facture" variant="builder" />
+    ),
+  },
 )
 
 export default function NewInvoicePage() {
   const isMobile = useIsMobile()
   return (
-    <Suspense fallback={<div className="empty">Chargement…</div>}>
+    <Suspense fallback={<PageSkeleton kpis={0} rows={6} />}>
       {isMobile ? <MobileInvoiceNewPage /> : <DesktopNewInvoicePage />}
     </Suspense>
   )

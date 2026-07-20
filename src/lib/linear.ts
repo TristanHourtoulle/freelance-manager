@@ -154,6 +154,7 @@ type IssueSyncFilter = IssueScopeFilter & { updatedAt?: { gt: string } }
 interface IssuesQueryVariables extends Record<string, unknown> {
   filter: IssueSyncFilter
   first: number
+  after?: string
 }
 
 interface RawIssueState {
@@ -177,6 +178,7 @@ interface RawIssueProject {
 interface RawIssueNode {
   id: string
   identifier: string
+  url: string | null
   title: string
   description: string | null
   priority: number | null
@@ -189,14 +191,20 @@ interface RawIssueNode {
   project: RawIssueProject | null
 }
 
+interface RawPageInfo {
+  hasNextPage: boolean
+  endCursor: string | null
+}
+
 interface IssuesQueryData {
-  issues: { nodes: RawIssueNode[] }
+  issues: { nodes: RawIssueNode[]; pageInfo?: RawPageInfo | null }
 }
 
 interface EnrichedIssue {
   issue: {
     id: string
     identifier: string
+    url: string | null
     title: string
     description: string | null
     priority: number | null
@@ -216,12 +224,26 @@ interface EnrichedIssue {
   state: { name: string | null; type: string | null } | null
 }
 
+/** Issues requested per GraphQL page (Linear's maximum page size). */
+export const ISSUES_PAGE_SIZE = 250
+
+/**
+ * Hard stop on the number of pages any single Linear listing may walk. Reaching
+ * it yields a partial result plus one warning rather than an unbounded crawl.
+ */
+export const MAX_SYNC_PAGES = 20
+
+/** Items requested per page when listing teams/projects for the link pickers. */
+const LIST_PAGE_SIZE = 100
+
 const ISSUES_SYNC_QUERY = `
-  query SyncIssues($filter: IssueFilter, $first: Int) {
-    issues(filter: $filter, first: $first) {
+  query SyncIssues($filter: IssueFilter, $first: Int, $after: String) {
+    issues(filter: $filter, first: $first, after: $after) {
+      pageInfo { hasNextPage endCursor }
       nodes {
         id
         identifier
+        url
         title
         description
         priority
@@ -247,6 +269,7 @@ export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
     issue: {
       id: node.id,
       identifier: node.identifier,
+      url: node.url ?? null,
       title: node.title,
       description: node.description ?? null,
       priority: node.priority ?? null,
@@ -272,9 +295,15 @@ export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
 }
 
 /**
- * Fetch up to 250 issues matching `filter` with `project`, `team` and `state`
- * resolved inline in a single GraphQL request (instead of one lazy relation
- * fetch per issue, which was the sync N+1).
+ * Fetch every issue matching `filter`, with `project`, `team` and `state`
+ * resolved inline (instead of one lazy relation fetch per issue, which was the
+ * sync N+1). Walks the GraphQL cursor until `hasNextPage` is false, so a first
+ * sync or a large delta is no longer silently truncated at one page. Because
+ * the caller passes an incremental `updatedAt` bound, the common case still
+ * costs a single request.
+ *
+ * Reaching `MAX_SYNC_PAGES` logs one warning and returns the pages gathered so
+ * far — a partial sync is preferable to a throw that loses everything.
  *
  * @param client Linear SDK client whose raw GraphQL transport is used.
  * @param filter Scope filter (`project.id.eq` or `team.id.eq`).
@@ -284,12 +313,65 @@ export async function fetchIssuesWithRelations(
   client: LinearClient,
   filter: IssueSyncFilter,
 ): Promise<EnrichedIssue[]> {
-  const response = await client.client.rawRequest<
-    IssuesQueryData,
-    IssuesQueryVariables
-  >(ISSUES_SYNC_QUERY, { filter, first: 250 })
-  const nodes = response.data?.issues?.nodes ?? []
-  return nodes.map(normalizeIssueNode)
+  const all: EnrichedIssue[] = []
+  let after: string | undefined
+
+  for (let page = 0; page < MAX_SYNC_PAGES; page++) {
+    const variables: IssuesQueryVariables = after
+      ? { filter, first: ISSUES_PAGE_SIZE, after }
+      : { filter, first: ISSUES_PAGE_SIZE }
+    const response = await client.client.rawRequest<
+      IssuesQueryData,
+      IssuesQueryVariables
+    >(ISSUES_SYNC_QUERY, variables)
+    const connection = response.data?.issues
+    for (const node of connection?.nodes ?? []) {
+      all.push(normalizeIssueNode(node))
+    }
+    const pageInfo = connection?.pageInfo
+    if (!pageInfo?.hasNextPage || !pageInfo.endCursor) return all
+    after = pageInfo.endCursor
+  }
+
+  console.warn(
+    `[linear] issue sync stopped at the ${MAX_SYNC_PAGES}-page cap after ${all.length} issues; this run is partial and the next sync will resume from it`,
+  )
+  return all
+}
+
+interface PaginatedConnection<T> {
+  nodes: T[]
+  pageInfo: { hasNextPage: boolean }
+  fetchNext(): Promise<PaginatedConnection<T>>
+}
+
+/**
+ * Drain a Linear SDK connection by repeatedly calling `fetchNext`, which
+ * appends to the connection's own `nodes` array.
+ *
+ * @param connection First page, already fetched.
+ * @param label Human-readable listing name used in the cap warning.
+ * @returns Every node gathered, truncated at `MAX_SYNC_PAGES` pages.
+ */
+export async function fetchAllPages<T>(
+  connection: PaginatedConnection<T>,
+  label: string,
+): Promise<T[]> {
+  let current = connection
+  let pages = 1
+
+  while (current.pageInfo.hasNextPage && pages < MAX_SYNC_PAGES) {
+    current = await current.fetchNext()
+    pages++
+  }
+
+  if (current.pageInfo.hasNextPage) {
+    console.warn(
+      `[linear] ${label} listing stopped at the ${MAX_SYNC_PAGES}-page cap after ${current.nodes.length} items; the list shown is partial`,
+    )
+  }
+
+  return current.nodes
 }
 
 interface TaskWriteInput {
@@ -298,6 +380,7 @@ interface TaskWriteInput {
   projectId: string
   linearIssueId: string
   linearIdentifier: string
+  linearUrl: string | null
   linearStateName: string | null
   linearStateType: string | null
   title: string
@@ -340,6 +423,7 @@ async function bulkUpsertTasks(
         projectId: r.projectId,
         linearIssueId: r.linearIssueId,
         linearIdentifier: r.linearIdentifier,
+        linearUrl: r.linearUrl,
         linearStateName: r.linearStateName,
         linearStateType: r.linearStateType,
         title: r.title,
@@ -363,6 +447,7 @@ async function bulkUpsertTasks(
         clientId: r.clientId,
         projectId: r.projectId,
         linearIdentifier: r.linearIdentifier,
+        linearUrl: r.linearUrl,
         linearStateName: r.linearStateName,
         linearStateType: r.linearStateType,
         title: r.title,
@@ -387,9 +472,9 @@ async function bulkUpsertTasks(
  * The function is split into two phases to keep the database transaction
  * short and never wait on Linear API I/O while holding row locks:
  *
- *   PHASE 1 — pull (no DB): for every mapping, fetch the issues page with
- *     `project`, `team`, `state` resolved inline in a single GraphQL request
- *     (one query per mapping, not 1 + 3N). When `linearLastSyncedAt` is set,
+ *   PHASE 1 — pull (no DB): for every mapping, fetch every issue page with
+ *     `project`, `team`, `state` resolved inline (one cursor walk per mapping,
+ *     not 1 + 3N). When `linearLastSyncedAt` is set,
  *     an `updatedAt.gt` bound is added to the filter so only issues changed
  *     since the last run are pulled (incremental sync). Builds an in-memory
  *     list of `enriched` records.
@@ -464,7 +549,6 @@ export async function syncFromLinear(
     g.issues.map((e) => e.issue.id),
   )
 
-  // Phase 2 — write: single transaction, no Linear I/O inside.
   let projectsUpserted = 0
   let tasksUpserted = 0
 
@@ -523,6 +607,7 @@ export async function syncFromLinear(
           projectId: localProjectId,
           linearIssueId: issue.id,
           linearIdentifier: issue.identifier,
+          linearUrl: issue.url,
           linearStateName: state?.name ?? null,
           linearStateType: state?.type ?? null,
           title: issue.title,
@@ -633,6 +718,7 @@ export async function syncOneProject(opts: {
       projectId: localProject.id,
       linearIssueId: issue.id,
       linearIdentifier: issue.identifier,
+      linearUrl: issue.url,
       linearStateName: state?.name ?? null,
       linearStateType: state?.type ?? null,
       title: issue.title,
@@ -662,8 +748,11 @@ export async function syncOneProject(opts: {
 export async function listLinearTeams(userId: string) {
   const ul = await getLinearClient(userId)
   if (!ul) return []
-  const teams = await ul.client.teams({ first: 100 })
-  return teams.nodes.map((t) => ({ id: t.id, key: t.key, name: t.name }))
+  const teams = await fetchAllPages(
+    await ul.client.teams({ first: LIST_PAGE_SIZE }),
+    "teams",
+  )
+  return teams.map((t) => ({ id: t.id, key: t.key, name: t.name }))
 }
 
 /** List Linear projects (optionally scoped to a team) for the linking dropdown. */
@@ -673,15 +762,21 @@ export async function listLinearProjects(userId: string, teamId?: string) {
   if (teamId) {
     const team = await ul.client.team(teamId)
     if (!team) return []
-    const projects = await team.projects({ first: 100 })
-    return projects.nodes.map((p) => ({
+    const teamProjects = await fetchAllPages(
+      await team.projects({ first: LIST_PAGE_SIZE }),
+      "team projects",
+    )
+    return teamProjects.map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description ?? null,
     }))
   }
-  const projects = await ul.client.projects({ first: 100 })
-  return projects.nodes.map((p) => ({
+  const projects = await fetchAllPages(
+    await ul.client.projects({ first: LIST_PAGE_SIZE }),
+    "projects",
+  )
+  return projects.map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description ?? null,

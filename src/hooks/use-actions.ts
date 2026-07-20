@@ -59,6 +59,17 @@ export interface ActionUpdateBody {
   meetingId?: string | null
 }
 
+export interface RelanceResponse {
+  action: ActionDTO | null
+  created: boolean
+  settled: boolean
+}
+
+export interface RelanceVariables {
+  invoiceId: string
+  clientId: string
+}
+
 interface ActionFilters {
   clientId?: string
   status?: ClientActionStatus
@@ -104,6 +115,26 @@ export function useCreateAction() {
     mutationFn: (input: ActionCreateBody) =>
       api.post<ActionDTO>("/api/actions", input),
     onSuccess: (_d, input) => invalidateAction(qc, input.clientId),
+  })
+}
+
+/**
+ * Queue the RELANCE follow-up action of an overdue invoice.
+ *
+ * Idempotent server-side: calling it twice returns the existing action with
+ * `created: false`. An already-settled invoice answers `settled: true` with a
+ * null action instead of an error, so callers must branch on the flag rather
+ * than on a rejection.
+ */
+export function useRelanceInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ invoiceId }: RelanceVariables) =>
+      api.post<RelanceResponse>(`/api/invoices/${invoiceId}/relance`),
+    onSuccess: (data, variables) => {
+      if (!data.created) return
+      invalidateAction(qc, variables.clientId)
+    },
   })
 }
 

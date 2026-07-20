@@ -6,6 +6,7 @@ import { ZodError } from "zod/v4"
 import { Prisma } from "@/generated/prisma/client"
 import { auth } from "@/lib/auth"
 import { paginationQuerySchema } from "@/lib/schemas/pagination"
+import { searchQuerySchema } from "@/lib/schemas/search"
 
 export interface ApiUser {
   id: string
@@ -127,6 +128,22 @@ export function parsePagination(request: Request): {
     limit: url.searchParams.get("limit") ?? undefined,
   })
   return { cursor: parsed.cursor, limit: parsed.limit }
+}
+
+/**
+ * Parse and validate the optional `?q=` free-text search term of a list
+ * endpoint. Blank or missing terms resolve to `undefined` so the handler keeps
+ * its unfiltered behavior; an over-long term throws a ZodError, which
+ * `apiServerError` maps to a 400.
+ *
+ * @param request - The incoming request.
+ * @returns The trimmed search term, or `undefined` when absent.
+ */
+export function parseSearchQuery(request: Request): string | undefined {
+  const raw = new URL(request.url).searchParams.get("q")
+  if (raw == null) return undefined
+  const { q } = searchQuerySchema.parse({ q: raw })
+  return q ? q : undefined
 }
 
 /**

@@ -7,6 +7,8 @@ import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, fmtRelative } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { TodayBlock } from "@/components/suivi/today-block"
+import { RelanceButton } from "@/components/dashboard/relance-button"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 export function MobileDashboardPage() {
   const router = useRouter()
@@ -155,6 +157,7 @@ export function MobileDashboardPage() {
                   >
                     {fmtEUR(o.total)}
                   </div>
+                  <RelanceButton invoiceId={o.id} clientId={o.clientId} />
                 </div>
               ))}
               <button
@@ -227,7 +230,11 @@ export function MobileDashboardPage() {
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="small strong truncate">{t.title}</div>
                       <div className="xs muted truncate">
-                        {t.linearIdentifier} · {t.projectKey ?? "—"}
+                        <TaskIdLink
+                          identifier={t.linearIdentifier}
+                          url={t.linearUrl}
+                        />{" "}
+                        · {t.projectKey ?? "—"}
                       </div>
                     </div>
                   </div>

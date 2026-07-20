@@ -1,5 +1,6 @@
 "use client"
 
+import { BillingDefaultsCard } from "@/components/settings/billing-defaults-card"
 import { LinearIntegrationCard } from "@/components/settings/linear-integration-card"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -24,6 +25,7 @@ function DesktopSettingsPage() {
 
       <div className="col gap-16">
         <LinearIntegrationCard />
+        <BillingDefaultsCard />
       </div>
     </div>
   )
@@ -40,6 +42,7 @@ function MobileSettingsPage() {
         </div>
         <div className="m-stack">
           <LinearIntegrationCard />
+          <BillingDefaultsCard />
         </div>
       </div>
     </div>

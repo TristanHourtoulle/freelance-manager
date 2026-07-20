@@ -10,6 +10,7 @@ import {
   Sparkline,
   ThroughputChart,
 } from "@/components/analytics/charts"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -29,12 +30,12 @@ export function MobileAnalyticsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="m-screen">
-        <MobileTopbar title="Analytics" back="/more" />
-        <div className="m-content">
-          <div className="empty">Chargement…</div>
-        </div>
-      </div>
+      <MobilePageSkeleton
+        title="Analytics"
+        variant="list"
+        rows={4}
+        back="/more"
+      />
     )
   }
 
@@ -111,6 +112,12 @@ export function MobileAnalyticsPage() {
 
           <div className="card">
             <div className="card-title">Top clients</div>
+            <div
+              className="xs muted"
+              style={{ marginTop: -6, marginBottom: 10 }}
+            >
+              Revenu cumulé · TJM effectif estimé
+            </div>
             <div className="col gap-12">
               {byClient.length === 0 && (
                 <div className="muted small">
@@ -150,11 +157,13 @@ export function MobileAnalyticsPage() {
                       />
                     </div>
                   </div>
-                  <div
-                    className="num strong small"
-                    style={{ minWidth: 80, textAlign: "right" }}
-                  >
-                    {fmtEUR(x.revenue)}
+                  <div style={{ minWidth: 88, textAlign: "right" }}>
+                    <div className="num strong small">{fmtEUR(x.revenue)}</div>
+                    <div className="xs muted num">
+                      {x.effectiveRate !== null
+                        ? `${fmtEUR(x.effectiveRate)}/j`
+                        : "—"}
+                    </div>
                   </div>
                 </div>
               ))}
