@@ -10,6 +10,7 @@ import {
   Sparkline,
   ThroughputChart,
 } from "@/components/analytics/charts"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -29,12 +30,12 @@ export function MobileAnalyticsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="m-screen">
-        <MobileTopbar title="Analytics" back="/more" />
-        <div className="m-content">
-          <div className="empty">Chargement…</div>
-        </div>
-      </div>
+      <MobilePageSkeleton
+        title="Analytics"
+        variant="list"
+        rows={4}
+        back="/more"
+      />
     )
   }
 

@@ -21,10 +21,21 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const MobileProjectsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileProjectsPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Projets"
+        heading="Projets"
+        variant="list"
+        back="/more"
+      />
+    ),
+  },
 )
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"

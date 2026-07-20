@@ -23,10 +23,14 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
 import { SkeletonCard, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const MobileClientsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileClientsPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => <MobilePageSkeleton title="Clients" variant="list" />,
+  },
 )
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
