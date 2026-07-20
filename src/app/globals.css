@@ -653,14 +653,6 @@ textarea {
   gap: 14px;
   margin-bottom: 28px;
 }
-.kpi {
-  background: var(--bg-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  position: relative;
-  overflow: hidden;
-}
 .kpi-label {
   font-size: 11px;
   font-weight: 600;
@@ -704,15 +696,6 @@ textarea {
 .kpi-trend.down {
   background: var(--danger-soft);
   color: var(--danger);
-}
-.kpi-accent {
-  border-left: 2px solid var(--accent);
-}
-.kpi-warn {
-  border-left: 2px solid var(--warn);
-}
-.kpi-info {
-  border-left: 2px solid var(--info);
 }
 
 /* =====================================================================
@@ -1502,11 +1485,19 @@ textarea {
   background: oklch(0.74 0.16 145);
   opacity: 0.7;
 }
+/* Accent-bar variants: `kpi-*` (dashboard, billing) and `k-*` (client detail)
+   share the same `::before` mechanism so both families stay in sync. */
+.kpi.kpi-accent::before,
 .kpi.k-revenue::before {
-  background: oklch(0.86 0.19 128);
+  background: var(--accent);
 }
+.kpi.kpi-warn::before,
 .kpi.k-outstanding::before {
   background: var(--warn);
+}
+.kpi.kpi-info::before,
+.kpi.k-pipeline::before {
+  background: var(--info);
 }
 .kpi.k-overdue::before {
   background: var(--danger);
