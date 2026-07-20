@@ -1,15 +1,17 @@
 import { render, screen, fireEvent } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import ClientsPage from "./page"
 import type { ClientDTO } from "@/hooks/use-clients"
 
-const { useClientsMock, useClientsBillableMock } = vi.hoisted(() => ({
+const { useClientsMock, useClientsBillableMock, pushMock } = vi.hoisted(() => ({
   useClientsMock: vi.fn(),
   useClientsBillableMock: vi.fn(),
+  pushMock: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock }),
 }))
 
 vi.mock("next/dynamic", () => ({
@@ -90,6 +92,7 @@ describe("ClientsPage (desktop)", () => {
   beforeEach(() => {
     useClientsMock.mockReset()
     useClientsBillableMock.mockReset()
+    pushMock.mockReset()
     useClientsBillableMock.mockReturnValue(billableResult())
   })
 
@@ -172,5 +175,48 @@ describe("ClientsPage (desktop)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Archivés/i }))
 
     expect(useClientsMock).toHaveBeenCalledWith({ archived: true })
+  })
+
+  it("exposes each grid card as a real button", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+
+    const { container } = render(<ClientsPage />)
+
+    const card = container.querySelector(".client-card")
+    expect(card?.tagName).toBe("BUTTON")
+    expect(card).toHaveAttribute("type", "button")
+  })
+
+  it("reaches and activates a grid card with the keyboard only", async () => {
+    const user = userEvent.setup()
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+
+    const { container } = render(<ClientsPage />)
+    const card = container.querySelector(".client-card") as HTMLElement
+
+    for (let i = 0; i < 30 && document.activeElement !== card; i++) {
+      await user.tab()
+    }
+
+    expect(document.activeElement).toBe(card)
+
+    await user.keyboard("{Enter}")
+
+    expect(pushMock).toHaveBeenCalledWith("/clients/client-1")
+  })
+
+  it("labels the pending column exactly as the design reference", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+
+    const { container } = render(<ClientsPage />)
+
+    const toggles = container.querySelectorAll(".icon-btn")
+    expect(toggles).toHaveLength(2)
+    fireEvent.click(toggles[1] as Element)
+
+    expect(screen.getByRole("columnheader", { name: "Pending" })).toBeVisible()
+    expect(
+      screen.queryByRole("columnheader", { name: "À facturer" }),
+    ).not.toBeInTheDocument()
   })
 })
