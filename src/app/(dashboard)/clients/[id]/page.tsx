@@ -16,6 +16,10 @@ import {
   avatarColor,
 } from "@/lib/format"
 import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
+import {
   useClientActivity,
   useClientDetail,
   type ClientDetailDTO,
@@ -56,7 +60,7 @@ interface PageProps {
  * Number of KPI tiles in the resolved client hero. The loading skeleton renders
  * exactly this many placeholders so the hero never shifts on resolve.
  */
-export const HERO_KPI_COUNT = 4
+export const HERO_KPI_COUNT = 5
 
 interface ClientBillingSummary {
   billableTasks: ClientDetailDTO["tasks"]
@@ -287,7 +291,7 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="kpi-grid" data-testid="hero-kpi-grid">
+        <div className="kpi-grid kpi-grid-5" data-testid="hero-kpi-grid">
           <div className="kpi k-revenue">
             <div className="kpi-label">
               <Icon name="arrow-up" size={11} />
@@ -341,6 +345,18 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
             <div className="kpi-sub">
               {billableTasks.length} task{billableTasks.length > 1 ? "s" : ""} à
               facturer
+            </div>
+          </div>
+          <div className="kpi k-workload">
+            <div className="kpi-label">
+              <Icon name="clock" size={11} />
+              Charge
+            </div>
+            <div className="kpi-value num">
+              {formatWorkloadDays(client.workload.days)}
+            </div>
+            <div className="kpi-sub">
+              {formatWorkloadCoverage(client.workload)}
             </div>
           </div>
         </div>
@@ -843,7 +859,7 @@ function ClientDetailSkeleton() {
             <Skeleton width={280} height={13} radius={6} />
           </div>
         </div>
-        <div className="kpi-grid" data-testid="hero-kpi-skeleton">
+        <div className="kpi-grid kpi-grid-5" data-testid="hero-kpi-skeleton">
           {Array.from({ length: HERO_KPI_COUNT }, (_, i) => (
             <SkeletonKpi key={i} />
           ))}

@@ -56,6 +56,12 @@ function buildClient(): ClientDetailDTO {
     address: null,
     notes: null,
     billingMode: "DAILY",
+    workload: {
+      days: 6,
+      taskCount: 3,
+      estimatedTaskCount: 2,
+      missingEstimateCount: 1,
+    },
     rate: 500,
     fixedPrice: null,
     deposit: null,

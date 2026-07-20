@@ -24,6 +24,12 @@ export interface ClientDetailDTO {
   starred: boolean
   archived: boolean
   createdAt: string
+  workload: {
+    days: number
+    taskCount: number
+    estimatedTaskCount: number
+    missingEstimateCount: number
+  }
   monthlyRevenue: { month: string; total: number }[]
   projects: {
     id: string

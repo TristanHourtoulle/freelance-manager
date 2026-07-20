@@ -14,6 +14,7 @@ import { getInvoiceComputed } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
+import { summarizeWorkload } from "@/domain/capacity/workload"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -85,6 +86,10 @@ export async function GET(_: Request, { params }: Params) {
       })
     }
 
+    const workload = summarizeWorkload(
+      tasks.filter((t) => t.status === "BACKLOG" || t.status === "IN_PROGRESS"),
+    )
+
     return NextResponse.json({
       id: c.id,
       firstName: c.firstName,
@@ -105,6 +110,12 @@ export async function GET(_: Request, { params }: Params) {
       starred: c.starred,
       archived: c.archivedAt != null,
       createdAt: c.createdAt.toISOString(),
+      workload: {
+        days: workload.days,
+        taskCount: workload.taskCount,
+        estimatedTaskCount: workload.estimatedTaskCount,
+        missingEstimateCount: workload.missingEstimateCount,
+      },
       monthlyRevenue,
       projects: c.projects.map((p) => ({
         id: p.id,

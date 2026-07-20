@@ -1,11 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
-
-vi.mock("@/lib/api", () => ({
-  decimalToNumber: (
-    d: { toNumber?: () => number } | number | null | undefined,
-  ) =>
-    d == null ? null : typeof d === "number" ? d : (d.toNumber?.() ?? null),
-}))
+import { describe, expect, it } from "vitest"
 
 import {
   businessDaysUntil,
@@ -19,7 +12,7 @@ import {
 
 /**
  * Minimal stand-in for a Prisma Decimal: the only contract the summarization
- * relies on is `toNumber()`, which `decimalToNumber` calls.
+ * relies on is `toNumber()`.
  */
 function decimal(value: number): OpenTaskEffortRow["estimate"] {
   return { toNumber: () => value } as unknown as OpenTaskEffortRow["estimate"]

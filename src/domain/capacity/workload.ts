@@ -1,5 +1,4 @@
 import type { Prisma } from "@/generated/prisma/client"
-import { decimalToNumber } from "@/lib/api"
 
 type DecimalLike = Prisma.Decimal | number
 
@@ -21,9 +20,9 @@ export const MAX_WORKING_DAYS_PER_WEEK = 7
 const DAYS_PER_WEEK = 7
 
 function toFiniteNumber(value: DecimalLike | null | undefined): number | null {
-  const n = decimalToNumber(value)
-  if (n == null || !Number.isFinite(n)) return null
-  return n
+  if (value == null) return null
+  const n = typeof value === "number" ? value : value.toNumber()
+  return Number.isFinite(n) ? n : null
 }
 
 function toUtcMidnight(date: Date): number {
