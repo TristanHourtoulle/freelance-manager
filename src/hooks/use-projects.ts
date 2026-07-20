@@ -27,6 +27,9 @@ export interface ProjectDTO {
   description: string | null
   status: "ACTIVE" | "PAUSED" | "COMPLETED"
   tasksTotal: number
+  targetDate: string | null
+  remainingDays: number
+  atRisk: boolean
 }
 
 export function useProjects() {

@@ -9,6 +9,7 @@ export interface SettingsDTO {
   defaultCurrency: string
   defaultPaymentDays: number
   defaultRate: number
+  workingDaysPerWeek: number
   hasLinearToken: boolean
   linearTokenPreview: string | null
   linearLastSyncedAt: string | null
@@ -17,6 +18,7 @@ export interface SettingsDTO {
 export interface SettingsUpdateBody {
   defaultPaymentDays?: number
   defaultRate?: number
+  workingDaysPerWeek?: number
 }
 
 export function useSettings() {
@@ -43,6 +45,8 @@ export function useUpdateSettings() {
       api.patch<{ ok: true }>("/api/settings", input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.settings() })
+      qc.invalidateQueries({ queryKey: qk.dashboard() })
+      qc.invalidateQueries({ queryKey: qk.projects() })
       toast({
         variant: "success",
         title: "Réglages enregistrés",

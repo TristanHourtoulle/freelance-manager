@@ -6,7 +6,11 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, fmtRelative } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
-import { TodayBlock } from "@/components/suivi/today-block"
+import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
+import { TodayPanel } from "@/components/suivi/today-panel"
 import { RelanceButton } from "@/components/dashboard/relance-button"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 
@@ -27,6 +31,19 @@ export function MobileDashboardPage() {
     pipelineCount: 0,
     pipelineEur: 0,
     pipelineClientCount: 0,
+  }
+  const capacity = data?.capacity ?? {
+    days: 0,
+    taskCount: 0,
+    estimatedTaskCount: 0,
+    missingEstimateCount: 0,
+    workingDaysPerWeek: 5,
+  }
+  const pipelineAging = data?.pipelineAging ?? {
+    oldestDays: null,
+    staleCount: 0,
+    staleValue: 0,
+    buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
   }
   const months = useMemo(() => data?.months ?? [], [data?.months])
   const overdue = data?.overdue ?? []
@@ -65,6 +82,8 @@ export function MobileDashboardPage() {
         </div>
 
         <div className="m-stack">
+          <TodayPanel />
+
           <div
             style={{
               display: "grid",
@@ -108,9 +127,19 @@ export function MobileDashboardPage() {
               <div className="kpi-value">{fmtEUR(kpi.outstanding)}</div>
               <div className="kpi-sub muted">{kpi.overdueCount} en retard</div>
             </div>
+            <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
+              <div className="kpi-label">
+                <Icon name="clock" size={11} />
+                Charge
+              </div>
+              <div className="kpi-value num">
+                {formatWorkloadDays(capacity.days)}
+              </div>
+              <div className="kpi-sub muted">
+                {formatWorkloadCoverage(capacity)}
+              </div>
+            </div>
           </div>
-
-          <TodayBlock />
 
           <div className="card">
             <div className="card-title">
@@ -167,6 +196,32 @@ export function MobileDashboardPage() {
                 onClick={() => router.push("/billing?filter=overdue")}
               >
                 Tout voir
+              </button>
+            </div>
+          )}
+
+          {pipelineAging.staleCount > 0 && (
+            <div
+              className="card"
+              style={{ borderLeft: "2px solid var(--warn)" }}
+            >
+              <div className="row gap-8" style={{ marginBottom: 8 }}>
+                <Icon name="alert" size={14} style={{ color: "var(--warn)" }} />
+                <div className="strong small">Pipeline vieillissante</div>
+              </div>
+              <div className="xs muted">
+                La plus ancienne attend {pipelineAging.oldestDays} j ·{" "}
+                {pipelineAging.staleCount} task
+                {pipelineAging.staleCount > 1 ? "s" : ""} &gt; 30 j ·{" "}
+                {fmtEUR(pipelineAging.staleValue)}
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: 8, width: "100%" }}
+                onClick={() => router.push("/billing/new")}
+              >
+                Facturer
               </button>
             </div>
           )}

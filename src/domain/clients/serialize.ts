@@ -18,6 +18,7 @@ export interface ClientRowForSerialize {
   deposit: Prisma.Decimal | null
   paymentTerms: number | null
   category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  stage: "LEAD" | "ACTIVE" | "DORMANT"
   color: string | null
   starred: boolean
   archivedAt: Date | null
@@ -44,6 +45,7 @@ export function serializeClient(c: ClientRowForSerialize): ClientWireRow {
     deposit: decimalToNumber(c.deposit),
     paymentTerms: c.paymentTerms,
     category: c.category,
+    stage: c.stage,
     color: c.color,
     starred: c.starred,
     archived: c.archivedAt != null,

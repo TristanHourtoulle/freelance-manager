@@ -1,0 +1,1 @@
+ALTER TYPE "ClientActionStatus" ADD VALUE IF NOT EXISTS 'WAITING';

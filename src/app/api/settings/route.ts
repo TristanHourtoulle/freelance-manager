@@ -38,6 +38,7 @@ export async function GET() {
       defaultCurrency: settings.defaultCurrency,
       defaultPaymentDays: settings.defaultPaymentDays,
       defaultRate: decimalToNumber(settings.defaultRate) ?? 0,
+      workingDaysPerWeek: settings.workingDaysPerWeek,
       hasLinearToken: Boolean(settings.linearApiTokenEncrypted),
       linearTokenPreview,
       linearLastSyncedAt: settings.linearLastSyncedAt?.toISOString() ?? null,

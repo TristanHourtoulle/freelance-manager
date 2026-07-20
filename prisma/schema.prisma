@@ -26,10 +26,12 @@ model User {
   projects Project[]
   tasks    Task[]
   invoices Invoice[]
+  quotes   Quote[]
   payments Payment[]
   activity ActivityLog[]
   clientActions ClientAction[]
   meetings      Meeting[]
+  pushSubscriptions PushSubscription[]
   linearSyncRuns LinearSyncRun[]
   settings UserSettings?
 
@@ -98,6 +100,7 @@ model UserSettings {
   defaultCurrency    String  @default("EUR")
   defaultPaymentDays Int     @default(30)
   defaultRate        Decimal @default(0) @db.Decimal(10, 2)
+  workingDaysPerWeek Int     @default(5)
 
   // Linear integration (AES-256-GCM encrypted)
   linearApiTokenEncrypted   Bytes?
@@ -126,6 +129,12 @@ enum ClientCategory {
   STUDY
   PERSONAL
   SIDE_PROJECT
+}
+
+enum ClientStage {
+  LEAD
+  ACTIVE
+  DORMANT
 }
 
 enum ProjectStatus {
@@ -191,6 +200,7 @@ model Client {
   paymentTerms Int?
 
   category ClientCategory @default(FREELANCE)
+  stage    ClientStage    @default(ACTIVE)
   color    String?
   starred  Boolean        @default(false)
 
@@ -202,12 +212,14 @@ model Client {
   projects       Project[]
   tasks          Task[]
   invoices       Invoice[]
+  quotes         Quote[]
   activity       ActivityLog[]
   clientActions  ClientAction[]
   meetings       Meeting[]
 
   @@index([userId])
   @@index([userId, archivedAt])
+  @@index([userId, stage])
   @@index([category])
   @@map("clients")
 }
@@ -254,6 +266,14 @@ model Project {
   description String?
   status      ProjectStatus @default(ACTIVE)
 
+  startDate       DateTime?
+  targetDate      DateTime?
+
+  repoUrl    String?
+  stagingUrl String?
+  prodUrl    String?
+  runbook    String?
+
   linearCreatedAt DateTime?
   lastSyncedAt    DateTime  @default(now())
   createdAt       DateTime  @default(now())
@@ -261,6 +281,7 @@ model Project {
 
   tasks    Task[]
   invoices Invoice[]
+  quotes   Quote[]
   activity ActivityLog[]
 
   @@index([userId])
@@ -303,6 +324,7 @@ model Task {
   estimate    Decimal?     @db.Decimal(6, 2)
   actualDays  Decimal?     @db.Decimal(6, 2)
 
+  dueDate         DateTime?
   completedAt     DateTime?
   linearCreatedAt DateTime?
   linearUpdatedAt DateTime?
@@ -353,7 +375,6 @@ model Invoice {
   notes    String? @db.Text
 
   lines    InvoiceLine[]
-  files    InvoiceFile[]
   tasks    Task[]
   payments Payment[]
   activity ActivityLog[]
@@ -454,18 +475,65 @@ model InvoiceLine {
   @@map("invoice_lines")
 }
 
-model InvoiceFile {
-  id         String   @id @default(cuid())
-  invoiceId  String
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  fileName   String
-  fileSize   Int
-  mimeType   String   @default("application/pdf")
-  fileData   Bytes
-  uploadedAt DateTime @default(now())
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+  EXPIRED
+}
 
-  @@index([invoiceId])
-  @@map("invoice_files")
+model Quote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  number String
+  status QuoteStatus @default(DRAFT)
+
+  issueDate  DateTime
+  validUntil DateTime?
+  sentAt     DateTime?
+  decidedAt  DateTime?
+
+  subtotal Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @default(0) @db.Decimal(10, 2)
+  notes    String? @db.Text
+
+  externalUrl String?
+
+  lines QuoteLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, issueDate(sort: Desc)])
+  @@index([clientId])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id      String  @id @default(cuid())
+  quoteId String
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  taskId  String?
+
+  label    String
+  qty      Decimal @db.Decimal(10, 2)
+  rate     Decimal @db.Decimal(10, 2)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([quoteId])
+  @@map("quote_lines")
 }
 
 // =====================================================================
@@ -481,6 +549,7 @@ enum ClientActionType {
 
 enum ClientActionStatus {
   TODO
+  WAITING
   DONE
 }
 
@@ -494,8 +563,8 @@ model ClientAction {
   id       String @id @default(cuid())
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   type    ClientActionType   @default(OTHER)
   title   String
@@ -546,6 +615,7 @@ model Meeting {
   heldAt          DateTime
   durationMinutes Int      @default(0)
   participants    String[]
+  agendaMd        String?  @db.Text
   summaryMd       String?  @db.Text
 
   actions ClientAction[]
@@ -595,4 +665,25 @@ model LinearSyncRun {
 
   @@index([userId, startedAt])
   @@map("linear_sync_runs")
+}
+
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userAgent       String?
+  lastDeliveredAt DateTime?
+  lastFailureAt   DateTime?
+  failureCount    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

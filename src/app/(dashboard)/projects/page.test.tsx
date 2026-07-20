@@ -53,6 +53,31 @@ function buildQueryResult(overrides: Record<string, unknown>) {
   }
 }
 
+function buildProject(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "p1",
+    clientId: "c1",
+    client: {
+      id: "c1",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      company: "Acme",
+      color: null,
+    },
+    linearProjectId: "lp-1",
+    linearTeamId: null,
+    name: "Alpha",
+    key: "ALP",
+    description: null,
+    status: "ACTIVE" as const,
+    tasksTotal: 0,
+    targetDate: "2026-07-27T00:00:00.000Z",
+    remainingDays: 10,
+    atRisk: false,
+    ...overrides,
+  }
+}
+
 describe("ProjectsPage (desktop)", () => {
   it("shows skeleton rows and hides the empty state while loading", () => {
     useProjectsMock.mockReturnValue(
@@ -74,5 +99,31 @@ describe("ProjectsPage (desktop)", () => {
 
     expect(screen.getByText("Aucun projet")).toBeInTheDocument()
     expect(container.querySelectorAll(".skeleton").length).toBe(0)
+  })
+
+  it("flags a project whose remaining work exceeds its target date", () => {
+    useProjectsMock.mockReturnValue(
+      buildQueryResult({
+        data: [buildProject({ atRisk: true })],
+        isPending: false,
+      }),
+    )
+
+    render(<ProjectsPage />)
+
+    expect(screen.getByText("À risque")).toBeInTheDocument()
+  })
+
+  it("does not flag a project that is on track", () => {
+    useProjectsMock.mockReturnValue(
+      buildQueryResult({
+        data: [buildProject({ atRisk: false })],
+        isPending: false,
+      }),
+    )
+
+    render(<ProjectsPage />)
+
+    expect(screen.queryByText("À risque")).not.toBeInTheDocument()
   })
 })

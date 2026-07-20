@@ -16,6 +16,10 @@ import {
   avatarColor,
 } from "@/lib/format"
 import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
+import {
   useClientActivity,
   useClientDetail,
   type ClientDetailDTO,
@@ -39,6 +43,8 @@ const EditClientModal = dynamic(
   { ssr: false },
 )
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
+import { ClientStandingCard } from "@/components/clients/client-standing-card"
+import { ClientNotesCard } from "@/components/clients/client-notes-card"
 import { ClientRevenueChart } from "@/components/clients/client-revenue-chart"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
@@ -56,7 +62,7 @@ interface PageProps {
  * Number of KPI tiles in the resolved client hero. The loading skeleton renders
  * exactly this many placeholders so the hero never shifts on resolve.
  */
-export const HERO_KPI_COUNT = 4
+export const HERO_KPI_COUNT = 5
 
 interface ClientBillingSummary {
   billableTasks: ClientDetailDTO["tasks"]
@@ -287,7 +293,7 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="kpi-grid" data-testid="hero-kpi-grid">
+        <div className="kpi-grid kpi-grid-5" data-testid="hero-kpi-grid">
           <div className="kpi k-revenue">
             <div className="kpi-label">
               <Icon name="arrow-up" size={11} />
@@ -343,6 +349,18 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
               facturer
             </div>
           </div>
+          <div className="kpi k-workload">
+            <div className="kpi-label">
+              <Icon name="clock" size={11} />
+              Charge
+            </div>
+            <div className="kpi-value num">
+              {formatWorkloadDays(client.workload.days)}
+            </div>
+            <div className="kpi-sub">
+              {formatWorkloadCoverage(client.workload)}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -392,6 +410,11 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
       <Activity mode={tab === "overview" ? "visible" : "hidden"}>
         <div className="detail-cols">
           <div className="col gap-12" style={{ minWidth: 0 }}>
+            <ClientStandingCard
+              lastContactAt={client.lastContactAt}
+              meetings={client.meetings}
+              openActions={client.openActions}
+            />
             <div className="detail-card">
               <div className="detail-card-header">
                 <div>
@@ -546,33 +569,7 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
               </div>
             </div>
 
-            <div className="detail-card">
-              <div className="detail-card-header">
-                <div className="detail-card-title">Notes</div>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ padding: "4px 8px", fontSize: 12 }}
-                  onClick={() => setShowEdit(true)}
-                >
-                  <Icon name="edit" size={12} />
-                </button>
-              </div>
-              {client.notes ? (
-                <div
-                  style={{
-                    color: "var(--text-1)",
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {client.notes}
-                </div>
-              ) : (
-                <div className="muted small">Aucune note pour ce client.</div>
-              )}
-            </div>
+            <ClientNotesCard clientId={client.id} notes={client.notes} />
 
             <div className="detail-card">
               <div className="detail-card-header">
@@ -843,7 +840,7 @@ function ClientDetailSkeleton() {
             <Skeleton width={280} height={13} radius={6} />
           </div>
         </div>
-        <div className="kpi-grid" data-testid="hero-kpi-skeleton">
+        <div className="kpi-grid kpi-grid-5" data-testid="hero-kpi-skeleton">
           {Array.from({ length: HERO_KPI_COUNT }, (_, i) => (
             <SkeletonKpi key={i} />
           ))}

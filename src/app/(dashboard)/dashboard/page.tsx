@@ -7,10 +7,14 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import { RelanceButton } from "@/components/dashboard/relance-button"
-import { TodayBlock } from "@/components/suivi/today-block"
+import { TodayPanel } from "@/components/suivi/today-panel"
 import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
+import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
@@ -61,6 +65,20 @@ function DesktopDashboardPage() {
     pipelineEur: 0,
     pipelineClientCount: 0,
   }
+  const pipelineAging = data?.pipelineAging ?? {
+    oldestDays: null,
+    staleCount: 0,
+    staleValue: 0,
+    buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+  }
+
+  const capacity = data?.capacity ?? {
+    days: 0,
+    taskCount: 0,
+    estimatedTaskCount: 0,
+    missingEstimateCount: 0,
+    workingDaysPerWeek: 5,
+  }
 
   return (
     <div className="page">
@@ -88,13 +106,13 @@ function DesktopDashboardPage() {
       </div>
 
       {isPending ? (
-        <div className="kpi-grid">
-          {Array.from({ length: 4 }, (_, i) => (
+        <div className="kpi-grid kpi-grid-5">
+          {Array.from({ length: 5 }, (_, i) => (
             <SkeletonKpi key={i} />
           ))}
         </div>
       ) : (
-        <div className="kpi-grid">
+        <div className="kpi-grid kpi-grid-5">
           <div className="kpi kpi-accent">
             <div className="kpi-label">
               <Icon name="euro" size={11} />
@@ -141,10 +159,22 @@ function DesktopDashboardPage() {
               )}
             </div>
           </div>
+          <div className="kpi kpi-purple">
+            <div className="kpi-label">
+              <Icon name="clock" size={11} />
+              Charge
+            </div>
+            <div className="kpi-value num">
+              {formatWorkloadDays(capacity.days)}
+            </div>
+            <div className="kpi-sub">
+              <span>{formatWorkloadCoverage(capacity)}</span>
+            </div>
+          </div>
         </div>
       )}
 
-      <TodayBlock />
+      <TodayPanel />
 
       {isPending ? (
         <DashboardChartsSkeleton />
@@ -246,6 +276,37 @@ function DesktopDashboardPage() {
                       <div className="xs muted">
                         {kpi.pipelineCount} tasks à facturer ·{" "}
                         {fmtEUR(kpi.pipelineEur)}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => router.push("/billing/new")}
+                    >
+                      Facturer
+                    </button>
+                  </div>
+                )}
+                {pipelineAging.staleCount > 0 && (
+                  <div
+                    className="row gap-12"
+                    style={{
+                      padding: 12,
+                      background: "var(--warn-soft)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Icon
+                      name="alert"
+                      size={16}
+                      style={{ color: "var(--warn)" }}
+                    />
+                    <div className="grow">
+                      <div className="strong small">Pipeline vieillissante</div>
+                      <div className="xs muted">
+                        La plus ancienne attend {pipelineAging.oldestDays} j ·{" "}
+                        {pipelineAging.staleCount} task
+                        {pipelineAging.staleCount > 1 ? "s" : ""} &gt; 30 j ·{" "}
+                        {fmtEUR(pipelineAging.staleValue)}
                       </div>
                     </div>
                     <button

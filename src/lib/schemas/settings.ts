@@ -4,6 +4,7 @@ export const settingsUpdateSchema = z.object({
   defaultCurrency: z.string().length(3).optional(),
   defaultPaymentDays: z.coerce.number().int().min(0).max(180).optional(),
   defaultRate: z.coerce.number().min(0).max(100_000).optional(),
+  workingDaysPerWeek: z.coerce.number().int().min(1).max(7).optional(),
 })
 
 export const linearTokenSchema = z.object({

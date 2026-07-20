@@ -68,8 +68,12 @@ User ─┬─> Client ─┬─> Project (linked to Linear) ─> Task (synced f
   (single line, fixed amount — used for `FIXED` price clients).
 - **Billing modes (Client.billingMode)**: `DAILY` | `FIXED` | `HOURLY`. **No
   `FREE`** — removed in the rework.
-- **Client.category**: drives task filtering (Freelance / Side project /
-  Personal / Study) — see chips on Tasks page.
+- **Client.category**: a stored classification (`FREELANCE` / `SIDE_PROJECT` /
+  `PERSONAL` / `STUDY`) persisted on the client and exposed through the client
+  API and DTOs. It is used as an analytics dimension (effort-days and task
+  counts are broken down by category on /analytics), but is **not** a filter on
+  the Tasks page: the chips there are status filters (`Tout` / `À facturer` /
+  `Done` / `In progress`).
 
 ### Task → Invoice line mapping
 
@@ -101,7 +105,11 @@ tasks no longer appear in the "eligible" list of the new-invoice page.
   mandatory to keep data private)
 - **TanStack Query v5** for ALL server state (see "Data fetching" section)
 - **Linear SDK** (`@linear/sdk`) for project/task sync
-- **dnd-kit** for the drag & drop invoice builder
+- **Native HTML5 drag-and-drop API** for the desktop invoice builder
+  (`draggable` + `onDragStart` / `onDragOver`, see
+  `src/features/billing/invoice-builder-parts.tsx`); the mobile builder replaces
+  drag & drop with tap-to-add / tap-to-remove rows (see
+  `src/app/(dashboard)/billing/new/mobile.tsx`)
 - **Inter** + **JetBrains Mono** (numerics get `font-feature-settings: 'tnum' 1`
   via the `.num` / `.mono` classes)
 - Package manager: **pnpm**

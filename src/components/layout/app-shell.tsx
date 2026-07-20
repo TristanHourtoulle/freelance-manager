@@ -3,6 +3,8 @@ import { Sidebar } from "./sidebar"
 import { Topbar } from "./topbar"
 import { BottomNav } from "@/components/mobile/bottom-nav"
 import { CmdKProvider } from "@/components/cmdk/cmdk-provider"
+import { QuickCaptureProvider } from "@/components/capture/quick-capture-provider"
+import { QuickCaptureFab } from "@/components/mobile/quick-capture-fab"
 
 interface AppShellProps {
   user: { id: string; name: string; email: string }
@@ -18,21 +20,24 @@ interface AppShellProps {
  */
 export function AppShell({ user, children }: AppShellProps) {
   return (
-    <CmdKProvider>
-      <div className="app">
-        <div className="desktop-only">
-          <Sidebar user={user} />
-        </div>
-        <div className="main">
+    <QuickCaptureProvider>
+      <CmdKProvider>
+        <div className="app">
           <div className="desktop-only">
-            <Topbar />
+            <Sidebar user={user} />
           </div>
-          {children}
+          <div className="main">
+            <div className="desktop-only">
+              <Topbar />
+            </div>
+            {children}
+          </div>
+          <div className="mobile-only">
+            <QuickCaptureFab />
+            <BottomNav />
+          </div>
         </div>
-        <div className="mobile-only">
-          <BottomNav />
-        </div>
-      </div>
-    </CmdKProvider>
+      </CmdKProvider>
+    </QuickCaptureProvider>
   )
 }

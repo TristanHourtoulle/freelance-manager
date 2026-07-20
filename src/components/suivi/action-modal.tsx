@@ -11,6 +11,7 @@ import {
   useDeleteAction,
   useUpdateAction,
   type ActionDTO,
+  type ClientActionStatus,
   type ClientActionType,
 } from "@/hooks/use-actions"
 import { fmtEUR } from "@/lib/format"
@@ -22,10 +23,17 @@ const TYPE_OPTIONS: { id: ClientActionType; label: string }[] = [
   { id: "OTHER", label: "Autre" },
 ]
 
+const STATUS_OPTIONS: { id: ClientActionStatus; label: string }[] = [
+  { id: "TODO", label: "À faire" },
+  { id: "WAITING", label: "En attente" },
+  { id: "DONE", label: "Fait" },
+]
+
 interface ActionModalProps {
   clientId?: string
   action?: ActionDTO | null
   defaultType?: ClientActionType
+  defaultMeetingId?: string
   onClose: () => void
 }
 
@@ -38,6 +46,7 @@ export function ActionModal({
   clientId,
   action,
   defaultType,
+  defaultMeetingId,
   onClose,
 }: ActionModalProps) {
   const fieldId = useId()
@@ -62,13 +71,16 @@ export function ActionModal({
   const [link, setLink] = useState(action?.link ?? "")
   const [invoiceId, setInvoiceId] = useState(action?.invoiceId ?? "")
   const [notes, setNotes] = useState(action?.notes ?? "")
+  const [status, setStatus] = useState<ClientActionStatus>(
+    action?.status ?? "TODO",
+  )
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const targetClientId = clientId ?? action?.clientId ?? selectedClient
+  const targetClientId = selectedClient || (clientId ?? "")
   const clientInvoices = (invoices ?? []).filter(
     (inv) => inv.clientId === targetClientId,
   )
-  const isValid = title.trim().length > 0 && targetClientId.length > 0
+  const isValid = title.trim().length > 0
   const isPending = create.isPending || update.isPending
 
   function handleSubmit() {
@@ -80,10 +92,18 @@ export function ActionModal({
       link: type === "LINK" ? link.trim() || null : null,
       invoiceId: type === "RELANCE" ? invoiceId || null : null,
       notes: notes.trim() || null,
+      meetingId: action?.meetingId ?? defaultMeetingId ?? null,
     }
     if (isEdit && action) {
       update.mutate(
-        { id: action.id, input: payload },
+        {
+          id: action.id,
+          input: {
+            ...payload,
+            status,
+            ...(clientId ? {} : { clientId: targetClientId || null }),
+          },
+        },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Action mise à jour" })
@@ -99,7 +119,7 @@ export function ActionModal({
       )
     } else {
       create.mutate(
-        { clientId: targetClientId, ...payload },
+        { clientId: targetClientId || null, ...payload },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Action créée" })
@@ -163,6 +183,24 @@ export function ActionModal({
           </>
         }
       >
+        {isEdit && (
+          <div className="modal-section">
+            <div className="modal-section-title">Statut</div>
+            <div className="seg">
+              {STATUS_OPTIONS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={status === o.id ? "active" : ""}
+                  onClick={() => setStatus(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="modal-section">
           <div className="modal-section-title">Type</div>
           <div className="seg">
@@ -180,7 +218,7 @@ export function ActionModal({
         </div>
 
         <div className="modal-section">
-          {!clientId && !isEdit && (
+          {!clientId && (
             <div className="field" style={{ marginBottom: 12 }}>
               <label className="field-label" htmlFor={`${fieldId}-client`}>
                 Client
@@ -191,7 +229,7 @@ export function ActionModal({
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
               >
-                <option value="">Sélectionner…</option>
+                <option value="">Non classé</option>
                 {(clients ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company || `${c.firstName} ${c.lastName}`}
@@ -228,7 +266,7 @@ export function ActionModal({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            {type === "RELANCE" && (
+            {type === "RELANCE" && targetClientId && (
               <div className="field">
                 <label
                   className="field-label"

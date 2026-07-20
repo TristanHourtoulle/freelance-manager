@@ -3,6 +3,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
+import type { PipelineAging } from "@/domain/billing/pipeline-aging"
+
+export type { PipelineAging } from "@/domain/billing/pipeline-aging"
 
 export interface DashboardDTO {
   kpi: {
@@ -19,7 +22,15 @@ export interface DashboardDTO {
     pipelineEur: number
     pipelineClientCount: number
   }
+  capacity: {
+    days: number
+    taskCount: number
+    estimatedTaskCount: number
+    missingEstimateCount: number
+    workingDaysPerWeek: number
+  }
   months: { month: string; total: number; isCurrent: boolean }[]
+  pipelineAging: PipelineAging
   overdue: {
     id: string
     number: string
@@ -52,6 +63,16 @@ export interface DashboardDTO {
     status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
     projectKey: string | null
   }[]
+  inProgress: {
+    count: number
+    top: {
+      id: string
+      linearIdentifier: string
+      linearUrl: string | null
+      title: string
+      projectKey: string | null
+    }[]
+  }
   lastSync: string | null
 }
 

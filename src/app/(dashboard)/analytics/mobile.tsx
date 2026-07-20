@@ -3,8 +3,19 @@
 import { useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
-import { fmtEUR, initials, avatarColor } from "@/lib/format"
-import { useAnalytics, type AnalyticsRange } from "@/hooks/use-analytics"
+import {
+  fmtEUR,
+  fmtRatio,
+  fmtSharePct,
+  initials,
+  avatarColor,
+} from "@/lib/format"
+import { downloadAnalyticsCsv } from "@/lib/analytics-csv"
+import {
+  useAnalytics,
+  type AnalyticsRange,
+  type ClientCategoryKey,
+} from "@/hooks/use-analytics"
 import {
   Donut,
   Sparkline,
@@ -23,6 +34,32 @@ const TYPE_COLOR: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   HOURLY: "oklch(0.78 0.13 180)",
 }
 
+const CATEGORY_LABEL: Record<ClientCategoryKey, string> = {
+  FREELANCE: "Freelance",
+  STUDY: "Études",
+  PERSONAL: "Perso",
+  SIDE_PROJECT: "Side project",
+}
+
+function concentrationColor(
+  level: "ok" | "warn" | "danger",
+): string | undefined {
+  if (level === "danger") return "var(--danger)"
+  if (level === "warn") return "var(--warn)"
+  return undefined
+}
+
+function accuracyColor(ratio: number | null): string | undefined {
+  if (ratio === null) return undefined
+  if (ratio > 1.3) return "var(--danger)"
+  if (ratio > 1.1) return "var(--warn)"
+  return undefined
+}
+
+function nonFreelanceColor(share: number | null): string | undefined {
+  return share !== null && share >= 0.3 ? "var(--warn)" : undefined
+}
+
 export function MobileAnalyticsPage() {
   const [range, setRange] = useState<AnalyticsRange>("12m")
   const { data, isLoading } = useAnalytics(range)
@@ -39,7 +76,20 @@ export function MobileAnalyticsPage() {
     )
   }
 
-  const { kpi, months, byClient, byType, weeks } = data
+  const {
+    kpi,
+    months,
+    byClient,
+    byType,
+    weeks,
+    concentration,
+    estimateAccuracy,
+    categoryMix,
+  } = data
+  const accuracy = estimateAccuracy.overall
+  const nonFreelanceRows = categoryMix.rows.filter(
+    (r) => r.category !== "FREELANCE",
+  )
   const trendUp = kpi.trend >= 0
   const totalByType = byType.reduce((s, b) => s + b.revenue, 0)
   const topMax = byClient[0]?.revenue ?? 1
@@ -50,7 +100,12 @@ export function MobileAnalyticsPage() {
         title="Analytics"
         back="/more"
         action={
-          <button type="button" className="m-topbar-action" aria-label="Export">
+          <button
+            type="button"
+            className="m-topbar-action"
+            aria-label="Export"
+            onClick={() => downloadAnalyticsCsv(data)}
+          >
             <Icon name="download" size={15} />
           </button>
         }
@@ -116,7 +171,7 @@ export function MobileAnalyticsPage() {
               className="xs muted"
               style={{ marginTop: -6, marginBottom: 10 }}
             >
-              Revenu cumulé · TJM effectif estimé
+              Revenu cumulé · part du revenu total · TJM effectif estimé
             </div>
             <div className="col gap-12">
               {byClient.length === 0 && (
@@ -142,6 +197,17 @@ export function MobileAnalyticsPage() {
                     <div className="small strong truncate">
                       {x.client.company ??
                         `${x.client.firstName} ${x.client.lastName}`}
+                    </div>
+                    <div className="xs muted">
+                      {fmtSharePct(x.revenueShare)} du revenu
+                      {x.revenueShare !== null &&
+                        x.daysShare !== null &&
+                        Math.abs(x.daysShare - x.revenueShare) > 0.1 && (
+                          <span style={{ color: "var(--warn)" }}>
+                            {" "}
+                            · {fmtSharePct(x.daysShare)} du temps
+                          </span>
+                        )}
                     </div>
                     <div className="pbar" style={{ marginTop: 4 }}>
                       <span
@@ -199,8 +265,18 @@ export function MobileAnalyticsPage() {
               </div>
               <div className="divider" style={{ margin: 0 }} />
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <span className="small muted">Taux de conversion</span>
-                <span className="num strong">{kpi.conversion}%</span>
+                <span className="small muted">Taux d&apos;encaissement</span>
+                <span className="num strong">{kpi.collectionRate}%</span>
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted">Taux de signature</span>
+                <span className="num strong">{kpi.winRate}%</span>
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted">Délai de décision</span>
+                <span className="num strong">{kpi.avgDecisionDays} j</span>
               </div>
               <div className="divider" style={{ margin: 0 }} />
               <div className="row" style={{ justifyContent: "space-between" }}>
@@ -208,6 +284,64 @@ export function MobileAnalyticsPage() {
                 <span className="num strong" style={{ color: "var(--accent)" }}>
                   {fmtEUR(kpi.runRate)}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Signaux</div>
+            <div className="col gap-8">
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted grow">Concentration client</span>
+                <span
+                  className="num strong"
+                  style={{ color: concentrationColor(concentration.level) }}
+                >
+                  {fmtSharePct(concentration.topClientShare)}
+                </span>
+              </div>
+              <div className="xs muted">
+                top 3 : {fmtSharePct(concentration.topThreeShare)}
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted grow">
+                  Précision des estimations
+                </span>
+                <span
+                  className="num strong"
+                  style={{
+                    color: accuracy.reliable
+                      ? accuracyColor(accuracy.ratio)
+                      : undefined,
+                  }}
+                >
+                  {accuracy.reliable ? fmtRatio(accuracy.ratio) : "—"}
+                </span>
+              </div>
+              <div className="xs muted">
+                {accuracy.reliable
+                  ? `${accuracy.n} tasks mesurées · ${fmtSharePct(accuracy.coverage)} de couverture`
+                  : `Pas assez de données (${accuracy.n}/5 tasks mesurées)`}
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted grow">Effort hors freelance</span>
+                <span
+                  className="num strong"
+                  style={{
+                    color: nonFreelanceColor(categoryMix.nonFreelanceDaysShare),
+                  }}
+                >
+                  {fmtSharePct(categoryMix.nonFreelanceDaysShare)}
+                </span>
+              </div>
+              <div className="xs muted">
+                {nonFreelanceRows.length === 0
+                  ? "Aucun effort hors freelance"
+                  : nonFreelanceRows
+                      .map((r) => `${CATEGORY_LABEL[r.category]} ${r.days} j`)
+                      .join(" · ")}
               </div>
             </div>
           </div>

@@ -26,9 +26,18 @@ const envSchema = z.object({
       "ENCRYPTION_KEY must be 64 hex chars (32 bytes). Generate with: openssl rand -hex 32",
     ),
   CRON_SECRET: z.string().min(1).optional(),
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(),
   TRUST_PROXY: z.coerce.boolean().default(false),
   HEALTH_KEY: z.string().min(16).optional(),
 })
 
-/** Validated environment variables. Throws at startup if any required variable is missing. */
+/**
+ * Validated environment variables. Parsed when this module is first imported,
+ * which happens at server startup via the `register()` hook in
+ * `src/instrumentation.ts` — a missing or malformed variable throws there and
+ * the server refuses to boot. Not evaluated during `next build`.
+ */
 export const env = envSchema.parse(process.env)

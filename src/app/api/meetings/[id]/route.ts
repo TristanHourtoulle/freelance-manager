@@ -41,6 +41,7 @@ export async function PATCH(req: Request, { params }: Params) {
         ...("participants" in data
           ? { participants: data.participants ?? [] }
           : {}),
+        ...("agendaMd" in data ? { agendaMd: data.agendaMd ?? null } : {}),
         ...("summaryMd" in data ? { summaryMd: data.summaryMd ?? null } : {}),
       },
       include: MEETING_INCLUDE,

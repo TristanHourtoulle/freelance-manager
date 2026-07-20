@@ -6,7 +6,9 @@ import { useToast } from "@/components/providers/toast-provider"
 import {
   useActions,
   useUpdateAction,
+  UNASSIGNED_CLIENT_FILTER,
   type ActionDTO,
+  type ClientActionStatus,
   type ClientActionType,
 } from "@/hooks/use-actions"
 import { useMeetings, type MeetingDTO } from "@/hooks/use-meetings"
@@ -15,7 +17,34 @@ import { MeetingModal } from "@/components/suivi/meeting-modal"
 import { avatarColor, fmtDate, fmtRelative, initials } from "@/lib/format"
 
 type SubTab = "actions" | "meetings"
-type ActionFilter = "today" | "upcoming" | "all" | "done"
+export type ActionFilter =
+  | "today"
+  | "upcoming"
+  | "waiting"
+  | "inbox"
+  | "all"
+  | "done"
+
+const TODO_AND_WAITING: readonly ClientActionStatus[] = ["TODO", "WAITING"]
+const ONLY_DONE: readonly ClientActionStatus[] = ["DONE"]
+const ONLY_WAITING: readonly ClientActionStatus[] = ["WAITING"]
+
+/**
+ * Statuses a given filter chip must request from the server.
+ *
+ * Every non-done filter deliberately includes `WAITING`, otherwise blocked
+ * follow-ups become invisible in the UI.
+ *
+ * @param filter - The currently selected chip.
+ * @returns The `ClientActionStatus` values to send as repeated query params.
+ */
+export function statusesForFilter(
+  filter: ActionFilter,
+): readonly ClientActionStatus[] {
+  if (filter === "done") return ONLY_DONE
+  if (filter === "waiting") return ONLY_WAITING
+  return TODO_AND_WAITING
+}
 
 const ACTION_PILL: Record<ClientActionType, { label: string; cls: string }> = {
   RELANCE: { label: "Relance", cls: "pill-partial" },
@@ -83,8 +112,12 @@ export function SuiviView({ clientId }: SuiviViewProps) {
     mode: "closed",
   })
 
-  const status = filter === "done" ? "DONE" : "TODO"
-  const actionsQuery = useActions({ clientId, status })
+  const statuses = statusesForFilter(filter)
+  const actionsQuery = useActions({
+    clientId:
+      clientId ?? (filter === "inbox" ? UNASSIGNED_CLIENT_FILTER : undefined),
+    statuses,
+  })
   const meetingsQuery = useMeetings({ clientId })
   const updateAction = useUpdateAction(clientId)
 
@@ -92,10 +125,10 @@ export function SuiviView({ clientId }: SuiviViewProps) {
   const meetings = meetingsQuery.data ?? []
 
   const visibleActions = useMemo(() => {
-    if (filter === "done") return actions
+    if (filter === "done" || filter === "waiting") return actions
     const { end } = dayBounds()
     const inBucket = (a: ActionDTO) => {
-      if (filter === "all") return true
+      if (filter === "all" || filter === "inbox") return true
       const due = a.dueDate ? new Date(a.dueDate).getTime() : null
       if (filter === "today") return due != null && due <= end
       return due != null && due > end
@@ -114,6 +147,13 @@ export function SuiviView({ clientId }: SuiviViewProps) {
     updateAction.mutate({
       id: a.id,
       input: { status: a.status === "DONE" ? "TODO" : "DONE" },
+    })
+  }
+
+  function toggleWaiting(a: ActionDTO) {
+    updateAction.mutate({
+      id: a.id,
+      input: { status: a.status === "WAITING" ? "TODO" : "WAITING" },
     })
   }
 
@@ -180,6 +220,8 @@ export function SuiviView({ clientId }: SuiviViewProps) {
               [
                 { id: "today", label: "Aujourd'hui" },
                 { id: "upcoming", label: "À venir" },
+                { id: "waiting", label: "En attente" },
+                { id: "inbox", label: "Non classé" },
                 { id: "all", label: "Tout" },
                 { id: "done", label: "Fait" },
               ] as { id: ActionFilter; label: string }[]
@@ -201,15 +243,21 @@ export function SuiviView({ clientId }: SuiviViewProps) {
               <div className="empty-sub">
                 {filter === "done"
                   ? "Aucune action terminée."
-                  : "Aucune action à faire."}
+                  : filter === "waiting"
+                    ? "Aucune action en attente."
+                    : filter === "inbox"
+                      ? "Aucune action non classée."
+                      : "Aucune action à faire."}
               </div>
             </div>
           ) : (
             <div className="suivi-list">
               {visibleActions.map((a) => {
                 const done = a.status === "DONE"
+                const waiting = a.status === "WAITING"
                 const due = a.dueDate ? new Date(a.dueDate).getTime() : null
-                const overdue = !done && due != null && due < todayStart
+                const overdue =
+                  !done && !waiting && due != null && due < todayStart
                 const pill = ACTION_PILL[a.type]
                 return (
                   <div
@@ -230,6 +278,11 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                         <span className={`pill pill-no-dot ${pill.cls}`}>
                           {pill.label}
                         </span>
+                        {waiting && (
+                          <span className="pill pill-no-dot pill-waiting">
+                            En attente
+                          </span>
+                        )}
                         {a.dueDate && (
                           <span
                             className={
@@ -244,7 +297,7 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                             {a.invoiceNumber}
                           </span>
                         )}
-                        {!clientId && (
+                        {!clientId && a.client && (
                           <span className="suivi-client">
                             <span
                               className="avatar avatar-sm"
@@ -259,6 +312,11 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                             {clientLabel(a.client)}
                           </span>
                         )}
+                        {!clientId && !a.client && (
+                          <span className="pill pill-no-dot pill-draft">
+                            Non classé
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="suivi-item-actions">
@@ -270,6 +328,19 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                           aria-label="Copier le lien"
                         >
                           <Icon name="copy" size={15} />
+                        </button>
+                      )}
+                      {!done && (
+                        <button
+                          type="button"
+                          className={
+                            "btn btn-sm " +
+                            (waiting ? "btn-primary" : "btn-ghost")
+                          }
+                          onClick={() => toggleWaiting(a)}
+                          aria-pressed={waiting}
+                        >
+                          En attente
                         </button>
                       )}
                       {a.type === "RDV" && !a.meetingId && !done && (
@@ -330,6 +401,12 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                       <span className="suivi-dim">
                         {m.participants.length} participant
                         {m.participants.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {m.actionsCount > 0 && (
+                      <span className="suivi-dim">
+                        {m.actionsCount} action
+                        {m.actionsCount > 1 ? "s" : ""}
                       </span>
                     )}
                     {!clientId && (

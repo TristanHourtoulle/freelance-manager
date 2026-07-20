@@ -14,6 +14,7 @@ import { getInvoiceComputed } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
+import { summarizeWorkload } from "@/domain/capacity/workload"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -28,7 +29,15 @@ export async function GET(_: Request, { params }: Params) {
     const today = new Date()
     const monthlyStart = new Date(today.getFullYear(), today.getMonth() - 11, 1)
 
-    const [c, tasks, invoices, monthlyTotals] = await Promise.all([
+    const [
+      c,
+      tasks,
+      invoices,
+      monthlyTotals,
+      meetings,
+      openActions,
+      lastDoneAction,
+    ] = await Promise.all([
       prisma.client.findFirst({
         where: { id, userId: user.id },
         include: {
@@ -69,8 +78,53 @@ export async function GET(_: Request, { params }: Params) {
         GROUP BY 1
         ORDER BY 1
       `,
+      prisma.meeting.findMany({
+        where: { clientId: id, userId: user.id },
+        orderBy: { heldAt: "desc" },
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          heldAt: true,
+          durationMinutes: true,
+          participants: true,
+          summaryMd: true,
+        },
+      }),
+      prisma.clientAction.findMany({
+        where: {
+          clientId: id,
+          userId: user.id,
+          status: { in: ["TODO", "WAITING"] },
+        },
+        orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          dueDate: true,
+          meetingId: true,
+        },
+      }),
+      prisma.clientAction.findFirst({
+        where: { clientId: id, userId: user.id, doneAt: { not: null } },
+        orderBy: { doneAt: "desc" },
+        select: { doneAt: true },
+      }),
     ])
     if (!c) return apiNotFound()
+
+    const contactTimestamps = [
+      meetings[0]?.heldAt ?? null,
+      lastDoneAction?.doneAt ?? null,
+    ].filter((d): d is Date => d != null)
+    const lastContactAt =
+      contactTimestamps.length > 0
+        ? new Date(
+            Math.max(...contactTimestamps.map((d) => d.getTime())),
+          ).toISOString()
+        : null
 
     const monthlyMap = new Map(
       monthlyTotals.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
@@ -84,6 +138,10 @@ export async function GET(_: Request, { params }: Params) {
         total: monthlyMap.get(key) ?? 0,
       })
     }
+
+    const workload = summarizeWorkload(
+      tasks.filter((t) => t.status === "BACKLOG" || t.status === "IN_PROGRESS"),
+    )
 
     return NextResponse.json({
       id: c.id,
@@ -105,6 +163,29 @@ export async function GET(_: Request, { params }: Params) {
       starred: c.starred,
       archived: c.archivedAt != null,
       createdAt: c.createdAt.toISOString(),
+      workload: {
+        days: workload.days,
+        taskCount: workload.taskCount,
+        estimatedTaskCount: workload.estimatedTaskCount,
+        missingEstimateCount: workload.missingEstimateCount,
+      },
+      lastContactAt,
+      meetings: meetings.map((m) => ({
+        id: m.id,
+        title: m.title,
+        heldAt: m.heldAt.toISOString(),
+        durationMinutes: m.durationMinutes,
+        participants: m.participants,
+        summaryMd: m.summaryMd,
+      })),
+      openActions: openActions.map((a) => ({
+        id: a.id,
+        title: a.title,
+        type: a.type,
+        status: a.status,
+        dueDate: a.dueDate ? a.dueDate.toISOString() : null,
+        meetingId: a.meetingId,
+      })),
       monthlyRevenue,
       projects: c.projects.map((p) => ({
         id: p.id,
