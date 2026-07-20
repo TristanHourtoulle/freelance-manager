@@ -3,9 +3,9 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import ClientsPage from "./page"
 import type { ClientDTO } from "@/hooks/use-clients"
 
-const { useClientsMock, useTasksMock } = vi.hoisted(() => ({
+const { useClientsMock, useClientsBillableMock } = vi.hoisted(() => ({
   useClientsMock: vi.fn(),
-  useTasksMock: vi.fn(),
+  useClientsBillableMock: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
@@ -22,14 +22,11 @@ vi.mock("@/hooks/use-is-mobile", () => ({
 
 vi.mock("@/hooks/use-clients", () => ({
   useClients: (options?: { archived?: boolean }) => useClientsMock(options),
+  useClientsBillable: () => useClientsBillableMock(),
 }))
 
 vi.mock("@/hooks/use-invoices", () => ({
   useInvoices: () => ({ data: [] }),
-}))
-
-vi.mock("@/hooks/use-tasks", () => ({
-  useTasks: () => useTasksMock(),
 }))
 
 vi.mock("@/hooks/use-projects", () => ({
@@ -64,27 +61,40 @@ function buildClient(overrides: Partial<ClientDTO> = {}): ClientDTO {
 function clientsResult(
   partial: {
     data?: ClientDTO[]
-    isLoading?: boolean
+    isPending?: boolean
   } = {},
 ) {
   return {
     data: partial.data ?? [],
-    isLoading: partial.isLoading ?? false,
+    isPending: partial.isPending ?? false,
     fetchNextPage: vi.fn(),
     hasNextPage: false,
     isFetchingNextPage: false,
   }
 }
 
+function billableResult(
+  byClient: Record<string, { count: number; value: number }> = {},
+) {
+  const entries = Object.values(byClient)
+  return {
+    data: {
+      byClient,
+      totalCount: entries.reduce((n, e) => n + e.count, 0),
+      totalValue: entries.reduce((n, e) => n + e.value, 0),
+    },
+  }
+}
+
 describe("ClientsPage (desktop)", () => {
   beforeEach(() => {
     useClientsMock.mockReset()
-    useTasksMock.mockReset()
-    useTasksMock.mockReturnValue({ data: [] })
+    useClientsBillableMock.mockReset()
+    useClientsBillableMock.mockReturnValue(billableResult())
   })
 
   it("renders skeletons while loading, not the empty state", () => {
-    useClientsMock.mockReturnValue(clientsResult({ isLoading: true }))
+    useClientsMock.mockReturnValue(clientsResult({ isPending: true }))
 
     const { container } = render(<ClientsPage />)
 
@@ -103,20 +113,42 @@ describe("ClientsPage (desktop)", () => {
     ).toHaveLength(2)
   })
 
-  it("counts pending_invoice tasks as the 'à facturer' metric", () => {
+  it("reads the 'à facturer' metric from the server-side aggregate", () => {
     useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
-    useTasksMock.mockReturnValue({
-      data: [
-        { clientId: "client-1", status: "PENDING_INVOICE" },
-        { clientId: "client-1", status: "PENDING_INVOICE" },
-        { clientId: "client-1", status: "DONE" },
-      ],
-    })
+    useClientsBillableMock.mockReturnValue(
+      billableResult({ "client-1": { count: 2, value: 1000 } }),
+    )
 
     const { container } = render(<ClientsPage />)
 
     const card = container.querySelector(".client-card")
     expect(card?.textContent).toMatch(/2\s*à facturer/)
+  })
+
+  it("shows a billable count larger than one task page", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+    useClientsBillableMock.mockReturnValue(
+      billableResult({ "client-1": { count: 120, value: 60000 } }),
+    )
+
+    const { container } = render(<ClientsPage />)
+
+    expect(container.querySelector(".client-card")?.textContent).toMatch(
+      /120\s*à facturer/,
+    )
+  })
+
+  it("shows zero rather than a stale count for a client absent from the aggregate", () => {
+    useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
+    useClientsBillableMock.mockReturnValue(
+      billableResult({ "client-other": { count: 9, value: 4500 } }),
+    )
+
+    const { container } = render(<ClientsPage />)
+
+    expect(container.querySelector(".client-card")?.textContent).toMatch(
+      /0\s*à facturer/,
+    )
   })
 
   it("distinguishes a filter/search miss from a truly empty list", () => {

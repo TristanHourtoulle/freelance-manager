@@ -11,9 +11,12 @@ const NewClientModal = dynamic(
     ),
   { ssr: false },
 )
-import { useClients, type ClientDTO } from "@/hooks/use-clients"
+import {
+  useClients,
+  useClientsBillable,
+  type ClientDTO,
+} from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
-import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -56,13 +59,13 @@ function DesktopClientsPage() {
 
   const {
     data: clients = [],
-    isLoading,
+    isPending,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useClients({ archived: showArchived })
   const { data: invoices = [] } = useInvoices()
-  const { data: tasks = [] } = useTasks()
+  const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
 
   const enriched: EnrichedClient[] = useMemo(() => {
@@ -71,14 +74,6 @@ function DesktopClientsPage() {
       const arr = invoicesByClient.get(i.clientId) ?? []
       arr.push(i)
       invoicesByClient.set(i.clientId, arr)
-    }
-    const pendingTasksByClient = new Map<string, number>()
-    for (const t of tasks) {
-      if (t.status !== "PENDING_INVOICE") continue
-      pendingTasksByClient.set(
-        t.clientId,
-        (pendingTasksByClient.get(t.clientId) ?? 0) + 1,
-      )
     }
     const projectsByClient = new Map<string, number>()
     for (const p of projects) {
@@ -104,12 +99,12 @@ function DesktopClientsPage() {
       return {
         ...c,
         projectsCount: projectsByClient.get(c.id) ?? 0,
-        pendingTasksCount: pendingTasksByClient.get(c.id) ?? 0,
+        pendingTasksCount: billable?.byClient[c.id]?.count ?? 0,
         revenue,
         outstanding,
       }
     })
-  }, [clients, invoices, tasks, projects])
+  }, [clients, invoices, billable, projects])
 
   const filtered = enriched.filter((c) => {
     if (
@@ -265,7 +260,7 @@ function DesktopClientsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isPending ? (
         view === "grid" ? (
           <div className="client-grid">
             {Array.from({ length: 6 }, (_, i) => (

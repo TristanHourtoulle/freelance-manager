@@ -3,6 +3,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
@@ -11,8 +12,10 @@ import { qk, STALE_TIME } from "@/hooks/query-keys"
 import type { ClientCreateInput, ClientUpdateInput } from "@/lib/schemas/client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 import type { ClientWireRow } from "@/domain/clients/types"
+import type { ClientsBillableSummary } from "@/domain/clients/billable"
 
 export type { ClientWireRow } from "@/domain/clients/types"
+export type { ClientsBillableSummary } from "@/domain/clients/billable"
 export type ClientDTO = ClientWireRow
 
 interface UseClientsOptions {
@@ -42,6 +45,22 @@ export function useClients({
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
     staleTime: STALE_TIME.hour,
+  })
+}
+
+/**
+ * Global "à facturer" aggregate, computed server-side over every task.
+ *
+ * Kept out of {@link useClients} on purpose: that list is paginated and cached
+ * for an hour, which would silently cap and stale the counts. Own key under the
+ * `clients` prefix so client mutations still invalidate it.
+ */
+export function useClientsBillable() {
+  return useQuery({
+    queryKey: [...qk.clients(), "billable"],
+    queryFn: () =>
+      api.get<ClientsBillableSummary>("/api/clients?summary=billable"),
+    staleTime: STALE_TIME.list,
   })
 }
 

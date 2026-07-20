@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
+import { z } from "zod/v4"
 import { prisma } from "@/lib/db"
 import {
   apiServerError,
@@ -13,10 +14,19 @@ import { clientCreateSchema } from "@/lib/schemas/client"
 import { deferActivityLog } from "@/lib/activity"
 import {
   clientsTag,
+  getClientsBillableSummary,
   getClientsFirstPage,
   serializeClient,
 } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
+
+const clientsQuerySchema = z.object({
+  archived: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+  summary: z.literal("billable").optional(),
+})
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -24,7 +34,15 @@ export async function GET(req: Request) {
 
   try {
     const { cursor, limit } = parsePagination(req)
-    const archived = new URL(req.url).searchParams.get("archived") === "true"
+    const params = new URL(req.url).searchParams
+    const { archived, summary } = clientsQuerySchema.parse({
+      archived: params.get("archived") ?? undefined,
+      summary: params.get("summary") ?? undefined,
+    })
+
+    if (summary === "billable") {
+      return NextResponse.json(await getClientsBillableSummary(user.id))
+    }
 
     if (!cursor && limit === 50 && !archived) {
       return NextResponse.json(await getClientsFirstPage(user.id))
