@@ -3,13 +3,17 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { DesktopTasksPage } from "./page"
 import type { TaskDTO } from "@/hooks/use-tasks"
 
-const { useTasksMock, useClientsBillableMock, searchParamsMock } = vi.hoisted(
-  () => ({
-    useTasksMock: vi.fn(),
-    useClientsBillableMock: vi.fn(),
-    searchParamsMock: vi.fn<(key: string) => string | null>(() => null),
-  }),
-)
+const {
+  useTasksMock,
+  useClientsBillableMock,
+  useSettingsMock,
+  searchParamsMock,
+} = vi.hoisted(() => ({
+  useTasksMock: vi.fn(),
+  useClientsBillableMock: vi.fn(),
+  useSettingsMock: vi.fn(),
+  searchParamsMock: vi.fn<(key: string) => string | null>(() => null),
+}))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -50,6 +54,10 @@ vi.mock("@/hooks/use-projects", () => ({
 
 vi.mock("@/hooks/use-invoices", () => ({
   useInvoices: () => ({ data: [] }),
+}))
+
+vi.mock("@/hooks/use-settings", () => ({
+  useSettings: () => useSettingsMock(),
 }))
 
 vi.mock("@/hooks/use-is-mobile", () => ({
@@ -93,13 +101,24 @@ function mockBillable(totalCount: number, totalValue: number) {
   })
 }
 
+function mockLastSync(linearLastSyncedAt: string | null) {
+  useSettingsMock.mockReturnValue({ data: { linearLastSyncedAt } })
+}
+
+function subHeaderText() {
+  const node = document.querySelector(".page-sub")
+  return (node?.textContent ?? "").replace(/\s+/g, " ").trim()
+}
+
 describe("DesktopTasksPage", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
     useClientsBillableMock.mockReset()
+    useSettingsMock.mockReset()
     searchParamsMock.mockReset()
     searchParamsMock.mockReturnValue(null)
     mockBillable(0, 0)
+    mockLastSync(null)
   })
 
   it("renders loading skeletons and no empty state during the first fetch", () => {
@@ -112,7 +131,7 @@ describe("DesktopTasksPage", () => {
     expect(screen.queryByText("Aucun resultat")).not.toBeInTheDocument()
   })
 
-  it("shows the sync-prompt empty state when there is genuinely no task", () => {
+  it("shows the design's empty state verbatim when there is genuinely no task", () => {
     mockTasks({ data: [] })
 
     const { container } = render(<DesktopTasksPage />)
@@ -120,7 +139,7 @@ describe("DesktopTasksPage", () => {
     expect(container.querySelectorAll(".skeleton").length).toBe(0)
     expect(screen.getByText("Aucune task")).toBeInTheDocument()
     expect(
-      screen.getByText("Lance une sync Linear pour importer tes issues"),
+      screen.getByText("Ajuste les filtres ou lance une sync"),
     ).toBeInTheDocument()
   })
 
@@ -145,6 +164,37 @@ describe("DesktopTasksPage", () => {
     fireEvent.click(resetButton)
 
     expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
+  })
+
+  it("renders the design's three sub-header segments in order when nothing is billable", () => {
+    mockTasks({ data: [buildTask()] })
+    mockLastSync(new Date().toISOString())
+
+    render(<DesktopTasksPage />)
+
+    expect(subHeaderText()).toBe(
+      "Synchronisées depuis Linear · 1 tasks visibles · dernière sync aujourd'hui",
+    )
+  })
+
+  it("appends the a-facturer segment after the design's three segments", () => {
+    mockTasks({ data: [buildTask()] })
+    mockLastSync(new Date(Date.now() - 2 * 86400000).toISOString())
+    mockBillable(2, 1500)
+
+    render(<DesktopTasksPage />)
+
+    expect(subHeaderText()).toBe(
+      "Synchronisées depuis Linear · 1 tasks visibles · dernière sync il y a 2j · À facturer : 1 500 € (2 tasks)",
+    )
+  })
+
+  it("falls back to the em dash when no Linear sync has ever run", () => {
+    mockTasks({ data: [buildTask()] })
+
+    render(<DesktopTasksPage />)
+
+    expect(subHeaderText()).toContain("dernière sync —")
   })
 
   it("surfaces the server-side a-facturer total and count in the sub-header", () => {
@@ -188,6 +238,10 @@ describe("DesktopTasksPage", () => {
     render(<DesktopTasksPage />)
 
     expect(screen.getByText("Aucune task active")).toBeInTheDocument()
+    expect(screen.queryByText("Aucune task")).not.toBeInTheDocument()
+    expect(
+      screen.queryByText("Ajuste les filtres ou lance une sync"),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument()
     expect(
       screen.queryByRole("button", { name: /initialiser les filtres/ }),
