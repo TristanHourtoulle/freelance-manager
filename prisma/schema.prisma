@@ -98,6 +98,7 @@ model UserSettings {
   defaultCurrency    String  @default("EUR")
   defaultPaymentDays Int     @default(30)
   defaultRate        Decimal @default(0) @db.Decimal(10, 2)
+  workingDaysPerWeek Int     @default(5)
 
   // Linear integration (AES-256-GCM encrypted)
   linearApiTokenEncrypted   Bytes?
@@ -254,6 +255,8 @@ model Project {
   description String?
   status      ProjectStatus @default(ACTIVE)
 
+  startDate       DateTime?
+  targetDate      DateTime?
   linearCreatedAt DateTime?
   lastSyncedAt    DateTime  @default(now())
   createdAt       DateTime  @default(now())
@@ -303,6 +306,7 @@ model Task {
   estimate    Decimal?     @db.Decimal(6, 2)
   actualDays  Decimal?     @db.Decimal(6, 2)
 
+  dueDate         DateTime?
   completedAt     DateTime?
   linearCreatedAt DateTime?
   linearUpdatedAt DateTime?
