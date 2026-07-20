@@ -1,26 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { LinearClient } from "@linear/sdk"
 
-const { prismaMock, rawRequest, LinearClientMock, decryptMock } = vi.hoisted(
-  () => {
-    const rawRequest = vi.fn()
-    const prismaMock = {
-      userSettings: { findUnique: vi.fn(), upsert: vi.fn() },
-      linearMapping: { findMany: vi.fn() },
-      task: { findMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
-      project: { upsert: vi.fn(), update: vi.fn() },
-      $transaction: vi.fn(),
-    }
-    return {
-      prismaMock,
-      rawRequest,
-      LinearClientMock: vi.fn(function LinearClient() {
-        return { client: { rawRequest } }
-      }),
-      decryptMock: vi.fn(() => "fake-token"),
-    }
-  },
-)
+const {
+  prismaMock,
+  rawRequest,
+  LinearClientMock,
+  decryptMock,
+  linearProjectFn,
+} = vi.hoisted(() => {
+  const rawRequest = vi.fn()
+  const linearProjectFn = vi.fn()
+  const prismaMock = {
+    userSettings: { findUnique: vi.fn(), upsert: vi.fn() },
+    linearMapping: { findMany: vi.fn() },
+    task: { findMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+    project: { upsert: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(),
+  }
+  return {
+    prismaMock,
+    rawRequest,
+    linearProjectFn,
+    LinearClientMock: vi.fn(function LinearClient() {
+      return { client: { rawRequest }, project: linearProjectFn }
+    }),
+    decryptMock: vi.fn(() => "fake-token"),
+  }
+})
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 vi.mock("@/lib/encryption", () => ({ decrypt: decryptMock, encrypt: vi.fn() }))
@@ -34,15 +40,18 @@ vi.mock("@/lib/linear-sync-progress", () => ({
 }))
 
 import {
+  APP_OWNED_PROJECT_FIELDS,
   fetchAllPages,
   fetchIssuesWithRelations,
   ISSUES_PAGE_SIZE,
   keyFromIdentifier,
+  LINEAR_MIRRORED_PROJECT_FIELDS,
   mapLinearPriority,
   mapLinearStateType,
   MAX_SYNC_PAGES,
   normalizeIssueNode,
   syncFromLinear,
+  syncOneProject,
 } from "@/lib/linear"
 
 interface RawNode {
@@ -648,5 +657,158 @@ describe("syncFromLinear", () => {
       expect(touchSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
       expect(completeSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
     })
+  })
+})
+
+describe("Project mirror whitelist", () => {
+  const TOKEN_SETTINGS = {
+    linearApiTokenEncrypted: new Uint8Array([1, 2, 3]),
+    linearApiTokenIv: new Uint8Array([4, 5, 6]),
+    linearApiTokenKeyVersion: 1,
+    linearLastSyncedAt: null as Date | null,
+  }
+
+  function issueNode(): RawNode {
+    return {
+      id: "issue-1",
+      identifier: "TRI-1",
+      url: "https://linear.app/acme/issue/TRI-1/task-one",
+      title: "Task one",
+      description: null,
+      priority: 0,
+      estimate: null,
+      completedAt: null,
+      createdAt: null,
+      updatedAt: null,
+      state: { name: "Todo", type: "unstarted" },
+      team: { id: "team-1", key: "TRI" },
+      project: {
+        id: "lp-1",
+        name: "Alpha",
+        description: null,
+        state: "started",
+        createdAt: null,
+      },
+    }
+  }
+
+  function storedProjectRow(): Record<string, unknown> {
+    return {
+      id: "local-project-1",
+      linearProjectId: "lp-1",
+      name: "Alpha",
+      description: null,
+      repoUrl: "https://github.com/acme/app",
+      stagingUrl: "https://staging.acme.dev",
+      prodUrl: "https://acme.dev",
+      runbook: "## Déploiement\n\n1. `pnpm build`",
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.userSettings.findUnique.mockResolvedValue({ ...TOKEN_SETTINGS })
+    prismaMock.userSettings.upsert.mockResolvedValue({})
+    prismaMock.linearMapping.findMany.mockResolvedValue([
+      {
+        clientId: "client-1",
+        linearProjectId: "lp-1",
+        linearTeamId: null,
+        client: {
+          userId: "user-1",
+          company: "Acme",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      },
+    ])
+    prismaMock.task.findMany.mockResolvedValue([])
+    prismaMock.task.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.task.update.mockResolvedValue({})
+    prismaMock.project.upsert.mockResolvedValue({ id: "local-project-1" })
+    prismaMock.project.update.mockResolvedValue({})
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock),
+    )
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [issueNode()] } },
+    })
+  })
+
+  it("never lists an app-owned column as a Linear-mirrored column", () => {
+    const mirrored = new Set<string>(LINEAR_MIRRORED_PROJECT_FIELDS)
+    for (const field of APP_OWNED_PROJECT_FIELDS) {
+      expect(mirrored.has(field)).toBe(false)
+    }
+  })
+
+  it("only writes mirrored columns in the syncFromLinear upsert payload", async () => {
+    await syncFromLinear("user-1")
+
+    const call = prismaMock.project.upsert.mock.calls[0]![0]
+    const mirrored = new Set<string>(LINEAR_MIRRORED_PROJECT_FIELDS)
+    for (const key of Object.keys(call.update)) {
+      expect(mirrored.has(key)).toBe(true)
+    }
+    for (const field of APP_OWNED_PROJECT_FIELDS) {
+      expect(call.update).not.toHaveProperty(field)
+      expect(call.create).not.toHaveProperty(field)
+    }
+  })
+
+  it("preserves app-owned project fields through syncFromLinear", async () => {
+    const storedRow = storedProjectRow()
+    prismaMock.project.upsert.mockImplementation(
+      async (args: { update: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.update)
+        return storedRow
+      },
+    )
+
+    await syncFromLinear("user-1")
+
+    expect(storedRow.repoUrl).toBe("https://github.com/acme/app")
+    expect(storedRow.stagingUrl).toBe("https://staging.acme.dev")
+    expect(storedRow.prodUrl).toBe("https://acme.dev")
+    expect(storedRow.runbook).toBe("## Déploiement\n\n1. `pnpm build`")
+  })
+
+  it("preserves app-owned project fields through syncOneProject", async () => {
+    const storedRow = storedProjectRow()
+    linearProjectFn.mockResolvedValue({
+      id: "lp-1",
+      name: "Alpha",
+      description: null,
+      state: "started",
+      createdAt: null,
+    })
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [] } },
+    })
+    prismaMock.project.upsert.mockImplementation(
+      async (args: { update: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.update)
+        return storedRow
+      },
+    )
+    prismaMock.project.update.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.data)
+        return storedRow
+      },
+    )
+
+    await syncOneProject({
+      userId: "user-1",
+      clientId: "client-1",
+      linearProjectId: "lp-1",
+    })
+
+    expect(storedRow.repoUrl).toBe("https://github.com/acme/app")
+    expect(storedRow.stagingUrl).toBe("https://staging.acme.dev")
+    expect(storedRow.prodUrl).toBe("https://acme.dev")
+    expect(storedRow.runbook).toBe("## Déploiement\n\n1. `pnpm build`")
   })
 })
