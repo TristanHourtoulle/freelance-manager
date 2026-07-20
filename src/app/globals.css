@@ -2894,6 +2894,46 @@ textarea {
   font-size: 11.5px;
   color: var(--text-2);
 }
+.task-item .task-item-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.task-item .task-item-hit:disabled {
+  cursor: default;
+}
+.task-item .task-effort-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: -2px;
+  color: var(--text-3);
+}
+.task-item .task-effort-inline .input {
+  width: 36px;
+  height: 19px;
+  padding: 0 3px;
+  border-radius: 5px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--text-1);
+}
+.task-item .task-effort-inline .input:hover:not(:disabled) {
+  border-color: var(--border);
+}
+.task-item .task-effort-inline .input:focus {
+  background: var(--bg-2);
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+.task-item .task-effort-inline .input:disabled {
+  opacity: 0.6;
+}
 
 /* Checkbox circle (used for task selection) */
 .checkbox-circle {

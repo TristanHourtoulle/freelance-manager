@@ -223,16 +223,16 @@ export function MobileTasksPage() {
                       estimateDays: t.estimate,
                     })
                     return (
-                      <div key={t.id} className="col gap-4">
+                      <div
+                        key={t.id}
+                        className={"task-item" + (isSel ? " selected" : "")}
+                        style={{ opacity: t.invoiceId ? 0.7 : 1 }}
+                      >
                         <button
                           type="button"
-                          className={"task-item" + (isSel ? " selected" : "")}
+                          className="task-item-hit"
                           onClick={() => !t.invoiceId && toggle(t.id)}
                           disabled={t.invoiceId != null}
-                          style={{
-                            textAlign: "left",
-                            opacity: t.invoiceId ? 0.7 : 1,
-                          }}
                         >
                           <div className="row gap-8">
                             <div
@@ -267,48 +267,36 @@ export function MobileTasksPage() {
                             </span>
                           </div>
                           <div className="task-title">{t.title}</div>
-                          <div className="task-meta">
-                            <span>
-                              <Icon name="clock" size={11} />{" "}
-                              {t.estimate ?? "—"}j
-                            </span>
-                            <span>·</span>
-                            <span className="num">{fmtEUR(value)}</span>
-                            {t.invoiceId && (
-                              <>
-                                <span>·</span>
-                                <span style={{ color: "var(--accent)" }}>
-                                  Facturée
-                                </span>
-                              </>
-                            )}
-                            {t.completedAt && (
-                              <>
-                                <span style={{ marginLeft: "auto" }}>
-                                  {fmtRelative(t.completedAt)}
-                                </span>
-                              </>
-                            )}
-                          </div>
                         </button>
-                        <div
-                          className="row gap-8"
-                          style={{ padding: "0 4px 2px" }}
-                        >
-                          <span className="xs muted grow">
-                            Temps réel passé
+                        <div className="task-meta">
+                          <span>
+                            <Icon name="clock" size={11} /> {t.estimate ?? "—"}j
                           </span>
-                          <TaskEffortInput
-                            taskId={t.id}
-                            actualDays={t.actualDays}
-                            className="num"
-                            style={{
-                              width: 76,
-                              padding: "5px 8px",
-                              textAlign: "right",
-                            }}
-                          />
-                          <span className="xs muted">j</span>
+                          <span>·</span>
+                          <span className="num">{fmtEUR(value)}</span>
+                          {t.invoiceId && (
+                            <>
+                              <span>·</span>
+                              <span style={{ color: "var(--accent)" }}>
+                                Facturée
+                              </span>
+                            </>
+                          )}
+                          <span className="task-effort-inline">
+                            <span aria-hidden="true">réel</span>
+                            <TaskEffortInput
+                              taskId={t.id}
+                              actualDays={t.actualDays}
+                              className="num"
+                              disabled={t.invoiceId != null}
+                            />
+                            <span aria-hidden="true">j</span>
+                          </span>
+                          {t.completedAt && (
+                            <span style={{ marginLeft: "auto" }}>
+                              {fmtRelative(t.completedAt)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )

@@ -8,6 +8,7 @@ interface TaskEffortInputProps {
   actualDays: number | null
   className?: string
   style?: CSSProperties
+  disabled?: boolean
 }
 
 function parseDays(raw: string): number | null | undefined {
@@ -28,12 +29,15 @@ function parseDays(raw: string): number | null | undefined {
  *
  * @param taskId - The task to update.
  * @param actualDays - The persisted effort, or `null` when never captured.
+ * @param disabled - Renders the captured value read-only, for rows that can no
+ * longer be edited such as already-invoiced tasks.
  */
 export function TaskEffortInput({
   taskId,
   actualDays,
   className,
   style,
+  disabled = false,
 }: TaskEffortInputProps) {
   const update = useUpdateTaskEffort()
   const [draft, setDraft] = useState<string | null>(null)
@@ -58,7 +62,7 @@ export function TaskEffortInput({
       placeholder="—"
       aria-label="Temps réel passé, en jours"
       value={value}
-      disabled={update.isPending}
+      disabled={disabled || update.isPending}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
