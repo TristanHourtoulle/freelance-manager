@@ -84,6 +84,7 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
     id: "task-1",
     linearIssueId: "li-1",
     linearIdentifier: "TRI-1",
+    linearUrl: null,
     title: "Implementer le dashboard",
     status: "PENDING_INVOICE",
     priority: "NONE",

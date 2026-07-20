@@ -14,6 +14,7 @@ export interface TaskDTO {
   id: string
   linearIssueId: string
   linearIdentifier: string
+  linearUrl: string | null
   title: string
   status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
   priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT"

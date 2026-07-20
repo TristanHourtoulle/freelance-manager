@@ -21,6 +21,7 @@ import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { SuiviView } from "@/components/suivi/suivi-view"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -589,9 +590,11 @@ export function DesktopTasksPage() {
                                 />
                               </td>
                               <td>
-                                <span className="task-id">
-                                  {t.linearIdentifier}
-                                </span>
+                                <TaskIdLink
+                                  identifier={t.linearIdentifier}
+                                  url={t.linearUrl}
+                                  className="task-id"
+                                />
                               </td>
                               <td className="strong">{t.title}</td>
                               <td>

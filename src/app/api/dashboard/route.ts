@@ -104,6 +104,7 @@ export async function GET() {
         select: {
           id: true,
           linearIdentifier: true,
+          linearUrl: true,
           title: true,
           status: true,
           project: { select: { key: true } },
@@ -148,6 +149,7 @@ export async function GET() {
       recentTasks: recentTasks.map((t) => ({
         id: t.id,
         linearIdentifier: t.linearIdentifier,
+        linearUrl: t.linearUrl,
         title: t.title,
         status: t.status,
         projectKey: t.project?.key ?? null,

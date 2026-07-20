@@ -48,6 +48,7 @@ import {
 interface RawNode {
   id: string
   identifier: string
+  url: string | null
   title: string
   description: string | null
   priority: number | null
@@ -83,6 +84,7 @@ describe("normalizeIssueNode", () => {
     const node: RawNode = {
       id: "issue-1",
       identifier: "TRI-543",
+      url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
       title: "Ship the thing",
       description: "details",
       priority: 2,
@@ -106,6 +108,7 @@ describe("normalizeIssueNode", () => {
     expect(result.issue).toEqual({
       id: "issue-1",
       identifier: "TRI-543",
+      url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
       title: "Ship the thing",
       description: "details",
       priority: 2,
@@ -129,6 +132,7 @@ describe("normalizeIssueNode", () => {
     const node: RawNode = {
       id: "issue-2",
       identifier: "TRI-9",
+      url: null,
       title: "Backlog item",
       description: null,
       priority: null,
@@ -143,6 +147,7 @@ describe("normalizeIssueNode", () => {
 
     const result = normalizeIssueNode(node)
 
+    expect(result.issue.url).toBeNull()
     expect(result.issue.description).toBeNull()
     expect(result.issue.priority).toBeNull()
     expect(result.issue.estimate).toBeNull()
@@ -172,6 +177,7 @@ describe("fetchIssuesWithRelations", () => {
       {
         id: "issue-1",
         identifier: "TRI-543",
+        url: "https://linear.app/acme/issue/TRI-543/ship-the-thing",
         title: "Ship the thing",
         description: "details",
         priority: 1,
@@ -385,6 +391,7 @@ describe("syncFromLinear", () => {
     return {
       id: "issue-1",
       identifier: "TRI-1",
+      url: "https://linear.app/acme/issue/TRI-1/task-one",
       title: "Task one",
       description: null,
       priority: 0,

@@ -8,6 +8,7 @@ function task(overrides: Partial<Task>): Task {
   return {
     id: "t",
     linearIdentifier: "TRI-1",
+    linearUrl: null,
     title: "Task",
     status: "PENDING_INVOICE",
     estimate: 1,
