@@ -6,6 +6,7 @@ import {
   decimalToNumber,
   getAuthUser,
 } from "@/lib/api"
+import { withEffectiveRates } from "@/domain/analytics/effective-rate"
 
 const RANGE_MONTHS: Record<string, number> = { "3m": 3, "6m": 6, "12m": 12 }
 
@@ -63,6 +64,9 @@ export async function GET(req: Request) {
             completedAt: true,
             status: true,
             invoiceId: true,
+            clientId: true,
+            estimate: true,
+            actualDays: true,
           },
         }),
         prisma.$queryRaw<{ month: Date; total: number }[]>`
@@ -139,7 +143,7 @@ export async function GET(req: Request) {
           (revByClient.get(inv.clientId) ?? 0) + paid,
         )
     }
-    const byClient = clients
+    const topClients = clients
       .map((c) => ({
         client: {
           id: c.id,
@@ -153,6 +157,16 @@ export async function GET(req: Request) {
       .filter((x) => x.revenue > 0)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5)
+
+    const effortRows = withEffectiveRates(
+      topClients.map((x) => ({ clientId: x.client.id, revenue: x.revenue })),
+      tasks,
+    )
+    const byClient = topClients.map((x, i) => ({
+      ...x,
+      days: effortRows[i]?.days ?? 0,
+      effectiveRate: effortRows[i]?.effectiveRate ?? null,
+    }))
 
     const billingModeRev = { DAILY: 0, FIXED: 0, HOURLY: 0 }
     for (const c of clients) {

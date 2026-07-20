@@ -28,6 +28,8 @@ export interface AnalyticsDTO {
       color: string | null
     }
     revenue: number
+    days: number
+    effectiveRate: number | null
   }[]
   byType: { type: "DAILY" | "FIXED" | "HOURLY"; revenue: number }[]
   weeks: { label: string; done: number; invoiced: number }[]

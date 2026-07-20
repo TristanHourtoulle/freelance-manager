@@ -14,6 +14,7 @@ export const qk = {
   dashboard: () => ["dashboard"] as const,
   settings: () => ["settings"] as const,
   analytics: <R>(range: R) => ["analytics", range] as const,
+  analyticsAll: () => ["analytics"] as const,
 
   clients: () => ["clients"] as const,
   client: {
