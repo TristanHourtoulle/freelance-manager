@@ -16,6 +16,7 @@ type ClientRow = {
   company: string | null
   color: string
   billingMode: string
+  category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
 }
 type TaskRow = {
   id: string
@@ -75,7 +76,8 @@ vi.mock("@/lib/api", async () => {
 
 /**
  * Faithful copy of the pre-refactor aggregation algorithm, kept in the test as
- * the parity oracle. The refactored route must return byte-identical output.
+ * the parity oracle. The route must still return these fields unchanged; the
+ * steering-signal fields added on top are asserted separately.
  */
 function referenceAnalytics(
   data: Dataset,
@@ -283,6 +285,7 @@ function buildDataset(): Dataset {
       company: "Analytical",
       color: "#123456",
       billingMode: "DAILY",
+      category: "FREELANCE",
     },
     {
       id: "c2",
@@ -291,6 +294,7 @@ function buildDataset(): Dataset {
       company: null,
       color: "#abcdef",
       billingMode: "FIXED",
+      category: "SIDE_PROJECT",
     },
     {
       id: "c3",
@@ -299,6 +303,7 @@ function buildDataset(): Dataset {
       company: "Navy",
       color: "#0f0f0f",
       billingMode: "HOURLY",
+      category: "FREELANCE",
     },
   ]
   const invoices: InvoiceRow[] = [
@@ -462,7 +467,7 @@ describe("GET /api/analytics", () => {
     vi.useRealTimers()
   })
 
-  it("returns output byte-identical to the reference algorithm (12m)", async () => {
+  it("keeps every pre-existing field identical to the reference algorithm (12m)", async () => {
     const data = buildDataset()
     wireMocks(data)
     const { GET } = await import("./route")
@@ -476,7 +481,7 @@ describe("GET /api/analytics", () => {
       12,
       "12m",
     )
-    expect(body).toEqual(expected)
+    expect(body).toMatchObject(expected)
   })
 
   it("matches the reference algorithm for a 3m range", async () => {
@@ -493,7 +498,7 @@ describe("GET /api/analytics", () => {
       3,
       "3m",
     )
-    expect(body).toEqual(expected)
+    expect(body).toMatchObject(expected)
   })
 
   it("collapses multiple payments into one delay per invoice", async () => {
@@ -506,5 +511,189 @@ describe("GET /api/analytics", () => {
     const body = await res.json()
     expect(body.kpi.paidCount).toBe(3)
     expect(body.kpi.avgDelay).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Build a dataset where each entry produces exactly one fully paid invoice of
+ * the given amount for its own client, so revenue shares are trivial to assert.
+ */
+function revenueDataset(
+  entries: readonly {
+    revenue: number
+    category?: ClientRow["category"]
+    tasks?: { estimate: number | null; actualDays: number | null }[]
+  }[],
+): Dataset {
+  const clients: ClientRow[] = []
+  const invoices: InvoiceRow[] = []
+  const payments: PaymentRow[] = []
+  const tasks: TaskRow[] = []
+
+  entries.forEach((entry, index) => {
+    const id = `c${index + 1}`
+    clients.push({
+      id,
+      firstName: `First${index}`,
+      lastName: `Last${index}`,
+      company: null,
+      color: "#000000",
+      billingMode: "DAILY",
+      category: entry.category ?? "FREELANCE",
+    })
+    invoices.push({
+      id: `i${index + 1}`,
+      clientId: id,
+      status: "PAID",
+      paymentStatus: "PAID",
+      issueDate: new Date(2026, 1, 1),
+      total: entry.revenue,
+    })
+    payments.push({
+      invoiceId: `i${index + 1}`,
+      amount: entry.revenue,
+      paidAt: new Date(2026, 1, 10),
+    })
+    ;(entry.tasks ?? []).forEach((t, ti) => {
+      tasks.push({
+        id: `t${index + 1}-${ti}`,
+        completedAt: new Date(2026, 2, 10),
+        status: "done",
+        invoiceId: null,
+        clientId: id,
+        estimate: t.estimate,
+        actualDays: t.actualDays,
+      })
+    })
+  })
+
+  return {
+    invoices,
+    payments,
+    clients,
+    tasks,
+    paidByMonth: [],
+    issuedByMonth: [],
+  }
+}
+
+async function getBody(range = "12m") {
+  const { GET } = await import("./route")
+  const res = await GET(
+    new Request(`http://localhost/api/analytics?range=${range}`),
+  )
+  return res.json()
+}
+
+describe("GET /api/analytics steering signals", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 2, 15, 12, 0, 0))
+    findMany.mockReset()
+    queryRaw.mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("computes the client shares over every client, not over the top 5", async () => {
+    wireMocks(
+      revenueDataset([
+        { revenue: 100 },
+        { revenue: 50 },
+        { revenue: 30 },
+        { revenue: 20 },
+        { revenue: 10 },
+        { revenue: 5 },
+      ]),
+    )
+
+    const body = await getBody()
+
+    expect(body.byClient).toHaveLength(5)
+    expect(body.concentration.totalRevenue).toBe(215)
+    expect(body.byClient[0].revenueShare).toBe(100 / 215)
+    expect(body.byClient[0].revenueShare).not.toBe(100 / 210)
+  })
+
+  it("flags a dominant client as a danger-level concentration", async () => {
+    wireMocks(
+      revenueDataset([{ revenue: 60 }, { revenue: 30 }, { revenue: 10 }]),
+    )
+
+    const body = await getBody()
+
+    expect(body.concentration.topClientShare).toBeCloseTo(0.6)
+    expect(body.concentration.level).toBe("danger")
+    expect(body.concentration.topThreeShare).toBe(1)
+  })
+
+  it("returns null shares rather than NaN when no revenue was collected", async () => {
+    wireMocks(revenueDataset([{ revenue: 0 }, { revenue: 0 }]))
+
+    const body = await getBody()
+
+    expect(body.byClient).toHaveLength(0)
+    expect(body.concentration.topClientShare).toBeNull()
+    expect(body.concentration.topThreeShare).toBeNull()
+    expect(body.concentration.level).toBe("ok")
+    expect(body.categoryMix.nonFreelanceDaysShare).toBeNull()
+  })
+
+  it("counts only tasks carrying both effort columns and gates a thin sample", async () => {
+    wireMocks(
+      revenueDataset([
+        {
+          revenue: 1000,
+          tasks: [
+            { estimate: 2, actualDays: 3 },
+            { estimate: 2, actualDays: 3 },
+            { estimate: 1, actualDays: 1 },
+            { estimate: 4, actualDays: null },
+            { estimate: null, actualDays: 2 },
+          ],
+        },
+      ]),
+    )
+
+    const body = await getBody()
+
+    expect(body.estimateAccuracy.overall.n).toBe(3)
+    expect(body.estimateAccuracy.overall.reliable).toBe(false)
+    expect(body.estimateAccuracy.overall.coverage).toBe(0.6)
+    expect(body.estimateAccuracy.byBillingMode.DAILY.n).toBe(3)
+    expect(body.estimateAccuracy.byBillingMode.FIXED).toMatchObject({
+      ratio: null,
+      n: 0,
+      reliable: false,
+    })
+    expect(body.estimateAccuracy.byClient["c1"].n).toBe(3)
+  })
+
+  it("splits the effort mix by client category", async () => {
+    wireMocks(
+      revenueDataset([
+        {
+          revenue: 1000,
+          category: "FREELANCE",
+          tasks: [{ estimate: 6, actualDays: null }],
+        },
+        {
+          revenue: 0,
+          category: "SIDE_PROJECT",
+          tasks: [{ estimate: 4, actualDays: null }],
+        },
+      ]),
+    )
+
+    const body = await getBody()
+
+    expect(body.categoryMix.totalDays).toBe(10)
+    expect(body.categoryMix.nonFreelanceDaysShare).toBe(0.4)
+    expect(body.categoryMix.rows).toEqual([
+      { category: "FREELANCE", taskCount: 1, days: 6, revenue: 1000 },
+      { category: "SIDE_PROJECT", taskCount: 1, days: 4, revenue: 0 },
+    ])
   })
 })
