@@ -11,8 +11,26 @@ export const projectLinkSchema = z.object({
   linearProjectId: z.string().min(1),
 })
 
+const optionalUrl = z
+  .union([z.url({ protocol: /^https?$/ }).trim(), z.literal("")])
+  .nullish()
+  .transform((v) => (v ? v : null))
+
+/**
+ * App-owned edits on a mirrored project: the three access URLs, the markdown
+ * runbook and the local status. Linear-mirrored columns are never accepted
+ * here.
+ */
 export const projectUpdateSchema = z.object({
   status: projectStatusSchema.optional(),
+  repoUrl: optionalUrl,
+  stagingUrl: optionalUrl,
+  prodUrl: optionalUrl,
+  runbook: z
+    .string()
+    .max(20_000)
+    .nullish()
+    .transform((v) => (v && v.trim() ? v : null)),
 })
 
 export type ProjectLinkInput = z.input<typeof projectLinkSchema>

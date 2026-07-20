@@ -13,10 +13,12 @@ vi.mock("@/lib/api", async (importOriginal) => {
 })
 
 const getClientsFirstPage = vi.fn()
+const getClientsRecencySummary = vi.fn()
 vi.mock("@/lib/data/clients", () => ({
   clientsTag: (id: string) => `user-${id}-clients`,
   getClientsBillableSummary: vi.fn(),
   getClientsFirstPage: () => getClientsFirstPage(),
+  getClientsRecencySummary: (id: string) => getClientsRecencySummary(id),
   serializeClient: (c: unknown) => c,
 }))
 vi.mock("@/lib/data/nav", () => ({ navTag: (id: string) => `user-${id}-nav` }))
@@ -41,6 +43,7 @@ describe("GET /api/clients", () => {
       hasMore: false,
     })
     prismaMock.client.findMany.mockResolvedValue(ROWS)
+    getClientsRecencySummary.mockResolvedValue({ byClient: {} })
   })
 
   it("serves the cached first page when no search term is given", async () => {
@@ -102,12 +105,59 @@ describe("GET /api/clients", () => {
     expect(prismaMock.client.findMany).not.toHaveBeenCalled()
   })
 
+  it("serves the recency aggregate without touching the cached first page", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(request("?summary=recency"))
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ byClient: {} })
+    expect(getClientsRecencySummary).toHaveBeenCalledWith("user-1")
+    expect(getClientsFirstPage).not.toHaveBeenCalled()
+    expect(prismaMock.client.findMany).not.toHaveBeenCalled()
+  })
+
+  it("rejects an unknown summary value instead of running an aggregate", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(request("?summary=bogus"))
+
+    expect(res.status).toBe(400)
+    expect(getClientsRecencySummary).not.toHaveBeenCalled()
+  })
+
   it("returns 401 when unauthenticated", async () => {
     getAuthUser.mockResolvedValue(null)
     const { GET } = await import("./route")
     const res = await GET(request("?q=acme"))
 
     expect(res.status).toBe(401)
+    expect(prismaMock.client.findMany).not.toHaveBeenCalled()
+  })
+
+  it("pushes ?stage=LEAD into the where clause", async () => {
+    const { GET } = await import("./route")
+    await GET(request("?stage=LEAD&limit=6"))
+
+    const where = prismaMock.client.findMany.mock.calls[0]![0].where
+    expect(where).toEqual({
+      userId: "user-1",
+      archivedAt: null,
+      stage: "LEAD",
+    })
+  })
+
+  it("bypasses the cached first page when a stage filter is given", async () => {
+    const { GET } = await import("./route")
+    await GET(request("?stage=DORMANT"))
+
+    expect(getClientsFirstPage).not.toHaveBeenCalled()
+    expect(prismaMock.client.findMany).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects an unknown stage value with a 400", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(request("?stage=NOPE"))
+
+    expect(res.status).toBe(400)
     expect(prismaMock.client.findMany).not.toHaveBeenCalled()
   })
 })

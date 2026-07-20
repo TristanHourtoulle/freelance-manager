@@ -6,7 +6,32 @@ import {
   decimalToNumber,
   getAuthUser,
 } from "@/lib/api"
-import { withEffectiveRates } from "@/domain/analytics/effective-rate"
+import {
+  aggregateDaysByClient,
+  computeEffectiveRate,
+} from "@/domain/analytics/effective-rate"
+import { computeQuoteKpis } from "@/domain/quotes/kpis"
+import { buildConcentration } from "@/domain/analytics/concentration"
+import {
+  accuracyByKey,
+  computeEstimateAccuracy,
+  type AccuracyResult,
+} from "@/domain/analytics/estimate-accuracy"
+import {
+  buildCategoryMix,
+  type ClientCategoryKey,
+} from "@/domain/analytics/category-mix"
+
+type BillingModeKey = "DAILY" | "FIXED" | "HOURLY"
+
+const EMPTY_ACCURACY: AccuracyResult = {
+  ratio: null,
+  n: 0,
+  coverage: null,
+  sumEstimate: 0,
+  sumActual: 0,
+  reliable: false,
+}
 
 const RANGE_MONTHS: Record<string, number> = { "3m": 3, "6m": 6, "12m": 12 }
 
@@ -26,57 +51,78 @@ export async function GET(req: Request) {
       1,
     )
 
-    const [invoices, payments, clients, tasks, paidByMonth, issuedByMonth] =
-      await Promise.all([
-        prisma.invoice.findMany({
-          where: { userId: user.id, status: { not: "CANCELLED" } },
-          select: {
-            id: true,
-            clientId: true,
-            status: true,
-            paymentStatus: true,
-            issueDate: true,
-            total: true,
-          },
-        }),
-        prisma.payment.findMany({
-          where: { userId: user.id },
-          select: { invoiceId: true, amount: true, paidAt: true },
-        }),
-        prisma.client.findMany({
-          where: { userId: user.id, archivedAt: null },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            company: true,
-            color: true,
-            billingMode: true,
-          },
-        }),
-        prisma.task.findMany({
-          where: {
-            userId: user.id,
-            completedAt: { not: null, gte: periodStart },
-          },
-          select: {
-            id: true,
-            completedAt: true,
-            status: true,
-            invoiceId: true,
-            clientId: true,
-            estimate: true,
-            actualDays: true,
-          },
-        }),
-        prisma.$queryRaw<{ month: Date; total: number }[]>`
+    const [
+      invoices,
+      payments,
+      clients,
+      tasks,
+      quotes,
+      paidByMonth,
+      issuedByMonth,
+    ] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { userId: user.id, status: { not: "CANCELLED" } },
+        select: {
+          id: true,
+          clientId: true,
+          status: true,
+          paymentStatus: true,
+          issueDate: true,
+          total: true,
+        },
+      }),
+      prisma.payment.findMany({
+        where: { userId: user.id },
+        select: { invoiceId: true, amount: true, paidAt: true },
+      }),
+      prisma.client.findMany({
+        where: {
+          userId: user.id,
+          archivedAt: null,
+          stage: { not: "LEAD" },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          company: true,
+          color: true,
+          billingMode: true,
+          category: true,
+        },
+      }),
+      prisma.task.findMany({
+        where: {
+          userId: user.id,
+          completedAt: { not: null, gte: periodStart },
+        },
+        select: {
+          id: true,
+          completedAt: true,
+          status: true,
+          invoiceId: true,
+          clientId: true,
+          estimate: true,
+          actualDays: true,
+        },
+      }),
+      prisma.quote.findMany({
+        where: { userId: user.id },
+        select: {
+          status: true,
+          sentAt: true,
+          decidedAt: true,
+          total: true,
+        },
+      }),
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
         SELECT date_trunc('month', "paidAt") AS month, SUM(amount)::float AS total
         FROM payments
         WHERE "userId" = ${user.id} AND "paidAt" >= ${periodStart}
         GROUP BY 1
         ORDER BY 1
       `,
-        prisma.$queryRaw<{ month: Date; total: number }[]>`
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
         SELECT date_trunc('month', "issueDate") AS month, SUM(total)::float AS total
         FROM invoices
         WHERE "userId" = ${user.id}
@@ -85,7 +131,7 @@ export async function GET(req: Request) {
         GROUP BY 1
         ORDER BY 1
       `,
-      ])
+    ])
 
     const paidByMonthMap = new Map(
       paidByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
@@ -143,6 +189,18 @@ export async function GET(req: Request) {
           (revByClient.get(inv.clientId) ?? 0) + paid,
         )
     }
+    const daysByClient = aggregateDaysByClient(tasks)
+    const concentration = buildConcentration(
+      clients.map((c) => ({
+        clientId: c.id,
+        revenue: revByClient.get(c.id) ?? 0,
+        days: daysByClient.get(c.id) ?? 0,
+      })),
+    )
+    const shareByClient = new Map(
+      concentration.rows.map((r) => [r.clientId, r] as const),
+    )
+
     const topClients = clients
       .map((c) => ({
         client: {
@@ -158,15 +216,52 @@ export async function GET(req: Request) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5)
 
-    const effortRows = withEffectiveRates(
-      topClients.map((x) => ({ clientId: x.client.id, revenue: x.revenue })),
-      tasks,
+    const byClient = topClients.map((x) => {
+      const days = daysByClient.get(x.client.id) ?? 0
+      const shares = shareByClient.get(x.client.id)
+      return {
+        ...x,
+        days,
+        effectiveRate: computeEffectiveRate(x.revenue, days),
+        revenueShare: shares?.revenueShare ?? null,
+        daysShare: shares?.daysShare ?? null,
+      }
+    })
+
+    const billingModeByClient = new Map(
+      clients.map((c) => [c.id, c.billingMode as BillingModeKey] as const),
     )
-    const byClient = topClients.map((x, i) => ({
-      ...x,
-      days: effortRows[i]?.days ?? 0,
-      effectiveRate: effortRows[i]?.effectiveRate ?? null,
-    }))
+    const modeKeyedTasks = tasks.flatMap((t) => {
+      const key = billingModeByClient.get(t.clientId)
+      return key ? [{ ...t, key }] : []
+    })
+    const accuracyByMode = accuracyByKey(modeKeyedTasks)
+    const accuracyPerClient = accuracyByKey(
+      tasks.map((t) => ({ ...t, key: t.clientId })),
+    )
+    const topClientIds = new Set(byClient.map((x) => x.client.id))
+    const estimateAccuracy = {
+      overall: computeEstimateAccuracy(tasks),
+      byBillingMode: {
+        DAILY: accuracyByMode.DAILY ?? EMPTY_ACCURACY,
+        FIXED: accuracyByMode.FIXED ?? EMPTY_ACCURACY,
+        HOURLY: accuracyByMode.HOURLY ?? EMPTY_ACCURACY,
+      },
+      byClient: Object.fromEntries(
+        Object.entries(accuracyPerClient).filter(([id]) =>
+          topClientIds.has(id),
+        ),
+      ),
+    }
+
+    const categoryMix = buildCategoryMix(
+      clients.map((c) => ({
+        id: c.id,
+        category: c.category as ClientCategoryKey,
+      })),
+      tasks,
+      revByClient,
+    )
 
     const billingModeRev = { DAILY: 0, FIXED: 0, HOURLY: 0 }
     for (const c of clients) {
@@ -254,7 +349,7 @@ export async function GET(req: Request) {
         (inv.paymentStatus === "UNPAID" ||
           inv.paymentStatus === "PARTIALLY_PAID"),
     ).length
-    const conversion =
+    const collectionRate =
       fullyPaidInvoices.length + sentCount > 0
         ? Math.round(
             (fullyPaidInvoices.length /
@@ -268,6 +363,15 @@ export async function GET(req: Request) {
         ? Math.round(totalRevenue / fullyPaidInvoices.length)
         : 0
 
+    const quoteKpis = computeQuoteKpis(
+      quotes.map((q) => ({
+        status: q.status,
+        sentAt: q.sentAt?.toISOString() ?? null,
+        decidedAt: q.decidedAt?.toISOString() ?? null,
+        total: decimalToNumber(q.total) ?? 0,
+      })),
+    )
+
     return NextResponse.json({
       range: rangeKey,
       months: monthBuckets,
@@ -278,13 +382,24 @@ export async function GET(req: Request) {
         paidCount: fullyPaidInvoices.length,
         avgDelay,
         avgInvoice,
-        conversion,
+        collectionRate,
+        winRate: quoteKpis.winRate,
+        avgDecisionDays: quoteKpis.avgDecisionDays,
         runRate: avgRevenue * 12,
       },
       byClient,
       byType,
       weeks,
       heatmap,
+      concentration: {
+        totalRevenue: concentration.totalRevenue,
+        totalDays: concentration.totalDays,
+        topClientShare: concentration.topClientShare,
+        topThreeShare: concentration.topThreeShare,
+        level: concentration.level,
+      },
+      estimateAccuracy,
+      categoryMix,
     })
   } catch (error) {
     return apiServerError(error)

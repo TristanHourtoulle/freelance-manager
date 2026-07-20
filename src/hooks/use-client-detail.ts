@@ -24,6 +24,29 @@ export interface ClientDetailDTO {
   starred: boolean
   archived: boolean
   createdAt: string
+  workload: {
+    days: number
+    taskCount: number
+    estimatedTaskCount: number
+    missingEstimateCount: number
+  }
+  lastContactAt: string | null
+  meetings: {
+    id: string
+    title: string
+    heldAt: string
+    durationMinutes: number
+    participants: string[]
+    summaryMd: string | null
+  }[]
+  openActions: {
+    id: string
+    title: string
+    type: "RELANCE" | "LINK" | "RDV" | "OTHER"
+    status: "TODO" | "WAITING"
+    dueDate: string | null
+    meetingId: string | null
+  }[]
   monthlyRevenue: { month: string; total: number }[]
   projects: {
     id: string

@@ -1,26 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { LinearClient } from "@linear/sdk"
 
-const { prismaMock, rawRequest, LinearClientMock, decryptMock } = vi.hoisted(
-  () => {
-    const rawRequest = vi.fn()
-    const prismaMock = {
-      userSettings: { findUnique: vi.fn(), upsert: vi.fn() },
-      linearMapping: { findMany: vi.fn() },
-      task: { findMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
-      project: { upsert: vi.fn(), update: vi.fn() },
-      $transaction: vi.fn(),
-    }
-    return {
-      prismaMock,
-      rawRequest,
-      LinearClientMock: vi.fn(function LinearClient() {
-        return { client: { rawRequest } }
-      }),
-      decryptMock: vi.fn(() => "fake-token"),
-    }
-  },
-)
+const {
+  prismaMock,
+  rawRequest,
+  LinearClientMock,
+  decryptMock,
+  linearProjectFn,
+} = vi.hoisted(() => {
+  const rawRequest = vi.fn()
+  const linearProjectFn = vi.fn()
+  const prismaMock = {
+    userSettings: { findUnique: vi.fn(), upsert: vi.fn() },
+    linearMapping: { findMany: vi.fn() },
+    task: { findMany: vi.fn(), createMany: vi.fn(), update: vi.fn() },
+    project: { upsert: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(),
+  }
+  return {
+    prismaMock,
+    rawRequest,
+    linearProjectFn,
+    LinearClientMock: vi.fn(function LinearClient() {
+      return { client: { rawRequest }, project: linearProjectFn }
+    }),
+    decryptMock: vi.fn(() => "fake-token"),
+  }
+})
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 vi.mock("@/lib/encryption", () => ({ decrypt: decryptMock, encrypt: vi.fn() }))
@@ -34,15 +40,18 @@ vi.mock("@/lib/linear-sync-progress", () => ({
 }))
 
 import {
+  APP_OWNED_PROJECT_FIELDS,
   fetchAllPages,
   fetchIssuesWithRelations,
   ISSUES_PAGE_SIZE,
   keyFromIdentifier,
+  LINEAR_MIRRORED_PROJECT_FIELDS,
   mapLinearPriority,
   mapLinearStateType,
   MAX_SYNC_PAGES,
   normalizeIssueNode,
   syncFromLinear,
+  syncOneProject,
 } from "@/lib/linear"
 
 interface RawNode {
@@ -54,6 +63,7 @@ interface RawNode {
   priority: number | null
   estimate: number | null
   completedAt: string | null
+  dueDate: string | null
   createdAt: string | null
   updatedAt: string | null
   state: { name: string | null; type: string | null } | null
@@ -64,6 +74,8 @@ interface RawNode {
     description: string | null
     state: string | null
     createdAt: string | null
+    startDate: string | null
+    targetDate: string | null
   } | null
 }
 
@@ -90,6 +102,7 @@ describe("normalizeIssueNode", () => {
       priority: 2,
       estimate: 3,
       completedAt: "2026-06-01T10:00:00.000Z",
+      dueDate: "2026-08-01",
       createdAt: "2026-05-01T08:00:00.000Z",
       updatedAt: "2026-05-20T09:30:00.000Z",
       state: { name: "Done", type: "completed" },
@@ -100,6 +113,8 @@ describe("normalizeIssueNode", () => {
         description: "proj desc",
         state: "completed",
         createdAt: "2026-01-01T00:00:00.000Z",
+        startDate: "2026-02-01",
+        targetDate: "2026-09-15",
       },
     }
 
@@ -114,6 +129,7 @@ describe("normalizeIssueNode", () => {
       priority: 2,
       estimate: 3,
       completedAt: new Date("2026-06-01T10:00:00.000Z"),
+      dueDate: new Date("2026-08-01T00:00:00.000Z"),
       createdAt: new Date("2026-05-01T08:00:00.000Z"),
       updatedAt: new Date("2026-05-20T09:30:00.000Z"),
     })
@@ -123,6 +139,8 @@ describe("normalizeIssueNode", () => {
       description: "proj desc",
       state: "completed",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      startDate: new Date("2026-02-01T00:00:00.000Z"),
+      targetDate: new Date("2026-09-15T00:00:00.000Z"),
     })
     expect(result.team).toEqual({ id: "team-1", key: "TRI" })
     expect(result.state).toEqual({ name: "Done", type: "completed" })
@@ -138,6 +156,7 @@ describe("normalizeIssueNode", () => {
       priority: null,
       estimate: null,
       completedAt: null,
+      dueDate: null,
       createdAt: null,
       updatedAt: null,
       state: null,
@@ -152,11 +171,45 @@ describe("normalizeIssueNode", () => {
     expect(result.issue.priority).toBeNull()
     expect(result.issue.estimate).toBeNull()
     expect(result.issue.completedAt).toBeNull()
+    expect(result.issue.dueDate).toBeNull()
     expect(result.issue.createdAt).toBeNull()
     expect(result.issue.updatedAt).toBeNull()
     expect(result.project).toBeNull()
     expect(result.team).toBeNull()
     expect(result.state).toBeNull()
+  })
+
+  it("treats empty and malformed timeless dates as null", () => {
+    const node: RawNode = {
+      id: "issue-3",
+      identifier: "TRI-10",
+      url: null,
+      title: "Odd dates",
+      description: null,
+      priority: null,
+      estimate: null,
+      completedAt: null,
+      dueDate: "",
+      createdAt: null,
+      updatedAt: null,
+      state: null,
+      team: null,
+      project: {
+        id: "project-3",
+        name: "Gamma",
+        description: null,
+        state: null,
+        createdAt: null,
+        startDate: "not-a-date",
+        targetDate: null,
+      },
+    }
+
+    const result = normalizeIssueNode(node)
+
+    expect(result.issue.dueDate).toBeNull()
+    expect(result.project?.startDate).toBeNull()
+    expect(result.project?.targetDate).toBeNull()
   })
 })
 
@@ -172,6 +225,17 @@ describe("fetchIssuesWithRelations", () => {
     expect(variables).toEqual({ filter, first: 250 })
   })
 
+  it("requests the Linear date fields the sync persists", async () => {
+    const { client, rawRequest } = makeClient([])
+
+    await fetchIssuesWithRelations(client, { team: { id: { eq: "t" } } })
+
+    const query = rawRequest.mock.calls[0]![0] as string
+    expect(query).toContain("dueDate")
+    expect(query).toContain("startDate")
+    expect(query).toContain("targetDate")
+  })
+
   it("returns normalized issues whose fields map to the expected Task shape", async () => {
     const { client } = makeClient([
       {
@@ -183,6 +247,7 @@ describe("fetchIssuesWithRelations", () => {
         priority: 1,
         estimate: 5,
         completedAt: "2026-06-01T10:00:00.000Z",
+        dueDate: "2026-08-01",
         createdAt: "2026-05-01T08:00:00.000Z",
         updatedAt: "2026-05-20T09:30:00.000Z",
         state: { name: "Done", type: "completed" },
@@ -193,6 +258,8 @@ describe("fetchIssuesWithRelations", () => {
           description: "proj desc",
           state: "completed",
           createdAt: "2026-01-01T00:00:00.000Z",
+          startDate: "2026-02-01",
+          targetDate: "2026-09-15",
         },
       },
     ])
@@ -234,6 +301,7 @@ describe("fetchIssuesWithRelations pagination", () => {
       priority: null,
       estimate: null,
       completedAt: null,
+      dueDate: null,
       createdAt: null,
       updatedAt: null,
       state: null,
@@ -398,6 +466,7 @@ describe("syncFromLinear", () => {
       priority: 0,
       estimate: null,
       completedAt: null,
+      dueDate: null,
       createdAt: null,
       updatedAt: null,
       state: { name: "Todo", type: "unstarted" },
@@ -408,6 +477,8 @@ describe("syncFromLinear", () => {
         description: null,
         state: "started",
         createdAt: null,
+        startDate: "2026-02-01",
+        targetDate: "2026-09-15",
       },
       ...overrides,
     }
@@ -464,6 +535,70 @@ describe("syncFromLinear", () => {
     })
     expect(prismaMock.task.update).not.toHaveBeenCalled()
     expect(result.tasks).toBe(1)
+  })
+
+  it("writes the Linear dates on both the create and the update path", async () => {
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: {
+        issues: { nodes: [issueNode({ dueDate: "2026-08-01" })] },
+      },
+    })
+
+    await syncFromLinear("user-1")
+
+    const created = prismaMock.task.createMany.mock.calls[0]![0]
+    expect(created.data[0]).toMatchObject({
+      dueDate: new Date("2026-08-01T00:00:00.000Z"),
+    })
+
+    const upsert = prismaMock.project.upsert.mock.calls[0]![0]
+    expect(upsert.create).toMatchObject({
+      startDate: new Date("2026-02-01T00:00:00.000Z"),
+      targetDate: new Date("2026-09-15T00:00:00.000Z"),
+    })
+    expect(upsert.update).toMatchObject({
+      startDate: new Date("2026-02-01T00:00:00.000Z"),
+      targetDate: new Date("2026-09-15T00:00:00.000Z"),
+    })
+
+    vi.clearAllMocks()
+    prismaMock.userSettings.findUnique.mockResolvedValue({ ...TOKEN_SETTINGS })
+    prismaMock.userSettings.upsert.mockResolvedValue({})
+    prismaMock.linearMapping.findMany.mockResolvedValue([
+      {
+        clientId: "client-1",
+        linearProjectId: "lp-1",
+        linearTeamId: null,
+        client: {
+          userId: "user-1",
+          company: "Acme",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      },
+    ])
+    prismaMock.task.findMany.mockResolvedValue([
+      { linearIssueId: "issue-1", invoiceId: null },
+    ])
+    prismaMock.task.update.mockResolvedValue({})
+    prismaMock.project.upsert.mockResolvedValue({ id: "local-project-1" })
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock),
+    )
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: {
+        issues: { nodes: [issueNode({ dueDate: "2026-08-01" })] },
+      },
+    })
+
+    await syncFromLinear("user-1")
+
+    const updated = prismaMock.task.update.mock.calls[0]![0]
+    expect(updated.data).toMatchObject({
+      dueDate: new Date("2026-08-01T00:00:00.000Z"),
+    })
   })
 
   it("updates existing issues without clobbering invoiceId and keeps DONE status", async () => {
@@ -648,5 +783,161 @@ describe("syncFromLinear", () => {
       expect(touchSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
       expect(completeSyncRun).toHaveBeenCalledWith(undefined, expect.anything())
     })
+  })
+})
+
+describe("Project mirror whitelist", () => {
+  const TOKEN_SETTINGS = {
+    linearApiTokenEncrypted: new Uint8Array([1, 2, 3]),
+    linearApiTokenIv: new Uint8Array([4, 5, 6]),
+    linearApiTokenKeyVersion: 1,
+    linearLastSyncedAt: null as Date | null,
+  }
+
+  function issueNode(): RawNode {
+    return {
+      id: "issue-1",
+      identifier: "TRI-1",
+      url: "https://linear.app/acme/issue/TRI-1/task-one",
+      title: "Task one",
+      description: null,
+      priority: 0,
+      estimate: null,
+      completedAt: null,
+      createdAt: null,
+      updatedAt: null,
+      dueDate: null,
+      state: { name: "Todo", type: "unstarted" },
+      team: { id: "team-1", key: "TRI" },
+      project: {
+        id: "lp-1",
+        name: "Alpha",
+        description: null,
+        state: "started",
+        createdAt: null,
+        startDate: null,
+        targetDate: null,
+      },
+    }
+  }
+
+  function storedProjectRow(): Record<string, unknown> {
+    return {
+      id: "local-project-1",
+      linearProjectId: "lp-1",
+      name: "Alpha",
+      description: null,
+      repoUrl: "https://github.com/acme/app",
+      stagingUrl: "https://staging.acme.dev",
+      prodUrl: "https://acme.dev",
+      runbook: "## Déploiement\n\n1. `pnpm build`",
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.userSettings.findUnique.mockResolvedValue({ ...TOKEN_SETTINGS })
+    prismaMock.userSettings.upsert.mockResolvedValue({})
+    prismaMock.linearMapping.findMany.mockResolvedValue([
+      {
+        clientId: "client-1",
+        linearProjectId: "lp-1",
+        linearTeamId: null,
+        client: {
+          userId: "user-1",
+          company: "Acme",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      },
+    ])
+    prismaMock.task.findMany.mockResolvedValue([])
+    prismaMock.task.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.task.update.mockResolvedValue({})
+    prismaMock.project.upsert.mockResolvedValue({ id: "local-project-1" })
+    prismaMock.project.update.mockResolvedValue({})
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock),
+    )
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [issueNode()] } },
+    })
+  })
+
+  it("never lists an app-owned column as a Linear-mirrored column", () => {
+    const mirrored = new Set<string>(LINEAR_MIRRORED_PROJECT_FIELDS)
+    for (const field of APP_OWNED_PROJECT_FIELDS) {
+      expect(mirrored.has(field)).toBe(false)
+    }
+  })
+
+  it("only writes mirrored columns in the syncFromLinear upsert payload", async () => {
+    await syncFromLinear("user-1")
+
+    const call = prismaMock.project.upsert.mock.calls[0]![0]
+    const mirrored = new Set<string>(LINEAR_MIRRORED_PROJECT_FIELDS)
+    for (const key of Object.keys(call.update)) {
+      expect(mirrored.has(key)).toBe(true)
+    }
+    for (const field of APP_OWNED_PROJECT_FIELDS) {
+      expect(call.update).not.toHaveProperty(field)
+      expect(call.create).not.toHaveProperty(field)
+    }
+  })
+
+  it("preserves app-owned project fields through syncFromLinear", async () => {
+    const storedRow = storedProjectRow()
+    prismaMock.project.upsert.mockImplementation(
+      async (args: { update: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.update)
+        return storedRow
+      },
+    )
+
+    await syncFromLinear("user-1")
+
+    expect(storedRow.repoUrl).toBe("https://github.com/acme/app")
+    expect(storedRow.stagingUrl).toBe("https://staging.acme.dev")
+    expect(storedRow.prodUrl).toBe("https://acme.dev")
+    expect(storedRow.runbook).toBe("## Déploiement\n\n1. `pnpm build`")
+  })
+
+  it("preserves app-owned project fields through syncOneProject", async () => {
+    const storedRow = storedProjectRow()
+    linearProjectFn.mockResolvedValue({
+      id: "lp-1",
+      name: "Alpha",
+      description: null,
+      state: "started",
+      createdAt: null,
+    })
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [] } },
+    })
+    prismaMock.project.upsert.mockImplementation(
+      async (args: { update: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.update)
+        return storedRow
+      },
+    )
+    prismaMock.project.update.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => {
+        Object.assign(storedRow, args.data)
+        return storedRow
+      },
+    )
+
+    await syncOneProject({
+      userId: "user-1",
+      clientId: "client-1",
+      linearProjectId: "lp-1",
+    })
+
+    expect(storedRow.repoUrl).toBe("https://github.com/acme/app")
+    expect(storedRow.stagingUrl).toBe("https://staging.acme.dev")
+    expect(storedRow.prodUrl).toBe("https://acme.dev")
+    expect(storedRow.runbook).toBe("## Déploiement\n\n1. `pnpm build`")
   })
 })

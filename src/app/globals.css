@@ -653,6 +653,9 @@ textarea {
   gap: 14px;
   margin-bottom: 28px;
 }
+.kpi-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
 .kpi {
   position: relative;
   background: var(--bg-1);
@@ -687,6 +690,10 @@ textarea {
 }
 .kpi.k-overdue::before {
   background: var(--danger);
+}
+.kpi.kpi-purple::before,
+.kpi.k-workload::before {
+  background: var(--purple);
 }
 .kpi-label {
   font-size: 11px;
@@ -856,6 +863,10 @@ textarea {
 .pill-hourly {
   background: var(--cyan-soft);
   color: var(--cyan);
+}
+.pill-waiting {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 .chip-row {
@@ -2739,6 +2750,29 @@ textarea {
   z-index: 30;
 }
 
+/* FAB (mirror of design-reference/FreelanceManager Mobile.html) */
+.fab {
+  position: fixed;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 8px 24px oklch(0.86 0.19 128 / 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  border: none;
+  cursor: pointer;
+}
+.fab:active {
+  transform: scale(0.96);
+}
+
 /* Mobile sheet (bottom-anchored modal) */
 .sheet-backdrop {
   position: fixed;
@@ -3290,7 +3324,8 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .toast-item,
   .toast-item.phase-enter,
-  .toast-item.phase-exit {
+  .toast-item.phase-exit,
+  .fab:active {
     transition-duration: 0ms !important;
     transform: none !important;
   }
@@ -3818,6 +3853,22 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.today-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.today-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-top: 4px;
+}
+.today-sections > .today-section-title:first-child {
+  margin-top: 0;
 }
 .suivi-item {
   display: flex;

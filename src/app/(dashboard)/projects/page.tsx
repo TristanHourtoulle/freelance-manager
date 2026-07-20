@@ -9,7 +9,8 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
-import { fmtEUR, initials, avatarColor } from "@/lib/format"
+import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
+import { formatWorkloadDays } from "@/domain/capacity/workload"
 const LinearMappingsModal = dynamic(
   () =>
     import("@/components/clients/linear-mappings-modal").then(
@@ -66,6 +67,9 @@ interface ProjectRow {
   tasksPending: number
   pipeline: number
   revenue: number
+  targetDate: string | null
+  remainingDays: number
+  atRisk: boolean
 }
 
 export default function ProjectsPage() {
@@ -154,6 +158,9 @@ function DesktopProjectsPage() {
         tasksPending: pendingTasks.length,
         pipeline,
         revenue,
+        targetDate: p.targetDate,
+        remainingDays: p.remainingDays,
+        atRisk: p.atRisk,
       }
     })
   }, [projects, tasksByProject, invoices, clientById])
@@ -398,7 +405,17 @@ function DesktopProjectsPage() {
                         <Icon name="folder" size={14} />
                       </div>
                       <div>
-                        <div className="strong">{p.name}</div>
+                        <div className="row gap-8">
+                          <div className="strong">{p.name}</div>
+                          {p.atRisk && p.targetDate && (
+                            <span
+                              className="pill pill-overdue xs"
+                              title={`Échéance le ${fmtDate(p.targetDate)} · ${formatWorkloadDays(p.remainingDays)} restants`}
+                            >
+                              À risque
+                            </span>
+                          )}
+                        </div>
                         <div className="muted xs">{p.description ?? ""}</div>
                       </div>
                     </div>

@@ -16,6 +16,7 @@ import { serializeInvoice } from "@/domain/billing/serialize"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { getInvoicesFirstPage, invoicesTag } from "@/lib/data/invoices"
+import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
 
 export async function GET(req: Request) {
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
 
     const client = await prisma.client.findFirst({
       where: { id: data.clientId, userId: user.id },
-      select: { id: true },
+      select: { id: true, stage: true },
     })
     if (!client) return apiUnauthorized()
 
@@ -209,10 +210,18 @@ export async function POST(req: Request) {
         await recomputeInvoicePayment(inv.id, tx)
       }
 
+      if (client.stage === "LEAD") {
+        await tx.client.update({
+          where: { id: client.id },
+          data: { stage: "ACTIVE" },
+        })
+      }
+
       return inv
     })
 
     revalidateTag(invoicesTag(user.id), "max")
+    revalidateTag(clientsTag(user.id), "max")
     revalidateTag(navTag(user.id), "max")
     deferActivityLog({
       userId: user.id,

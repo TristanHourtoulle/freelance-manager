@@ -3,6 +3,10 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 import { computeDashboardKpis } from "@/domain/billing/kpis"
+import {
+  clampWorkingDaysPerWeek,
+  summarizeWorkload,
+} from "@/domain/capacity/workload"
 import { sweepOverdueRelances } from "@/lib/relance"
 
 export async function GET() {
@@ -20,6 +24,11 @@ export async function GET() {
       status: "PENDING_INVOICE",
     }
 
+    const openTasksWhere: Prisma.TaskWhereInput = {
+      userId: user.id,
+      status: { in: ["BACKLOG", "IN_PROGRESS"] },
+    }
+
     const [
       openInvoices,
       paymentTotals,
@@ -27,6 +36,9 @@ export async function GET() {
       pipelineTasks,
       recentInvoices,
       recentTasks,
+      openTasks,
+      inProgressTasks,
+      inProgressCount,
       lastSync,
     ] = await Promise.all([
       prisma.invoice.findMany({
@@ -78,6 +90,7 @@ export async function GET() {
         select: {
           clientId: true,
           estimate: true,
+          completedAt: true,
           client: { select: { billingMode: true, rate: true } },
         },
       }),
@@ -110,17 +123,39 @@ export async function GET() {
           project: { select: { key: true } },
         },
       }),
+      prisma.task.findMany({
+        where: openTasksWhere,
+        select: { estimate: true },
+      }),
+      prisma.task.findMany({
+        where: { userId: user.id, status: "IN_PROGRESS" },
+        orderBy: [{ priority: "desc" }, { linearUpdatedAt: "desc" }],
+        take: 3,
+        select: {
+          id: true,
+          linearIdentifier: true,
+          linearUrl: true,
+          title: true,
+          project: { select: { key: true } },
+        },
+      }),
+      prisma.task.count({
+        where: { userId: user.id, status: "IN_PROGRESS" },
+      }),
       prisma.userSettings.findUnique({
         where: { userId: user.id },
-        select: { linearLastSyncedAt: true },
+        select: { linearLastSyncedAt: true, workingDaysPerWeek: true },
       }),
     ])
+
+    const workload = summarizeWorkload(openTasks)
 
     const {
       kpi,
       months,
       overdue,
       recentInvoices: recentInvoicesOut,
+      pipelineAging,
     } = computeDashboardKpis({
       now: today,
       openInvoices,
@@ -131,6 +166,7 @@ export async function GET() {
         estimate: task.estimate,
         billingMode: task.client.billingMode,
         rate: task.client.rate,
+        completedAt: task.completedAt,
       })),
       recentInvoices,
     })
@@ -145,6 +181,7 @@ export async function GET() {
       kpi,
       months,
       overdue,
+      pipelineAging,
       recentInvoices: recentInvoicesOut,
       recentTasks: recentTasks.map((t) => ({
         id: t.id,
@@ -154,6 +191,25 @@ export async function GET() {
         status: t.status,
         projectKey: t.project?.key ?? null,
       })),
+      capacity: {
+        days: workload.days,
+        taskCount: workload.taskCount,
+        estimatedTaskCount: workload.estimatedTaskCount,
+        missingEstimateCount: workload.missingEstimateCount,
+        workingDaysPerWeek: clampWorkingDaysPerWeek(
+          lastSync?.workingDaysPerWeek,
+        ),
+      },
+      inProgress: {
+        count: inProgressCount,
+        top: inProgressTasks.map((t) => ({
+          id: t.id,
+          linearIdentifier: t.linearIdentifier,
+          linearUrl: t.linearUrl,
+          title: t.title,
+          projectKey: t.project?.key ?? null,
+        })),
+      },
       lastSync: lastSync?.linearLastSyncedAt?.toISOString() ?? null,
     })
   } catch (error) {

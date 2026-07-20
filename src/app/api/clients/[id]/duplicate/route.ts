@@ -50,6 +50,7 @@ export async function POST(req: Request, { params }: Params) {
         deposit: src.deposit,
         paymentTerms: src.paymentTerms,
         category: src.category,
+        stage: src.stage,
         color: src.color,
         starred: false,
       },

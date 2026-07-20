@@ -6,7 +6,7 @@ export const clientActionTypeSchema = z.enum([
   "RDV",
   "OTHER",
 ])
-export const clientActionStatusSchema = z.enum(["TODO", "DONE"])
+export const clientActionStatusSchema = z.enum(["TODO", "WAITING", "DONE"])
 
 const actionBaseSchema = z.object({
   type: clientActionTypeSchema.default("OTHER"),
@@ -18,12 +18,18 @@ const actionBaseSchema = z.object({
   meetingId: z.string().min(1).optional().nullable(),
 })
 
+/** Query-string sentinel selecting only actions that carry no client. */
+export const UNASSIGNED_CLIENT_FILTER = "none" as const
+
 export const actionCreateSchema = actionBaseSchema.extend({
-  clientId: z.string().min(1),
+  clientId: z.string().min(1).optional().nullable(),
 })
 
 export const actionUpdateSchema = actionBaseSchema
-  .extend({ status: clientActionStatusSchema })
+  .extend({
+    status: clientActionStatusSchema,
+    clientId: z.string().min(1).nullable(),
+  })
   .partial()
 
 export const actionFilterSchema = z.object({

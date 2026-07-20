@@ -17,6 +17,8 @@ import {
 } from "@/components/cmdk/command-palette"
 import { useCommandPalette } from "@/components/cmdk/use-command-palette"
 import { useCommandSearch } from "@/components/cmdk/use-command-search"
+import { useKeySequence } from "@/components/cmdk/use-key-sequence"
+import { useOptionalQuickCapture } from "@/components/capture/quick-capture-provider"
 
 interface CmdKContextValue {
   open: () => void
@@ -31,12 +33,28 @@ const CmdKContext = createContext<CmdKContextValue | null>(null)
  * can open/close it (e.g. the topbar search button).
  */
 export function CmdKProvider({ children }: { children: ReactNode }) {
-  const { open, setOpen } = useCommandPalette()
+  const capture = useOptionalQuickCapture()
+  const { open, setOpen } = useCommandPalette(capture?.open)
   const router = useRouter()
   const { toast } = useToast()
   const syncLinear = useSyncLinear()
   const [query, setQuery] = useState("")
   const searchResults = useCommandSearch(query, router, open)
+
+  useKeySequence(
+    useMemo(
+      () => ({
+        gd: () => router.push("/dashboard"),
+        gc: () => router.push("/clients"),
+        gp: () => router.push("/projects"),
+        gt: () => router.push("/tasks"),
+        gf: () => router.push("/billing"),
+        ga: () => router.push("/analytics"),
+        gs: () => router.push("/settings"),
+      }),
+      [router],
+    ),
+  )
 
   const staticCommands = useMemo<CommandItem[]>(
     () => [
@@ -54,6 +72,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux clients",
         icon: "users",
+        shortcut: ["G", "C"],
         keywords: ["clients", "customer"],
         run: () => router.push("/clients"),
       },
@@ -62,6 +81,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux projets",
         icon: "folder",
+        shortcut: ["G", "P"],
         keywords: ["projects", "linear"],
         run: () => router.push("/projects"),
       },
@@ -70,6 +90,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux tasks",
         icon: "check-square",
+        shortcut: ["G", "T"],
         keywords: ["tasks", "todo", "linear"],
         run: () => router.push("/tasks"),
       },
@@ -78,6 +99,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux factures",
         icon: "invoice",
+        shortcut: ["G", "F"],
         keywords: ["billing", "facture", "invoice"],
         run: () => router.push("/billing"),
       },
@@ -86,6 +108,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux analytics",
         icon: "chart",
+        shortcut: ["G", "A"],
         keywords: ["statistiques", "rapport", "performance"],
         run: () => router.push("/analytics"),
       },
@@ -94,8 +117,19 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         group: "Navigation",
         label: "Aller aux réglages",
         icon: "settings",
+        shortcut: ["G", "S"],
         keywords: ["preferences", "linear", "token"],
         run: () => router.push("/settings"),
+      },
+      {
+        id: "quick-capture",
+        group: "Actions",
+        label: "Nouvelle action",
+        hint: "Noter quelque chose sans le classer",
+        icon: "plus",
+        shortcut: ["⌘", "N"],
+        keywords: ["capture", "note", "todo", "suivi", "action"],
+        run: () => capture?.open(),
       },
       {
         id: "new-invoice",
@@ -131,7 +165,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         },
       },
     ],
-    [router, toast, syncLinear],
+    [router, toast, syncLinear, capture],
   )
 
   const commands = useMemo<CommandItem[]>(
@@ -170,4 +204,14 @@ export function useCmdK(): CmdKContextValue {
     throw new Error("useCmdK must be used within a CmdKProvider")
   }
   return ctx
+}
+
+/**
+ * Returns the command-palette controls, or `null` when no provider is
+ * mounted.
+ *
+ * @returns The open/close helpers, or `null` outside a {@link CmdKProvider}.
+ */
+export function useOptionalCmdK(): CmdKContextValue | null {
+  return useContext(CmdKContext)
 }

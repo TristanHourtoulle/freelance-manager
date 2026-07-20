@@ -7,6 +7,10 @@ import {
   type BillableGroupRow,
   type ClientsBillableSummary,
 } from "@/domain/clients/billable"
+import {
+  buildClientsRecencySummary,
+  type ClientsRecencySummary,
+} from "@/domain/clients/recency"
 import type { ClientWireRow } from "@/domain/clients/types"
 import type { BillingMode } from "@/generated/prisma/client"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
@@ -89,4 +93,40 @@ export async function getClientsBillableSummary(
     estimateDays: Number(r.estimateDays),
   }))
   return buildClientsBillableSummary(groups)
+}
+
+interface RecencySqlRow {
+  clientId: string
+  lastContactAt: Date
+}
+
+/**
+ * Last-contact timestamp per client, across activity logs, meetings and
+ * completed tasks.
+ *
+ * Deliberately uncached and computed by a single grouped query: it folds rows
+ * from three tables that no client mutation touches, so it must never be capped
+ * by the clients page size nor served from the hour-long clients cache.
+ *
+ * @param userId - Owner of the clients and their interactions.
+ * @returns Per-client last contact, silence duration and silence verdict.
+ */
+export async function getClientsRecencySummary(
+  userId: string,
+): Promise<ClientsRecencySummary> {
+  const rows = await prisma.$queryRaw<RecencySqlRow[]>`
+    SELECT s."clientId" AS "clientId", MAX(s.ts) AS "lastContactAt"
+    FROM (
+      SELECT a."clientId" AS "clientId", a."createdAt" AS ts
+      FROM activity_log a
+      WHERE a."userId" = ${userId} AND a."clientId" IS NOT NULL
+      UNION ALL
+      SELECT m."clientId", m."heldAt" FROM meetings m WHERE m."userId" = ${userId}
+      UNION ALL
+      SELECT t."clientId", t."completedAt" FROM tasks t
+      WHERE t."userId" = ${userId} AND t."completedAt" IS NOT NULL
+    ) s
+    GROUP BY s."clientId"
+  `
+  return buildClientsRecencySummary(rows, new Date())
 }

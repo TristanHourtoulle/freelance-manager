@@ -14,7 +14,8 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
 }))
 
-const { getClientsBillableSummary } = await import("./clients")
+const { getClientsBillableSummary, getClientsRecencySummary } =
+  await import("./clients")
 
 describe("getClientsBillableSummary", () => {
   beforeEach(() => {
@@ -96,5 +97,107 @@ describe("getClientsBillableSummary", () => {
     const summary = await getClientsBillableSummary("user-1")
 
     expect(summary.byClient["a"]).toEqual({ count: 3, value: 1000 })
+  })
+})
+
+describe("getClientsBillableSummary — client stage", () => {
+  beforeEach(() => {
+    queryRaw.mockReset()
+  })
+
+  it("does not filter on the client stage, so a LEAD's pending tasks still count", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        clientId: "lead-1",
+        billingMode: "DAILY",
+        rate: 500,
+        taskCount: 2,
+        estimateDays: 3,
+      },
+    ])
+
+    const summary = await getClientsBillableSummary("user-1")
+
+    const [strings] = queryRaw.mock.calls[0] as [TemplateStringsArray]
+    expect(strings.join("?")).not.toContain("stage")
+    expect(summary.byClient["lead-1"]).toEqual({ count: 2, value: 1500 })
+  })
+})
+
+describe("serializeClient", () => {
+  it("emits the client stage on the wire row", async () => {
+    const { serializeClient } = await import("@/domain/clients/serialize")
+
+    const row = serializeClient({
+      id: "c1",
+      firstName: "Lea",
+      lastName: "Prospect",
+      company: null,
+      email: null,
+      phone: null,
+      website: null,
+      address: null,
+      notes: null,
+      billingMode: "DAILY",
+      rate: 500 as unknown as never,
+      fixedPrice: null,
+      deposit: null,
+      paymentTerms: null,
+      category: "FREELANCE",
+      stage: "LEAD",
+      color: null,
+      starred: false,
+      archivedAt: null,
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
+    })
+
+    expect(row.stage).toBe("LEAD")
+  })
+})
+
+describe("getClientsRecencySummary", () => {
+  beforeEach(() => {
+    queryRaw.mockReset()
+  })
+
+  it("unions the three time sources in a single grouped query", async () => {
+    queryRaw.mockResolvedValue([])
+
+    await getClientsRecencySummary("user-1")
+
+    const [strings, ...values] = queryRaw.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ]
+    const sql = strings.join("?")
+    expect(queryRaw).toHaveBeenCalledTimes(1)
+    expect(sql).toContain("activity_log")
+    expect(sql).toContain("meetings")
+    expect(sql).toContain("tasks")
+    expect(sql).toContain('GROUP BY s."clientId"')
+    expect(values).toEqual(["user-1", "user-1", "user-1"])
+  })
+
+  it("folds the grouped rows into the per-client silence summary", async () => {
+    const now = Date.now()
+    const day = 86_400_000
+    queryRaw.mockResolvedValue([
+      { clientId: "a", lastContactAt: new Date(now - 2 * day) },
+      { clientId: "b", lastContactAt: new Date(now - 90 * day) },
+    ])
+
+    const summary = await getClientsRecencySummary("user-1")
+
+    expect(queryRaw).toHaveBeenCalledTimes(1)
+    expect(summary.byClient["a"]?.isSilent).toBe(false)
+    expect(summary.byClient["a"]?.silentDays).toBe(2)
+    expect(summary.byClient["b"]?.isSilent).toBe(true)
+    expect(summary.byClient["b"]?.silentDays).toBe(90)
+  })
+
+  it("returns no entries when no client has ever been contacted", async () => {
+    queryRaw.mockResolvedValue([])
+
+    expect(await getClientsRecencySummary("user-1")).toEqual({ byClient: {} })
   })
 })

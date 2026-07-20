@@ -2,6 +2,7 @@
 
 import { BillingDefaultsCard } from "@/components/settings/billing-defaults-card"
 import { LinearIntegrationCard } from "@/components/settings/linear-integration-card"
+import { PushNotificationsCard } from "@/components/settings/push-notifications-card"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 
@@ -26,6 +27,7 @@ function DesktopSettingsPage() {
       <div className="col gap-16">
         <LinearIntegrationCard />
         <BillingDefaultsCard />
+        <PushNotificationsCard />
       </div>
     </div>
   )
@@ -43,6 +45,7 @@ function MobileSettingsPage() {
         <div className="m-stack">
           <LinearIntegrationCard />
           <BillingDefaultsCard />
+          <PushNotificationsCard />
         </div>
       </div>
     </div>

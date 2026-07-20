@@ -135,14 +135,19 @@ export function MobileProjectsPage() {
                       />
                     </div>
                   </div>
-                  <span
-                    className={
-                      "pill pill-no-dot " +
-                      (p.status === "ACTIVE" ? "pill-paid" : "pill-draft")
-                    }
-                  >
-                    {p.status === "ACTIVE" ? "Actif" : "Pause"}
-                  </span>
+                  <div className="row gap-8">
+                    {p.atRisk && (
+                      <span className="pill pill-overdue xs">À risque</span>
+                    )}
+                    <span
+                      className={
+                        "pill pill-no-dot " +
+                        (p.status === "ACTIVE" ? "pill-paid" : "pill-draft")
+                      }
+                    >
+                      {p.status === "ACTIVE" ? "Actif" : "Pause"}
+                    </span>
+                  </div>
                 </div>
               </button>
             )

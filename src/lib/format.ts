@@ -48,6 +48,24 @@ export function fmtEURprecise(n: number | null | undefined): string {
 }
 
 /**
+ * Format a `[0, 1]` fraction as a rounded percentage ("42%").
+ * Returns "—" for null/undefined/non-finite input.
+ */
+export function fmtSharePct(fraction: number | null | undefined): string {
+  if (fraction == null || !Number.isFinite(fraction)) return "—"
+  return `${Math.round(fraction * 100)}%`
+}
+
+/**
+ * Format a multiplier with a French decimal comma ("1,15×").
+ * Returns "—" for null/undefined/non-finite input.
+ */
+export function fmtRatio(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—"
+  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}×`
+}
+
+/**
  * Format an ISO date string ("2026-04-30") or Date as "30 avr. 2026".
  * Returns "—" for falsy input.
  */

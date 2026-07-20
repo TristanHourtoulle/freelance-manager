@@ -11,12 +11,13 @@ import {
   parseSearchQuery,
   requireSameOrigin,
 } from "@/lib/api"
-import { clientCreateSchema } from "@/lib/schemas/client"
+import { clientCreateSchema, clientStageSchema } from "@/lib/schemas/client"
 import { deferActivityLog } from "@/lib/activity"
 import {
   clientsTag,
   getClientsBillableSummary,
   getClientsFirstPage,
+  getClientsRecencySummary,
   serializeClient,
 } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
@@ -26,7 +27,8 @@ const clientsQuerySchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  summary: z.literal("billable").optional(),
+  summary: z.enum(["billable", "recency"]).optional(),
+  stage: clientStageSchema.optional(),
 })
 
 export async function GET(req: Request) {
@@ -37,16 +39,21 @@ export async function GET(req: Request) {
     const { cursor, limit } = parsePagination(req)
     const q = parseSearchQuery(req)
     const params = new URL(req.url).searchParams
-    const { archived, summary } = clientsQuerySchema.parse({
+    const { archived, summary, stage } = clientsQuerySchema.parse({
       archived: params.get("archived") ?? undefined,
       summary: params.get("summary") ?? undefined,
+      stage: params.get("stage") ?? undefined,
     })
 
     if (summary === "billable") {
       return NextResponse.json(await getClientsBillableSummary(user.id))
     }
 
-    if (!cursor && limit === 50 && !archived && !q) {
+    if (summary === "recency") {
+      return NextResponse.json(await getClientsRecencySummary(user.id))
+    }
+
+    if (!cursor && limit === 50 && !archived && !q && !stage) {
       return NextResponse.json(await getClientsFirstPage(user.id))
     }
 
@@ -54,6 +61,7 @@ export async function GET(req: Request) {
       where: {
         userId: user.id,
         archivedAt: archived ? { not: null } : null,
+        ...(stage ? { stage } : {}),
         ...(q
           ? {
               OR: [
@@ -106,6 +114,7 @@ export async function POST(req: Request) {
         deposit: data.deposit ?? null,
         paymentTerms: data.paymentTerms ?? null,
         category: data.category ?? "FREELANCE",
+        stage: data.stage ?? "ACTIVE",
         color: data.color ?? null,
         starred: data.starred ?? false,
       },

@@ -6,16 +6,13 @@ Built by [Tristan Hourtoulle](https://github.com/TristanHourtoulle).
 
 ## Features
 
-- **Client Management** — Create and manage clients with billing modes (hourly, daily, fixed, free), categories, and Linear project mappings
+- **Client Management** — Create and manage clients with billing modes (hourly, daily, fixed), categories, and Linear project mappings
 - **Task Tracking** — Syncs tasks from Linear, calculates billable amounts, and lets you mark work as invoiced
 - **Billing** — See what needs invoicing per client, track invoiced history by month, and manage invoice statuses
 - **Analytics** — Revenue charts, KPIs, financial breakdowns by client and category
-- **Expense Tracking** — Log expenses, categorize them, and link them to clients
-- **Kanban Board** — Drag-and-drop task board synced with Linear workflow statuses
-- **Calendar** — Deadline timeline view across all clients
-- **Notifications** — In-app notification center for task updates and reminders
-- **i18n** — Full English and French support with locale switcher
-- **Dark Landing Page** — Modern landing page with integrated auth forms
+- **Suivi** — Non-dev client actions and Teams meeting logs, alongside the Linear-synced dev tasks
+- **PWA** — Installable progressive web app with an offline shell and iOS standalone support
+- **Mobile** — A dedicated mobile UI for every dashboard page (768px breakpoint), not a responsive squeeze of the desktop layout
 
 ## Tech Stack
 
@@ -27,13 +24,13 @@ Built by [Tristan Hourtoulle](https://github.com/TristanHourtoulle).
 | Auth          | [Better Auth](https://www.better-auth.com/) (email/password)                                |
 | Styling       | [Tailwind CSS 4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/) (New York) |
 | Data Fetching | [TanStack Query v5](https://tanstack.com/query)                                             |
-| Charts        | [Recharts](https://recharts.org/)                                                           |
+| Charts        | Custom inline SVG (`src/components/analytics/charts.tsx`)                                   |
 | Forms         | [React Hook Form](https://react-hook-form.com/) + [Zod 4](https://zod.dev/)                 |
 | Integration   | [Linear API](https://developers.linear.app/) (GraphQL)                                      |
-| i18n          | [next-intl](https://next-intl.dev/)                                                         |
-| Drag & Drop   | [@dnd-kit](https://dndkit.com/)                                                             |
-| Icons         | [@heroicons/react](https://heroicons.com/)                                                  |
+| Icons         | Custom SVG set (`<Icon name="…"/>`, `src/components/ui/icon.tsx`)                           |
 | Hosting       | [Railway](https://railway.app/)                                                             |
+
+The UI is **French only** — there is no i18n layer.
 
 ## Getting Started
 
@@ -55,18 +52,26 @@ pnpm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Edit .env.local with your database URL, auth secret, and Linear API token
+# Edit .env.local with your database URL, auth secret, and encryption key
 ```
 
 ### Environment Variables
 
-| Variable                | Description                        |
-| ----------------------- | ---------------------------------- |
-| `DATABASE_URL`          | PostgreSQL connection string       |
-| `BETTER_AUTH_SECRET`    | Secret key for session encryption  |
-| `LINEAR_API_KEY`        | Personal API token from Linear     |
-| `LINEAR_WEBHOOK_SECRET` | Webhook signing secret (optional)  |
-| `NEXT_PUBLIC_APP_URL`   | Public URL of the app (production) |
+| Variable                   | Description                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`             | PostgreSQL connection string                                                                          |
+| `BETTER_AUTH_SECRET`       | Secret key for session encryption                                                                     |
+| `ENCRYPTION_KEY`           | 64-char hex key (32 bytes) used to encrypt the per-user Linear token at rest — `openssl rand -hex 32` |
+| `NEXT_PUBLIC_APP_URL`      | Public URL of the app (production)                                                                    |
+| `LINEAR_WEBHOOK_SECRET`    | Linear webhook signing secret (optional)                                                              |
+| `LINEAR_CACHE_TTL_SECONDS` | Linear response cache TTL (optional)                                                                  |
+| `CRON_SECRET`              | Shared secret for scheduled job endpoints (optional)                                                  |
+| `HEALTH_KEY`               | Unlocks the detailed `/api/health` payload (optional)                                                 |
+| `TRUST_PROXY`              | Set to `1` only when running behind a trusted reverse proxy                                           |
+
+The Linear API token is **not** an environment variable: each user pastes their
+personal token in the in-app Settings page and it is stored AES-256-GCM
+encrypted on `UserSettings` (`linearApiTokenEncrypted`).
 
 `NEXT_PUBLIC_APP_URL` is `https://freelance-manager.tristanhourtoulle.fr` in
 production. It must include the scheme and carry **no trailing slash**: every API
@@ -77,10 +82,10 @@ equality, so any deviation returns `403 CSRF_ORIGIN_MISMATCH`.
 
 ```bash
 # Generate Prisma client
-pnpm prisma generate
+pnpm exec prisma generate
 
 # Run migrations
-pnpm prisma migrate deploy
+pnpm exec prisma migrate deploy
 ```
 
 ### Development
@@ -114,18 +119,24 @@ src/
     api/            # REST API routes
     auth/           # Authentication pages
   components/       # Shared and feature-specific components
-    ui/             # Design system (shadcn/ui + custom)
-    layout/         # App shell, sidebar, header
-    clients/        # Client feature components
-    tasks/          # Task feature components (including kanban)
+    analytics/      # Charts and analytics widgets
+    auth/           # Auth screens and forms
     billing/        # Billing feature components
-    expenses/       # Expense feature components
-    notifications/  # Notification components
+    clients/        # Client feature components
+    cmdk/           # Command palette
+    dashboard/      # Dashboard widgets
+    layout/         # App shell, sidebar, header
+    mobile/         # Mobile shell and primitives
+    providers/      # React context providers
+    settings/       # Settings feature components
+    suivi/          # Client actions and meeting logs
+    tasks/          # Task feature components
+    ui/             # Design system (shadcn/ui + custom)
   hooks/            # Custom React hooks (data fetching, UI state)
   lib/              # Utilities, schemas, helpers, auth config
+  domain/           # Pure business logic (no React, no Prisma runtime)
   features/         # Feature-level logic
   types/            # Shared TypeScript types
-messages/           # i18n translation files (en.json, fr.json)
 prisma/             # Prisma schema and migrations
 ```
 

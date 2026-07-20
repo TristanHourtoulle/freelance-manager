@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from "react"
 import { Icon } from "@/components/ui/icon"
-import { fmtEUR, initials } from "@/lib/format"
-import { useAnalytics, type AnalyticsRange } from "@/hooks/use-analytics"
+import { fmtEUR, fmtRatio, fmtSharePct, initials } from "@/lib/format"
+import { downloadAnalyticsCsv } from "@/lib/analytics-csv"
+import {
+  useAnalytics,
+  type AnalyticsRange,
+  type ClientCategoryKey,
+} from "@/hooks/use-analytics"
 import {
   ActivityHeatmap,
   Donut,
@@ -40,6 +45,32 @@ const TYPE_COLOR: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "oklch(0.86 0.19 128)",
   FIXED: "oklch(0.75 0.15 300)",
   HOURLY: "oklch(0.78 0.13 180)",
+}
+
+const CATEGORY_LABEL: Record<ClientCategoryKey, string> = {
+  FREELANCE: "Freelance",
+  STUDY: "Études",
+  PERSONAL: "Perso",
+  SIDE_PROJECT: "Side project",
+}
+
+function concentrationColor(
+  level: "ok" | "warn" | "danger",
+): string | undefined {
+  if (level === "danger") return "var(--danger)"
+  if (level === "warn") return "var(--warn)"
+  return undefined
+}
+
+function accuracyColor(ratio: number | null): string | undefined {
+  if (ratio === null) return undefined
+  if (ratio > 1.3) return "var(--danger)"
+  if (ratio > 1.1) return "var(--warn)"
+  return undefined
+}
+
+function nonFreelanceColor(share: number | null): string | undefined {
+  return share !== null && share >= 0.3 ? "var(--warn)" : undefined
 }
 
 export default function AnalyticsPage() {
@@ -90,7 +121,18 @@ function DesktopAnalyticsPage() {
     )
   }
 
-  const { kpi, byClient, heatmap } = data
+  const {
+    kpi,
+    byClient,
+    heatmap,
+    concentration,
+    estimateAccuracy,
+    categoryMix,
+  } = data
+  const accuracy = estimateAccuracy.overall
+  const nonFreelanceRows = categoryMix.rows.filter(
+    (r) => r.category !== "FREELANCE",
+  )
   const trendUp = kpi.trend >= 0
   const totalByType = (byType ?? []).reduce((s, b) => s + b.revenue, 0)
 
@@ -118,7 +160,11 @@ function DesktopAnalyticsPage() {
               </button>
             ))}
           </div>
-          <button className="btn btn-secondary" type="button">
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() => downloadAnalyticsCsv(data)}
+          >
             <Icon name="download" size={14} />
             Export
           </button>
@@ -225,7 +271,8 @@ function DesktopAnalyticsPage() {
             <div>
               <h3 className="ana-card-title">Top clients</h3>
               <div className="ana-card-sub">
-                Revenu cumulé par client · TJM effectif estimé
+                Revenu cumulé par client · part du revenu total · TJM effectif
+                estimé
               </div>
             </div>
           </div>
@@ -251,7 +298,16 @@ function DesktopAnalyticsPage() {
                       `${x.client.firstName} ${x.client.lastName}`}
                   </div>
                   <div className="xs muted">
-                    {x.client.firstName} {x.client.lastName}
+                    {x.client.firstName} {x.client.lastName} ·{" "}
+                    {fmtSharePct(x.revenueShare)} du revenu
+                    {x.revenueShare !== null &&
+                      x.daysShare !== null &&
+                      Math.abs(x.daysShare - x.revenueShare) > 0.1 && (
+                        <span style={{ color: "var(--warn)" }}>
+                          {" "}
+                          · {fmtSharePct(x.daysShare)} du temps
+                        </span>
+                      )}
                   </div>
                 </div>
                 <div className="top-bar-bg" style={{ width: 100 }}>
@@ -326,8 +382,10 @@ function DesktopAnalyticsPage() {
             </div>
             <div className="ana-metric">
               <div className="ana-metric-row">
-                <span className="ana-metric-label">Taux de conversion</span>
-                <span className="ana-metric-value">{kpi.conversion}%</span>
+                <span className="ana-metric-label">
+                  Taux d&apos;encaissement
+                </span>
+                <span className="ana-metric-value">{kpi.collectionRate}%</span>
               </div>
               <div className="row gap-4 xs muted">
                 tasks done → factures payées
@@ -335,10 +393,82 @@ function DesktopAnalyticsPage() {
             </div>
             <div className="ana-metric">
               <div className="ana-metric-row">
+                <span className="ana-metric-label">Taux de signature</span>
+                <span className="ana-metric-value">{kpi.winRate}%</span>
+              </div>
+              <div className="row gap-4 xs muted">devis acceptés</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Délai de décision</span>
+                <span className="ana-metric-value">
+                  {kpi.avgDecisionDays} j
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">envoi → réponse client</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
                 <span className="ana-metric-label">Run-rate annuel</span>
                 <span className="ana-metric-value">{fmtEUR(kpi.runRate)}</span>
               </div>
               <div className="row gap-4 xs muted">Sur la moyenne récente</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Concentration client</span>
+                <span
+                  className="ana-metric-value num"
+                  style={{ color: concentrationColor(concentration.level) }}
+                >
+                  {fmtSharePct(concentration.topClientShare)}
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">
+                top 3 : {fmtSharePct(concentration.topThreeShare)}
+              </div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">
+                  Précision des estimations
+                </span>
+                <span
+                  className="ana-metric-value num"
+                  style={{
+                    color: accuracy.reliable
+                      ? accuracyColor(accuracy.ratio)
+                      : undefined,
+                  }}
+                >
+                  {accuracy.reliable ? fmtRatio(accuracy.ratio) : "—"}
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">
+                {accuracy.reliable
+                  ? `${accuracy.n} tasks mesurées · ${fmtSharePct(accuracy.coverage)} de couverture`
+                  : `Pas assez de données (${accuracy.n}/5 tasks mesurées)`}
+              </div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Effort hors freelance</span>
+                <span
+                  className="ana-metric-value num"
+                  style={{
+                    color: nonFreelanceColor(categoryMix.nonFreelanceDaysShare),
+                  }}
+                >
+                  {fmtSharePct(categoryMix.nonFreelanceDaysShare)}
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">
+                {nonFreelanceRows.length === 0
+                  ? "Aucun effort hors freelance"
+                  : nonFreelanceRows
+                      .map((r) => `${CATEGORY_LABEL[r.category]} ${r.days} j`)
+                      .join(" · ")}
+              </div>
             </div>
           </div>
         </div>

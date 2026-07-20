@@ -14,6 +14,7 @@ const NewClientModal = dynamic(
 import {
   useClients,
   useClientsBillable,
+  useClientsRecency,
   type ClientDTO,
 } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
@@ -33,7 +34,7 @@ const MobileClientsPage = dynamic(
   },
 )
 
-type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY"
+type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY" | "LEAD" | "DORMANT"
 type ViewMode = "grid" | "list"
 
 interface EnrichedClient extends ClientDTO {
@@ -41,6 +42,8 @@ interface EnrichedClient extends ClientDTO {
   pendingTasksCount: number
   revenue: number
   outstanding: number
+  silentDays: number | null
+  isSilent: boolean
 }
 
 function gradient(c: ClientDTO): string {
@@ -70,6 +73,7 @@ function DesktopClientsPage() {
   } = useClients({ archived: showArchived })
   const { data: invoices = [] } = useInvoices()
   const { data: billable } = useClientsBillable()
+  const { data: recency } = useClientsRecency()
   const { data: projects = [] } = useProjects()
 
   const enriched: EnrichedClient[] = useMemo(() => {
@@ -100,15 +104,18 @@ function DesktopClientsPage() {
           outstanding += i.balanceDue
         }
       }
+      const recent = recency?.byClient[c.id]
       return {
         ...c,
         projectsCount: projectsByClient.get(c.id) ?? 0,
         pendingTasksCount: billable?.byClient[c.id]?.count ?? 0,
         revenue,
         outstanding,
+        silentDays: recent?.silentDays ?? null,
+        isSilent: recent?.isSilent ?? false,
       }
     })
-  }, [clients, invoices, billable, projects])
+  }, [clients, invoices, billable, recency, projects])
 
   const filtered = enriched.filter((c) => {
     if (
@@ -118,22 +125,42 @@ function DesktopClientsPage() {
         .includes(search.toLowerCase())
     )
       return false
-    if (filter !== "all" && c.billingMode !== filter) return false
+    if (filter === "LEAD" || filter === "DORMANT") {
+      if (c.stage !== filter) return false
+    } else if (filter !== "all" && c.billingMode !== filter) return false
     return true
   })
 
-  const { totalRevenue, dailyCount, fixedCount, hourlyCount } = useMemo(() => {
+  const {
+    totalRevenue,
+    dailyCount,
+    fixedCount,
+    hourlyCount,
+    leadCount,
+    dormantCount,
+  } = useMemo(() => {
     let totalRevenue = 0
     let dailyCount = 0
     let fixedCount = 0
     let hourlyCount = 0
+    let leadCount = 0
+    let dormantCount = 0
     for (const c of enriched) {
       totalRevenue += c.revenue
       if (c.billingMode === "DAILY") dailyCount++
       else if (c.billingMode === "FIXED") fixedCount++
       else if (c.billingMode === "HOURLY") hourlyCount++
+      if (c.stage === "LEAD") leadCount++
+      else if (c.stage === "DORMANT") dormantCount++
     }
-    return { totalRevenue, dailyCount, fixedCount, hourlyCount }
+    return {
+      totalRevenue,
+      dailyCount,
+      fixedCount,
+      hourlyCount,
+      leadCount,
+      dormantCount,
+    }
   }, [enriched])
 
   const isTrulyEmpty = enriched.length === 0
@@ -211,6 +238,8 @@ function DesktopClientsPage() {
                 { id: "DAILY", label: "TJM", count: dailyCount },
                 { id: "FIXED", label: "Forfait", count: fixedCount },
                 { id: "HOURLY", label: "Horaire", count: hourlyCount },
+                { id: "LEAD", label: "Prospects", count: leadCount },
+                { id: "DORMANT", label: "Dormants", count: dormantCount },
               ] as { id: FilterId; label: string; count: number }[]
             ).map((f) => (
               <button
@@ -303,7 +332,18 @@ function DesktopClientsPage() {
                   </div>
                   <div className="muted small truncate">{c.company ?? "—"}</div>
                 </div>
+                {c.stage === "LEAD" && (
+                  <span className="pill pill-sent">Prospect</span>
+                )}
+                {c.stage === "DORMANT" && (
+                  <span className="pill pill-draft">Dormant</span>
+                )}
                 <BillingTypePill type={c.billingMode} />
+                {c.isSilent && (
+                  <span className="pill pill-overdue pill-no-dot">
+                    Silencieux depuis {c.silentDays} j
+                  </span>
+                )}
               </div>
               <div className="client-stats">
                 <div className="client-stat">
@@ -395,10 +435,23 @@ function DesktopClientsPage() {
                         </div>
                         <div className="muted xs">{c.company ?? "—"}</div>
                       </div>
+                      {c.stage === "LEAD" && (
+                        <span className="pill pill-sent">Prospect</span>
+                      )}
+                      {c.stage === "DORMANT" && (
+                        <span className="pill pill-draft">Dormant</span>
+                      )}
                     </div>
                   </td>
                   <td>
-                    <BillingTypePill type={c.billingMode} />
+                    <div className="row gap-4">
+                      <BillingTypePill type={c.billingMode} />
+                      {c.isSilent && (
+                        <span className="pill pill-overdue pill-no-dot">
+                          Silencieux depuis {c.silentDays} j
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="num">
                     {c.billingMode === "DAILY"
