@@ -28,6 +28,10 @@ export const qk = {
   invoice: (id: string | null | undefined) => ["invoice", id] as const,
 
   projects: () => ["projects"] as const,
+  project: {
+    all: () => ["project"] as const,
+    detail: (id: string | null | undefined) => ["project", id] as const,
+  },
 
   search: (resource: string, term: string) =>
     ["search", resource, term] as const,
