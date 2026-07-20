@@ -320,6 +320,10 @@ Everything else is removed.
   allowed in the UI — only "Lier projet Linear".
 - Tasks are pulled from Linear and stored in `Task` (with `linearIssueId`,
   `status`, `estimate`, `title`, `completedAt`, `priority`).
-- A webhook (`/api/webhooks/linear`) keeps the local cache in sync; a manual
-  "Sync Linear" button on Tasks/Projects page calls `/api/linear/refresh`.
+- Sync is **pull-only and manual**: there is no webhook receiver. The local
+  cache is refreshed when the user hits the "Sync Linear" button on the
+  Tasks/Projects page (or the Settings integration card), which calls
+  `/api/linear/refresh`. Runs are incremental — only issues updated since
+  `UserSettings.linearLastSyncedAt` are pulled — so a stale timestamp means
+  stale data, and the UI surfaces that after 24h.
 - Linear API token is **encrypted at rest** (AES-256-GCM via `src/lib/encryption.ts`).
