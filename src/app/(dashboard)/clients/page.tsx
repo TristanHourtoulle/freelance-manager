@@ -277,9 +277,16 @@ function DesktopClientsPage() {
       ) : view === "grid" ? (
         <div className="client-grid">
           {filtered.map((c) => (
-            <div
+            <button
               key={c.id}
+              type="button"
               className="client-card"
+              style={{
+                appearance: "none",
+                font: "inherit",
+                textAlign: "start",
+                width: "100%",
+              }}
               onClick={() => router.push(`/clients/${c.id}`)}
             >
               <div className="row gap-12">
@@ -342,7 +349,7 @@ function DesktopClientsPage() {
                 </div>
                 <Icon name="arrow-right" size={14} className="muted" />
               </div>
-            </div>
+            </button>
           ))}
           {filtered.length === 0 && (
             <div className="card" style={{ gridColumn: "1 / -1" }}>
@@ -359,7 +366,7 @@ function DesktopClientsPage() {
                 <th>Type</th>
                 <th>Taux</th>
                 <th>Projets</th>
-                <th>À facturer</th>
+                <th>Pending</th>
                 <th className="right">Revenu</th>
                 <th className="right" style={{ paddingRight: 20 }}>
                   Encours
