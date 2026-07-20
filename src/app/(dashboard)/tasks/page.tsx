@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
-import { useClients } from "@/hooks/use-clients"
+import { useClients, useClientsBillable } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
 import { pipelineValueForTask } from "@/lib/billing-math"
@@ -36,26 +36,41 @@ export default function TasksPage() {
 export function DesktopTasksPage() {
   const router = useRouter()
   const search = useSearchParams()
-  const initialClient = search.get("clientId") ?? "all"
-  const initialProject = search.get("projectId") ?? "all"
+  const clientParam = search.get("clientId") ?? "all"
+  const projectParam = search.get("projectId") ?? "all"
 
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilterId>("all")
-  const [clientFilter, setClientFilter] = useState<string>(initialClient)
-  const [projectFilter, setProjectFilter] = useState<string>(initialProject)
+  const [clientFilter, setClientFilter] = useState<string>(clientParam)
+  const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [mode, setMode] = useState<"dev" | "suivi">("dev")
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 50
+
+  const [syncedParams, setSyncedParams] = useState({
+    clientParam,
+    projectParam,
+  })
+  if (
+    syncedParams.clientParam !== clientParam ||
+    syncedParams.projectParam !== projectParam
+  ) {
+    setSyncedParams({ clientParam, projectParam })
+    setClientFilter(clientParam)
+    setProjectFilter(projectParam)
+    setPage(1)
+  }
 
   const {
     data: tasks = [],
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isLoading,
+    isPending,
   } = useTasks()
   const { data: clients = [] } = useClients()
+  const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
   const { data: invoices = [] } = useInvoices()
   const sync = useSyncLinear()
@@ -135,22 +150,10 @@ export function DesktopTasksPage() {
     [projects],
   )
 
-  const pendingPipeline = useMemo(() => {
-    let value = 0
-    let count = 0
-    for (const t of tasks) {
-      if (t.status !== "PENDING_INVOICE") continue
-      count += 1
-      const c = clientById.get(t.clientId)
-      if (!c) continue
-      value += pipelineValueForTask({
-        billingMode: c.billingMode,
-        rate: c.rate,
-        estimateDays: t.estimate,
-      })
-    }
-    return { value, count }
-  }, [tasks, clientById])
+  const pendingPipeline = {
+    value: billable?.totalValue ?? 0,
+    count: billable?.totalCount ?? 0,
+  }
 
   const hasActiveFilters =
     searchTerm !== "" ||
@@ -382,8 +385,8 @@ export function DesktopTasksPage() {
           </div>
 
           <div className="col gap-16">
-            {isLoading && <TasksLoadingSkeleton />}
-            {!isLoading && groups.length === 0 && tasks.length === 0 && (
+            {isPending && <TasksLoadingSkeleton />}
+            {!isPending && groups.length === 0 && tasks.length === 0 && (
               <div className="card">
                 <div className="empty">
                   <div className="empty-title">Aucune task</div>
@@ -391,12 +394,28 @@ export function DesktopTasksPage() {
                 </div>
               </div>
             )}
-            {!isLoading && groups.length === 0 && tasks.length > 0 && (
-              <div className="card">
-                <div className="empty">
-                  <div className="empty-title">Aucun résultat</div>
-                  <div>Aucune task ne correspond aux filtres actuels</div>
-                  {hasActiveFilters && (
+            {!isPending &&
+              groups.length === 0 &&
+              tasks.length > 0 &&
+              !hasActiveFilters && (
+                <div className="card">
+                  <div className="empty">
+                    <div className="empty-title">Aucune task active</div>
+                    <div>
+                      Toutes tes tasks sont en backlog ou annulées, elles ne
+                      sont pas affichées ici
+                    </div>
+                  </div>
+                </div>
+              )}
+            {!isPending &&
+              groups.length === 0 &&
+              tasks.length > 0 &&
+              hasActiveFilters && (
+                <div className="card">
+                  <div className="empty">
+                    <div className="empty-title">Aucun résultat</div>
+                    <div>Aucune task ne correspond aux filtres actuels</div>
                     <button
                       className="btn btn-secondary btn-sm"
                       style={{ marginTop: 12 }}
@@ -405,11 +424,10 @@ export function DesktopTasksPage() {
                       <Icon name="x" size={12} />
                       Réinitialiser les filtres
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
-            {!isLoading &&
+              )}
+            {!isPending &&
               groups.map((g) => {
                 const c = clientById.get(g.clientId)
                 const p = projectById.get(g.projectId)

@@ -51,6 +51,12 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
+/**
+ * Number of KPI tiles in the resolved client hero. The loading skeleton renders
+ * exactly this many placeholders so the hero never shifts on resolve.
+ */
+export const HERO_KPI_COUNT = 4
+
 interface ClientBillingSummary {
   billableTasks: ClientDetailDTO["tasks"]
   pipelineValue: number
@@ -92,7 +98,12 @@ export default function ClientDetailPage({ params }: PageProps) {
   return <DesktopClientDetailPage id={id} />
 }
 
-function DesktopClientDetailPage({ id }: { id: string }) {
+/**
+ * Desktop client detail view.
+ *
+ * @param id - Client id resolved from the route params.
+ */
+export function DesktopClientDetailPage({ id }: { id: string }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("overview")
   const [showLink, setShowLink] = useState(false)
@@ -275,7 +286,7 @@ function DesktopClientDetailPage({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="kpi-grid">
+        <div className="kpi-grid" data-testid="hero-kpi-grid">
           <div className="kpi k-revenue">
             <div className="kpi-label">
               <Icon name="arrow-up" size={11} />
@@ -827,11 +838,10 @@ function ClientDetailSkeleton() {
             <Skeleton width={280} height={13} radius={6} />
           </div>
         </div>
-        <div className="kpi-grid">
-          <SkeletonKpi />
-          <SkeletonKpi />
-          <SkeletonKpi />
-          <SkeletonKpi />
+        <div className="kpi-grid" data-testid="hero-kpi-skeleton">
+          {Array.from({ length: HERO_KPI_COUNT }, (_, i) => (
+            <SkeletonKpi key={i} />
+          ))}
         </div>
       </div>
 

@@ -3,13 +3,17 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { DesktopTasksPage } from "./page"
 import type { TaskDTO } from "@/hooks/use-tasks"
 
-const { useTasksMock } = vi.hoisted(() => ({
-  useTasksMock: vi.fn(),
-}))
+const { useTasksMock, useClientsBillableMock, searchParamsMock } = vi.hoisted(
+  () => ({
+    useTasksMock: vi.fn(),
+    useClientsBillableMock: vi.fn(),
+    searchParamsMock: vi.fn<(key: string) => string | null>(() => null),
+  }),
+)
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: (key: string) => searchParamsMock(key) }),
 }))
 
 vi.mock("next/dynamic", () => ({
@@ -35,6 +39,7 @@ vi.mock("@/hooks/use-clients", () => ({
       },
     ],
   }),
+  useClientsBillable: () => useClientsBillableMock(),
 }))
 
 vi.mock("@/hooks/use-projects", () => ({
@@ -72,23 +77,33 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
   }
 }
 
-function mockTasks(opts: { data: TaskDTO[]; isLoading?: boolean }) {
+function mockTasks(opts: { data: TaskDTO[]; isPending?: boolean }) {
   useTasksMock.mockReturnValue({
     data: opts.data,
     fetchNextPage: vi.fn(),
     hasNextPage: false,
     isFetchingNextPage: false,
-    isLoading: opts.isLoading ?? false,
+    isPending: opts.isPending ?? false,
+  })
+}
+
+function mockBillable(totalCount: number, totalValue: number) {
+  useClientsBillableMock.mockReturnValue({
+    data: { byClient: {}, totalCount, totalValue },
   })
 }
 
 describe("DesktopTasksPage", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
+    useClientsBillableMock.mockReset()
+    searchParamsMock.mockReset()
+    searchParamsMock.mockReturnValue(null)
+    mockBillable(0, 0)
   })
 
   it("renders loading skeletons and no empty state during the first fetch", () => {
-    mockTasks({ data: [], isLoading: true })
+    mockTasks({ data: [], isPending: true })
 
     const { container } = render(<DesktopTasksPage />)
 
@@ -132,13 +147,9 @@ describe("DesktopTasksPage", () => {
     expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
   })
 
-  it("surfaces the a-facturer pipeline total and count in the sub-header", () => {
-    mockTasks({
-      data: [
-        buildTask({ id: "task-1", estimate: 2 }),
-        buildTask({ id: "task-2", estimate: 1, linearIdentifier: "TRI-2" }),
-      ],
-    })
+  it("surfaces the server-side a-facturer total and count in the sub-header", () => {
+    mockTasks({ data: [buildTask()] })
+    mockBillable(2, 1500)
 
     render(<DesktopTasksPage />)
 
@@ -147,5 +158,70 @@ describe("DesktopTasksPage", () => {
       "À facturer : 1 500 €",
     )
     expect(screen.getByText("(2 tasks)")).toBeInTheDocument()
+  })
+
+  it("keeps the a-facturer total global when it exceeds the loaded task page", () => {
+    mockTasks({ data: [buildTask()] })
+    mockBillable(120, 60000)
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.getByText("(120 tasks)")).toBeInTheDocument()
+  })
+
+  it("never reports a count without its euro amount for FIXED-only pipelines", () => {
+    mockTasks({ data: [buildTask()] })
+    mockBillable(1, 0)
+
+    render(<DesktopTasksPage />)
+
+    const accent = screen.getByText(/facturer :/)
+    expect(accent.textContent?.replace(/\s+/g, " ").trim()).toBe(
+      "À facturer : 0 €",
+    )
+    expect(screen.getByText("(1 task)")).toBeInTheDocument()
+  })
+
+  it("explains the default status scope instead of blaming filters nobody set", () => {
+    mockTasks({ data: [buildTask({ status: "BACKLOG" })] })
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.getByText("Aucune task active")).toBeInTheDocument()
+    expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /initialiser les filtres/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("applies the clientId search param on mount", () => {
+    mockTasks({ data: [buildTask()] })
+    searchParamsMock.mockImplementation((key) =>
+      key === "clientId" ? "client-other" : null,
+    )
+
+    render(<DesktopTasksPage />)
+
+    expect(
+      screen.queryByText("Implementer le dashboard"),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Aucun résultat")).toBeInTheDocument()
+  })
+
+  it("follows a clientId search param that changes while the page stays mounted", () => {
+    mockTasks({ data: [buildTask()] })
+
+    const { rerender } = render(<DesktopTasksPage />)
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
+
+    searchParamsMock.mockImplementation((key) =>
+      key === "clientId" ? "client-other" : null,
+    )
+    rerender(<DesktopTasksPage />)
+
+    expect(
+      screen.queryByText("Implementer le dashboard"),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Aucun résultat")).toBeInTheDocument()
   })
 })
