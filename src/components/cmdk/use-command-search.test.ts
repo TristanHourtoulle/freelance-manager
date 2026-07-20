@@ -97,13 +97,13 @@ describe("useCommandSearch", () => {
     expect(router.push).toHaveBeenCalledWith("/clients/c1")
   })
 
-  it("exposes a Projets group and navigates to the project tasks", () => {
+  it("exposes a Projets group and navigates to the project detail page", () => {
     const { result, router } = run("acme")
     const project = result.current.find((c) => c.group === "Projets")
     expect(project?.label).toBe("Refonte Acme")
     expect(project?.keywords).toContain("ACM")
     project?.run()
-    expect(router.push).toHaveBeenCalledWith("/tasks?projectId=p1")
+    expect(router.push).toHaveBeenCalledWith("/projects/p1")
   })
 
   it("matches an invoice by number and navigates with invoiceId", () => {

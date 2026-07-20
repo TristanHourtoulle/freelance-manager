@@ -100,7 +100,7 @@ export function useCommandSearch(
       hint: p.client.company ?? `${p.client.firstName} ${p.client.lastName}`,
       icon: "folder",
       keywords: [p.key, "projet", "project", "linear"],
-      run: () => router.push(`/tasks?projectId=${p.id}`),
+      run: () => router.push(`/projects/${p.id}`),
     }))
     if (projects.hasMore) {
       projectResults.push(
