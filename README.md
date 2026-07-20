@@ -68,6 +68,11 @@ cp .env.example .env.local
 | `LINEAR_WEBHOOK_SECRET` | Webhook signing secret (optional)  |
 | `NEXT_PUBLIC_APP_URL`   | Public URL of the app (production) |
 
+`NEXT_PUBLIC_APP_URL` is `https://freelance-manager.tristanhourtoulle.fr` in
+production. It must include the scheme and carry **no trailing slash**: every API
+mutation compares the incoming `Origin` header to this value by exact string
+equality, so any deviation returns `403 CSRF_ORIGIN_MISMATCH`.
+
 ### Database Setup
 
 ```bash
