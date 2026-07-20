@@ -7,6 +7,7 @@ import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor, fmtRelative } from "@/lib/format"
 import { useClients } from "@/hooks/use-clients"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import { useToast } from "@/components/providers/toast-provider"
 import { SuiviView } from "@/components/suivi/suivi-view"
@@ -19,6 +20,8 @@ export function MobileTasksPage() {
   const { data: tasks = [] } = useTasks()
   const { data: clients = [] } = useClients()
   const sync = useSyncLinear()
+  const syncProgress = useLinearSyncProgress()
+  const isSyncing = sync.isPending || syncProgress.isRunning
   const [filter, setFilter] = useState<Filter>("all")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [mode, setMode] = useState<"dev" | "suivi">("dev")
@@ -100,16 +103,14 @@ export function MobileTasksPage() {
           mode === "dev" ? (
             <button
               type="button"
-              className={"m-topbar-action " + (sync.isPending ? "" : "primary")}
+              className={"m-topbar-action " + (isSyncing ? "" : "primary")}
               onClick={handleSync}
-              disabled={sync.isPending}
-              aria-label="Synchroniser Linear"
+              disabled={isSyncing}
+              aria-label={
+                isSyncing ? syncProgress.buttonLabel : "Synchroniser Linear"
+              }
             >
-              <Icon
-                name="sync"
-                size={15}
-                className={sync.isPending ? "spin" : ""}
-              />
+              <Icon name="sync" size={15} className={isSyncing ? "spin" : ""} />
             </button>
           ) : undefined
         }

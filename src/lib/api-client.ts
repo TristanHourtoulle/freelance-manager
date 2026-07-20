@@ -1,3 +1,35 @@
+/**
+ * Error thrown by every `api.*` helper on a non-2xx response.
+ *
+ * Carries the HTTP status so callers can branch on it (e.g. 409 conflicts)
+ * instead of pattern-matching the server message. `message` stays identical to
+ * what a plain `Error` used to carry, so existing `e.message` call sites are
+ * unaffected.
+ */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+  }
+}
+
+/**
+ * Narrows an unknown rejection to an `ApiError` carrying the given status.
+ *
+ * @param error - The rejection value from an `api.*` call.
+ * @param status - The HTTP status to match.
+ * @returns `true` when the error is an `ApiError` with that status.
+ */
+export function isApiErrorWithStatus(
+  error: unknown,
+  status: number,
+): error is ApiError {
+  return error instanceof ApiError && error.status === status
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`
@@ -5,7 +37,7 @@ async function handle<T>(res: Response): Promise<T> {
       const body = (await res.json()) as { error?: string; detail?: unknown }
       if (body.error) message = body.error
     } catch {}
-    throw new Error(message)
+    throw new ApiError(message, res.status)
   }
   return (await res.json()) as T
 }

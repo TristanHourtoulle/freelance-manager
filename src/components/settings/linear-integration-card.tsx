@@ -9,6 +9,7 @@ import {
   useSettings,
 } from "@/hooks/use-settings"
 import { useSyncLinear } from "@/hooks/use-tasks"
+import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useToast } from "@/components/providers/toast-provider"
 import { fmtRelative } from "@/lib/format"
 
@@ -26,7 +27,9 @@ export function LinearIntegrationCard() {
   const setToken = useSetLinearToken()
   const clearToken = useClearLinearToken()
   const sync = useSyncLinear()
+  const progress = useLinearSyncProgress()
   const { toast } = useToast()
+  const isSyncing = sync.isPending || progress.isRunning
   const [tokenInput, setTokenInput] = useState("")
   const [revealing, setRevealing] = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
@@ -138,27 +141,35 @@ export function LinearIntegrationCard() {
           marginBottom: 16,
         }}
       >
-        <Icon name="sync" size={14} className="muted" />
+        <Icon
+          name="sync"
+          size={14}
+          className={isSyncing ? "muted spin" : "muted"}
+        />
         <div className="grow">
-          <div className="small strong">Dernière synchronisation</div>
+          <div className="small strong">
+            {progress.isRunning
+              ? "Synchronisation en cours"
+              : "Dernière synchronisation"}
+          </div>
           <div className="muted xs">
-            {settings?.linearLastSyncedAt
-              ? fmtRelative(settings.linearLastSyncedAt)
-              : "jamais"}
+            {progress.isRunning
+              ? [progress.countLabel, progress.currentLabel]
+                  .filter(Boolean)
+                  .join(" · ") || "Démarrage…"
+              : settings?.linearLastSyncedAt
+                ? fmtRelative(settings.linearLastSyncedAt)
+                : "jamais"}
           </div>
         </div>
         {connected && (
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleSync}
-            disabled={sync.isPending}
+            disabled={isSyncing}
           >
-            <Icon
-              name="sync"
-              size={12}
-              className={sync.isPending ? "spin" : ""}
-            />
-            {sync.isPending ? "Sync…" : "Sync maintenant"}
+            <Icon name="sync" size={12} className={isSyncing ? "spin" : ""} />
+            {isSyncing ? "Sync…" : "Sync maintenant"}
           </button>
         )}
       </div>

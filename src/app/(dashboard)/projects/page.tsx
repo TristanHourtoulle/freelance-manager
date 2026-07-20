@@ -8,6 +8,7 @@ import { useTasks } from "@/hooks/use-tasks"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useSyncLinear } from "@/hooks/use-tasks"
+import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 const LinearMappingsModal = dynamic(
   () =>
@@ -70,6 +71,8 @@ function DesktopProjectsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [showLink, setShowLink] = useState(false)
   const sync = useSyncLinear()
+  const syncProgress = useLinearSyncProgress()
+  const isSyncing = sync.isPending || syncProgress.isRunning
 
   const {
     data: projects = [],
@@ -230,14 +233,10 @@ function DesktopProjectsPage() {
           <button
             className="btn btn-secondary"
             onClick={() => sync.mutate()}
-            disabled={sync.isPending}
+            disabled={isSyncing}
           >
-            <Icon
-              name="sync"
-              size={14}
-              className={sync.isPending ? "spin" : ""}
-            />
-            {sync.isPending ? "Synchronisation…" : "Sync Linear"}
+            <Icon name="sync" size={14} className={isSyncing ? "spin" : ""} />
+            {isSyncing ? syncProgress.buttonLabel : "Sync Linear"}
           </button>
           <button className="btn btn-primary" onClick={() => setShowLink(true)}>
             <Icon name="link" size={14} />
@@ -348,10 +347,7 @@ function DesktopProjectsPage() {
             {isPending &&
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={`skeleton-${i}`}>
-                  <td
-                    colSpan={7}
-                    style={{ paddingLeft: 20, paddingRight: 20 }}
-                  >
+                  <td colSpan={7} style={{ paddingLeft: 20, paddingRight: 20 }}>
                     <SkeletonRow />
                   </td>
                 </tr>
@@ -371,92 +367,94 @@ function DesktopProjectsPage() {
             )}
             {!isPending &&
               sorted.map((p) => (
-              <tr
-                key={p.id}
-                style={{ cursor: "pointer" }}
-                onClick={() => router.push(`/tasks?projectId=${p.id}`)}
-              >
-                <td style={{ paddingLeft: 20 }}>
-                  <div className="row gap-12">
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        background: "var(--bg-3)",
-                        borderRadius: 7,
-                        display: "grid",
-                        placeItems: "center",
+                <tr
+                  key={p.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/tasks?projectId=${p.id}`)}
+                >
+                  <td style={{ paddingLeft: 20 }}>
+                    <div className="row gap-12">
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          background: "var(--bg-3)",
+                          borderRadius: 7,
+                          display: "grid",
+                          placeItems: "center",
+                        }}
+                      >
+                        <Icon name="folder" size={14} />
+                      </div>
+                      <div>
+                        <div className="strong">{p.name}</div>
+                        <div className="muted xs">{p.description ?? ""}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="row gap-8"
+                      style={{ padding: 0, textAlign: "left" }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/clients/${p.clientId}`)
                       }}
                     >
-                      <Icon name="folder" size={14} />
+                      <div
+                        className="av av-sm"
+                        style={{
+                          background:
+                            p.clientColor ??
+                            avatarColor(
+                              `${p.clientFirstName}${p.clientLastName}`,
+                            ),
+                        }}
+                      >
+                        {initials(`${p.clientFirstName} ${p.clientLastName}`)}
+                      </div>
+                      <span className="small">{p.clientLabel}</span>
+                    </button>
+                  </td>
+                  <td>
+                    <span className="task-id">{p.key}</span>
+                  </td>
+                  <td className="num small">
+                    <div className="row gap-8">
+                      <span>{p.tasksTotal} total</span>
+                      <span className="muted">·</span>
+                      <span className="muted">{p.tasksDone} done</span>
                     </div>
-                    <div>
-                      <div className="strong">{p.name}</div>
-                      <div className="muted xs">{p.description ?? ""}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="row gap-8"
-                    style={{ padding: 0, textAlign: "left" }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      router.push(`/clients/${p.clientId}`)
+                  </td>
+                  <td className="num">
+                    {p.tasksPending > 0 ? (
+                      <span className="pill pill-pending xs">
+                        {p.tasksPending}
+                      </span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td
+                    className="right num"
+                    style={{
+                      color: p.pipeline > 0 ? "var(--info)" : undefined,
                     }}
                   >
-                    <div
-                      className="av av-sm"
-                      style={{
-                        background:
-                          p.clientColor ??
-                          avatarColor(
-                            `${p.clientFirstName}${p.clientLastName}`,
-                          ),
-                      }}
-                    >
-                      {initials(`${p.clientFirstName} ${p.clientLastName}`)}
-                    </div>
-                    <span className="small">{p.clientLabel}</span>
-                  </button>
-                </td>
-                <td>
-                  <span className="task-id">{p.key}</span>
-                </td>
-                <td className="num small">
-                  <div className="row gap-8">
-                    <span>{p.tasksTotal} total</span>
-                    <span className="muted">·</span>
-                    <span className="muted">{p.tasksDone} done</span>
-                  </div>
-                </td>
-                <td className="num">
-                  {p.tasksPending > 0 ? (
-                    <span className="pill pill-pending xs">
-                      {p.tasksPending}
-                    </span>
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
-                </td>
-                <td
-                  className="right num"
-                  style={{ color: p.pipeline > 0 ? "var(--info)" : undefined }}
-                >
-                  {p.pipeline > 0 ? fmtEUR(p.pipeline) : "—"}
-                </td>
-                <td
-                  className="right num strong"
-                  style={{
-                    paddingRight: 20,
-                    color: p.revenue > 0 ? "var(--accent)" : undefined,
-                  }}
-                >
-                  {p.revenue > 0 ? fmtEUR(p.revenue) : "—"}
-                </td>
-              </tr>
-            ))}
+                    {p.pipeline > 0 ? fmtEUR(p.pipeline) : "—"}
+                  </td>
+                  <td
+                    className="right num strong"
+                    style={{
+                      paddingRight: 20,
+                      color: p.revenue > 0 ? "var(--accent)" : undefined,
+                    }}
+                  >
+                    {p.revenue > 0 ? fmtEUR(p.revenue) : "—"}
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
