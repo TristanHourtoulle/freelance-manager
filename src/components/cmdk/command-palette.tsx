@@ -4,6 +4,7 @@ import {
   Activity,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -62,6 +63,11 @@ interface Group {
   items: IndexedCommand[]
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+const INPUT_LABEL = "Rechercher une commande"
+
 /**
  * Linear/Raycast-style command palette. Mount once at the app root and
  * drive `open` via {@link useCommandPalette}.
@@ -80,7 +86,16 @@ export function CommandPalette({
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const modalRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
   const itemsRef = useRef(new Map<number, HTMLButtonElement>())
+  const baseId = useId()
+  const listId = `${baseId}-list`
+
+  const optionIdFor = useCallback(
+    (cmd: CommandItem) => `${baseId}-option-${cmd.id}`,
+    [baseId],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -89,14 +104,20 @@ export function CommandPalette({
     setActive(0)
   }, [open])
 
-  /**
-   * Focus the input synchronously after the modal commits. `useLayoutEffect`
-   * runs before paint, so the user can start typing immediately after ⌘K.
-   */
   useLayoutEffect(() => {
-    if (open) {
-      inputRef.current?.focus()
-    }
+    if (!open) return
+    triggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+    inputRef.current?.focus()
+  }, [open])
+
+  useEffect(() => {
+    if (open) return
+    const trigger = triggerRef.current
+    triggerRef.current = null
+    trigger?.focus()
   }, [open])
 
   useEffect(() => {
@@ -133,6 +154,7 @@ export function CommandPalette({
   }, [commands, query])
 
   const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped])
+  const activeCommand = flat[active]
 
   useEffect(() => {
     if (!open) return
@@ -152,6 +174,28 @@ export function CommandPalette({
         if (cmd) {
           cmd.run()
           onClose()
+        }
+      } else if (e.key === "Tab") {
+        const modal = modalRef.current
+        if (!modal) return
+        const focusables = Array.from(
+          modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        ).filter((el) => el.tabIndex >= 0)
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (!first || !last) {
+          e.preventDefault()
+          return
+        }
+        const activeElement = document.activeElement
+        if (e.shiftKey) {
+          if (activeElement === first || !modal.contains(activeElement)) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else if (activeElement === last || !modal.contains(activeElement)) {
+          e.preventDefault()
+          first.focus()
         }
       }
     }
@@ -186,7 +230,11 @@ export function CommandPalette({
         aria-label="Command palette"
       >
         <div className="cmdk-backdrop" onClick={onClose} />
-        <div className="cmdk-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          ref={modalRef}
+          className="cmdk-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="cmdk-glow" />
           <div className="cmdk-search">
             <span className="cmdk-search-icon">
@@ -203,13 +251,28 @@ export function CommandPalette({
               placeholder={placeholder}
               spellCheck={false}
               autoComplete="off"
+              type="text"
+              role="combobox"
+              aria-label={INPUT_LABEL}
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                activeCommand ? optionIdFor(activeCommand) : undefined
+              }
             />
             <div className="cmdk-kbd-hint">
               <span className="cmdk-kbd">esc</span>
             </div>
           </div>
 
-          <div className="cmdk-list" ref={listRef}>
+          <div
+            className="cmdk-list"
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label={INPUT_LABEL}
+          >
             {flat.length === 0 ? (
               <div className="cmdk-empty">
                 <div className="cmdk-empty-glyph">
@@ -232,9 +295,16 @@ export function CommandPalette({
                     onClose()
                   }}
                   registerRef={setItemRef}
+                  optionIdFor={optionIdFor}
                 />
               ))
             )}
+          </div>
+
+          <div className="sr-only" aria-live="polite" role="status">
+            {flat.length === 0
+              ? "Aucun résultat"
+              : `${flat.length} résultat${flat.length > 1 ? "s" : ""} disponible${flat.length > 1 ? "s" : ""}`}
           </div>
 
           <div className="cmdk-footer">
@@ -267,6 +337,7 @@ interface CmdGroupProps {
   onHover: (idx: number) => void
   onSelect: (cmd: CommandItem) => void
   registerRef: (idx: number) => (el: HTMLButtonElement | null) => void
+  optionIdFor: (cmd: CommandItem) => string
 }
 
 function CmdGroup({
@@ -275,10 +346,11 @@ function CmdGroup({
   onHover,
   onSelect,
   registerRef,
+  optionIdFor,
 }: CmdGroupProps) {
   return (
-    <div>
-      <div className="cmdk-group-label">
+    <div role="group" aria-label={group.label}>
+      <div className="cmdk-group-label" aria-hidden="true">
         <span>{group.label}</span>
         <span className="cmdk-group-count">{group.items.length}</span>
       </div>
@@ -290,6 +362,7 @@ function CmdGroup({
           onHover={() => onHover(c.flatIndex)}
           onSelect={() => onSelect(c)}
           registerRef={registerRef(c.flatIndex)}
+          optionId={optionIdFor(c)}
         />
       ))}
     </div>
@@ -302,6 +375,7 @@ interface CmdRowProps {
   onHover: () => void
   onSelect: () => void
   registerRef: (el: HTMLButtonElement | null) => void
+  optionId: string
 }
 
 function CmdRow({
@@ -310,10 +384,15 @@ function CmdRow({
   onHover,
   onSelect,
   registerRef,
+  optionId,
 }: CmdRowProps) {
   return (
     <button
       type="button"
+      id={optionId}
+      role="option"
+      aria-selected={isActive}
+      tabIndex={-1}
       ref={registerRef}
       className={"cmdk-item" + (isActive ? " active" : "")}
       onMouseEnter={onHover}

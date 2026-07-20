@@ -7,13 +7,13 @@ const mockInvoices = vi.fn()
 const mockTasks = vi.fn()
 
 vi.mock("@/hooks/use-clients", () => ({
-  useClients: () => mockClients(),
+  useClients: (...args: unknown[]) => mockClients(...args),
 }))
 vi.mock("@/hooks/use-invoices", () => ({
-  useInvoices: () => mockInvoices(),
+  useInvoices: (...args: unknown[]) => mockInvoices(...args),
 }))
 vi.mock("@/hooks/use-tasks", () => ({
-  useTasks: () => mockTasks(),
+  useTasks: (...args: unknown[]) => mockTasks(...args),
 }))
 
 function makeRouter() {
@@ -110,6 +110,24 @@ describe("useCommandSearch", () => {
     const { result } = run("acme")
     const groups = new Set(result.current.map((c) => c.group))
     expect(groups.has("Clients")).toBe(true)
+  })
+
+  it("disables the three entity queries when the palette is closed", () => {
+    const router = makeRouter()
+    renderHook(() => useCommandSearch("acme", router, false))
+
+    expect(mockClients).toHaveBeenCalledWith({ enabled: false })
+    expect(mockInvoices).toHaveBeenCalledWith({ enabled: false })
+    expect(mockTasks).toHaveBeenCalledWith(undefined, { enabled: false })
+  })
+
+  it("enables the three entity queries when the palette is open", () => {
+    const router = makeRouter()
+    renderHook(() => useCommandSearch("acme", router, true))
+
+    expect(mockClients).toHaveBeenCalledWith({ enabled: true })
+    expect(mockInvoices).toHaveBeenCalledWith({ enabled: true })
+    expect(mockTasks).toHaveBeenCalledWith(undefined, { enabled: true })
   })
 
   it("debounces query changes before recomputing results", () => {
