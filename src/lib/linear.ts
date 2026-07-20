@@ -492,6 +492,46 @@ async function bulkUpsertTasks(
 }
 
 /**
+ * Columns on `Project` that the Linear sync owns and is allowed to overwrite.
+ *
+ * Linear is the source of truth for this subset only. Any column absent from
+ * this list is app-owned and must survive every sync untouched.
+ */
+export const LINEAR_MIRRORED_PROJECT_FIELDS = [
+  "clientId",
+  "description",
+  "key",
+  "lastSyncedAt",
+  "linearCreatedAt",
+  "linearTeamId",
+  "name",
+  "status",
+] as const
+
+/**
+ * Columns on `Project` that only the user writes, through
+ * `PATCH /api/projects/[id]`. The Linear sync must never appear to touch them.
+ */
+export const APP_OWNED_PROJECT_FIELDS = [
+  "repoUrl",
+  "stagingUrl",
+  "prodUrl",
+  "runbook",
+] as const
+
+/**
+ * The only shape a Linear sync may pass as a `project.upsert` `update` payload.
+ *
+ * Annotating each payload with `satisfies LinearProjectMirrorUpdate` turns an
+ * accidental app-owned write into a compile error, because an object literal
+ * checked against `satisfies` rejects excess properties.
+ */
+export type LinearProjectMirrorUpdate = Pick<
+  Prisma.ProjectUncheckedUpdateInput,
+  (typeof LINEAR_MIRRORED_PROJECT_FIELDS)[number]
+>
+
+/**
  * Pull all issues from the Linear scopes mapped to the user's clients and
  * upsert local Project/Task rows. This is the "Sync Linear" button's handler.
  *
@@ -624,7 +664,7 @@ export async function syncFromLinear(
               startDate: project.startDate ?? null,
               targetDate: project.targetDate ?? null,
               lastSyncedAt: new Date(),
-            },
+            } satisfies LinearProjectMirrorUpdate,
           })
           localProjectId = localProject.id
           localProjectIdByLinearId.set(project.id, localProjectId)
@@ -725,13 +765,16 @@ export async function syncOneProject(opts: {
         startDate: toTimelessDate(linearProject.startDate),
         targetDate: toTimelessDate(linearProject.targetDate),
         lastSyncedAt: new Date(),
-      },
+      } satisfies LinearProjectMirrorUpdate,
     })
 
     if (firstTeam?.key) {
       await tx.project.update({
         where: { id: localProject.id },
-        data: { key: firstTeam.key, linearTeamId: firstTeam.id },
+        data: {
+          key: firstTeam.key,
+          linearTeamId: firstTeam.id,
+        } satisfies LinearProjectMirrorUpdate,
       })
     }
 

@@ -257,6 +257,12 @@ model Project {
 
   startDate       DateTime?
   targetDate      DateTime?
+
+  repoUrl    String?
+  stagingUrl String?
+  prodUrl    String?
+  runbook    String?
+
   linearCreatedAt DateTime?
   lastSyncedAt    DateTime  @default(now())
   createdAt       DateTime  @default(now())
