@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useId, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
@@ -34,6 +34,7 @@ export function LinearMappingsModal({
   initialClientId,
   onClose,
 }: LinearMappingsModalProps) {
+  const fieldId = useId()
   const [clientId, setClientId] = useState(initialClientId ?? "")
   const [search, setSearch] = useState("")
   const [justLinked, setJustLinked] = useState<Set<string>>(new Set())
@@ -148,8 +149,11 @@ export function LinearMappingsModal({
     >
       {!initialClientId && (
         <div className="field">
-          <label className="field-label">Client</label>
+          <label className="field-label" htmlFor={`${fieldId}-client`}>
+            Client
+          </label>
           <select
+            id={`${fieldId}-client`}
             className="select"
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}

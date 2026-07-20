@@ -1,6 +1,6 @@
 "use client"
 
-import { use } from "react"
+import { use, useId } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { fmtEUR } from "@/lib/format"
@@ -38,6 +38,7 @@ interface EditInvoiceFormProps {
 }
 
 function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
+  const fieldId = useId()
   const router = useRouter()
   const b = useInvoiceBuilder({ mode: "edit", invoice })
   const { client, kind, lines } = b
@@ -86,8 +87,11 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="row gap-16" style={{ flexWrap: "wrap" }}>
           <div className="field" style={{ flex: 1, minWidth: 260 }}>
-            <label className="field-label">Client</label>
+            <label className="field-label" htmlFor={`${fieldId}-client`}>
+              Client
+            </label>
             <input
+              id={`${fieldId}-client`}
               className="input"
               value={
                 client
@@ -98,8 +102,14 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             />
           </div>
           <div className="field" style={{ flex: 1, minWidth: 220 }}>
-            <label className="field-label">Projet (optionnel)</label>
+            <label
+              className="field-label"
+              htmlFor={`${fieldId}-projet-optionnel`}
+            >
+              Projet (optionnel)
+            </label>
             <select
+              id={`${fieldId}-projet-optionnel`}
               className="select"
               value={b.projectId}
               onChange={(e) => b.setProjectId(e.target.value)}
@@ -115,16 +125,22 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             </select>
           </div>
           <div className="field" style={{ width: 200 }}>
-            <label className="field-label">Numéro</label>
+            <label className="field-label" htmlFor={`${fieldId}-numero`}>
+              Numéro
+            </label>
             <input
+              id={`${fieldId}-numero`}
               className="input mono"
               value={b.customNumber}
               onChange={(e) => b.setCustomNumber(e.target.value)}
             />
           </div>
           <div className="field" style={{ width: 180 }}>
-            <label className="field-label">Émise le</label>
+            <label className="field-label" htmlFor={`${fieldId}-emise-le`}>
+              Émise le
+            </label>
             <input
+              id={`${fieldId}-emise-le`}
               className="input"
               type="date"
               value={b.issueDate}
@@ -132,8 +148,11 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             />
           </div>
           <div className="field" style={{ width: 180 }}>
-            <label className="field-label">Échéance</label>
+            <label className="field-label" htmlFor={`${fieldId}-echeance`}>
+              Échéance
+            </label>
             <input
+              id={`${fieldId}-echeance`}
               className="input"
               type="date"
               value={b.dueDate}
@@ -141,9 +160,13 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             />
           </div>
           <div className="field" style={{ width: 220 }}>
-            <label className="field-label">Type</label>
+            <div className="field-label" id={`${fieldId}-kind`}>
+              Type
+            </div>
             <div
               className="row gap-4"
+              role="group"
+              aria-labelledby={`${fieldId}-kind`}
               style={{
                 background: "var(--bg-2)",
                 borderRadius: 7,
@@ -170,9 +193,13 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             </div>
           </div>
           <div className="field" style={{ width: 320 }}>
-            <label className="field-label">Statut</label>
+            <div className="field-label" id={`${fieldId}-status`}>
+              Statut
+            </div>
             <div
               className="row gap-4"
+              role="group"
+              aria-labelledby={`${fieldId}-status`}
               style={{
                 background: "var(--bg-2)",
                 borderRadius: 7,

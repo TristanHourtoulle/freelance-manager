@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { useCreateClient } from "@/hooks/use-clients"
@@ -27,6 +27,8 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
   const [rate, setRate] = useState<number>(500)
   const [fixedPrice, setFixedPrice] = useState<number>(5000)
   const [deposit, setDeposit] = useState<number>(0)
+
+  const fieldId = useId()
 
   const createClient = useCreateClient()
   const { toast } = useToast()
@@ -89,8 +91,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
     >
       <div className="row gap-12">
         <div className="field grow">
-          <label className="field-label">Prénom</label>
+          <label className="field-label" htmlFor={`${fieldId}-first-name`}>
+            Prénom
+          </label>
           <input
+            id={`${fieldId}-first-name`}
             className="input"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
@@ -98,8 +103,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
           />
         </div>
         <div className="field grow">
-          <label className="field-label">Nom</label>
+          <label className="field-label" htmlFor={`${fieldId}-last-name`}>
+            Nom
+          </label>
           <input
+            id={`${fieldId}-last-name`}
             className="input"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
@@ -108,8 +116,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
         </div>
       </div>
       <div className="field">
-        <label className="field-label">Entreprise</label>
+        <label className="field-label" htmlFor={`${fieldId}-company`}>
+          Entreprise
+        </label>
         <input
+          id={`${fieldId}-company`}
           className="input"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
@@ -117,8 +128,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
         />
       </div>
       <div className="field">
-        <label className="field-label">Email</label>
+        <label className="field-label" htmlFor={`${fieldId}-email`}>
+          Email
+        </label>
         <input
+          id={`${fieldId}-email`}
           className="input"
           type="email"
           value={email}
@@ -128,8 +142,14 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
       </div>
 
       <div className="field">
-        <label className="field-label">Type de facturation</label>
-        <div className="row gap-8">
+        <div className="field-label" id={`${fieldId}-billing-mode`}>
+          Type de facturation
+        </div>
+        <div
+          className="row gap-8"
+          role="group"
+          aria-labelledby={`${fieldId}-billing-mode`}
+        >
           {BILLING_TYPES.map((t) => (
             <button
               key={t.id}
@@ -164,10 +184,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
 
       {billingMode !== "FIXED" && (
         <div className="field">
-          <label className="field-label">
+          <label className="field-label" htmlFor={`${fieldId}-rate`}>
             Taux ({billingMode === "DAILY" ? "€/jour" : "€/heure"})
           </label>
           <input
+            id={`${fieldId}-rate`}
             className="input num"
             type="number"
             value={rate}
@@ -178,8 +199,11 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
       {billingMode === "FIXED" && (
         <>
           <div className="field">
-            <label className="field-label">Prix du projet (€)</label>
+            <label className="field-label" htmlFor={`${fieldId}-fixed-price`}>
+              Prix du projet (€)
+            </label>
             <input
+              id={`${fieldId}-fixed-price`}
               className="input num"
               type="number"
               value={fixedPrice}
@@ -187,13 +211,14 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
             />
           </div>
           <div className="field">
-            <label className="field-label">
+            <label className="field-label" htmlFor={`${fieldId}-deposit`}>
               Acompte (€){" "}
               <span className="muted xs">
                 — optionnel, créera une facture distincte
               </span>
             </label>
             <input
+              id={`${fieldId}-deposit`}
               className="input num"
               type="number"
               value={deposit}
