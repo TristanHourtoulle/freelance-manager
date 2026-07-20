@@ -9,11 +9,14 @@ export interface DashboardDTO {
     revenueMonth: number
     revenueYear: number
     paidCount: number
+    paidCountMonth: number
+    paidCountYear: number
     outstanding: number
     sentCount: number
     overdueAmount: number
     overdueCount: number
     pipelineCount: number
+    pipelineEur: number
     pipelineClientCount: number
   }
   months: { month: string; total: number; isCurrent: boolean }[]

@@ -1,6 +1,12 @@
 "use client"
 
-import { createContext, useContext, useMemo, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { useToast } from "@/components/providers/toast-provider"
@@ -10,6 +16,7 @@ import {
   type CommandItem,
 } from "@/components/cmdk/command-palette"
 import { useCommandPalette } from "@/components/cmdk/use-command-palette"
+import { useCommandSearch } from "@/components/cmdk/use-command-search"
 
 interface CmdKContextValue {
   open: () => void
@@ -28,8 +35,10 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { toast } = useToast()
   const syncLinear = useSyncLinear()
+  const [query, setQuery] = useState("")
+  const searchResults = useCommandSearch(query, router, open)
 
-  const commands = useMemo<CommandItem[]>(
+  const staticCommands = useMemo<CommandItem[]>(
     () => [
       {
         id: "go-dashboard",
@@ -125,6 +134,11 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
     [router, toast, syncLinear],
   )
 
+  const commands = useMemo<CommandItem[]>(
+    () => [...staticCommands, ...searchResults],
+    [staticCommands, searchResults],
+  )
+
   const value = useMemo<CmdKContextValue>(
     () => ({
       open: () => setOpen(true),
@@ -140,6 +154,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
         open={open}
         onClose={() => setOpen(false)}
         commands={commands}
+        onQueryChange={setQuery}
       />
     </CmdKContext>
   )

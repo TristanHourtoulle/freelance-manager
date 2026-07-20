@@ -17,15 +17,13 @@ export async function GET() {
     const pendingTasksWhere: Prisma.TaskWhereInput = {
       userId: user.id,
       status: "PENDING_INVOICE",
-      client: { billingMode: { in: ["DAILY", "HOURLY"] } },
     }
 
     const [
       openInvoices,
       paymentTotals,
       paymentBuckets,
-      pipelineCount,
-      pipelineClients,
+      pipelineTasks,
       recentInvoices,
       recentTasks,
       lastSync,
@@ -50,12 +48,16 @@ export async function GET() {
       prisma.$queryRaw<
         {
           paid_count: bigint
+          paid_count_month: bigint
+          paid_count_year: bigint
           revenue_month: number
           revenue_year: number
         }[]
       >`
         SELECT
           COUNT(*)::bigint AS paid_count,
+          COUNT(*) FILTER (WHERE "paidAt" >= ${monthStart})::bigint AS paid_count_month,
+          COUNT(*) FILTER (WHERE "paidAt" >= ${yearStart})::bigint AS paid_count_year,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${monthStart}), 0)::float AS revenue_month,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${yearStart}), 0)::float AS revenue_year
         FROM payments
@@ -70,8 +72,14 @@ export async function GET() {
         GROUP BY 1
         ORDER BY 1
       `,
-      prisma.task.count({ where: pendingTasksWhere }),
-      prisma.task.groupBy({ by: ["clientId"], where: pendingTasksWhere }),
+      prisma.task.findMany({
+        where: pendingTasksWhere,
+        select: {
+          clientId: true,
+          estimate: true,
+          client: { select: { billingMode: true, rate: true } },
+        },
+      }),
       prisma.invoice.findMany({
         where: { userId: user.id },
         orderBy: { issueDate: "desc" },
@@ -116,8 +124,12 @@ export async function GET() {
       openInvoices,
       paymentTotals,
       paymentBuckets,
-      pipelineCount,
-      pipelineClients,
+      pipelineTasks: pipelineTasks.map((task) => ({
+        clientId: task.clientId,
+        estimate: task.estimate,
+        billingMode: task.client.billingMode,
+        rate: task.client.rate,
+      })),
       recentInvoices,
     })
 

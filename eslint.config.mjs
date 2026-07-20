@@ -16,6 +16,14 @@ const eslintConfig = defineConfig([
     "src/generated/**",
     // Design reference (raw JSX from the design handoff, not part of the app)
     "design-reference/**",
+    // Coding-agent git worktrees: full checkouts nested inside this one.
+    // Their sources belong to their own checkout, and the ignores above
+    // (design-reference/**, src/generated/**) are root-relative so they never
+    // match the nested copies.
+    ".claude/**",
+    // Tooling / report output (git-ignored, never app source)
+    "agent-os/**",
+    "coverage/**",
   ]),
   {
     // Restrict lucide-react imports to shadcn/ui components only

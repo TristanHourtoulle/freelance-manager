@@ -1,29 +1,51 @@
 "use client"
 
 import { Fragment } from "react"
+import { usePathname } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
 import { useCmdK } from "@/components/cmdk/cmdk-provider"
+import { deriveCrumbs } from "@/lib/breadcrumbs"
+import { qk } from "@/hooks/query-keys"
+import type { ClientDetailDTO } from "@/hooks/use-client-detail"
 
-interface TopbarProps {
-  crumbs: string[]
+function clientIdFromPathname(pathname: string): string | null {
+  const segments = pathname.split("/").filter(Boolean)
+  if (segments[0] !== "clients") return null
+  return segments[1] ?? null
 }
 
-export function Topbar({ crumbs }: TopbarProps) {
+export function Topbar() {
   const cmdk = useCmdK()
+  const pathname = usePathname()
+  const clientId = clientIdFromPathname(pathname)
+  const { data: client } = useQuery<ClientDetailDTO>({
+    queryKey: qk.client.detail(clientId),
+    enabled: false,
+  })
+  const crumbs = deriveCrumbs(
+    pathname,
+    client ? `${client.firstName} ${client.lastName}` : undefined,
+  )
   return (
     <div className="topbar">
-      <div className="crumbs">
+      <nav className="crumbs" aria-label="Fil d'Ariane">
         {crumbs.map((c, i) => (
           <Fragment key={i}>
             {i > 0 && (
-              <span className="sep">
+              <span className="sep" aria-hidden="true">
                 <Icon name="chevron-right" size={12} />
               </span>
             )}
-            <span className={i === crumbs.length - 1 ? "cur" : ""}>{c}</span>
+            <span
+              className={i === crumbs.length - 1 ? "cur" : ""}
+              aria-current={i === crumbs.length - 1 ? "page" : undefined}
+            >
+              {c}
+            </span>
           </Fragment>
         ))}
-      </div>
+      </nav>
       <button
         type="button"
         className="topbar-search"

@@ -203,7 +203,7 @@ export function MobileBillingPage() {
   )
 }
 
-function MobileInvoiceSheet({
+export function MobileInvoiceSheet({
   invoiceId,
   onClose,
 }: {
@@ -270,6 +270,7 @@ function MobileInvoiceSheet({
   }
 
   const c = invoice.client
+  const hasOverride = invoice.totalOverride != null
   const isFullyPaid =
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
   const canRecordPayment =
@@ -317,8 +318,22 @@ function MobileInvoiceSheet({
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <div className="card-title" style={{ marginBottom: 8 }}>
-          Lignes ({invoice.lines.length})
+        <div
+          className="card-title"
+          style={{
+            marginBottom: 8,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span>Lignes ({invoice.lines.length})</span>
+          {hasOverride && (
+            <span className="muted xs" style={{ fontStyle: "italic" }}>
+              forfait — prix non détaillés
+            </span>
+          )}
         </div>
         <div
           className="col gap-6"
@@ -336,11 +351,15 @@ function MobileInvoiceSheet({
             >
               <div className="grow" style={{ minWidth: 0 }}>
                 <div className="small truncate">{l.label}</div>
-                <div className="xs muted mono">
-                  {l.qty} × {fmtEUR(l.rate)}
-                </div>
+                {!hasOverride && (
+                  <div className="xs muted mono">
+                    {l.qty} × {fmtEUR(l.rate)}
+                  </div>
+                )}
               </div>
-              <div className="num strong small">{fmtEUR(l.qty * l.rate)}</div>
+              {!hasOverride && (
+                <div className="num strong small">{fmtEUR(l.qty * l.rate)}</div>
+              )}
             </div>
           ))}
         </div>

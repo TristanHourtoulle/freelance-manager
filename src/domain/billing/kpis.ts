@@ -1,5 +1,6 @@
-import type { Prisma } from "@/generated/prisma/client"
+import type { BillingMode, Prisma } from "@/generated/prisma/client"
 import { decimalToNumber } from "@/lib/api"
+import { pipelineValueForTask } from "@/lib/billing-math"
 import { getInvoiceComputed } from "@/lib/payments"
 import type {
   InvoiceDocStatus,
@@ -22,8 +23,17 @@ export interface OpenInvoiceRow {
 
 export interface PaymentTotalsRow {
   paid_count: bigint
+  paid_count_month: bigint
+  paid_count_year: bigint
   revenue_month: number
   revenue_year: number
+}
+
+export interface PipelineTaskRow {
+  clientId: string
+  estimate: DecimalLike | null
+  billingMode: BillingMode
+  rate: DecimalLike
 }
 
 export interface PaymentBucketRow {
@@ -56,8 +66,7 @@ export interface DashboardKpiInput {
   openInvoices: OpenInvoiceRow[]
   paymentTotals: PaymentTotalsRow[]
   paymentBuckets: PaymentBucketRow[]
-  pipelineCount: number
-  pipelineClients: { clientId: string }[]
+  pipelineTasks: PipelineTaskRow[]
   recentInvoices: RecentInvoiceRow[]
 }
 
@@ -65,11 +74,14 @@ export interface DashboardKpi {
   revenueMonth: number
   revenueYear: number
   paidCount: number
+  paidCountMonth: number
+  paidCountYear: number
   outstanding: number
   sentCount: number
   overdueAmount: number
   overdueCount: number
   pipelineCount: number
+  pipelineEur: number
   pipelineClientCount: number
 }
 
@@ -111,9 +123,10 @@ export interface DashboardKpis {
  * Pure aggregation of the dashboard billing KPIs from already-queried rows.
  *
  * Extracted verbatim from the former inline `/api/dashboard` logic: overdue
- * filtering, outstanding + overdue sums, distinct pipeline-client count, the
- * trailing 8-month payment buckets, and the recent-invoice projection. No DB
- * access, no framework imports — deterministic given its inputs.
+ * filtering, outstanding + overdue sums, the distinct pipeline-client count
+ * derived from the pipeline tasks, the trailing 8-month payment buckets, and
+ * the recent-invoice projection. No DB access, no framework imports —
+ * deterministic given its inputs.
  */
 export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
   const {
@@ -121,13 +134,14 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     openInvoices,
     paymentTotals,
     paymentBuckets,
-    pipelineCount,
-    pipelineClients,
+    pipelineTasks,
     recentInvoices,
   } = input
 
   const totals = paymentTotals[0]
   const paidCount = totals ? Number(totals.paid_count) : 0
+  const paidCountMonth = totals ? Number(totals.paid_count_month) : 0
+  const paidCountYear = totals ? Number(totals.paid_count_year) : 0
   const revenueMonth = totals?.revenue_month ?? 0
   const revenueYear = totals?.revenue_year ?? 0
 
@@ -144,7 +158,18 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     0,
   )
 
-  const pipelineClientCount = pipelineClients.length
+  const pipelineCount = pipelineTasks.length
+  const pipelineEur = pipelineTasks.reduce(
+    (sum, task) =>
+      sum +
+      pipelineValueForTask({
+        billingMode: task.billingMode,
+        rate: decimalToNumber(task.rate) ?? 0,
+        estimateDays: decimalToNumber(task.estimate),
+      }),
+    0,
+  )
+  const pipelineClientCount = new Set(pipelineTasks.map((t) => t.clientId)).size
 
   const bucketByMonth = new Map(
     paymentBuckets.map(
@@ -193,11 +218,14 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
       revenueMonth,
       revenueYear,
       paidCount,
+      paidCountMonth,
+      paidCountYear,
       outstanding,
       sentCount: openInvoices.length,
       overdueAmount,
       overdueCount: overdueList.length,
       pipelineCount,
+      pipelineEur,
       pipelineClientCount,
     },
     months,

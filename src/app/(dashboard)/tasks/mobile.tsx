@@ -29,10 +29,7 @@ export function MobileTasksPage() {
         if (filter === "pending") return t.status === "PENDING_INVOICE"
         if (filter === "done") return t.status === "DONE"
         if (filter === "invoiced") return t.invoiceId != null
-        return (
-          t.status === "PENDING_INVOICE" ||
-          (t.status === "DONE" && !t.invoiceId)
-        )
+        return ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status)
       })
       .sort(
         (a, b) =>
@@ -43,10 +40,8 @@ export function MobileTasksPage() {
 
   const counts = useMemo(
     () => ({
-      all: tasks.filter(
-        (t) =>
-          t.status === "PENDING_INVOICE" ||
-          (t.status === "DONE" && !t.invoiceId),
+      all: tasks.filter((t) =>
+        ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status),
       ).length,
       pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
       invoiced: tasks.filter((t) => t.invoiceId != null).length,
@@ -250,11 +245,17 @@ export function MobileTasksPage() {
                               "pill pill-no-dot xs " +
                               (t.status === "DONE"
                                 ? "pill-paid"
-                                : "pill-pending")
+                                : t.status === "IN_PROGRESS"
+                                  ? "pill-draft"
+                                  : "pill-pending")
                             }
                             style={{ marginLeft: "auto" }}
                           >
-                            {t.status === "DONE" ? "Done" : "À facturer"}
+                            {t.status === "DONE"
+                              ? "Done"
+                              : t.status === "IN_PROGRESS"
+                                ? "En cours"
+                                : "À facturer"}
                           </span>
                         </div>
                         <div className="task-title">{t.title}</div>
