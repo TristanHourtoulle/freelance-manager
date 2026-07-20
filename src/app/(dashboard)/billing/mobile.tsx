@@ -86,7 +86,7 @@ export function MobileBillingPage() {
                 },
                 {
                   id: "SENT" as InvoiceFilterId,
-                  label: "Émise",
+                  label: "Envoyée",
                   count: counts.sent,
                 },
                 {

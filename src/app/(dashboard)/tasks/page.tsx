@@ -327,7 +327,7 @@ export function DesktopTasksPage() {
                     { id: "done", label: "Done", count: counts.done },
                     {
                       id: "in_progress",
-                      label: "En cours",
+                      label: "In progress",
                       count: counts.in_progress,
                     },
                   ] as { id: StatusFilterId; label: string; count: number }[]

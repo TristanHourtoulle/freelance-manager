@@ -254,7 +254,7 @@ export function MobileTasksPage() {
                             {t.status === "DONE"
                               ? "Done"
                               : t.status === "IN_PROGRESS"
-                                ? "En cours"
+                                ? "In Progress"
                                 : "À facturer"}
                           </span>
                         </div>

@@ -210,7 +210,7 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
               {(
                 [
                   { id: "DRAFT", label: "Brouillon" },
-                  { id: "SENT", label: "Émise" },
+                  { id: "SENT", label: "Envoyée" },
                   { id: "CANCELLED", label: "Annulée" },
                 ] as {
                   id: "DRAFT" | "SENT" | "CANCELLED"
