@@ -30,5 +30,10 @@ const envSchema = z.object({
   HEALTH_KEY: z.string().min(16).optional(),
 })
 
-/** Validated environment variables. Throws at startup if any required variable is missing. */
+/**
+ * Validated environment variables. Parsed when this module is first imported,
+ * which happens at server startup via the `register()` hook in
+ * `src/instrumentation.ts` — a missing or malformed variable throws there and
+ * the server refuses to boot. Not evaluated during `next build`.
+ */
 export const env = envSchema.parse(process.env)
