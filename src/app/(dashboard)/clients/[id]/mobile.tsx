@@ -19,6 +19,8 @@ import {
 import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
 import { EditClientModal } from "@/components/clients/edit-client-modal"
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
+import { ClientStandingCard } from "@/components/clients/client-standing-card"
+import { ClientNotesCard } from "@/components/clients/client-notes-card"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
@@ -218,6 +220,11 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
         <div className="m-stack" style={{ marginTop: 14 }}>
           {tab === "overview" && (
             <>
+              <ClientStandingCard
+                lastContactAt={client.lastContactAt}
+                meetings={client.meetings}
+                openActions={client.openActions}
+              />
               <div className="card">
                 <div className="card-title">Coordonnées</div>
                 <div className="col gap-8">
@@ -254,21 +261,12 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
                 </div>
               </div>
 
-              {client.notes && (
-                <div className="card">
-                  <div className="card-title">Notes</div>
-                  <div
-                    className="small"
-                    style={{
-                      color: "var(--text-1)",
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
-                    }}
-                  >
-                    {client.notes}
-                  </div>
-                </div>
-              )}
+              <ClientNotesCard
+                clientId={client.id}
+                notes={client.notes}
+                className="card"
+                titleClassName="card-title"
+              />
 
               {client.deposit && client.billingMode === "FIXED" && (
                 <div className="card">

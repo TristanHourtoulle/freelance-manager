@@ -21,7 +21,8 @@ interface ClientActionsMenuProps {
 
 /**
  * "More" dropdown next to the Modifier button on the client detail page.
- * Exposes Dupliquer, Récap PDF, Archiver and Supprimer (soft-delete).
+ * Exposes Dupliquer, Récap PDF (interne), Récap client, Archiver and
+ * Supprimer (soft-delete).
  *
  * @param clientLabel Human-readable name used in confirm dialogs and toasts.
  * @param onArchived Optional callback fired once archive succeeds (used by
@@ -90,6 +91,11 @@ export function ClientActionsMenu({
     window.open(`/api/clients/${clientId}/recap`, "_blank", "noopener")
   }
 
+  function handleClientRecap() {
+    setOpen(false)
+    window.open(`/api/clients/${clientId}/client-recap`, "_blank", "noopener")
+  }
+
   function handleArchive() {
     archive.mutate(clientId, {
       onSuccess: () => {
@@ -156,7 +162,16 @@ export function ClientActionsMenu({
             onClick={handleRecap}
           >
             <Icon name="download" size={14} />
-            Récap PDF
+            Récap PDF (interne)
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={handleClientRecap}
+          >
+            <Icon name="download" size={14} />
+            Récap client
           </button>
           {!archived && (
             <button

@@ -44,6 +44,10 @@ vi.mock("@/components/suivi/suivi-view", () => ({
   SuiviView: () => null,
 }))
 
+vi.mock("@/components/clients/client-notes-card", () => ({
+  ClientNotesCard: () => null,
+}))
+
 function buildClient(): ClientDetailDTO {
   return {
     id: "client-1",
@@ -71,6 +75,9 @@ function buildClient(): ClientDetailDTO {
     starred: false,
     archived: false,
     createdAt: "2026-07-01T00:00:00.000Z",
+    lastContactAt: null,
+    meetings: [],
+    openActions: [],
     monthlyRevenue: [],
     projects: [],
     linearMappings: [],

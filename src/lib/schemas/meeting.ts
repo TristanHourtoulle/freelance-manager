@@ -6,6 +6,7 @@ const meetingBaseSchema = z.object({
   heldAt: z.coerce.date(),
   durationMinutes: z.coerce.number().int().min(0).max(100_000).default(0),
   participants: z.array(z.string().trim().min(1).max(160)).max(50).default([]),
+  agendaMd: z.string().max(20_000).optional().nullable(),
   summaryMd: z.string().max(20_000).optional().nullable(),
 })
 

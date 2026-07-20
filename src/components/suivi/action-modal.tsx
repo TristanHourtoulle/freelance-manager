@@ -11,6 +11,7 @@ import {
   useDeleteAction,
   useUpdateAction,
   type ActionDTO,
+  type ClientActionStatus,
   type ClientActionType,
 } from "@/hooks/use-actions"
 import { fmtEUR } from "@/lib/format"
@@ -22,10 +23,17 @@ const TYPE_OPTIONS: { id: ClientActionType; label: string }[] = [
   { id: "OTHER", label: "Autre" },
 ]
 
+const STATUS_OPTIONS: { id: ClientActionStatus; label: string }[] = [
+  { id: "TODO", label: "À faire" },
+  { id: "WAITING", label: "En attente" },
+  { id: "DONE", label: "Fait" },
+]
+
 interface ActionModalProps {
   clientId?: string
   action?: ActionDTO | null
   defaultType?: ClientActionType
+  defaultMeetingId?: string
   onClose: () => void
 }
 
@@ -38,6 +46,7 @@ export function ActionModal({
   clientId,
   action,
   defaultType,
+  defaultMeetingId,
   onClose,
 }: ActionModalProps) {
   const fieldId = useId()
@@ -62,6 +71,9 @@ export function ActionModal({
   const [link, setLink] = useState(action?.link ?? "")
   const [invoiceId, setInvoiceId] = useState(action?.invoiceId ?? "")
   const [notes, setNotes] = useState(action?.notes ?? "")
+  const [status, setStatus] = useState<ClientActionStatus>(
+    action?.status ?? "TODO",
+  )
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const targetClientId = clientId ?? action?.clientId ?? selectedClient
@@ -80,10 +92,11 @@ export function ActionModal({
       link: type === "LINK" ? link.trim() || null : null,
       invoiceId: type === "RELANCE" ? invoiceId || null : null,
       notes: notes.trim() || null,
+      meetingId: action?.meetingId ?? defaultMeetingId ?? null,
     }
     if (isEdit && action) {
       update.mutate(
-        { id: action.id, input: payload },
+        { id: action.id, input: { ...payload, status } },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Action mise à jour" })
@@ -163,6 +176,24 @@ export function ActionModal({
           </>
         }
       >
+        {isEdit && (
+          <div className="modal-section">
+            <div className="modal-section-title">Statut</div>
+            <div className="seg">
+              {STATUS_OPTIONS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={status === o.id ? "active" : ""}
+                  onClick={() => setStatus(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="modal-section">
           <div className="modal-section-title">Type</div>
           <div className="seg">

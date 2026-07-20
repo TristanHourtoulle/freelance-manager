@@ -2,7 +2,7 @@ import "server-only"
 import { Prisma } from "@/generated/prisma/client"
 
 export type ClientActionType = "RELANCE" | "LINK" | "RDV" | "OTHER"
-export type ClientActionStatus = "TODO" | "DONE"
+export type ClientActionStatus = "TODO" | "WAITING" | "DONE"
 
 export interface ActionClientRef {
   id: string

@@ -470,6 +470,7 @@ enum ClientActionType {
 
 enum ClientActionStatus {
   TODO
+  WAITING
   DONE
 }
 
@@ -535,6 +536,7 @@ model Meeting {
   heldAt          DateTime
   durationMinutes Int      @default(0)
   participants    String[]
+  agendaMd        String?  @db.Text
   summaryMd       String?  @db.Text
 
   actions ClientAction[]

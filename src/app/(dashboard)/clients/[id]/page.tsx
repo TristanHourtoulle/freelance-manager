@@ -43,6 +43,8 @@ const EditClientModal = dynamic(
   { ssr: false },
 )
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
+import { ClientStandingCard } from "@/components/clients/client-standing-card"
+import { ClientNotesCard } from "@/components/clients/client-notes-card"
 import { ClientRevenueChart } from "@/components/clients/client-revenue-chart"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
@@ -408,6 +410,11 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
       <Activity mode={tab === "overview" ? "visible" : "hidden"}>
         <div className="detail-cols">
           <div className="col gap-12" style={{ minWidth: 0 }}>
+            <ClientStandingCard
+              lastContactAt={client.lastContactAt}
+              meetings={client.meetings}
+              openActions={client.openActions}
+            />
             <div className="detail-card">
               <div className="detail-card-header">
                 <div>
@@ -562,33 +569,7 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
               </div>
             </div>
 
-            <div className="detail-card">
-              <div className="detail-card-header">
-                <div className="detail-card-title">Notes</div>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ padding: "4px 8px", fontSize: 12 }}
-                  onClick={() => setShowEdit(true)}
-                >
-                  <Icon name="edit" size={12} />
-                </button>
-              </div>
-              {client.notes ? (
-                <div
-                  style={{
-                    color: "var(--text-1)",
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {client.notes}
-                </div>
-              ) : (
-                <div className="muted small">Aucune note pour ce client.</div>
-              )}
-            </div>
+            <ClientNotesCard clientId={client.id} notes={client.notes} />
 
             <div className="detail-card">
               <div className="detail-card-header">
