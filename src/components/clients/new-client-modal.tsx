@@ -1,9 +1,10 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Modal } from "@/components/ui/modal"
 import { useCreateClient } from "@/hooks/use-clients"
+import { useSettings } from "@/hooks/use-settings"
 import { useToast } from "@/components/providers/toast-provider"
 import type { ClientCreateInput } from "@/lib/schemas/client"
 
@@ -17,6 +18,8 @@ const BILLING_TYPES = [
   { id: "FIXED", label: "Forfait", desc: "Au projet" },
 ] as const
 
+const FALLBACK_RATE = 500
+
 export function NewClientModal({ onClose }: NewClientModalProps) {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
@@ -24,11 +27,25 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
   const [email, setEmail] = useState("")
   const [billingMode, setBillingMode] =
     useState<ClientCreateInput["billingMode"]>("DAILY")
-  const [rate, setRate] = useState<number>(500)
+  const [rate, setRate] = useState<number>(FALLBACK_RATE)
   const [fixedPrice, setFixedPrice] = useState<number>(5000)
   const [deposit, setDeposit] = useState<number>(0)
 
   const fieldId = useId()
+
+  const { data: settings } = useSettings()
+  const rateEditedRef = useRef(false)
+  const defaultRateAppliedRef = useRef(false)
+  const defaultRate = settings?.defaultRate
+
+  useEffect(() => {
+    if (defaultRateAppliedRef.current || rateEditedRef.current) return
+    if (defaultRate == null) return
+    defaultRateAppliedRef.current = true
+    if (defaultRate <= 0) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRate(defaultRate)
+  }, [defaultRate])
 
   const createClient = useCreateClient()
   const { toast } = useToast()
@@ -192,7 +209,10 @@ export function NewClientModal({ onClose }: NewClientModalProps) {
             className="input num"
             type="number"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value))}
+            onChange={(e) => {
+              rateEditedRef.current = true
+              setRate(Number(e.target.value))
+            }}
           />
         </div>
       )}
