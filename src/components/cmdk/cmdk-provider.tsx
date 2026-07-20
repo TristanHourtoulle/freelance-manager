@@ -15,7 +15,10 @@ import {
   CommandPalette,
   type CommandItem,
 } from "@/components/cmdk/command-palette"
-import { useCommandPalette } from "@/components/cmdk/use-command-palette"
+import {
+  useCommandPalette,
+  useKeySequence,
+} from "@/components/cmdk/use-command-palette"
 import { useCommandSearch } from "@/components/cmdk/use-command-search"
 
 interface CmdKContextValue {
@@ -37,6 +40,8 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
   const syncLinear = useSyncLinear()
   const [query, setQuery] = useState("")
   const searchResults = useCommandSearch(query, router, open)
+
+  useKeySequence(["g", "d"], () => router.push("/dashboard"), open)
 
   const staticCommands = useMemo<CommandItem[]>(
     () => [
