@@ -22,6 +22,9 @@ type TaskRow = {
   completedAt: Date | null
   status: string
   invoiceId: string | null
+  clientId: string
+  estimate: number | null
+  actualDays: number | null
 }
 type MonthBucket = { month: Date; total: number }
 
@@ -140,6 +143,18 @@ function referenceAnalytics(
     .filter((x) => x.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
+    .map((x) => {
+      const days = tasks.reduce((sum, t) => {
+        if (t.clientId !== x.client.id) return sum
+        const effort = t.actualDays != null ? t.actualDays : t.estimate
+        return effort == null ? sum : sum + effort
+      }, 0)
+      return {
+        ...x,
+        days,
+        effectiveRate: days > 0 ? Math.round(x.revenue / days) : null,
+      }
+    })
 
   const billingModeRev = { DAILY: 0, FIXED: 0, HOURLY: 0 }
   for (const c of clients) {
@@ -340,38 +355,64 @@ function buildDataset(): Dataset {
       completedAt: new Date(2026, 2, 9),
       status: "done",
       invoiceId: "i1",
+      clientId: "c1",
+      estimate: 2,
+      actualDays: 3,
     },
     {
       id: "t2",
       completedAt: new Date(2026, 2, 15),
       status: "done",
       invoiceId: null,
+      clientId: "c1",
+      estimate: 1,
+      actualDays: null,
     },
     {
       id: "t3",
       completedAt: new Date(2026, 2, 2),
       status: "done",
       invoiceId: "i2",
+      clientId: "c2",
+      estimate: 4,
+      actualDays: 0,
     },
     {
       id: "t4",
       completedAt: new Date(2026, 1, 10),
       status: "done",
       invoiceId: null,
+      clientId: "c2",
+      estimate: null,
+      actualDays: null,
     },
     {
       id: "t5",
       completedAt: new Date(2026, 1, 10),
       status: "done",
       invoiceId: "i3",
+      clientId: "c3",
+      estimate: 1.5,
+      actualDays: null,
     },
     {
       id: "t6",
       completedAt: new Date(2025, 5, 1),
       status: "done",
       invoiceId: null,
+      clientId: "c1",
+      estimate: 5,
+      actualDays: 5,
     },
-    { id: "t7", completedAt: null, status: "backlog", invoiceId: null },
+    {
+      id: "t7",
+      completedAt: null,
+      status: "backlog",
+      invoiceId: null,
+      clientId: "c3",
+      estimate: null,
+      actualDays: null,
+    },
   ]
   const paidByMonth: MonthBucket[] = [
     { month: new Date(Date.UTC(2026, 0, 1)), total: 0 },

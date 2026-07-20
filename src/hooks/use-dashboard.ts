@@ -47,6 +47,7 @@ export interface DashboardDTO {
   recentTasks: {
     id: string
     linearIdentifier: string
+    linearUrl: string | null
     title: string
     status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
     projectKey: string | null

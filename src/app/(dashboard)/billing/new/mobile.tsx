@@ -15,6 +15,7 @@ import {
 } from "@/features/billing/mobile-task-picker"
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { ClientDTO } from "@/hooks/use-clients"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 type Step = 1 | 2 | 3
 
@@ -242,9 +243,12 @@ export function MobileInvoiceNewPage() {
                             >
                               {isSel && <Icon name="check" size={13} />}
                             </div>
-                            <span className="task-id">
-                              {t.linearIdentifier}
-                            </span>
+                            <TaskIdLink
+                              identifier={t.linearIdentifier}
+                              url={t.linearUrl}
+                              className="task-id"
+                              stopPropagation
+                            />
                             <span
                               className="pill pill-no-dot xs pill-pending"
                               style={{ marginLeft: "auto" }}

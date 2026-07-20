@@ -42,6 +42,7 @@ export async function GET(_: Request, { params }: Params) {
         select: {
           id: true,
           linearIdentifier: true,
+          linearUrl: true,
           title: true,
           status: true,
           estimate: true,
@@ -121,6 +122,7 @@ export async function GET(_: Request, { params }: Params) {
       tasks: tasks.map((t) => ({
         id: t.id,
         linearIdentifier: t.linearIdentifier,
+        linearUrl: t.linearUrl,
         title: t.title,
         status: t.status,
         estimate: decimalToNumber(t.estimate),

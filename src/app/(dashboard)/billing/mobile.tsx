@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { MobileSheet } from "@/components/mobile/mobile-sheet"
+import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import {
   fmtDate,
@@ -220,7 +221,36 @@ export function MobileInvoiceSheet({
   if (!invoice) {
     return (
       <MobileSheet onClose={onClose}>
-        <div className="empty">Chargement…</div>
+        <div role="status" aria-live="polite">
+          <span className="sr-only">Chargement en cours…</span>
+          <div className="row gap-10" style={{ marginBottom: 14 }}>
+            <Skeleton width={34} height={34} radius={10} />
+            <div className="grow" style={{ minWidth: 0 }}>
+              <Skeleton width="50%" height={13} />
+              <div style={{ marginTop: 6 }}>
+                <Skeleton width="34%" height={11} />
+              </div>
+            </div>
+            <Skeleton width={70} height={20} radius={99} />
+          </div>
+          <div className="card card-tight" style={{ marginBottom: 12 }}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={i}
+                className="row"
+                style={{ justifyContent: "space-between", padding: "6px 0" }}
+              >
+                <Skeleton width={80} height={11} />
+                <Skeleton width={96} height={12} />
+              </div>
+            ))}
+          </div>
+          <div className="card card-tight">
+            {Array.from({ length: 3 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        </div>
       </MobileSheet>
     )
   }

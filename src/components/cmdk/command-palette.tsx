@@ -21,6 +21,7 @@ export interface CommandItem {
   shortcut?: string[]
   keywords?: string[]
   tag?: string
+  sticky?: boolean
   run: () => void
 }
 
@@ -99,7 +100,6 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery("")
     setActive(0)
   }, [open])
@@ -125,9 +125,10 @@ export function CommandPalette({
   }, [query, onQueryChange])
 
   const grouped = useMemo<Group[]>(() => {
-    const filtered = !query.trim()
-      ? commands.map((c) => ({ cmd: c, score: 1 }))
-      : commands
+    const matchable = commands.filter((c) => !c.sticky)
+    const scored = !query.trim()
+      ? matchable
+      : matchable
           .map((c) => {
             const hay = [c.label, c.hint, c.group, ...(c.keywords ?? [])]
               .filter(Boolean)
@@ -136,21 +137,27 @@ export function CommandPalette({
           })
           .filter((x) => x.score > 0)
           .sort((a, b) => b.score - a.score)
+          .map((x) => x.cmd)
+    const ordered = [...scored, ...commands.filter((c) => c.sticky)]
 
-    const groups: Group[] = []
-    const map = new Map<string, Group>()
-    let flatIdx = 0
-    for (const { cmd } of filtered) {
+    const buckets: { label: string; items: CommandItem[] }[] = []
+    const map = new Map<string, { label: string; items: CommandItem[] }>()
+    for (const cmd of ordered) {
       const key = cmd.group ?? "Général"
       let g = map.get(key)
       if (!g) {
         g = { label: key, items: [] }
         map.set(key, g)
-        groups.push(g)
+        buckets.push(g)
       }
-      g.items.push({ ...cmd, flatIndex: flatIdx++ })
+      g.items.push(cmd)
     }
-    return groups
+
+    let flatIdx = 0
+    return buckets.map((g) => ({
+      label: g.label,
+      items: g.items.map((cmd) => ({ ...cmd, flatIndex: flatIdx++ })),
+    }))
   }, [commands, query])
 
   const flat = useMemo(() => grouped.flatMap((g) => g.items), [grouped])

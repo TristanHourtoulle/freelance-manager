@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
+import { isSyncStale, SYNC_STALE_LABEL } from "@/lib/sync-staleness"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useSettings } from "@/hooks/use-settings"
@@ -18,10 +19,24 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { TaskIdLink } from "@/components/ui/task-id-link"
+import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Tasks"
+        heading="Linear · Tasks"
+        variant="list"
+        rows={7}
+      />
+    ),
+  },
 )
 
 type StatusFilterId = "all" | "pending" | "done" | "in_progress"
@@ -29,7 +44,7 @@ type StatusFilterId = "all" | "pending" | "done" | "in_progress"
 export default function TasksPage() {
   const isMobile = useIsMobile()
   return (
-    <Suspense fallback={<div className="empty">Chargement…</div>}>
+    <Suspense fallback={<PageSkeleton rows={10} />}>
       {isMobile ? <MobileTasksPage /> : <DesktopTasksPage />}
     </Suspense>
   )
@@ -79,6 +94,8 @@ export function DesktopTasksPage() {
   const sync = useSyncLinear()
   const syncProgress = useLinearSyncProgress()
   const isSyncing = sync.isPending || syncProgress.isRunning
+  const isSyncOld =
+    Boolean(settings) && isSyncStale(settings?.linearLastSyncedAt)
 
   const counts = useMemo(
     () => ({
@@ -211,6 +228,17 @@ export function DesktopTasksPage() {
               <>
                 Synchronisées depuis Linear · {counts.all} tasks visibles ·
                 dernière sync {fmtRelative(settings?.linearLastSyncedAt)}
+                {isSyncOld && (
+                  <>
+                    {" "}
+                    <span
+                      className="pill pill-partial"
+                      title="Les tâches affichées peuvent être obsolètes : lance une synchronisation Linear."
+                    >
+                      {SYNC_STALE_LABEL}
+                    </span>
+                  </>
+                )}
                 {pendingPipeline.count > 0 && (
                   <>
                     {" · "}
@@ -520,6 +548,9 @@ export function DesktopTasksPage() {
                           <th className="right" style={{ width: 90 }}>
                             Estimate
                           </th>
+                          <th className="right" style={{ width: 92 }}>
+                            Réel
+                          </th>
                           <th className="right" style={{ width: 110 }}>
                             Valeur
                           </th>
@@ -563,9 +594,11 @@ export function DesktopTasksPage() {
                                 />
                               </td>
                               <td>
-                                <span className="task-id">
-                                  {t.linearIdentifier}
-                                </span>
+                                <TaskIdLink
+                                  identifier={t.linearIdentifier}
+                                  url={t.linearUrl}
+                                  className="task-id"
+                                />
                               </td>
                               <td className="strong">{t.title}</td>
                               <td>
@@ -575,6 +608,18 @@ export function DesktopTasksPage() {
                               </td>
                               <td className="right num">
                                 {t.estimate ? `${t.estimate}j` : "—"}
+                              </td>
+                              <td className="right">
+                                <TaskEffortInput
+                                  taskId={t.id}
+                                  actualDays={t.actualDays}
+                                  className="num"
+                                  style={{
+                                    width: 68,
+                                    padding: "4px 8px",
+                                    textAlign: "right",
+                                  }}
+                                />
                               </td>
                               <td className="right num">
                                 {value > 0 ? fmtEUR(value) : "—"}

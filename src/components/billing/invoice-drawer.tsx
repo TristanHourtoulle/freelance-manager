@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { PaymentsSection } from "@/components/billing/payments-section"
+import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 
 interface InvoiceDrawerProps {
   invoiceId: string
@@ -41,7 +42,36 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
   if (isLoading || !invoice) {
     return (
       <Modal title="Facture" onClose={onClose} width={680}>
-        <div className="empty">Chargement…</div>
+        <div role="status" aria-live="polite">
+          <span className="sr-only">Chargement en cours…</span>
+          <div className="row gap-12" style={{ marginBottom: 16 }}>
+            <Skeleton width={40} height={40} radius={10} />
+            <div className="grow" style={{ minWidth: 0 }}>
+              <Skeleton width="45%" height={14} />
+              <div style={{ marginTop: 6 }}>
+                <Skeleton width="30%" height={11} />
+              </div>
+            </div>
+            <Skeleton width={78} height={22} radius={99} />
+          </div>
+          <div className="card card-tight" style={{ marginBottom: 12 }}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={i}
+                className="row"
+                style={{ justifyContent: "space-between", padding: "6px 0" }}
+              >
+                <Skeleton width={90} height={11} />
+                <Skeleton width={110} height={12} />
+              </div>
+            ))}
+          </div>
+          <div className="card card-tight">
+            {Array.from({ length: 4 }, (_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        </div>
       </Modal>
     )
   }

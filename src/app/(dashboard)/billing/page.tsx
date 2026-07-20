@@ -16,16 +16,21 @@ import {
   type InvoiceFilterId,
 } from "@/domain/billing/filters"
 import dynamic from "next/dynamic"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 const MobileBillingPage = dynamic(
   () => import("./mobile").then((m) => m.MobileBillingPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => <MobilePageSkeleton title="Factures" variant="list" />,
+  },
 )
 
 export default function BillingPage() {
   const isMobile = useIsMobile()
   return (
-    <Suspense fallback={<div className="empty">Chargement…</div>}>
+    <Suspense fallback={<PageSkeleton kpis={4} rows={10} />}>
       {isMobile ? <MobileBillingPage /> : <DesktopBillingPage />}
     </Suspense>
   )

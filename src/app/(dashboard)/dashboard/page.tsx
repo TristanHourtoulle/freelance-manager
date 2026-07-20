@@ -6,15 +6,29 @@ import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { RelanceButton } from "@/components/dashboard/relance-button"
 import { TodayBlock } from "@/components/suivi/today-block"
 import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 const MobileDashboardPage = dynamic(
   () => import("./mobile").then((m) => m.MobileDashboardPage),
-  { ssr: false, loading: () => <div className="empty">Chargement…</div> },
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton
+        title="Pilotage"
+        heading="Pilotage"
+        subtitle="Vue d'ensemble du mois"
+        variant="tiles"
+        rows={4}
+      />
+    ),
+  },
 )
 
 export default function DashboardPage() {
@@ -206,10 +220,10 @@ function DesktopDashboardPage() {
                           Échue il y a {daysLate}j · {fmtEUR(inv.total)}
                         </div>
                       </div>
-                      <button className="btn btn-sm btn-secondary">
-                        <Icon name="mail" size={12} />
-                        Relancer
-                      </button>
+                      <RelanceButton
+                        invoiceId={inv.id}
+                        clientId={inv.clientId}
+                      />
                     </div>
                   )
                 })}
@@ -376,7 +390,11 @@ function DesktopDashboardPage() {
                       borderBottom: "1px solid var(--border)",
                     }}
                   >
-                    <span className="task-id mono">{t.linearIdentifier}</span>
+                    <TaskIdLink
+                      identifier={t.linearIdentifier}
+                      url={t.linearUrl}
+                      className="task-id mono"
+                    />
                     <div className="grow truncate small">{t.title}</div>
                     <span className="xs muted">{t.projectKey ?? ""}</span>
                     <StatusPill

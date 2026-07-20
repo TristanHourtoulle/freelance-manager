@@ -8,6 +8,7 @@ import {
   buildPagedResponse,
   getAuthUser,
   parsePagination,
+  parseSearchQuery,
   requireSameOrigin,
 } from "@/lib/api"
 import { clientCreateSchema } from "@/lib/schemas/client"
@@ -34,6 +35,7 @@ export async function GET(req: Request) {
 
   try {
     const { cursor, limit } = parsePagination(req)
+    const q = parseSearchQuery(req)
     const params = new URL(req.url).searchParams
     const { archived, summary } = clientsQuerySchema.parse({
       archived: params.get("archived") ?? undefined,
@@ -44,7 +46,7 @@ export async function GET(req: Request) {
       return NextResponse.json(await getClientsBillableSummary(user.id))
     }
 
-    if (!cursor && limit === 50 && !archived) {
+    if (!cursor && limit === 50 && !archived && !q) {
       return NextResponse.json(await getClientsFirstPage(user.id))
     }
 
@@ -52,6 +54,16 @@ export async function GET(req: Request) {
       where: {
         userId: user.id,
         archivedAt: archived ? { not: null } : null,
+        ...(q
+          ? {
+              OR: [
+                { firstName: { contains: q, mode: "insensitive" as const } },
+                { lastName: { contains: q, mode: "insensitive" as const } },
+                { company: { contains: q, mode: "insensitive" as const } },
+                { email: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,

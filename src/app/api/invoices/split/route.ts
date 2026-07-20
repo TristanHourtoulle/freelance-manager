@@ -8,6 +8,7 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceSplitSchema } from "@/lib/schemas/invoice-split"
+import { allocateSplitAmounts } from "@/lib/billing-math"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
 
@@ -116,10 +117,12 @@ function shiftDate(
 /**
  * POST /api/invoices/split
  *
- * Splits a single invoice payload into N installments. Each installment gets
- * `total / N` as its totalOverride (so lines remain decorative across all
- * parts) and a dueDate shifted by the chosen schedule. Tasks linked in the
- * payload's `taskIds` are attached to the FIRST installment only.
+ * Splits a single invoice payload into N installments. The contract total is
+ * allocated with `allocateSplitAmounts`, so the parts sum back exactly (the
+ * leftover cents go to the earliest installments). Each installment stores its
+ * own share as both `subtotal` and `totalOverride` (lines remain decorative
+ * across all parts) and gets a dueDate shifted by the chosen schedule. Tasks
+ * linked in the payload's `taskIds` are attached to the FIRST installment only.
  *
  * @returns `{ items: [{ id, number, total, dueDate }, …] }`
  */
@@ -146,7 +149,7 @@ export async function POST(req: Request) {
     )
     const baseTotal =
       base.totalOverride != null ? Number(base.totalOverride) : subtotal
-    const partAmount = Math.round((baseTotal / parts) * 100) / 100
+    const partAmounts = allocateSplitAmounts(baseTotal, parts)
 
     const year = new Date(base.issueDate).getFullYear()
     const numbers = await allocateNumbers(user.id, year, parts, base.number)
@@ -160,6 +163,7 @@ export async function POST(req: Request) {
       }[] = []
       for (let i = 0; i < parts; i++) {
         const isFirst = i === 0
+        const partAmount = partAmounts[i] as number
         const dueDate = shiftDate(base.dueDate, data.schedule, i)
         const partNote = `Acompte ${i + 1}/${parts} — total contractuel ${baseTotal}€`
         const inv = await tx.invoice.create({
@@ -172,7 +176,7 @@ export async function POST(req: Request) {
             kind: base.kind,
             issueDate: new Date(base.issueDate),
             dueDate: new Date(dueDate),
-            subtotal,
+            subtotal: partAmount,
             tax: 0,
             total: partAmount,
             totalOverride: partAmount,

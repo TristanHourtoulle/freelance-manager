@@ -24,3 +24,9 @@ export const taskFilterSchema = z.object({
 })
 
 export type TaskFilterInput = z.input<typeof taskFilterSchema>
+
+export const taskUpdateSchema = z.object({
+  actualDays: z.coerce.number().min(0).max(9999.99).nullable().optional(),
+})
+
+export type TaskUpdateInput = z.input<typeof taskUpdateSchema>
