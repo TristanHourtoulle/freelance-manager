@@ -6,6 +6,10 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, fmtRelative } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
+import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
 import { TodayBlock } from "@/components/suivi/today-block"
 import { RelanceButton } from "@/components/dashboard/relance-button"
 import { TaskIdLink } from "@/components/ui/task-id-link"
@@ -27,6 +31,13 @@ export function MobileDashboardPage() {
     pipelineCount: 0,
     pipelineEur: 0,
     pipelineClientCount: 0,
+  }
+  const capacity = data?.capacity ?? {
+    days: 0,
+    taskCount: 0,
+    estimatedTaskCount: 0,
+    missingEstimateCount: 0,
+    workingDaysPerWeek: 5,
   }
   const months = useMemo(() => data?.months ?? [], [data?.months])
   const overdue = data?.overdue ?? []
@@ -107,6 +118,18 @@ export function MobileDashboardPage() {
               </div>
               <div className="kpi-value">{fmtEUR(kpi.outstanding)}</div>
               <div className="kpi-sub muted">{kpi.overdueCount} en retard</div>
+            </div>
+            <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
+              <div className="kpi-label">
+                <Icon name="clock" size={11} />
+                Charge
+              </div>
+              <div className="kpi-value num">
+                {formatWorkloadDays(capacity.days)}
+              </div>
+              <div className="kpi-sub muted">
+                {formatWorkloadCoverage(capacity)}
+              </div>
             </div>
           </div>
 

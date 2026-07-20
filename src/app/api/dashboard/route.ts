@@ -3,6 +3,10 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 import { computeDashboardKpis } from "@/domain/billing/kpis"
+import {
+  clampWorkingDaysPerWeek,
+  summarizeWorkload,
+} from "@/domain/capacity/workload"
 import { sweepOverdueRelances } from "@/lib/relance"
 
 export async function GET() {
@@ -20,6 +24,11 @@ export async function GET() {
       status: "PENDING_INVOICE",
     }
 
+    const openTasksWhere: Prisma.TaskWhereInput = {
+      userId: user.id,
+      status: { in: ["BACKLOG", "IN_PROGRESS"] },
+    }
+
     const [
       openInvoices,
       paymentTotals,
@@ -27,6 +36,7 @@ export async function GET() {
       pipelineTasks,
       recentInvoices,
       recentTasks,
+      openTasks,
       lastSync,
     ] = await Promise.all([
       prisma.invoice.findMany({
@@ -110,11 +120,17 @@ export async function GET() {
           project: { select: { key: true } },
         },
       }),
+      prisma.task.findMany({
+        where: openTasksWhere,
+        select: { estimate: true },
+      }),
       prisma.userSettings.findUnique({
         where: { userId: user.id },
-        select: { linearLastSyncedAt: true },
+        select: { linearLastSyncedAt: true, workingDaysPerWeek: true },
       }),
     ])
+
+    const workload = summarizeWorkload(openTasks)
 
     const {
       kpi,
@@ -154,6 +170,15 @@ export async function GET() {
         status: t.status,
         projectKey: t.project?.key ?? null,
       })),
+      capacity: {
+        days: workload.days,
+        taskCount: workload.taskCount,
+        estimatedTaskCount: workload.estimatedTaskCount,
+        missingEstimateCount: workload.missingEstimateCount,
+        workingDaysPerWeek: clampWorkingDaysPerWeek(
+          lastSync?.workingDaysPerWeek,
+        ),
+      },
       lastSync: lastSync?.linearLastSyncedAt?.toISOString() ?? null,
     })
   } catch (error) {

@@ -12,6 +12,10 @@ import {
   taskStatusToPill,
 } from "@/components/ui/pill"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
+import {
+  formatWorkloadCoverage,
+  formatWorkloadDays,
+} from "@/domain/capacity/workload"
 import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
 import { EditClientModal } from "@/components/clients/edit-client-modal"
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
@@ -172,6 +176,18 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
           <div className="kpi-tile">
             <div className="kpi-label">Projets</div>
             <div className="kpi-value">{projects.length}</div>
+          </div>
+          <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
+            <div className="kpi-label">
+              <Icon name="clock" size={11} />
+              Charge
+            </div>
+            <div className="kpi-value num">
+              {formatWorkloadDays(client.workload.days)}
+            </div>
+            <div className="kpi-sub muted">
+              {formatWorkloadCoverage(client.workload)}
+            </div>
           </div>
         </div>
 

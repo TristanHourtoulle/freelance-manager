@@ -173,6 +173,8 @@ interface RawIssueProject {
   description: string | null
   state: string | null
   createdAt: string | null
+  startDate: string | null
+  targetDate: string | null
 }
 
 interface RawIssueNode {
@@ -184,6 +186,7 @@ interface RawIssueNode {
   priority: number | null
   estimate: number | null
   completedAt: string | null
+  dueDate: string | null
   createdAt: string | null
   updatedAt: string | null
   state: RawIssueState | null
@@ -210,6 +213,7 @@ interface EnrichedIssue {
     priority: number | null
     estimate: number | null
     completedAt: Date | null
+    dueDate: Date | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -219,6 +223,8 @@ interface EnrichedIssue {
     description: string | null
     state: string | null
     createdAt: Date | null
+    startDate: Date | null
+    targetDate: Date | null
   } | null
   team: { id: string; key: string | null } | null
   state: { name: string | null; type: string | null } | null
@@ -249,11 +255,12 @@ const ISSUES_SYNC_QUERY = `
         priority
         estimate
         completedAt
+        dueDate
         createdAt
         updatedAt
         state { name type }
         team { id key }
-        project { id name description state createdAt }
+        project { id name description state createdAt startDate targetDate }
       }
     }
   }
@@ -261,6 +268,19 @@ const ISSUES_SYNC_QUERY = `
 
 function toDate(value: string | null | undefined): Date | null {
   return value ? new Date(value) : null
+}
+
+/**
+ * Parse Linear's `TimelessDate` scalar (an ISO `YYYY-MM-DD` string) into a Date.
+ *
+ * @param value - Raw scalar value; the Linear SDK types it loosely, so anything
+ *   that is not a non-empty string is treated as absent.
+ * @returns UTC midnight of that day, or `null` when absent or unparseable.
+ */
+export function toTimelessDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.length === 0) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
 /** Normalize a raw GraphQL issue node into the shape the write phase consumes. */
@@ -275,6 +295,7 @@ export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
       priority: node.priority ?? null,
       estimate: node.estimate ?? null,
       completedAt: toDate(node.completedAt),
+      dueDate: toTimelessDate(node.dueDate),
       createdAt: toDate(node.createdAt),
       updatedAt: toDate(node.updatedAt),
     },
@@ -285,6 +306,8 @@ export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
           description: node.project.description ?? null,
           state: node.project.state ?? null,
           createdAt: toDate(node.project.createdAt),
+          startDate: toTimelessDate(node.project.startDate),
+          targetDate: toTimelessDate(node.project.targetDate),
         }
       : null,
     team: node.team ? { id: node.team.id, key: node.team.key ?? null } : null,
@@ -389,6 +412,7 @@ interface TaskWriteInput {
   priority: TaskPriority
   estimate: number | null
   completedAt: Date | null
+  dueDate: Date | null
   linearCreatedAt: Date | null
   linearUpdatedAt: Date | null
 }
@@ -432,6 +456,7 @@ async function bulkUpsertTasks(
         priority: r.priority,
         estimate: r.estimate,
         completedAt: r.completedAt,
+        dueDate: r.dueDate,
         linearCreatedAt: r.linearCreatedAt,
         linearUpdatedAt: r.linearUpdatedAt,
       })),
@@ -456,6 +481,7 @@ async function bulkUpsertTasks(
         priority: r.priority,
         estimate: r.estimate,
         completedAt: r.completedAt,
+        dueDate: r.dueDate,
         linearUpdatedAt: r.linearUpdatedAt,
         lastSyncedAt: syncedAt,
       },
@@ -587,12 +613,16 @@ export async function syncFromLinear(
               description: project.description ?? null,
               status: projectStatus(project.state),
               linearCreatedAt: project.createdAt ?? null,
+              startDate: project.startDate ?? null,
+              targetDate: project.targetDate ?? null,
             },
             update: {
               name: project.name,
               description: project.description ?? null,
               status: projectStatus(project.state),
               linearTeamId: team?.id ?? null,
+              startDate: project.startDate ?? null,
+              targetDate: project.targetDate ?? null,
               lastSyncedAt: new Date(),
             },
           })
@@ -619,6 +649,7 @@ export async function syncFromLinear(
           priority: mapLinearPriority(issue.priority),
           estimate: issue.estimate ?? null,
           completedAt: issue.completedAt ?? null,
+          dueDate: issue.dueDate ?? null,
           linearCreatedAt: issue.createdAt ?? null,
           linearUpdatedAt: issue.updatedAt ?? null,
         })
@@ -683,12 +714,16 @@ export async function syncOneProject(opts: {
         description: linearProject.description ?? null,
         status: projectStatusValue,
         linearCreatedAt: linearProject.createdAt ?? null,
+        startDate: toTimelessDate(linearProject.startDate),
+        targetDate: toTimelessDate(linearProject.targetDate),
       },
       update: {
         clientId: opts.clientId,
         name: linearProject.name,
         description: linearProject.description ?? null,
         status: projectStatusValue,
+        startDate: toTimelessDate(linearProject.startDate),
+        targetDate: toTimelessDate(linearProject.targetDate),
         lastSyncedAt: new Date(),
       },
     })
@@ -730,6 +765,7 @@ export async function syncOneProject(opts: {
       priority: mapLinearPriority(issue.priority),
       estimate: issue.estimate ?? null,
       completedAt: issue.completedAt ?? null,
+      dueDate: issue.dueDate ?? null,
       linearCreatedAt: issue.createdAt ?? null,
       linearUpdatedAt: issue.updatedAt ?? null,
     }))

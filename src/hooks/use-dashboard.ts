@@ -19,6 +19,13 @@ export interface DashboardDTO {
     pipelineEur: number
     pipelineClientCount: number
   }
+  capacity: {
+    days: number
+    taskCount: number
+    estimatedTaskCount: number
+    missingEstimateCount: number
+    workingDaysPerWeek: number
+  }
   months: { month: string; total: number; isCurrent: boolean }[]
   overdue: {
     id: string

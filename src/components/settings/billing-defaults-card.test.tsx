@@ -10,6 +10,7 @@ vi.mock("@/hooks/use-settings", () => ({
       defaultCurrency: "EUR",
       defaultPaymentDays: 45,
       defaultRate: 620,
+      workingDaysPerWeek: 4,
       hasLinearToken: false,
       linearTokenPreview: null,
       linearLastSyncedAt: null,
@@ -67,6 +68,24 @@ describe("BillingDefaultsCard", () => {
     expect(mutate).toHaveBeenCalledWith({
       defaultPaymentDays: 45,
       defaultRate: 700,
+      workingDaysPerWeek: 4,
+    })
+  })
+
+  it("hydrates the working days field and sends it when changed", async () => {
+    mutate.mockClear()
+    render(<BillingDefaultsCard />)
+
+    const field = screen.getByLabelText("Jours travaillés par semaine")
+    await waitFor(() => expect(field).toHaveValue(4))
+
+    fireEvent.change(field, { target: { value: "6" } })
+    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }))
+
+    expect(mutate).toHaveBeenCalledWith({
+      defaultPaymentDays: 45,
+      defaultRate: 620,
+      workingDaysPerWeek: 6,
     })
   })
 })

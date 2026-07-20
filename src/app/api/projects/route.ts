@@ -8,7 +8,7 @@ import {
   parsePagination,
   parseSearchQuery,
 } from "@/lib/api"
-import { getProjectsFirstPage } from "@/lib/data/projects"
+import { attachProjectRisk, getProjectsFirstPage } from "@/lib/data/projects"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -48,6 +48,7 @@ export async function GET(req: Request) {
       },
     })
     const paged = buildPagedResponse(rows, limit)
+    const riskById = await attachProjectRisk(user.id, paged.data)
     return NextResponse.json({
       data: paged.data.map((p) => ({
         id: p.id,
@@ -60,6 +61,9 @@ export async function GET(req: Request) {
         description: p.description,
         status: p.status,
         tasksTotal: p._count.tasks,
+        targetDate: riskById.get(p.id)?.targetDate ?? null,
+        remainingDays: riskById.get(p.id)?.remainingDays ?? 0,
+        atRisk: riskById.get(p.id)?.atRisk ?? false,
       })),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,

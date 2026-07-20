@@ -653,6 +653,9 @@ textarea {
   gap: 14px;
   margin-bottom: 28px;
 }
+.kpi-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
 .kpi {
   position: relative;
   background: var(--bg-1);
@@ -687,6 +690,10 @@ textarea {
 }
 .kpi.k-overdue::before {
   background: var(--danger);
+}
+.kpi.kpi-purple::before,
+.kpi.k-workload::before {
+  background: var(--purple);
 }
 .kpi-label {
   font-size: 11px;
