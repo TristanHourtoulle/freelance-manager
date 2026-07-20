@@ -68,8 +68,10 @@ User ─┬─> Client ─┬─> Project (linked to Linear) ─> Task (synced f
   (single line, fixed amount — used for `FIXED` price clients).
 - **Billing modes (Client.billingMode)**: `DAILY` | `FIXED` | `HOURLY`. **No
   `FREE`** — removed in the rework.
-- **Client.category**: drives task filtering (Freelance / Side project /
-  Personal / Study) — see chips on Tasks page.
+- **Client.category**: classifies a client as Freelance / Side project /
+  Personal / Study. Used as an analytics dimension (effort-days and task
+  counts are broken down by category on /analytics); it is **not** a filter on
+  the Tasks page today.
 
 ### Task → Invoice line mapping
 

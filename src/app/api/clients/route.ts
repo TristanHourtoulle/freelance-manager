@@ -17,6 +17,7 @@ import {
   clientsTag,
   getClientsBillableSummary,
   getClientsFirstPage,
+  getClientsRecencySummary,
   serializeClient,
 } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
@@ -26,7 +27,7 @@ const clientsQuerySchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
-  summary: z.literal("billable").optional(),
+  summary: z.enum(["billable", "recency"]).optional(),
 })
 
 export async function GET(req: Request) {
@@ -44,6 +45,10 @@ export async function GET(req: Request) {
 
     if (summary === "billable") {
       return NextResponse.json(await getClientsBillableSummary(user.id))
+    }
+
+    if (summary === "recency") {
+      return NextResponse.json(await getClientsRecencySummary(user.id))
     }
 
     if (!cursor && limit === 50 && !archived && !q) {

@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { BillingTypePill } from "@/components/ui/pill"
-import { useClients } from "@/hooks/use-clients"
+import { useClients, useClientsRecency } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useTasks } from "@/hooks/use-tasks"
 import { useProjects } from "@/hooks/use-projects"
@@ -28,6 +28,7 @@ export function MobileClientsPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
+  const { data: recency } = useClientsRecency()
   const [filter, setFilter] = useState<Filter>("all")
   const [search, setSearch] = useState("")
   const [showNew, setShowNew] = useState(false)
@@ -49,9 +50,17 @@ export function MobileClientsPage() {
           (t) => t.clientId === c.id && t.status === "PENDING_INVOICE",
         ).length
         const projectsCount = projects.filter((p) => p.clientId === c.id).length
-        return { ...c, projectsCount, pendingTasksCount, revenue }
+        const recent = recency?.byClient[c.id]
+        return {
+          ...c,
+          projectsCount,
+          pendingTasksCount,
+          revenue,
+          silentDays: recent?.silentDays ?? null,
+          isSilent: recent?.isSilent ?? false,
+        }
       })
-  }, [clients, invoices, tasks, projects, filter, search])
+  }, [clients, invoices, tasks, projects, recency, filter, search])
 
   return (
     <div className="m-screen">
@@ -130,6 +139,13 @@ export function MobileClientsPage() {
                   </div>
                   <BillingTypePill type={c.billingMode} />
                 </div>
+                {c.isSilent && (
+                  <div className="row" style={{ marginTop: 8 }}>
+                    <span className="pill pill-overdue pill-no-dot">
+                      Silencieux depuis {c.silentDays} j
+                    </span>
+                  </div>
+                )}
                 <div className="divider" style={{ margin: "10px 0" }} />
                 <div
                   style={{

@@ -14,7 +14,8 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
 }))
 
-const { getClientsBillableSummary } = await import("./clients")
+const { getClientsBillableSummary, getClientsRecencySummary } =
+  await import("./clients")
 
 describe("getClientsBillableSummary", () => {
   beforeEach(() => {
@@ -96,5 +97,52 @@ describe("getClientsBillableSummary", () => {
     const summary = await getClientsBillableSummary("user-1")
 
     expect(summary.byClient["a"]).toEqual({ count: 3, value: 1000 })
+  })
+})
+
+describe("getClientsRecencySummary", () => {
+  beforeEach(() => {
+    queryRaw.mockReset()
+  })
+
+  it("unions the three time sources in a single grouped query", async () => {
+    queryRaw.mockResolvedValue([])
+
+    await getClientsRecencySummary("user-1")
+
+    const [strings, ...values] = queryRaw.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ]
+    const sql = strings.join("?")
+    expect(queryRaw).toHaveBeenCalledTimes(1)
+    expect(sql).toContain("activity_log")
+    expect(sql).toContain("meetings")
+    expect(sql).toContain("tasks")
+    expect(sql).toContain('GROUP BY s."clientId"')
+    expect(values).toEqual(["user-1", "user-1", "user-1"])
+  })
+
+  it("folds the grouped rows into the per-client silence summary", async () => {
+    const now = Date.now()
+    const day = 86_400_000
+    queryRaw.mockResolvedValue([
+      { clientId: "a", lastContactAt: new Date(now - 2 * day) },
+      { clientId: "b", lastContactAt: new Date(now - 90 * day) },
+    ])
+
+    const summary = await getClientsRecencySummary("user-1")
+
+    expect(queryRaw).toHaveBeenCalledTimes(1)
+    expect(summary.byClient["a"]?.isSilent).toBe(false)
+    expect(summary.byClient["a"]?.silentDays).toBe(2)
+    expect(summary.byClient["b"]?.isSilent).toBe(true)
+    expect(summary.byClient["b"]?.silentDays).toBe(90)
+  })
+
+  it("returns no entries when no client has ever been contacted", async () => {
+    queryRaw.mockResolvedValue([])
+
+    expect(await getClientsRecencySummary("user-1")).toEqual({ byClient: {} })
   })
 })
