@@ -2,18 +2,11 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useCommandSearch } from "@/components/cmdk/use-command-search"
 
-const mockClients = vi.fn()
-const mockInvoices = vi.fn()
-const mockTasks = vi.fn()
+const mockEntitySearch = vi.fn()
 
-vi.mock("@/hooks/use-clients", () => ({
-  useClients: (...args: unknown[]) => mockClients(...args),
-}))
-vi.mock("@/hooks/use-invoices", () => ({
-  useInvoices: (...args: unknown[]) => mockInvoices(...args),
-}))
-vi.mock("@/hooks/use-tasks", () => ({
-  useTasks: (...args: unknown[]) => mockTasks(...args),
+vi.mock("@/hooks/use-entity-search", () => ({
+  SEARCH_LIMIT: 6,
+  useEntitySearch: (...args: unknown[]) => mockEntitySearch(...args),
 }))
 
 function makeRouter() {
@@ -30,18 +23,24 @@ const CLIENTS = [
     company: "Acme SAS",
     email: "hello@acme.io",
   },
+]
+
+const PROJECTS = [
   {
-    id: "c2",
-    firstName: "Bob",
-    lastName: "Martin",
-    company: null,
-    email: null,
+    id: "p1",
+    key: "ACM",
+    name: "Refonte Acme",
+    client: { firstName: "Acme", lastName: "Corp", company: "Acme SAS" },
   },
 ]
 
 const INVOICES = [
-  { id: "i1", number: "FAC-2026-001", total: 1200 },
-  { id: "i2", number: "FAC-2026-042", total: 800 },
+  {
+    id: "i2",
+    number: "FAC-2026-042",
+    total: 800,
+    clientName: "Acme SAS",
+  },
 ]
 
 const TASKS = [
@@ -51,15 +50,23 @@ const TASKS = [
     title: "Command palette",
     clientId: "c1",
   },
-  { id: "t2", linearIdentifier: "TRI-9", title: "Other", clientId: "c2" },
 ]
+
+function results(overrides: Record<string, unknown> = {}) {
+  return {
+    clients: { rows: CLIENTS, hasMore: false },
+    projects: { rows: PROJECTS, hasMore: false },
+    invoices: { rows: INVOICES, hasMore: false },
+    tasks: { rows: TASKS, hasMore: false },
+    isPending: false,
+    ...overrides,
+  }
+}
 
 describe("useCommandSearch", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    mockClients.mockReturnValue({ data: CLIENTS })
-    mockInvoices.mockReturnValue({ data: INVOICES })
-    mockTasks.mockReturnValue({ data: TASKS })
+    mockEntitySearch.mockReturnValue(results())
   })
 
   afterEach(() => {
@@ -90,12 +97,28 @@ describe("useCommandSearch", () => {
     expect(router.push).toHaveBeenCalledWith("/clients/c1")
   })
 
+  it("exposes a Projets group and navigates to the project tasks", () => {
+    const { result, router } = run("acme")
+    const project = result.current.find((c) => c.group === "Projets")
+    expect(project?.label).toBe("Refonte Acme")
+    expect(project?.keywords).toContain("ACM")
+    project?.run()
+    expect(router.push).toHaveBeenCalledWith("/tasks?projectId=p1")
+  })
+
   it("matches an invoice by number and navigates with invoiceId", () => {
     const { result, router } = run("042")
     const invoice = result.current.find((c) => c.group === "Factures")
     expect(invoice?.label).toBe("Facture FAC-2026-042")
     invoice?.run()
     expect(router.push).toHaveBeenCalledWith("/billing?invoiceId=i2")
+  })
+
+  it("carries the client name of an invoice so relation hits stay visible", () => {
+    const { result } = run("acme")
+    const invoice = result.current.find((c) => c.group === "Factures")
+    expect(invoice?.keywords).toContain("Acme SAS")
+    expect(invoice?.hint).toContain("Acme SAS")
   })
 
   it("matches a task by identifier and navigates to its client tasks", () => {
@@ -109,41 +132,46 @@ describe("useCommandSearch", () => {
   it("groups results by entity type", () => {
     const { result } = run("acme")
     const groups = new Set(result.current.map((c) => c.group))
-    expect(groups.has("Clients")).toBe(true)
+    expect(groups).toEqual(new Set(["Clients", "Projets", "Factures", "Tasks"]))
   })
 
-  it("disables the three entity queries when the palette is closed", () => {
+  it("queries the server with the debounced term instead of a cached page", () => {
     const router = makeRouter()
-    renderHook(() => useCommandSearch("acme", router, false))
-
-    expect(mockClients).toHaveBeenCalledWith({ enabled: false })
-    expect(mockInvoices).toHaveBeenCalledWith({ enabled: false })
-    expect(mockTasks).toHaveBeenCalledWith(undefined, { enabled: false })
-  })
-
-  it("enables the three entity queries when the palette is open", () => {
-    const router = makeRouter()
-    renderHook(() => useCommandSearch("acme", router, true))
-
-    expect(mockClients).toHaveBeenCalledWith({ enabled: true })
-    expect(mockInvoices).toHaveBeenCalledWith({ enabled: true })
-    expect(mockTasks).toHaveBeenCalledWith(undefined, { enabled: true })
-  })
-
-  it("debounces query changes before recomputing results", () => {
-    const router = makeRouter()
-    const { result, rerender } = renderHook(
+    const { rerender } = renderHook(
       ({ q }: { q: string }) => useCommandSearch(q, router),
       { initialProps: { q: "" } },
     )
-    expect(result.current).toEqual([])
-
-    rerender({ q: "acme" })
-    expect(result.current).toEqual([])
-
+    rerender({ q: "  Acme  " })
     act(() => {
       vi.advanceTimersByTime(200)
     })
-    expect(result.current.some((c) => c.group === "Clients")).toBe(true)
+
+    expect(mockEntitySearch).toHaveBeenLastCalledWith("Acme", true)
+  })
+
+  it("disables the entity search when the palette is closed", () => {
+    const router = makeRouter()
+    renderHook(() => useCommandSearch("acme", router, false))
+
+    expect(mockEntitySearch).toHaveBeenCalledWith("acme", false)
+  })
+
+  it("appends a sticky notice when the server truncated a group", () => {
+    mockEntitySearch.mockReturnValue(
+      results({ clients: { rows: CLIENTS, hasMore: true } }),
+    )
+    const { result, router } = run("acme")
+
+    const notice = result.current.find((c) => c.id === "clients-truncated")
+    expect(notice?.sticky).toBe(true)
+    expect(notice?.group).toBe("Clients")
+    expect(notice?.label).toContain("6 premiers résultats")
+    notice?.run()
+    expect(router.push).toHaveBeenCalledWith("/clients")
+  })
+
+  it("omits the truncation notice when every match fits", () => {
+    const { result } = run("acme")
+    expect(result.current.some((c) => c.sticky)).toBe(false)
   })
 })
