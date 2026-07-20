@@ -55,12 +55,24 @@ describe("SkeletonText", () => {
     const { container } = render(<SkeletonText lines={5} />)
     expect(container.querySelectorAll(".skeleton")).toHaveLength(5)
   })
+
+  it("is hidden from assistive technology", () => {
+    const { container } = render(<SkeletonText />)
+    const el = container.firstChild as HTMLElement
+    expect(el.getAttribute("aria-hidden")).toBe("true")
+  })
 })
 
 describe("SkeletonRow", () => {
   it("renders three skeleton blocks", () => {
     const { container } = render(<SkeletonRow />)
     expect(container.querySelectorAll(".skeleton")).toHaveLength(3)
+  })
+
+  it("is hidden from assistive technology", () => {
+    const { container } = render(<SkeletonRow />)
+    const el = container.firstChild as HTMLElement
+    expect(el.getAttribute("aria-hidden")).toBe("true")
   })
 })
 
@@ -69,11 +81,59 @@ describe("SkeletonCard", () => {
     const { container } = render(<SkeletonCard />)
     expect(container.querySelectorAll(".skeleton")).toHaveLength(3)
   })
+
+  it("reuses the shared card class instead of re-declaring its geometry", () => {
+    const { container } = render(<SkeletonCard />)
+    const el = container.firstChild as HTMLElement
+    expect(el.classList.contains("card")).toBe(true)
+    expect(el.className).not.toMatch(/\bp-5\b/)
+  })
+
+  it("honours a variant class passed through className", () => {
+    const { container } = render(<SkeletonCard className="card-tight" />)
+    const el = container.firstChild as HTMLElement
+    expect(el.classList.contains("card")).toBe(true)
+    expect(el.classList.contains("card-tight")).toBe(true)
+  })
+
+  it("is hidden from assistive technology", () => {
+    const { container } = render(<SkeletonCard />)
+    const el = container.firstChild as HTMLElement
+    expect(el.getAttribute("aria-hidden")).toBe("true")
+  })
 })
 
 describe("SkeletonKpi", () => {
-  it("renders a label bar and a value bar", () => {
+  it("renders a label bar, a value bar and a sub bar", () => {
     const { container } = render(<SkeletonKpi />)
-    expect(container.querySelectorAll(".skeleton")).toHaveLength(2)
+    expect(container.querySelectorAll(".skeleton")).toHaveLength(3)
+  })
+
+  it("reuses the shared kpi class instead of re-declaring its geometry", () => {
+    const { container } = render(<SkeletonKpi />)
+    const el = container.firstChild as HTMLElement
+    expect(el.classList.contains("kpi")).toBe(true)
+    expect(el.className).not.toMatch(/\bp-5\b/)
+    expect(el.className).not.toMatch(/border-l-accent/)
+  })
+
+  it("mirrors the real tile structure", () => {
+    const { container } = render(<SkeletonKpi />)
+    expect(container.querySelector(".kpi-label")).not.toBeNull()
+    expect(container.querySelector(".kpi-value")).not.toBeNull()
+    expect(container.querySelector(".kpi-sub")).not.toBeNull()
+  })
+
+  it("honours a variant class passed through className", () => {
+    const { container } = render(<SkeletonKpi className="kpi-info" />)
+    const el = container.firstChild as HTMLElement
+    expect(el.classList.contains("kpi")).toBe(true)
+    expect(el.classList.contains("kpi-info")).toBe(true)
+  })
+
+  it("is hidden from assistive technology", () => {
+    const { container } = render(<SkeletonKpi />)
+    const el = container.firstChild as HTMLElement
+    expect(el.getAttribute("aria-hidden")).toBe("true")
   })
 })
