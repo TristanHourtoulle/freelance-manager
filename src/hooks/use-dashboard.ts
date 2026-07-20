@@ -10,6 +10,7 @@ export interface DashboardDTO {
     revenueYear: number
     paidCount: number
     paidCountMonth: number
+    paidCountYear: number
     outstanding: number
     sentCount: number
     overdueAmount: number

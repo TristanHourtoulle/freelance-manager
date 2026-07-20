@@ -17,7 +17,6 @@ export async function GET() {
     const pendingTasksWhere: Prisma.TaskWhereInput = {
       userId: user.id,
       status: "PENDING_INVOICE",
-      client: { billingMode: { in: ["DAILY", "HOURLY"] } },
     }
 
     const [
@@ -25,7 +24,6 @@ export async function GET() {
       paymentTotals,
       paymentBuckets,
       pipelineTasks,
-      pipelineClients,
       recentInvoices,
       recentTasks,
       lastSync,
@@ -51,6 +49,7 @@ export async function GET() {
         {
           paid_count: bigint
           paid_count_month: bigint
+          paid_count_year: bigint
           revenue_month: number
           revenue_year: number
         }[]
@@ -58,6 +57,7 @@ export async function GET() {
         SELECT
           COUNT(*)::bigint AS paid_count,
           COUNT(*) FILTER (WHERE "paidAt" >= ${monthStart})::bigint AS paid_count_month,
+          COUNT(*) FILTER (WHERE "paidAt" >= ${yearStart})::bigint AS paid_count_year,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${monthStart}), 0)::float AS revenue_month,
           COALESCE(SUM(amount) FILTER (WHERE "paidAt" >= ${yearStart}), 0)::float AS revenue_year
         FROM payments
@@ -75,11 +75,11 @@ export async function GET() {
       prisma.task.findMany({
         where: pendingTasksWhere,
         select: {
+          clientId: true,
           estimate: true,
           client: { select: { billingMode: true, rate: true } },
         },
       }),
-      prisma.task.groupBy({ by: ["clientId"], where: pendingTasksWhere }),
       prisma.invoice.findMany({
         where: { userId: user.id },
         orderBy: { issueDate: "desc" },
@@ -125,11 +125,11 @@ export async function GET() {
       paymentTotals,
       paymentBuckets,
       pipelineTasks: pipelineTasks.map((task) => ({
+        clientId: task.clientId,
         estimate: task.estimate,
         billingMode: task.client.billingMode,
         rate: task.client.rate,
       })),
-      pipelineClients,
       recentInvoices,
     })
 

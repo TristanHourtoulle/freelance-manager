@@ -16,11 +16,14 @@ export function MobileDashboardPage() {
     revenueMonth: 0,
     revenueYear: 0,
     paidCount: 0,
+    paidCountMonth: 0,
+    paidCountYear: 0,
     outstanding: 0,
     sentCount: 0,
     overdueAmount: 0,
     overdueCount: 0,
     pipelineCount: 0,
+    pipelineEur: 0,
     pipelineClientCount: 0,
   }
   const months = useMemo(() => data?.months ?? [], [data?.months])
@@ -73,7 +76,9 @@ export function MobileDashboardPage() {
                 Mois
               </div>
               <div className="kpi-value">{fmtEUR(kpi.revenueMonth)}</div>
-              <div className="kpi-sub muted">{kpi.paidCount} paiements</div>
+              <div className="kpi-sub muted">
+                {kpi.paidCountMonth} paiements
+              </div>
             </div>
             <div className="kpi-tile info">
               <div className="kpi-label">
@@ -88,18 +93,9 @@ export function MobileDashboardPage() {
                 <Icon name="clock" size={11} />
                 Pipeline
               </div>
-              <div className="kpi-value">
-                {kpi.pipelineCount}{" "}
-                <span
-                  className="muted"
-                  style={{ fontSize: 12, fontWeight: 500 }}
-                >
-                  tasks
-                </span>
-              </div>
+              <div className="kpi-value">{fmtEUR(kpi.pipelineEur)}</div>
               <div className="kpi-sub muted">
-                {kpi.pipelineClientCount} client
-                {kpi.pipelineClientCount > 1 ? "s" : ""} · à facturer
+                {kpi.pipelineCount} tasks à facturer
               </div>
             </div>
             <div className="kpi-tile danger">
