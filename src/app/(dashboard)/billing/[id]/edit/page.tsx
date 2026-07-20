@@ -14,19 +14,41 @@ import {
 } from "@/features/billing/invoice-builder-parts"
 import type { InvoiceKind } from "@/domain/billing/types"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import dynamic from "next/dynamic"
+import { useIsMobile } from "@/hooks/use-is-mobile"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
 
+const MobileEditInvoicePage = dynamic(
+  () => import("./mobile").then((m) => m.MobileEditInvoicePage),
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton title="Modifier la facture" variant="builder" />
+    ),
+  },
+)
+
 export default function EditInvoicePage({ params }: PageProps) {
   const { id } = use(params)
+  const isMobile = useIsMobile()
   const { data: invoice, isLoading } = useInvoice(id)
 
   if (isLoading || !invoice) {
-    return <PageSkeleton kpis={0} rows={6} />
+    return isMobile ? (
+      <MobilePageSkeleton title="Modifier la facture" variant="builder" />
+    ) : (
+      <PageSkeleton kpis={0} rows={6} />
+    )
   }
-  return <EditInvoiceForm invoice={invoice} id={id} />
+  return isMobile ? (
+    <MobileEditInvoicePage invoice={invoice} id={id} />
+  ) : (
+    <EditInvoiceForm invoice={invoice} id={id} />
+  )
 }
 
 interface EditInvoiceFormProps {
