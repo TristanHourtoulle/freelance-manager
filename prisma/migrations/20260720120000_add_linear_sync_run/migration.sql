@@ -24,6 +24,25 @@ CREATE TABLE "linear_sync_runs" (
 
 CREATE INDEX "linear_sync_runs_userId_startedAt_idx" ON "linear_sync_runs"("userId", "startedAt");
 
+-- ---------------------------------------------------------------------------
+-- DO NOT DELETE — intentionally invisible to schema.prisma.
+--
+-- Partial unique index: at most one RUNNING run per user. syncFromLinear is
+-- not safe to run twice concurrently (two passes race on the same project and
+-- task upserts), and the route's check-then-act pre-check cannot close the
+-- race on its own — two POSTs on separate instances can both observe no
+-- RUNNING row. This index makes the database itself the arbiter; the loser of
+-- the race fails with Prisma P2002, which the route maps to a friendly 409.
+--
+-- Prisma cannot express a partial (filtered) index in schema.prisma, so this
+-- lives ONLY here. `prisma migrate diff` will therefore report it as drift
+-- against the datamodel forever, and `prisma db push` will not create it.
+-- That drift is expected — do not "resolve" it by dropping this index.
+-- ---------------------------------------------------------------------------
+CREATE UNIQUE INDEX "linear_sync_runs_userId_running_key"
+  ON "linear_sync_runs"("userId")
+  WHERE "status" = 'RUNNING';
+
 -- Foreign keys
 ALTER TABLE "linear_sync_runs"
   ADD CONSTRAINT "linear_sync_runs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

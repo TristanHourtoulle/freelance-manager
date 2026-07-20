@@ -209,4 +209,66 @@ describe("POST /api/linear/refresh", () => {
     expect(createSyncRun).toHaveBeenCalledWith("user-1", 3)
     expect(afterCallback).toBeTypeOf("function")
   })
+
+  it("flips the abandoned row to FAILED before inserting the new run", async () => {
+    const order: string[] = []
+    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+      id: "run-stale",
+      startedAt: new Date(Date.now() - 11 * 60_000),
+    })
+    prismaMock.linearSyncRun.update.mockImplementation(async () => {
+      order.push("fail-stale")
+      return {}
+    })
+    createSyncRun.mockImplementation(async () => {
+      order.push("create")
+      return "run-1"
+    })
+
+    const { POST } = await import("./route")
+    await POST(makeRequest())
+
+    expect(order).toEqual(["fail-stale", "create"])
+  })
+
+  it("returns 409 when the unique index rejects a racing insert (P2002)", async () => {
+    createSyncRun.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    )
+    prismaMock.linearSyncRun.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "run-winner" })
+
+    const { POST } = await import("./route")
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({
+      error: "Sync already in progress",
+      runId: "run-winner",
+    })
+    expect(afterCallback).toBeNull()
+  })
+
+  it("omits runId on a P2002 race whose winner already finished", async () => {
+    createSyncRun.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    )
+    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+
+    const { POST } = await import("./route")
+    const res = await POST(makeRequest())
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: "Sync already in progress" })
+  })
+
+  it("rethrows a non-P2002 failure from createSyncRun", async () => {
+    createSyncRun.mockRejectedValue(new Error("db down"))
+
+    const { POST } = await import("./route")
+
+    await expect(POST(makeRequest())).rejects.toThrow("db down")
+    expect(afterCallback).toBeNull()
+  })
 })

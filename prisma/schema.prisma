@@ -556,6 +556,14 @@ enum LinearSyncRunStatus {
   FAILED
 }
 
+/// Progress of one Linear sync run, polled by the client during a sync.
+///
+/// NOTE: this table also carries a PARTIAL UNIQUE INDEX that Prisma cannot
+/// express here — `linear_sync_runs_userId_running_key` on ("userId") WHERE
+/// status = 'RUNNING', enforcing at most one concurrent run per user. It is
+/// defined only in 20260720120000_add_linear_sync_run/migration.sql, so
+/// `migrate diff` reports it as permanent drift and `db push` will not create
+/// it. Do not drop it to silence that drift.
 model LinearSyncRun {
   id     String @id @default(cuid())
   userId String
