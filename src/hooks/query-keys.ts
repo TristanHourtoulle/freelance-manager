@@ -44,6 +44,7 @@ export const qk = {
   linear: {
     mappings: () => ["linear-mappings"] as const,
     projects: () => ["linear-projects"] as const,
+    syncStatus: () => ["linear-sync-status"] as const,
     clientMappings: {
       all: () => ["client-linear-mappings"] as const,
       detail: (clientId: string | null | undefined) =>
