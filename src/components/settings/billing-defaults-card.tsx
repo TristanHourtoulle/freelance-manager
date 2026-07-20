@@ -6,6 +6,8 @@ import { useSettings, useUpdateSettings } from "@/hooks/use-settings"
 
 const MAX_PAYMENT_DAYS = 180
 const MAX_RATE = 100_000
+const MIN_WORKING_DAYS = 1
+const MAX_WORKING_DAYS = 7
 
 /**
  * Settings card for the billing defaults (`defaultPaymentDays`, `defaultRate`).
@@ -20,6 +22,7 @@ export function BillingDefaultsCard() {
   const hydratedRef = useRef(false)
   const [paymentDays, setPaymentDays] = useState(30)
   const [rate, setRate] = useState(0)
+  const [workingDays, setWorkingDays] = useState(5)
 
   useEffect(() => {
     if (hydratedRef.current || !settings) return
@@ -27,6 +30,7 @@ export function BillingDefaultsCard() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaymentDays(settings.defaultPaymentDays)
     setRate(settings.defaultRate)
+    setWorkingDays(settings.workingDaysPerWeek)
   }, [settings])
 
   const isValid =
@@ -34,16 +38,24 @@ export function BillingDefaultsCard() {
     paymentDays >= 0 &&
     paymentDays <= MAX_PAYMENT_DAYS &&
     rate >= 0 &&
-    rate <= MAX_RATE
+    rate <= MAX_RATE &&
+    Number.isInteger(workingDays) &&
+    workingDays >= MIN_WORKING_DAYS &&
+    workingDays <= MAX_WORKING_DAYS
 
   const isDirty =
     settings != null &&
     (paymentDays !== settings.defaultPaymentDays ||
-      rate !== settings.defaultRate)
+      rate !== settings.defaultRate ||
+      workingDays !== settings.workingDaysPerWeek)
 
   function handleSave() {
     if (!isValid || !isDirty) return
-    update.mutate({ defaultPaymentDays: paymentDays, defaultRate: rate })
+    update.mutate({
+      defaultPaymentDays: paymentDays,
+      defaultRate: rate,
+      workingDaysPerWeek: workingDays,
+    })
   }
 
   return (
@@ -109,6 +121,26 @@ export function BillingDefaultsCard() {
           <div className="field-hint">
             Pré-remplit le taux d&apos;un nouveau client. 0 = désactivé.
           </div>
+        </div>
+      </div>
+
+      <div className="field" style={{ marginTop: 12 }}>
+        <label className="field-label" htmlFor={`${fieldId}-working-days`}>
+          Jours travaillés par semaine
+        </label>
+        <input
+          id={`${fieldId}-working-days`}
+          className="input num"
+          type="number"
+          min={MIN_WORKING_DAYS}
+          max={MAX_WORKING_DAYS}
+          step={1}
+          disabled={isPending}
+          value={workingDays}
+          onChange={(e) => setWorkingDays(Math.trunc(Number(e.target.value)))}
+        />
+        <div className="field-hint">
+          Base de calcul de la charge et des projets en retard.
         </div>
       </div>
 
