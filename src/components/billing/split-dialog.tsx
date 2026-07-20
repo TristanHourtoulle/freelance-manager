@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
 import { fmtEUR } from "@/lib/format"
@@ -31,6 +31,7 @@ export function SplitDialog({
   onClose,
   onConfirm,
 }: SplitDialogProps) {
+  const fieldId = useId()
   const [parts, setParts] = useState(2)
   const [schedule, setSchedule] = useState<Schedule>("MONTHLY")
 
@@ -83,8 +84,14 @@ export function SplitDialog({
       </div>
 
       <div className="field">
-        <label className="field-label">Nombre de factures</label>
+        <label
+          className="field-label"
+          htmlFor={`${fieldId}-nombre-de-factures`}
+        >
+          Nombre de factures
+        </label>
         <input
+          id={`${fieldId}-nombre-de-factures`}
           className="input num"
           type="number"
           min={2}
@@ -95,9 +102,13 @@ export function SplitDialog({
       </div>
 
       <div className="field">
-        <label className="field-label">Cadence des échéances</label>
+        <div className="field-label" id={`${fieldId}-schedule`}>
+          Cadence des échéances
+        </div>
         <div
           className="row gap-4"
+          role="group"
+          aria-labelledby={`${fieldId}-schedule`}
           style={{
             background: "var(--bg-2)",
             borderRadius: 7,

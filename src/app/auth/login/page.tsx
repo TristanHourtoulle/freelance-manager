@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
 import { Icon } from "@/components/ui/icon"
@@ -16,6 +16,7 @@ export default function LoginPage() {
 }
 
 function DesktopLoginPage() {
+  const fieldId = useId()
   const router = useRouter()
   const { toast } = useToast()
   const [email, setEmail] = useState("")
@@ -75,10 +76,13 @@ function DesktopLoginPage() {
 
           <div className="auth-fields">
             <div className="field">
-              <label className="field-label">Email</label>
+              <label className="field-label" htmlFor={`${fieldId}-email`}>
+                Email
+              </label>
               <div className="auth-input-wrap">
                 <Icon name="mail" size={15} className="lead-ic" />
                 <input
+                  id={`${fieldId}-email`}
                   className="auth-input"
                   type="email"
                   placeholder="tu@exemple.com"
@@ -91,7 +95,12 @@ function DesktopLoginPage() {
             </div>
             <div className="field">
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <label className="field-label">Mot de passe</label>
+                <label
+                  className="field-label"
+                  htmlFor={`${fieldId}-mot-de-passe`}
+                >
+                  Mot de passe
+                </label>
                 <button type="button" className="auth-link xs">
                   Mot de passe oublié ?
                 </button>
@@ -99,6 +108,7 @@ function DesktopLoginPage() {
               <div className="auth-input-wrap">
                 <Icon name="lock" size={15} className="lead-ic" />
                 <input
+                  id={`${fieldId}-mot-de-passe`}
                   className="auth-input"
                   type={showPwd ? "text" : "password"}
                   placeholder="••••••••"

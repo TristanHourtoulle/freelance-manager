@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Icon } from "@/components/ui/icon"
@@ -27,6 +27,7 @@ interface EditClientModalProps {
  * `client.color`.
  */
 export function EditClientModal({ client, onClose }: EditClientModalProps) {
+  const fieldId = useId()
   const update = useUpdateClient(client.id)
   const archive = useArchiveClient()
   const { toast } = useToast()
@@ -172,10 +173,18 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
               {previewInitials}
             </div>
             <div style={{ flex: 1, minWidth: 200 }}>
-              <div className="field-label" style={{ marginBottom: 8 }}>
+              <div
+                className="field-label"
+                style={{ marginBottom: 8 }}
+                id={`${fieldId}-avatar-color`}
+              >
                 Couleur de l&apos;avatar
               </div>
-              <div className="color-row">
+              <div
+                className="color-row"
+                role="group"
+                aria-labelledby={`${fieldId}-avatar-color`}
+              >
                 {AVATAR_COLORS.map((c) => (
                   <button
                     key={c.key}
@@ -193,20 +202,22 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
           </div>
           <div className="field-grid-2">
             <div className="field">
-              <label className="field-label">
+              <label className="field-label" htmlFor={`${fieldId}-prenom`}>
                 Prénom <span className="req">*</span>
               </label>
               <input
+                id={`${fieldId}-prenom`}
                 className="input"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
               />
             </div>
             <div className="field">
-              <label className="field-label">
+              <label className="field-label" htmlFor={`${fieldId}-nom`}>
                 Nom <span className="req">*</span>
               </label>
               <input
+                id={`${fieldId}-nom`}
                 className="input"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -214,8 +225,11 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
             </div>
           </div>
           <div className="field">
-            <label className="field-label">Société</label>
+            <label className="field-label" htmlFor={`${fieldId}-societe`}>
+              Société
+            </label>
             <input
+              id={`${fieldId}-societe`}
               className="input"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
@@ -228,8 +242,11 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
           <div className="modal-section-title">Contact</div>
           <div className="field-grid-2">
             <div className="field">
-              <label className="field-label">Email</label>
+              <label className="field-label" htmlFor={`${fieldId}-email`}>
+                Email
+              </label>
               <input
+                id={`${fieldId}-email`}
                 className="input"
                 type="email"
                 value={email}
@@ -238,8 +255,11 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
               />
             </div>
             <div className="field">
-              <label className="field-label">Téléphone</label>
+              <label className="field-label" htmlFor={`${fieldId}-telephone`}>
+                Téléphone
+              </label>
               <input
+                id={`${fieldId}-telephone`}
                 className="input"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -248,8 +268,11 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
             </div>
           </div>
           <div className="field">
-            <label className="field-label">Site web</label>
+            <label className="field-label" htmlFor={`${fieldId}-site-web`}>
+              Site web
+            </label>
             <input
+              id={`${fieldId}-site-web`}
               className="input"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
@@ -257,8 +280,11 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
             />
           </div>
           <div className="field">
-            <label className="field-label">Adresse</label>
+            <label className="field-label" htmlFor={`${fieldId}-adresse`}>
+              Adresse
+            </label>
             <input
+              id={`${fieldId}-adresse`}
               className="input"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -270,8 +296,14 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
         <div className="modal-section">
           <div className="modal-section-title">Facturation</div>
           <div className="field">
-            <label className="field-label">Type</label>
-            <div className="seg">
+            <div className="field-label" id={`${fieldId}-billing-mode`}>
+              Type
+            </div>
+            <div
+              className="seg"
+              role="group"
+              aria-labelledby={`${fieldId}-billing-mode`}
+            >
               <button
                 type="button"
                 className={billingMode === "DAILY" ? "active" : ""}
@@ -298,11 +330,12 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
           <div className="field-grid-2">
             {billingMode !== "FIXED" ? (
               <div className="field">
-                <label className="field-label">
+                <label className="field-label" htmlFor={`${fieldId}-field-0`}>
                   {billingMode === "DAILY" ? "TJM" : "Taux horaire"}
                 </label>
                 <div className="input-suffix-wrap">
                   <input
+                    id={`${fieldId}-field-0`}
                     className="input num"
                     type="number"
                     min={0}
@@ -316,11 +349,15 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
               </div>
             ) : (
               <div className="field">
-                <label className="field-label">
+                <label
+                  className="field-label"
+                  htmlFor={`${fieldId}-prix-du-forfait`}
+                >
                   Prix du forfait <span className="req">*</span>
                 </label>
                 <div className="input-suffix-wrap">
                   <input
+                    id={`${fieldId}-prix-du-forfait`}
                     className="input num"
                     type="number"
                     min={0}
@@ -332,9 +369,15 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
               </div>
             )}
             <div className="field">
-              <label className="field-label">Délai de paiement</label>
+              <label
+                className="field-label"
+                htmlFor={`${fieldId}-delai-de-paiement`}
+              >
+                Délai de paiement
+              </label>
               <div className="input-suffix-wrap">
                 <input
+                  id={`${fieldId}-delai-de-paiement`}
                   className="input num"
                   type="number"
                   min={0}

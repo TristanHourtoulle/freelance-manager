@@ -5,8 +5,9 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
-import { fmtEUR, initials, avatarColor } from "@/lib/format"
+import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import { useSettings } from "@/hooks/use-settings"
 import { useClients, useClientsBillable } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
@@ -73,6 +74,7 @@ export function DesktopTasksPage() {
   const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
   const { data: invoices = [] } = useInvoices()
+  const { data: settings } = useSettings()
   const sync = useSyncLinear()
 
   const counts = useMemo(
@@ -204,7 +206,8 @@ export function DesktopTasksPage() {
           <div className="page-sub">
             {mode === "dev" ? (
               <>
-                Synchronisées depuis Linear · {counts.all} tasks visibles
+                Synchronisées depuis Linear · {counts.all} tasks visibles ·
+                dernière sync {fmtRelative(settings?.linearLastSyncedAt)}
                 {pendingPipeline.count > 0 && (
                   <>
                     {" · "}
@@ -324,7 +327,7 @@ export function DesktopTasksPage() {
                     { id: "done", label: "Done", count: counts.done },
                     {
                       id: "in_progress",
-                      label: "En cours",
+                      label: "In progress",
                       count: counts.in_progress,
                     },
                   ] as { id: StatusFilterId; label: string; count: number }[]
@@ -390,7 +393,7 @@ export function DesktopTasksPage() {
               <div className="card">
                 <div className="empty">
                   <div className="empty-title">Aucune task</div>
-                  <div>Lance une sync Linear pour importer tes issues</div>
+                  <div>Ajuste les filtres ou lance une sync</div>
                 </div>
               </div>
             )}

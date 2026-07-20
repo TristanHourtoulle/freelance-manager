@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useToast } from "@/components/providers/toast-provider"
@@ -40,6 +40,7 @@ export function ActionModal({
   defaultType,
   onClose,
 }: ActionModalProps) {
+  const fieldId = useId()
   const { toast } = useToast()
   const isEdit = Boolean(action)
   const { data: clients } = useClients()
@@ -181,8 +182,11 @@ export function ActionModal({
         <div className="modal-section">
           {!clientId && !isEdit && (
             <div className="field" style={{ marginBottom: 12 }}>
-              <label className="field-label">Client</label>
+              <label className="field-label" htmlFor={`${fieldId}-client`}>
+                Client
+              </label>
               <select
+                id={`${fieldId}-client`}
                 className="select"
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
@@ -198,8 +202,11 @@ export function ActionModal({
           )}
 
           <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field-label">Intitulé</label>
+            <label className="field-label" htmlFor={`${fieldId}-intitule`}>
+              Intitulé
+            </label>
             <input
+              id={`${fieldId}-intitule`}
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -210,8 +217,11 @@ export function ActionModal({
 
           <div className="field-grid-2">
             <div className="field">
-              <label className="field-label">Échéance</label>
+              <label className="field-label" htmlFor={`${fieldId}-echeance`}>
+                Échéance
+              </label>
               <input
+                id={`${fieldId}-echeance`}
                 className="input"
                 type="date"
                 value={dueDate}
@@ -220,8 +230,14 @@ export function ActionModal({
             </div>
             {type === "RELANCE" && (
               <div className="field">
-                <label className="field-label">Facture liée</label>
+                <label
+                  className="field-label"
+                  htmlFor={`${fieldId}-facture-liee`}
+                >
+                  Facture liée
+                </label>
                 <select
+                  id={`${fieldId}-facture-liee`}
                   className="select"
                   value={invoiceId}
                   onChange={(e) => setInvoiceId(e.target.value)}
@@ -239,8 +255,11 @@ export function ActionModal({
 
           {type === "LINK" && (
             <div className="field" style={{ marginTop: 12 }}>
-              <label className="field-label">Lien</label>
+              <label className="field-label" htmlFor={`${fieldId}-lien`}>
+                Lien
+              </label>
               <input
+                id={`${fieldId}-lien`}
                 className="input"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
@@ -252,8 +271,11 @@ export function ActionModal({
 
         <div className="modal-section">
           <div className="field">
-            <label className="field-label">Notes</label>
+            <label className="field-label" htmlFor={`${fieldId}-notes`}>
+              Notes
+            </label>
             <textarea
+              id={`${fieldId}-notes`}
               className="textarea"
               rows={3}
               value={notes}

@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
 
 const STATUS_FR: Record<string, string> = {
   DRAFT: "Brouillon",
-  SENT: "Émise",
+  SENT: "Envoyée",
   CANCELLED: "Annulée",
 }
 const PAYMENT_FR: Record<string, string> = {

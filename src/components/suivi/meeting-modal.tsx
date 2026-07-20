@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useToast } from "@/components/providers/toast-provider"
@@ -37,6 +37,7 @@ export function MeetingModal({
   onCreated,
   onClose,
 }: MeetingModalProps) {
+  const fieldId = useId()
   const { toast } = useToast()
   const isEdit = Boolean(meeting)
   const { data: clients } = useClients()
@@ -170,8 +171,11 @@ export function MeetingModal({
         <div className="modal-section">
           {!clientId && !isEdit && (
             <div className="field" style={{ marginBottom: 12 }}>
-              <label className="field-label">Client</label>
+              <label className="field-label" htmlFor={`${fieldId}-client`}>
+                Client
+              </label>
               <select
+                id={`${fieldId}-client`}
                 className="select"
                 value={selectedClient}
                 onChange={(e) => setSelectedClient(e.target.value)}
@@ -187,8 +191,11 @@ export function MeetingModal({
           )}
 
           <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field-label">Titre</label>
+            <label className="field-label" htmlFor={`${fieldId}-titre`}>
+              Titre
+            </label>
             <input
+              id={`${fieldId}-titre`}
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -198,8 +205,11 @@ export function MeetingModal({
           </div>
 
           <div className="field" style={{ marginBottom: 12 }}>
-            <label className="field-label">Lien Teams</label>
+            <label className="field-label" htmlFor={`${fieldId}-lien-teams`}>
+              Lien Teams
+            </label>
             <input
+              id={`${fieldId}-lien-teams`}
               className="input"
               value={teamsUrl}
               onChange={(e) => setTeamsUrl(e.target.value)}
@@ -209,8 +219,11 @@ export function MeetingModal({
 
           <div className="field-grid-2">
             <div className="field">
-              <label className="field-label">Date</label>
+              <label className="field-label" htmlFor={`${fieldId}-date`}>
+                Date
+              </label>
               <input
+                id={`${fieldId}-date`}
                 className="input"
                 type="date"
                 value={heldAt}
@@ -218,9 +231,12 @@ export function MeetingModal({
               />
             </div>
             <div className="field">
-              <label className="field-label">Durée</label>
+              <label className="field-label" htmlFor={`${fieldId}-duree`}>
+                Durée
+              </label>
               <div className="input-suffix-wrap">
                 <input
+                  id={`${fieldId}-duree`}
                   className="input num"
                   type="number"
                   min={0}
@@ -234,8 +250,11 @@ export function MeetingModal({
           </div>
 
           <div className="field" style={{ marginTop: 12 }}>
-            <label className="field-label">Participants</label>
+            <label className="field-label" htmlFor={`${fieldId}-participants`}>
+              Participants
+            </label>
             <input
+              id={`${fieldId}-participants`}
               className="input"
               value={participants}
               onChange={(e) => setParticipants(e.target.value)}
@@ -249,7 +268,9 @@ export function MeetingModal({
             className="row"
             style={{ justifyContent: "space-between", marginBottom: 8 }}
           >
-            <label className="field-label">Résumé (markdown)</label>
+            <label className="field-label" htmlFor={`${fieldId}-summary-md`}>
+              Résumé (markdown)
+            </label>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
@@ -268,6 +289,7 @@ export function MeetingModal({
             </div>
           ) : (
             <textarea
+              id={`${fieldId}-summary-md`}
               className="textarea mono"
               rows={8}
               value={summaryMd}

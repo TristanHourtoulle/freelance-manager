@@ -1,16 +1,38 @@
 import { render } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
-import { StatusPill, taskStatusToPill } from "./pill"
+import { BillingTypePill, StatusPill, taskStatusToPill } from "./pill"
 
 describe("StatusPill", () => {
-  it("labels a done task as Terminée", () => {
-    const { container } = render(<StatusPill status="done" />)
-    expect(container.textContent).toBe("Terminée")
-  })
+  const cases = [
+    ["pending_invoice", "À facturer"],
+    ["done", "Done"],
+    ["in_progress", "In Progress"],
+    ["backlog", "Backlog"],
+    ["draft", "Brouillon"],
+    ["sent", "Envoyée"],
+    ["paid", "Payée"],
+    ["partial", "Partielle"],
+    ["overpaid", "Trop-perçu"],
+    ["overdue", "En retard"],
+    ["cancelled", "Annulée"],
+  ] as const
 
-  it("labels a pending_invoice task as À facturer", () => {
-    const { container } = render(<StatusPill status="pending_invoice" />)
-    expect(container.textContent).toBe("À facturer")
+  it.each(cases)("labels %s as %s", (status, label) => {
+    const { container } = render(<StatusPill status={status} />)
+    expect(container.textContent).toBe(label)
+  })
+})
+
+describe("BillingTypePill", () => {
+  const cases = [
+    ["DAILY", "TJM"],
+    ["FIXED", "Forfait"],
+    ["HOURLY", "Horaire"],
+  ] as const
+
+  it.each(cases)("labels %s as %s", (type, label) => {
+    const { container } = render(<BillingTypePill type={type} />)
+    expect(container.textContent).toBe(label)
   })
 })
 
@@ -21,6 +43,14 @@ describe("taskStatusToPill", () => {
 
   it("maps PENDING_INVOICE to pending_invoice", () => {
     expect(taskStatusToPill("PENDING_INVOICE")).toBe("pending_invoice")
+  })
+
+  it("maps IN_PROGRESS to in_progress", () => {
+    expect(taskStatusToPill("IN_PROGRESS")).toBe("in_progress")
+  })
+
+  it("maps BACKLOG to backlog", () => {
+    expect(taskStatusToPill("BACKLOG")).toBe("backlog")
   })
 
   it("maps CANCELED to backlog", () => {

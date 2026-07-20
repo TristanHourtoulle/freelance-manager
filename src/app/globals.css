@@ -653,6 +653,41 @@ textarea {
   gap: 14px;
   margin-bottom: 28px;
 }
+.kpi {
+  position: relative;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  overflow: hidden;
+}
+/* Accent bar. The design gives a KPI tile a coloured bar ONLY through a
+   variant class, so the base `::before` paints nothing — a plain `.kpi`
+   has no bar. The `kpi-*` (dashboard, billing) and `k-*` (client detail)
+   families share this one mechanism so both stay in sync (TRI-1087). */
+.kpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+.kpi.kpi-accent::before,
+.kpi.k-revenue::before {
+  background: var(--accent);
+}
+.kpi.kpi-warn::before,
+.kpi.k-outstanding::before {
+  background: var(--warn);
+}
+.kpi.kpi-info::before,
+.kpi.k-pipeline::before {
+  background: var(--info);
+}
+.kpi.k-overdue::before {
+  background: var(--danger);
+}
 .kpi-label {
   font-size: 11px;
   font-weight: 600;
@@ -670,6 +705,15 @@ textarea {
   margin-top: 8px;
   font-family: var(--font-mono);
   font-feature-settings: "tnum" 1;
+}
+.kpi-value.accent {
+  color: var(--accent);
+}
+.kpi-value.warn {
+  color: var(--warn);
+}
+.kpi-value.danger {
+  color: var(--danger);
 }
 .kpi-sub {
   display: flex;
@@ -1162,6 +1206,10 @@ textarea {
   background: var(--bg-1);
   margin-bottom: 6px;
   cursor: grab;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
   transition:
     background 0.1s,
     border-color 0.1s;
@@ -1456,83 +1504,41 @@ textarea {
   align-items: center;
 }
 
-.kpi-grid {
-  display: grid;
+/* Client-detail hero KPI variant. Scoped to `.detail-hero` so it stays a
+   local override of the design's dashboard/billing `.kpi` geometry instead
+   of silently replacing it globally. */
+.detail-hero .kpi-grid {
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-top: 22px;
+  margin-bottom: 0;
 }
 @media (max-width: 720px) {
-  .kpi-grid {
+  .detail-hero .kpi-grid {
     grid-template-columns: 1fr;
   }
 }
-.kpi {
-  position: relative;
+.detail-hero .kpi {
   padding: 14px 14px 12px;
-  border-radius: 10px;
   background: oklch(0.18 0.008 240 / 0.6);
-  border: 1px solid var(--border);
-  overflow: hidden;
 }
-.kpi::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: oklch(0.74 0.16 145);
+.detail-hero .kpi::before {
   opacity: 0.7;
 }
-/* Accent-bar variants: `kpi-*` (dashboard, billing) and `k-*` (client detail)
-   share the same `::before` mechanism so both families stay in sync. */
-.kpi.kpi-accent::before,
-.kpi.k-revenue::before {
-  background: var(--accent);
-}
-.kpi.kpi-warn::before,
-.kpi.k-outstanding::before {
-  background: var(--warn);
-}
-.kpi.kpi-info::before,
-.kpi.k-pipeline::before {
-  background: var(--info);
-}
-.kpi.k-overdue::before {
-  background: var(--danger);
-}
-.kpi-label {
+.detail-hero .kpi-label {
   font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--text-3);
-  display: flex;
-  align-items: center;
-  gap: 6px;
   white-space: nowrap;
 }
-.kpi-value {
+.detail-hero .kpi-value {
   font-size: 20px;
-  font-weight: 700;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
   letter-spacing: -0.01em;
   margin-top: 6px;
   color: var(--text-0);
 }
-.kpi-value.accent {
-  color: oklch(0.86 0.19 128);
-}
-.kpi-value.warn {
-  color: var(--warn);
-}
-.kpi-value.danger {
-  color: var(--danger);
-}
-.kpi-sub {
+.detail-hero .kpi-sub {
+  display: block;
   font-size: 11px;
-  color: var(--text-2);
   margin-top: 4px;
 }
 
@@ -2683,6 +2689,23 @@ textarea {
 }
 .kpi-tile.danger {
   border-left: 2px solid var(--danger);
+}
+/* Mobile tiles reuse `.kpi-label` / `.kpi-value` / `.kpi-sub` but carry the
+   mobile design's own type scale (FreelanceManager Mobile.html). */
+.kpi-tile .kpi-label {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  gap: 5px;
+}
+.kpi-tile .kpi-value {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin-top: 6px;
+}
+.kpi-tile .kpi-sub {
+  font-size: 11px;
+  margin-top: 4px;
+  gap: 5px;
 }
 
 /* Sticky CTA bar (above bottom nav) */

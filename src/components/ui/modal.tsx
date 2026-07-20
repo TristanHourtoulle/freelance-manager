@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect } from "react"
+import { useRef } from "react"
 import type { CSSProperties, ReactNode } from "react"
 import { Icon } from "@/components/ui/icon"
+import { useDialogStack } from "@/hooks/use-dialog-stack"
 
 interface ModalProps {
   title: string
@@ -24,6 +25,10 @@ interface ModalProps {
  * @param subtitle Optional secondary line under the title (12.5px muted).
  * @param withGlow Render the soft accent glow above the modal (used for the
  *                 client edit modal so the form feels lifted).
+ *
+ * Accessibility: locks body scroll, moves focus inside on open, traps Tab,
+ * restores focus to the trigger on close, and only closes the topmost dialog
+ * on Escape (shared stack with `MobileSheet`).
  */
 export function Modal({
   title,
@@ -35,17 +40,14 @@ export function Modal({
   bodyStyle,
   withGlow,
 }: ModalProps) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose()
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useDialogStack(modalRef, onClose)
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={modalRef}
         className="modal"
         style={{
           width,
@@ -56,6 +58,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
       >
         {withGlow && <div className="modal-glow" aria-hidden="true" />}
         <div
