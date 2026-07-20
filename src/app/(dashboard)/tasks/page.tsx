@@ -18,6 +18,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { LoadMoreButton } from "@/components/ui/load-more-button"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -563,9 +564,11 @@ export function DesktopTasksPage() {
                                 />
                               </td>
                               <td>
-                                <span className="task-id">
-                                  {t.linearIdentifier}
-                                </span>
+                                <TaskIdLink
+                                  identifier={t.linearIdentifier}
+                                  url={t.linearUrl}
+                                  className="task-id"
+                                />
                               </td>
                               <td className="strong">{t.title}</td>
                               <td>

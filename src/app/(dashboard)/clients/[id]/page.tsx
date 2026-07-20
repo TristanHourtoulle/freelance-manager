@@ -44,6 +44,7 @@ import { ClientActivityTimeline } from "@/components/clients/client-activity-tim
 import { SuiviView } from "@/components/suivi/suivi-view"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobileClientDetailPage } from "./mobile"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 type Tab = "overview" | "projects" | "tasks" | "invoices" | "suivi" | "activity"
 
@@ -719,7 +720,11 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
                 return (
                   <tr key={t.id}>
                     <td style={{ paddingLeft: 20 }}>
-                      <span className="task-id">{t.linearIdentifier}</span>
+                      <TaskIdLink
+                        identifier={t.linearIdentifier}
+                        url={t.linearUrl}
+                        className="task-id"
+                      />
                     </td>
                     <td className="strong">{t.title}</td>
                     <td className="muted small">{project?.key ?? ""}</td>

@@ -11,6 +11,7 @@ import { Skeleton, SkeletonKpi, SkeletonRow } from "@/components/ui/skeleton"
 import { fmtDate, fmtEUR, fmtRelative, initials } from "@/lib/format"
 import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 const MobileDashboardPage = dynamic(
   () => import("./mobile").then((m) => m.MobileDashboardPage),
@@ -376,7 +377,11 @@ function DesktopDashboardPage() {
                       borderBottom: "1px solid var(--border)",
                     }}
                   >
-                    <span className="task-id mono">{t.linearIdentifier}</span>
+                    <TaskIdLink
+                      identifier={t.linearIdentifier}
+                      url={t.linearUrl}
+                      className="task-id mono"
+                    />
                     <div className="grow truncate small">{t.title}</div>
                     <span className="xs muted">{t.projectKey ?? ""}</span>
                     <StatusPill

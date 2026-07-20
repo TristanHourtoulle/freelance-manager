@@ -177,6 +177,7 @@ interface RawIssueProject {
 interface RawIssueNode {
   id: string
   identifier: string
+  url: string | null
   title: string
   description: string | null
   priority: number | null
@@ -197,6 +198,7 @@ interface EnrichedIssue {
   issue: {
     id: string
     identifier: string
+    url: string | null
     title: string
     description: string | null
     priority: number | null
@@ -222,6 +224,7 @@ const ISSUES_SYNC_QUERY = `
       nodes {
         id
         identifier
+        url
         title
         description
         priority
@@ -247,6 +250,7 @@ export function normalizeIssueNode(node: RawIssueNode): EnrichedIssue {
     issue: {
       id: node.id,
       identifier: node.identifier,
+      url: node.url ?? null,
       title: node.title,
       description: node.description ?? null,
       priority: node.priority ?? null,
@@ -298,6 +302,7 @@ interface TaskWriteInput {
   projectId: string
   linearIssueId: string
   linearIdentifier: string
+  linearUrl: string | null
   linearStateName: string | null
   linearStateType: string | null
   title: string
@@ -340,6 +345,7 @@ async function bulkUpsertTasks(
         projectId: r.projectId,
         linearIssueId: r.linearIssueId,
         linearIdentifier: r.linearIdentifier,
+        linearUrl: r.linearUrl,
         linearStateName: r.linearStateName,
         linearStateType: r.linearStateType,
         title: r.title,
@@ -363,6 +369,7 @@ async function bulkUpsertTasks(
         clientId: r.clientId,
         projectId: r.projectId,
         linearIdentifier: r.linearIdentifier,
+        linearUrl: r.linearUrl,
         linearStateName: r.linearStateName,
         linearStateType: r.linearStateType,
         title: r.title,
@@ -523,6 +530,7 @@ export async function syncFromLinear(
           projectId: localProjectId,
           linearIssueId: issue.id,
           linearIdentifier: issue.identifier,
+          linearUrl: issue.url,
           linearStateName: state?.name ?? null,
           linearStateType: state?.type ?? null,
           title: issue.title,
@@ -633,6 +641,7 @@ export async function syncOneProject(opts: {
       projectId: localProject.id,
       linearIssueId: issue.id,
       linearIdentifier: issue.identifier,
+      linearUrl: issue.url,
       linearStateName: state?.name ?? null,
       linearStateType: state?.type ?? null,
       title: issue.title,

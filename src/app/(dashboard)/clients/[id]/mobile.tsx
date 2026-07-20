@@ -17,6 +17,7 @@ import { EditClientModal } from "@/components/clients/edit-client-modal"
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 const LinearMappingsModal = dynamic(
   () =>
@@ -320,7 +321,11 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
               {tasks.slice(0, 30).map((t) => (
                 <div key={t.id} className="task-item">
                   <div className="row gap-8">
-                    <span className="task-id">{t.linearIdentifier}</span>
+                    <TaskIdLink
+                      identifier={t.linearIdentifier}
+                      url={t.linearUrl}
+                      className="task-id"
+                    />
                     <StatusPill status={taskStatusToPill(t.status)} />
                   </div>
                   <div className="task-title">{t.title}</div>

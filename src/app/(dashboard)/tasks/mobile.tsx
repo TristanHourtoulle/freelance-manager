@@ -11,6 +11,7 @@ import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import { useToast } from "@/components/providers/toast-provider"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { TaskIdLink } from "@/components/ui/task-id-link"
 
 type Filter = "all" | "pending" | "done" | "invoiced"
 
@@ -240,7 +241,12 @@ export function MobileTasksPage() {
                           >
                             {isSel && <Icon name="check" size={13} />}
                           </div>
-                          <span className="task-id">{t.linearIdentifier}</span>
+                          <TaskIdLink
+                            identifier={t.linearIdentifier}
+                            url={t.linearUrl}
+                            className="task-id"
+                            stopPropagation
+                          />
                           <span
                             className={
                               "pill pill-no-dot xs " +

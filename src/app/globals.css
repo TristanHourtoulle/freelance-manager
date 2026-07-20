@@ -1238,6 +1238,13 @@ textarea {
   background: rgba(0, 0, 0, 0.2);
   color: var(--accent);
 }
+.task-link {
+  cursor: pointer;
+}
+.task-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
 
 .invoice-side {
   background: var(--bg-1);

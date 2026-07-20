@@ -294,6 +294,7 @@ model Task {
   linearIdentifier String // e.g. "TRI-543" — displayed in tables
   linearStateName  String?
   linearStateType  String?
+  linearUrl        String? // deep link to the issue on linear.app
 
   title       String
   description String?      @db.Text
