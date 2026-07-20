@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
+import { downloadAnalyticsCsv } from "@/lib/analytics-csv"
 import { useAnalytics, type AnalyticsRange } from "@/hooks/use-analytics"
 import {
   Donut,
@@ -50,7 +51,12 @@ export function MobileAnalyticsPage() {
         title="Analytics"
         back="/more"
         action={
-          <button type="button" className="m-topbar-action" aria-label="Export">
+          <button
+            type="button"
+            className="m-topbar-action"
+            aria-label="Export"
+            onClick={() => downloadAnalyticsCsv(data)}
+          >
             <Icon name="download" size={15} />
           </button>
         }

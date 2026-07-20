@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { fmtEUR, initials } from "@/lib/format"
+import { downloadAnalyticsCsv } from "@/lib/analytics-csv"
 import { useAnalytics, type AnalyticsRange } from "@/hooks/use-analytics"
 import {
   ActivityHeatmap,
@@ -118,7 +119,11 @@ function DesktopAnalyticsPage() {
               </button>
             ))}
           </div>
-          <button className="btn btn-secondary" type="button">
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={() => downloadAnalyticsCsv(data)}
+          >
             <Icon name="download" size={14} />
             Export
           </button>
