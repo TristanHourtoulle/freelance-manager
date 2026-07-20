@@ -17,16 +17,22 @@ export type ClientDTO = ClientWireRow
 
 interface UseClientsOptions {
   archived?: boolean
+  enabled?: boolean
 }
 
 /**
  * Paginated client list. Active clients by default; pass `archived` to read
  * the archived set instead (distinct query key so the two never collide).
  *
- * @param options - `archived` switches the list to archived clients.
+ * @param options - `archived` switches the list to archived clients;
+ * `enabled` (default `true`) gates the network request.
  */
-export function useClients({ archived = false }: UseClientsOptions = {}) {
+export function useClients({
+  archived = false,
+  enabled = true,
+}: UseClientsOptions = {}) {
   return useInfiniteQuery({
+    enabled,
     queryKey: archived ? [...qk.clients(), "archived"] : qk.clients(),
     queryFn: ({ pageParam }) =>
       api.get<PaginatedResponse<ClientDTO>>(

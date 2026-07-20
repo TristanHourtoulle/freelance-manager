@@ -35,13 +35,29 @@ interface TaskFilters {
 
 const EMPTY_TASK_FILTERS: TaskFilters = {}
 
-export function useTasks(filters: TaskFilters = EMPTY_TASK_FILTERS) {
+interface UseTasksOptions {
+  enabled?: boolean
+}
+
+const DEFAULT_TASK_OPTIONS: UseTasksOptions = {}
+
+/**
+ * Paginated task list for the given filters.
+ *
+ * @param filters - Optional client / project / status narrowing.
+ * @param options - `enabled` (default `true`) gates the network request.
+ */
+export function useTasks(
+  filters: TaskFilters = EMPTY_TASK_FILTERS,
+  { enabled = true }: UseTasksOptions = DEFAULT_TASK_OPTIONS,
+) {
   const baseQs = new URLSearchParams()
   if (filters.clientId) baseQs.set("clientId", filters.clientId)
   if (filters.projectId) baseQs.set("projectId", filters.projectId)
   if (filters.status) baseQs.set("status", filters.status)
   baseQs.set("limit", "50")
   return useInfiniteQuery({
+    enabled,
     queryKey: qk.tasks.list(filters),
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams(baseQs)

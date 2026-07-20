@@ -41,14 +41,20 @@ function useDebouncedValue(value: string, delay: number): string {
  *
  * @param query - The live palette input value.
  * @param router - The Next.js router used to navigate to a matched entity.
+ * @param enabled - Gates the three entity queries. Pass `true` only while the
+ * palette is open so closed (and mobile) sessions fetch nothing.
  * @returns Grouped command items ("Clients", "Factures", "Tasks").
  */
-export function useCommandSearch(query: string, router: Router): CommandItem[] {
+export function useCommandSearch(
+  query: string,
+  router: Router,
+  enabled = true,
+): CommandItem[] {
   const debounced = useDebouncedValue(query.trim().toLowerCase(), DEBOUNCE_MS)
 
-  const { data: clients } = useClients()
-  const { data: invoices } = useInvoices()
-  const { data: tasks } = useTasks()
+  const { data: clients } = useClients({ enabled })
+  const { data: invoices } = useInvoices({ enabled })
+  const { data: tasks } = useTasks(undefined, { enabled })
 
   return useMemo<CommandItem[]>(() => {
     if (!debounced) return []

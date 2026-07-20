@@ -36,7 +36,7 @@ export function CmdKProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
   const syncLinear = useSyncLinear()
   const [query, setQuery] = useState("")
-  const searchResults = useCommandSearch(query, router)
+  const searchResults = useCommandSearch(query, router, open)
 
   const staticCommands = useMemo<CommandItem[]>(
     () => [

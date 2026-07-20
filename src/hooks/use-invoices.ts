@@ -34,8 +34,18 @@ export type {
   InvoiceWireRow,
 } from "@/domain/billing/types"
 
-export function useInvoices() {
+interface UseInvoicesOptions {
+  enabled?: boolean
+}
+
+/**
+ * Paginated invoice list.
+ *
+ * @param options - `enabled` (default `true`) gates the network request.
+ */
+export function useInvoices({ enabled = true }: UseInvoicesOptions = {}) {
   return useInfiniteQuery({
+    enabled,
     queryKey: qk.invoices(),
     queryFn: ({ pageParam }) =>
       api.get<PaginatedResponse<InvoiceWireRow>>(
