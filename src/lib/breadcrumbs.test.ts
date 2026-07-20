@@ -15,10 +15,11 @@ describe("deriveCrumbs", () => {
     expect(deriveCrumbs("/settings")).toEqual(["FreelanceManager", "Réglages"])
   })
 
-  it("stops at the id-less parent for client detail without a resolved label", () => {
+  it("falls back to the design placeholder when the client is unresolved", () => {
     expect(deriveCrumbs("/clients/abc123")).toEqual([
       "FreelanceManager",
       "Clients",
+      "—",
     ])
   })
 
