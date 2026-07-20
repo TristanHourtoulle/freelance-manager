@@ -2,6 +2,7 @@ import "server-only"
 import { LinearClient } from "@linear/sdk"
 import { prisma } from "@/lib/db"
 import { decrypt, encrypt } from "@/lib/encryption"
+import { completeSyncRun, touchSyncRun } from "@/lib/linear-sync-progress"
 import type {
   Prisma,
   TaskStatus,
@@ -123,6 +124,17 @@ export function keyFromIdentifier(identifier: string): string {
 interface SyncResult {
   projects: number
   tasks: number
+}
+
+function mappingLabel(client: {
+  company: string | null
+  firstName: string
+  lastName: string
+}): string {
+  const name = client.company?.trim()
+  return name && name.length > 0
+    ? name
+    : `${client.firstName} ${client.lastName}`.trim()
 }
 
 function projectStatus(
@@ -392,8 +404,21 @@ async function bulkUpsertTasks(
  *
  * If phase 1 throws (Linear API error), no DB write happens; if phase 2
  * throws, everything rolls back.
+ *
+ * Progress is reported to the `LinearSyncRun` row identified by `runId`: one
+ * best-effort `touchSyncRun` per phase-1 mapping (the only step slow enough to
+ * be worth watching), then a single `completeSyncRun` once phase 2 commits. No
+ * progress write ever happens inside the phase-2 transaction, which must stay
+ * short and free of extra I/O.
+ *
+ * @param userId - Owner of the mappings to sync.
+ * @param runId - Optional run row to report progress into.
+ * @returns The number of projects and tasks upserted.
  */
-export async function syncFromLinear(userId: string): Promise<SyncResult> {
+export async function syncFromLinear(
+  userId: string,
+  runId?: string | null,
+): Promise<SyncResult> {
   const userLinear = await getLinearClient(userId)
   if (!userLinear) {
     throw new Error("No Linear token configured for this user")
@@ -416,7 +441,11 @@ export async function syncFromLinear(userId: string): Promise<SyncResult> {
     mapping: (typeof mappings)[number]
     issues: EnrichedIssue[]
   }[] = []
-  for (const m of mappings) {
+  for (const [index, m] of mappings.entries()) {
+    await touchSyncRun(runId, {
+      doneMappings: index,
+      currentLabel: mappingLabel(m.client),
+    })
     if (!m.linearProjectId && !m.linearTeamId) {
       enrichedByMapping.push({ mapping: m, issues: [] })
       continue
@@ -519,6 +548,8 @@ export async function syncFromLinear(userId: string): Promise<SyncResult> {
       create: { userId, linearLastSyncedAt: new Date() },
     })
   }, SYNC_TX_OPTIONS)
+
+  await completeSyncRun(runId, { projectsUpserted, tasksUpserted })
 
   return { projects: projectsUpserted, tasks: tasksUpserted }
 }

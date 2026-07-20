@@ -5,13 +5,10 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query"
-import { useRouter } from "next/navigation"
-import { api } from "@/lib/api-client"
+import { api, isApiErrorWithStatus } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
-
-const SYNC_SETTLE_DELAY_MS = 2500
 
 export interface TaskDTO {
   id: string
@@ -74,37 +71,41 @@ export function useTasks(
 /**
  * Trigger a Linear sync.
  *
- * The server now runs the pull off the request thread and answers 202
- * immediately, so no counts come back. We toast that the sync started, then
- * — after a short bounded delay for the background job to settle — invalidate
- * the affected queries and `router.refresh()` the RSC tree (nav badges).
- * Success and error toasts are centralized here so every call site behaves
- * consistently.
+ * The server answers 202 before the pull even starts, so this mutation only
+ * reports that the run was accepted. Completion is owned by
+ * `useLinearSyncWatcher`, which polls the run row and handles the invalidation
+ * and the result toast. Invalidating the sync-status key here makes the first
+ * poll immediate instead of waiting for the idle tick.
  */
 export function useSyncLinear() {
   const qc = useQueryClient()
-  const router = useRouter()
   const { toast } = useToast()
   return useMutation({
-    mutationFn: () => api.post<{ status: string }>("/api/linear/refresh"),
+    mutationFn: () =>
+      api.post<{ status: string; runId: string }>("/api/linear/refresh"),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.linear.syncStatus() })
       toast({
         variant: "success",
         title: "Synchronisation Linear lancée…",
         description: "Les résultats apparaîtront dans quelques instants.",
       })
-      window.setTimeout(() => {
-        qc.invalidateQueries({ queryKey: qk.tasks.all() })
-        qc.invalidateQueries({ queryKey: qk.projects() })
-        qc.invalidateQueries({ queryKey: qk.dashboard() })
-        router.refresh()
-      }, SYNC_SETTLE_DELAY_MS)
     },
-    onError: (e) =>
+    onError: (e) => {
+      if (isApiErrorWithStatus(e, 409)) {
+        qc.invalidateQueries({ queryKey: qk.linear.syncStatus() })
+        toast({
+          variant: "info",
+          title: "Synchronisation déjà en cours",
+          description: "Patiente qu'elle se termine avant d'en relancer une.",
+        })
+        return
+      }
       toast({
         variant: "error",
         title: "Sync échouée",
         description: e instanceof Error ? e.message : String(e),
-      }),
+      })
+    },
   })
 }

@@ -23,6 +23,17 @@ vi.mock("@/hooks/use-tasks", () => ({
   useSyncLinear: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
+vi.mock("@/hooks/use-linear-sync", () => ({
+  useLinearSyncProgress: () => ({
+    isRunning: false,
+    currentLabel: null,
+    countLabel: null,
+    buttonLabel: "Synchronisation…",
+    doneMappings: 0,
+    totalMappings: 0,
+  }),
+}))
+
 vi.mock("@/hooks/use-invoices", () => ({
   useInvoices: () => ({ data: [] }),
 }))
