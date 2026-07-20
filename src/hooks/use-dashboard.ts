@@ -52,6 +52,16 @@ export interface DashboardDTO {
     status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
     projectKey: string | null
   }[]
+  inProgress: {
+    count: number
+    top: {
+      id: string
+      linearIdentifier: string
+      linearUrl: string | null
+      title: string
+      projectKey: string | null
+    }[]
+  }
   lastSync: string | null
 }
 

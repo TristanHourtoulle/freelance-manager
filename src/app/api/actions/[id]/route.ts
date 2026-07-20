@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import {
+  apiBadRequest,
   apiNotFound,
   apiServerError,
   apiUnauthorized,
@@ -30,23 +31,40 @@ export async function PATCH(req: Request, { params }: Params) {
     })
     if (!existing) return apiNotFound()
 
-    if (data.invoiceId) {
+    const nextClientId =
+      "clientId" in data ? (data.clientId ?? null) : existing.clientId
+
+    if (!nextClientId && (data.invoiceId || data.meetingId)) {
+      return apiBadRequest(
+        "Un client est requis pour lier une facture ou une réunion",
+      )
+    }
+
+    if ("clientId" in data && data.clientId) {
+      const client = await prisma.client.findFirst({
+        where: { id: data.clientId, userId: user.id },
+        select: { id: true },
+      })
+      if (!client) return apiNotFound()
+    }
+
+    if (data.invoiceId && nextClientId) {
       const inv = await prisma.invoice.findFirst({
         where: {
           id: data.invoiceId,
           userId: user.id,
-          clientId: existing.clientId,
+          clientId: nextClientId,
         },
         select: { id: true },
       })
       if (!inv) return apiNotFound()
     }
-    if (data.meetingId) {
+    if (data.meetingId && nextClientId) {
       const m = await prisma.meeting.findFirst({
         where: {
           id: data.meetingId,
           userId: user.id,
-          clientId: existing.clientId,
+          clientId: nextClientId,
         },
         select: { id: true },
       })
@@ -58,6 +76,7 @@ export async function PATCH(req: Request, { params }: Params) {
     const updated = await prisma.clientAction.update({
       where: { id },
       data: {
+        ...("clientId" in data ? { clientId: data.clientId ?? null } : {}),
         ...("type" in data ? { type: data.type } : {}),
         ...("title" in data ? { title: data.title } : {}),
         ...("link" in data ? { link: data.link ?? null } : {}),

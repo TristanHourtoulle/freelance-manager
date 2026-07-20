@@ -6,6 +6,7 @@ import { useToast } from "@/components/providers/toast-provider"
 import {
   useActions,
   useUpdateAction,
+  UNASSIGNED_CLIENT_FILTER,
   type ActionDTO,
   type ClientActionType,
 } from "@/hooks/use-actions"
@@ -15,7 +16,7 @@ import { MeetingModal } from "@/components/suivi/meeting-modal"
 import { avatarColor, fmtDate, fmtRelative, initials } from "@/lib/format"
 
 type SubTab = "actions" | "meetings"
-type ActionFilter = "today" | "upcoming" | "all" | "done"
+type ActionFilter = "today" | "upcoming" | "inbox" | "all" | "done"
 
 const ACTION_PILL: Record<ClientActionType, { label: string; cls: string }> = {
   RELANCE: { label: "Relance", cls: "pill-partial" },
@@ -84,7 +85,11 @@ export function SuiviView({ clientId }: SuiviViewProps) {
   })
 
   const status = filter === "done" ? "DONE" : "TODO"
-  const actionsQuery = useActions({ clientId, status })
+  const actionsQuery = useActions({
+    clientId:
+      clientId ?? (filter === "inbox" ? UNASSIGNED_CLIENT_FILTER : undefined),
+    status,
+  })
   const meetingsQuery = useMeetings({ clientId })
   const updateAction = useUpdateAction(clientId)
 
@@ -95,7 +100,7 @@ export function SuiviView({ clientId }: SuiviViewProps) {
     if (filter === "done") return actions
     const { end } = dayBounds()
     const inBucket = (a: ActionDTO) => {
-      if (filter === "all") return true
+      if (filter === "all" || filter === "inbox") return true
       const due = a.dueDate ? new Date(a.dueDate).getTime() : null
       if (filter === "today") return due != null && due <= end
       return due != null && due > end
@@ -180,6 +185,7 @@ export function SuiviView({ clientId }: SuiviViewProps) {
               [
                 { id: "today", label: "Aujourd'hui" },
                 { id: "upcoming", label: "À venir" },
+                { id: "inbox", label: "Non classé" },
                 { id: "all", label: "Tout" },
                 { id: "done", label: "Fait" },
               ] as { id: ActionFilter; label: string }[]
@@ -201,7 +207,9 @@ export function SuiviView({ clientId }: SuiviViewProps) {
               <div className="empty-sub">
                 {filter === "done"
                   ? "Aucune action terminée."
-                  : "Aucune action à faire."}
+                  : filter === "inbox"
+                    ? "Aucune action non classée."
+                    : "Aucune action à faire."}
               </div>
             </div>
           ) : (
@@ -244,7 +252,7 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                             {a.invoiceNumber}
                           </span>
                         )}
-                        {!clientId && (
+                        {!clientId && a.client && (
                           <span className="suivi-client">
                             <span
                               className="avatar avatar-sm"
@@ -257,6 +265,11 @@ export function SuiviView({ clientId }: SuiviViewProps) {
                               {initials(clientLabel(a.client))}
                             </span>
                             {clientLabel(a.client)}
+                          </span>
+                        )}
+                        {!clientId && !a.client && (
+                          <span className="pill pill-no-dot pill-draft">
+                            Non classé
                           </span>
                         )}
                       </div>

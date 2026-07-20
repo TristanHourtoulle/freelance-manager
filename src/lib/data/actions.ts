@@ -14,8 +14,8 @@ export interface ActionClientRef {
 
 export interface ActionWireRow {
   id: string
-  clientId: string
-  client: ActionClientRef
+  clientId: string | null
+  client: ActionClientRef | null
   type: ClientActionType
   title: string
   link: string | null
@@ -50,13 +50,15 @@ export function serializeAction(a: ActionRow): ActionWireRow {
   return {
     id: a.id,
     clientId: a.clientId,
-    client: {
-      id: a.client.id,
-      firstName: a.client.firstName,
-      lastName: a.client.lastName,
-      company: a.client.company,
-      color: a.client.color,
-    },
+    client: a.client
+      ? {
+          id: a.client.id,
+          firstName: a.client.firstName,
+          lastName: a.client.lastName,
+          company: a.client.company,
+          color: a.client.color,
+        }
+      : null,
     type: a.type,
     title: a.title,
     link: a.link,
