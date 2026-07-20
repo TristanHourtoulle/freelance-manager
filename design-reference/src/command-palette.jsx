@@ -45,17 +45,17 @@ const cmdkStyles = `
   display: flex; align-items: center; gap: 12px; padding: 16px 18px; position: relative;
   border-bottom: 1px solid oklch(0.32 0.010 240 / 0.6);
 }
-.cmdk-search-icon { color: oklch(0.58 0.010 240); flex-shrink: 0; }
+.cmdk-search-icon { color: oklch(0.63 0.01 240); flex-shrink: 0; }
 .cmdk-input {
   flex: 1; background: transparent; border: none; outline: none;
   color: oklch(0.97 0.004 240); font-size: 15px; font-family: inherit; padding: 2px 0;
   letter-spacing: -0.005em;
 }
-.cmdk-input::placeholder { color: oklch(0.42 0.010 240); }
+.cmdk-input::placeholder { color: oklch(0.52 0.01 240); }
 .cmdk-loading { width: 14px; height: 14px; border-radius: 99px; border: 1.5px solid oklch(0.86 0.19 128 / 0.3); border-top-color: oklch(0.86 0.19 128); animation: cmdk-spin .7s linear infinite; }
 @keyframes cmdk-spin { to { transform: rotate(360deg); } }
 
-.cmdk-kbd-hint { display: flex; align-items: center; gap: 4px; color: oklch(0.42 0.010 240); font-size: 11px; }
+.cmdk-kbd-hint { display: flex; align-items: center; gap: 4px; color: oklch(0.52 0.01 240); font-size: 11px; }
 .cmdk-kbd { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; padding: 2px 6px; border-radius: 5px; background: oklch(0.27 0.010 240); color: oklch(0.78 0.008 240); border: 1px solid oklch(0.32 0.010 240); line-height: 1; min-width: 16px; text-align: center; }
 
 .cmdk-list { max-height: 380px; overflow-y: auto; padding: 8px; scrollbar-width: thin; }
@@ -64,7 +64,7 @@ const cmdkStyles = `
 
 .cmdk-group-label {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  color: oklch(0.42 0.010 240); padding: 12px 12px 4px; display: flex; align-items: center; justify-content: space-between;
+  color: oklch(0.52 0.01 240); padding: 12px 12px 4px; display: flex; align-items: center; justify-content: space-between;
 }
 .cmdk-group-label:first-child { padding-top: 6px; }
 
@@ -80,9 +80,9 @@ const cmdkStyles = `
 }
 .cmdk-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .cmdk-item-label { font-size: 13.5px; font-weight: 500; color: oklch(0.97 0.004 240); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cmdk-item-hint { font-size: 11.5px; color: oklch(0.58 0.010 240); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmdk-item-hint { font-size: 11.5px; color: oklch(0.63 0.01 240); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmdk-item-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.cmdk-item-shortcut { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: oklch(0.58 0.010 240); display: flex; align-items: center; gap: 3px; }
+.cmdk-item-shortcut { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: oklch(0.63 0.01 240); display: flex; align-items: center; gap: 3px; }
 .cmdk-item-enter { opacity: 0; transition: opacity .12s; }
 
 .cmdk-item.active {
@@ -92,14 +92,14 @@ const cmdkStyles = `
 .cmdk-item.active .cmdk-item-icon { background: oklch(0.86 0.19 128); color: oklch(0.20 0.05 128); }
 .cmdk-item.active .cmdk-item-enter { opacity: 1; color: oklch(0.86 0.19 128); }
 
-.cmdk-empty { padding: 48px 20px; text-align: center; color: oklch(0.58 0.010 240); }
-.cmdk-empty-glyph { width: 52px; height: 52px; border-radius: 14px; background: oklch(0.27 0.010 240); display: grid; place-items: center; margin: 0 auto 14px; color: oklch(0.42 0.010 240); }
+.cmdk-empty { padding: 48px 20px; text-align: center; color: oklch(0.63 0.01 240); }
+.cmdk-empty-glyph { width: 52px; height: 52px; border-radius: 14px; background: oklch(0.27 0.010 240); display: grid; place-items: center; margin: 0 auto 14px; color: oklch(0.52 0.01 240); }
 .cmdk-empty-title { color: oklch(0.97 0.004 240); font-weight: 600; font-size: 14px; margin-bottom: 4px; }
 .cmdk-empty-sub { font-size: 12.5px; }
 
 .cmdk-footer {
   display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-top: 1px solid oklch(0.32 0.010 240 / 0.6);
-  background: oklch(0.18 0.008 240 / 0.6); font-size: 11px; color: oklch(0.58 0.010 240);
+  background: oklch(0.18 0.008 240 / 0.6); font-size: 11px; color: oklch(0.63 0.01 240);
 }
 .cmdk-footer-left { display: flex; align-items: center; gap: 6px; }
 .cmdk-footer-brand-mark { width: 16px; height: 16px; border-radius: 4px; background: oklch(0.86 0.19 128); color: oklch(0.20 0.05 128); display: grid; place-items: center; font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; }
