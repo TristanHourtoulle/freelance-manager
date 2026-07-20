@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from "next/server"
  * Excluded paths (must remain reachable without auth):
  * - /api/auth/*       — better-auth's own handler
  * - /api/health       — gated separately by X-Health-Key (TRI-602)
+ * - /api/cron/*       — gated separately by X-Cron-Key (constant-time)
  *
  * @see TRI-599 for context.
  */
@@ -23,7 +24,7 @@ const SESSION_COOKIE_PREFIXES = [
   "__Secure-better-auth.session_token",
 ]
 
-const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health"]
+const PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/cron/"]
 
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl

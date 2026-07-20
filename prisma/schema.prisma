@@ -30,6 +30,7 @@ model User {
   activity ActivityLog[]
   clientActions ClientAction[]
   meetings      Meeting[]
+  pushSubscriptions PushSubscription[]
   linearSyncRuns LinearSyncRun[]
   settings UserSettings?
 
@@ -592,4 +593,25 @@ model LinearSyncRun {
 
   @@index([userId, startedAt])
   @@map("linear_sync_runs")
+}
+
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userAgent       String?
+  lastDeliveredAt DateTime?
+  lastFailureAt   DateTime?
+  failureCount    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

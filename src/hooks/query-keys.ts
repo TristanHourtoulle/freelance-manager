@@ -33,6 +33,8 @@ export const qk = {
     detail: (id: string | null | undefined) => ["project", id] as const,
   },
 
+  push: () => ["push"] as const,
+
   search: (resource: string, term: string) =>
     ["search", resource, term] as const,
 
