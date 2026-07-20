@@ -196,8 +196,26 @@ describe("DesktopTasksPage", () => {
     render(<DesktopTasksPage />)
 
     expect(subHeaderText()).toBe(
-      "Synchronisées depuis Linear · 1 tasks visibles · dernière sync il y a 2j · À facturer : 1 500 € (2 tasks)",
+      "Synchronisées depuis Linear · 1 tasks visibles · dernière sync il y a 2j Sync ancienne · À facturer : 1 500 € (2 tasks)",
     )
+  })
+
+  it("flags a sync older than 24h with the warning pill", () => {
+    mockTasks({ data: [buildTask()] })
+    mockLastSync(new Date(Date.now() - 25 * 3600000).toISOString())
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.getByText("Sync ancienne")).toHaveClass("pill-partial")
+  })
+
+  it("shows no staleness warning for a sync within the last 24h", () => {
+    mockTasks({ data: [buildTask()] })
+    mockLastSync(new Date(Date.now() - 3600000).toISOString())
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.queryByText("Sync ancienne")).not.toBeInTheDocument()
   })
 
   it("falls back to the em dash when no Linear sync has ever run", () => {

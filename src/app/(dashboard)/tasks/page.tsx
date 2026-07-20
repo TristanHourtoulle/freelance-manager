@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
+import { isSyncStale, SYNC_STALE_LABEL } from "@/lib/sync-staleness"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useSettings } from "@/hooks/use-settings"
@@ -91,6 +92,8 @@ export function DesktopTasksPage() {
   const sync = useSyncLinear()
   const syncProgress = useLinearSyncProgress()
   const isSyncing = sync.isPending || syncProgress.isRunning
+  const isSyncOld =
+    Boolean(settings) && isSyncStale(settings?.linearLastSyncedAt)
 
   const counts = useMemo(
     () => ({
@@ -223,6 +226,17 @@ export function DesktopTasksPage() {
               <>
                 Synchronisées depuis Linear · {counts.all} tasks visibles ·
                 dernière sync {fmtRelative(settings?.linearLastSyncedAt)}
+                {isSyncOld && (
+                  <>
+                    {" "}
+                    <span
+                      className="pill pill-partial"
+                      title="Les tâches affichées peuvent être obsolètes : lance une synchronisation Linear."
+                    >
+                      {SYNC_STALE_LABEL}
+                    </span>
+                  </>
+                )}
                 {pendingPipeline.count > 0 && (
                   <>
                     {" · "}

@@ -38,7 +38,6 @@ export async function GET(request: Request) {
       status: dbHealthy ? "healthy" : "unhealthy",
       checks: {
         database: dbHealthy ? "connected" : "disconnected",
-        linearWebhook: "unknown",
       },
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
