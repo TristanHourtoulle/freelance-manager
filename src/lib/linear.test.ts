@@ -229,6 +229,7 @@ describe("fetchIssuesWithRelations pagination", () => {
       id,
       identifier: `TRI-${id}`,
       title: `Issue ${id}`,
+      url: null,
       description: null,
       priority: null,
       estimate: null,
