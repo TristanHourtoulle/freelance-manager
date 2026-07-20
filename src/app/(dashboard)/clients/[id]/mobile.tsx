@@ -17,6 +17,7 @@ import { EditClientModal } from "@/components/clients/edit-client-modal"
 import { ClientActionsMenu } from "@/components/clients/client-actions-menu"
 import { ClientActivityTimeline } from "@/components/clients/client-activity-timeline"
 import { SuiviView } from "@/components/suivi/suivi-view"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 
 const LinearMappingsModal = dynamic(
   () =>
@@ -41,14 +42,7 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
   const { data: activity } = useClientActivity(tab === "activity" ? id : null)
 
   if (isLoading) {
-    return (
-      <div className="m-screen">
-        <MobileTopbar title="Client" back="/clients" />
-        <div className="m-content">
-          <div className="empty">Chargement…</div>
-        </div>
-      </div>
-    )
+    return <MobilePageSkeleton title="Client" variant="tiles" back="/clients" />
   }
 
   if (!client) {

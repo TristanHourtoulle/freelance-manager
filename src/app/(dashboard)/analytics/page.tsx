@@ -14,6 +14,7 @@ import {
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { PageSkeleton } from "@/components/ui/page-skeleton"
 
 const MobileAnalyticsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileAnalyticsPage),
@@ -79,14 +80,13 @@ function DesktopAnalyticsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="page" style={{ maxWidth: 1500 }}>
-        <div className="page-header">
-          <div>
-            <h1 className="page-title">Analytics</h1>
-            <div className="page-sub">Chargement…</div>
-          </div>
-        </div>
-      </div>
+      <PageSkeleton
+        title="Analytics"
+        maxWidth={1500}
+        kpis={4}
+        showChart
+        rows={6}
+      />
     )
   }
 

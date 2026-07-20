@@ -5,6 +5,8 @@ interface PageSkeletonProps {
   rows?: number
   showChart?: boolean
   label?: string
+  title?: string
+  maxWidth?: number
 }
 
 /**
@@ -19,20 +21,35 @@ interface PageSkeletonProps {
  * @param rows - Number of table-row placeholders in the trailing card.
  * @param showChart - Render a chart card between the KPI grid and the table.
  * @param label - Screen-reader announcement for the live region.
+ * @param title - Real page title; painted as a live `h1` instead of a bar
+ * when the page title is statically known.
+ * @param maxWidth - Overrides the default `.page` max width for the pages
+ * that widen it.
  */
 export function PageSkeleton({
   kpis = 4,
   rows = 8,
   showChart = false,
   label = "Chargement en cours…",
+  title,
+  maxWidth,
 }: PageSkeletonProps) {
   return (
-    <div className="page" role="status" aria-live="polite">
+    <div
+      className="page"
+      role="status"
+      aria-live="polite"
+      style={maxWidth ? { maxWidth } : undefined}
+    >
       <span className="sr-only">{label}</span>
 
       <div className="page-header">
         <div>
-          <Skeleton width={220} height={28} radius={8} />
+          {title ? (
+            <h1 className="page-title">{title}</h1>
+          ) : (
+            <Skeleton width={220} height={28} radius={8} />
+          )}
           <div style={{ marginTop: 10 }}>
             <Skeleton width={300} height={14} />
           </div>

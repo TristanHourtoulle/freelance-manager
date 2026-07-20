@@ -31,6 +31,24 @@ describe("PageSkeleton", () => {
     )
   })
 
+  it("paints the real page title as a heading when it is statically known", () => {
+    render(<PageSkeleton title="Analytics" />)
+    const heading = screen.getByRole("heading", { level: 1 })
+    expect(heading).toHaveTextContent("Analytics")
+    expect(heading.classList.contains("page-title")).toBe(true)
+  })
+
+  it("falls back to a title bar when no title is given", () => {
+    render(<PageSkeleton />)
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull()
+  })
+
+  it("applies a max width override on the page container", () => {
+    const { container } = render(<PageSkeleton maxWidth={1500} />)
+    const page = container.querySelector(".page") as HTMLElement
+    expect(page.style.maxWidth).toBe("1500px")
+  })
+
   it("renders four KPI tiles by default", () => {
     const { container } = render(<PageSkeleton />)
     expect(container.querySelectorAll(".kpi")).toHaveLength(4)
