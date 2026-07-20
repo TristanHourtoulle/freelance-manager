@@ -353,7 +353,6 @@ model Invoice {
   notes    String? @db.Text
 
   lines    InvoiceLine[]
-  files    InvoiceFile[]
   tasks    Task[]
   payments Payment[]
   activity ActivityLog[]
@@ -452,20 +451,6 @@ model InvoiceLine {
   @@index([invoiceId])
   @@index([taskId])
   @@map("invoice_lines")
-}
-
-model InvoiceFile {
-  id         String   @id @default(cuid())
-  invoiceId  String
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  fileName   String
-  fileSize   Int
-  mimeType   String   @default("application/pdf")
-  fileData   Bytes
-  uploadedAt DateTime @default(now())
-
-  @@index([invoiceId])
-  @@map("invoice_files")
 }
 
 // =====================================================================
