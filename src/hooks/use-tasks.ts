@@ -19,6 +19,7 @@ export interface TaskDTO {
   status: "BACKLOG" | "IN_PROGRESS" | "PENDING_INVOICE" | "DONE" | "CANCELED"
   priority: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "URGENT"
   estimate: number | null
+  actualDays: number | null
   completedAt: string | null
   invoiceId: string | null
   clientId: string
@@ -66,6 +67,39 @@ export function useTasks(
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
     staleTime: STALE_TIME.list,
+  })
+}
+
+/**
+ * Persist the real effort spent on a task, in days.
+ *
+ * Captured inline on the task row so it is filled at the moment the task flips
+ * to `PENDING_INVOICE`. Invalidates the task list plus every aggregate that
+ * consumes the effort denominator (analytics effective rate, dashboard).
+ */
+export function useUpdateTaskEffort() {
+  const qc = useQueryClient()
+  const { toast } = useToast()
+  return useMutation({
+    mutationFn: ({
+      id,
+      actualDays,
+    }: {
+      id: string
+      actualDays: number | null
+    }) => api.patch<TaskDTO>(`/api/tasks/${id}`, { actualDays }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.tasks.all() })
+      qc.invalidateQueries({ queryKey: qk.analyticsAll() })
+      qc.invalidateQueries({ queryKey: qk.dashboard() })
+    },
+    onError: (e) => {
+      toast({
+        variant: "error",
+        title: "Temps réel non enregistré",
+        description: e instanceof Error ? e.message : String(e),
+      })
+    },
   })
 }
 

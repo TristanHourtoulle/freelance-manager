@@ -301,6 +301,7 @@ model Task {
   status      TaskStatus   @default(BACKLOG)
   priority    TaskPriority @default(NONE)
   estimate    Decimal?     @db.Decimal(6, 2)
+  actualDays  Decimal?     @db.Decimal(6, 2)
 
   completedAt     DateTime?
   linearCreatedAt DateTime?

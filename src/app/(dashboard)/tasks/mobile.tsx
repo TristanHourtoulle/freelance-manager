@@ -12,6 +12,7 @@ import { pipelineValueForTask } from "@/lib/billing-math"
 import { useToast } from "@/components/providers/toast-provider"
 import { SuiviView } from "@/components/suivi/suivi-view"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 
 type Filter = "all" | "pending" | "done" | "invoiced"
 
@@ -222,73 +223,94 @@ export function MobileTasksPage() {
                       estimateDays: t.estimate,
                     })
                     return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className={"task-item" + (isSel ? " selected" : "")}
-                        onClick={() => !t.invoiceId && toggle(t.id)}
-                        disabled={t.invoiceId != null}
-                        style={{
-                          textAlign: "left",
-                          opacity: t.invoiceId ? 0.7 : 1,
-                        }}
-                      >
-                        <div className="row gap-8">
-                          <div
-                            className={
-                              "checkbox-circle" + (isSel ? " checked" : "")
-                            }
-                          >
-                            {isSel && <Icon name="check" size={13} />}
-                          </div>
-                          <TaskIdLink
-                            identifier={t.linearIdentifier}
-                            url={t.linearUrl}
-                            className="task-id"
-                            stopPropagation
-                          />
-                          <span
-                            className={
-                              "pill pill-no-dot xs " +
-                              (t.status === "DONE"
-                                ? "pill-paid"
+                      <div key={t.id} className="col gap-4">
+                        <button
+                          type="button"
+                          className={"task-item" + (isSel ? " selected" : "")}
+                          onClick={() => !t.invoiceId && toggle(t.id)}
+                          disabled={t.invoiceId != null}
+                          style={{
+                            textAlign: "left",
+                            opacity: t.invoiceId ? 0.7 : 1,
+                          }}
+                        >
+                          <div className="row gap-8">
+                            <div
+                              className={
+                                "checkbox-circle" + (isSel ? " checked" : "")
+                              }
+                            >
+                              {isSel && <Icon name="check" size={13} />}
+                            </div>
+                            <TaskIdLink
+                              identifier={t.linearIdentifier}
+                              url={t.linearUrl}
+                              className="task-id"
+                              stopPropagation
+                            />
+                            <span
+                              className={
+                                "pill pill-no-dot xs " +
+                                (t.status === "DONE"
+                                  ? "pill-paid"
+                                  : t.status === "IN_PROGRESS"
+                                    ? "pill-draft"
+                                    : "pill-pending")
+                              }
+                              style={{ marginLeft: "auto" }}
+                            >
+                              {t.status === "DONE"
+                                ? "Done"
                                 : t.status === "IN_PROGRESS"
-                                  ? "pill-draft"
-                                  : "pill-pending")
-                            }
-                            style={{ marginLeft: "auto" }}
-                          >
-                            {t.status === "DONE"
-                              ? "Done"
-                              : t.status === "IN_PROGRESS"
-                                ? "In Progress"
-                                : "À facturer"}
+                                  ? "In Progress"
+                                  : "À facturer"}
+                            </span>
+                          </div>
+                          <div className="task-title">{t.title}</div>
+                          <div className="task-meta">
+                            <span>
+                              <Icon name="clock" size={11} />{" "}
+                              {t.estimate ?? "—"}j
+                            </span>
+                            <span>·</span>
+                            <span className="num">{fmtEUR(value)}</span>
+                            {t.invoiceId && (
+                              <>
+                                <span>·</span>
+                                <span style={{ color: "var(--accent)" }}>
+                                  Facturée
+                                </span>
+                              </>
+                            )}
+                            {t.completedAt && (
+                              <>
+                                <span style={{ marginLeft: "auto" }}>
+                                  {fmtRelative(t.completedAt)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </button>
+                        <div
+                          className="row gap-8"
+                          style={{ padding: "0 4px 2px" }}
+                        >
+                          <span className="xs muted grow">
+                            Temps réel passé
                           </span>
+                          <TaskEffortInput
+                            taskId={t.id}
+                            actualDays={t.actualDays}
+                            className="num"
+                            style={{
+                              width: 76,
+                              padding: "5px 8px",
+                              textAlign: "right",
+                            }}
+                          />
+                          <span className="xs muted">j</span>
                         </div>
-                        <div className="task-title">{t.title}</div>
-                        <div className="task-meta">
-                          <span>
-                            <Icon name="clock" size={11} /> {t.estimate ?? "—"}j
-                          </span>
-                          <span>·</span>
-                          <span className="num">{fmtEUR(value)}</span>
-                          {t.invoiceId && (
-                            <>
-                              <span>·</span>
-                              <span style={{ color: "var(--accent)" }}>
-                                Facturée
-                              </span>
-                            </>
-                          )}
-                          {t.completedAt && (
-                            <>
-                              <span style={{ marginLeft: "auto" }}>
-                                {fmtRelative(t.completedAt)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>

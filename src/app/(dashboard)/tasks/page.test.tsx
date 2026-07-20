@@ -27,6 +27,7 @@ vi.mock("next/dynamic", () => ({
 vi.mock("@/hooks/use-tasks", () => ({
   useTasks: () => useTasksMock(),
   useSyncLinear: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateTaskEffort: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock("@/hooks/use-linear-sync", () => ({
@@ -89,6 +90,7 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
     status: "PENDING_INVOICE",
     priority: "NONE",
     estimate: 2,
+    actualDays: null,
     completedAt: null,
     invoiceId: null,
     clientId: "client-1",

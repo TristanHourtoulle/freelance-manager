@@ -22,6 +22,7 @@ import { SuiviView } from "@/components/suivi/suivi-view"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -547,6 +548,9 @@ export function DesktopTasksPage() {
                           <th className="right" style={{ width: 90 }}>
                             Estimate
                           </th>
+                          <th className="right" style={{ width: 92 }}>
+                            Réel
+                          </th>
                           <th className="right" style={{ width: 110 }}>
                             Valeur
                           </th>
@@ -604,6 +608,18 @@ export function DesktopTasksPage() {
                               </td>
                               <td className="right num">
                                 {t.estimate ? `${t.estimate}j` : "—"}
+                              </td>
+                              <td className="right">
+                                <TaskEffortInput
+                                  taskId={t.id}
+                                  actualDays={t.actualDays}
+                                  className="num"
+                                  style={{
+                                    width: 68,
+                                    padding: "4px 8px",
+                                    textAlign: "right",
+                                  }}
+                                />
                               </td>
                               <td className="right num">
                                 {value > 0 ? fmtEUR(value) : "—"}
