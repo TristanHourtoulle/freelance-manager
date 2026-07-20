@@ -19,7 +19,7 @@ const NewClientModal = dynamic(
   { ssr: false },
 )
 
-type Filter = "all" | "DAILY" | "FIXED" | "HOURLY"
+type Filter = "all" | "DAILY" | "FIXED" | "HOURLY" | "LEAD" | "DORMANT"
 
 export function MobileClientsPage() {
   const router = useRouter()
@@ -34,7 +34,10 @@ export function MobileClientsPage() {
   const enriched = useMemo(() => {
     return clients
       .filter((c) => !c.archived)
-      .filter((c) => filter === "all" || c.billingMode === filter)
+      .filter((c) => {
+        if (filter === "LEAD" || filter === "DORMANT") return c.stage === filter
+        return filter === "all" || c.billingMode === filter
+      })
       .filter((c) => {
         if (!search) return true
         return (c.firstName + " " + c.lastName + " " + (c.company ?? ""))
@@ -85,6 +88,8 @@ export function MobileClientsPage() {
                 { id: "DAILY" as Filter, label: "TJM" },
                 { id: "FIXED" as Filter, label: "Forfait" },
                 { id: "HOURLY" as Filter, label: "Horaire" },
+                { id: "LEAD" as Filter, label: "Prospects" },
+                { id: "DORMANT" as Filter, label: "Dormants" },
               ] as { id: Filter; label: string }[]
             ).map((f) => (
               <button
@@ -125,6 +130,12 @@ export function MobileClientsPage() {
                       {c.firstName} {c.lastName}
                     </div>
                   </div>
+                  {c.stage === "LEAD" && (
+                    <span className="pill pill-sent">Prospect</span>
+                  )}
+                  {c.stage === "DORMANT" && (
+                    <span className="pill pill-draft">Dormant</span>
+                  )}
                   <BillingTypePill type={c.billingMode} />
                 </div>
                 <div className="divider" style={{ margin: "10px 0" }} />

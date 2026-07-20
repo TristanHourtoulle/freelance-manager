@@ -11,7 +11,7 @@ import {
   parseSearchQuery,
   requireSameOrigin,
 } from "@/lib/api"
-import { clientCreateSchema } from "@/lib/schemas/client"
+import { clientCreateSchema, clientStageSchema } from "@/lib/schemas/client"
 import { deferActivityLog } from "@/lib/activity"
 import {
   clientsTag,
@@ -27,6 +27,7 @@ const clientsQuerySchema = z.object({
     .optional()
     .transform((v) => v === "true"),
   summary: z.literal("billable").optional(),
+  stage: clientStageSchema.optional(),
 })
 
 export async function GET(req: Request) {
@@ -37,16 +38,17 @@ export async function GET(req: Request) {
     const { cursor, limit } = parsePagination(req)
     const q = parseSearchQuery(req)
     const params = new URL(req.url).searchParams
-    const { archived, summary } = clientsQuerySchema.parse({
+    const { archived, summary, stage } = clientsQuerySchema.parse({
       archived: params.get("archived") ?? undefined,
       summary: params.get("summary") ?? undefined,
+      stage: params.get("stage") ?? undefined,
     })
 
     if (summary === "billable") {
       return NextResponse.json(await getClientsBillableSummary(user.id))
     }
 
-    if (!cursor && limit === 50 && !archived && !q) {
+    if (!cursor && limit === 50 && !archived && !q && !stage) {
       return NextResponse.json(await getClientsFirstPage(user.id))
     }
 
@@ -54,6 +56,7 @@ export async function GET(req: Request) {
       where: {
         userId: user.id,
         archivedAt: archived ? { not: null } : null,
+        ...(stage ? { stage } : {}),
         ...(q
           ? {
               OR: [
@@ -106,6 +109,7 @@ export async function POST(req: Request) {
         deposit: data.deposit ?? null,
         paymentTerms: data.paymentTerms ?? null,
         category: data.category ?? "FREELANCE",
+        stage: data.stage ?? "ACTIVE",
         color: data.color ?? null,
         starred: data.starred ?? false,
       },

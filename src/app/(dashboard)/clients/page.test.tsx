@@ -52,6 +52,7 @@ function buildClient(overrides: Partial<ClientDTO> = {}): ClientDTO {
     deposit: null,
     paymentTerms: null,
     category: "FREELANCE",
+    stage: "ACTIVE",
     color: null,
     starred: false,
     archived: false,
@@ -165,6 +166,69 @@ describe("ClientsPage (desktop)", () => {
 
     expect(screen.getByText("Aucun résultat")).toBeInTheDocument()
     expect(screen.queryByText("Aucun client")).not.toBeInTheDocument()
+  })
+
+  it("renders the Prospects and Dormants chips with their counts", () => {
+    useClientsMock.mockReturnValue(
+      clientsResult({
+        data: [
+          buildClient({ id: "client-1", stage: "LEAD" }),
+          buildClient({ id: "client-2", stage: "ACTIVE" }),
+          buildClient({ id: "client-3", stage: "DORMANT" }),
+        ],
+      }),
+    )
+
+    render(<ClientsPage />)
+
+    expect(
+      screen.getByRole("button", { name: /Prospects\s*1/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: /Dormants\s*1/ }),
+    ).toBeInTheDocument()
+  })
+
+  it("filters the list to LEAD rows when Prospects is selected", () => {
+    useClientsMock.mockReturnValue(
+      clientsResult({
+        data: [
+          buildClient({
+            id: "client-1",
+            stage: "LEAD",
+            company: "Lead SAS",
+          }),
+          buildClient({
+            id: "client-2",
+            stage: "ACTIVE",
+            company: "Active SAS",
+          }),
+        ],
+      }),
+    )
+
+    const { container } = render(<ClientsPage />)
+    fireEvent.click(screen.getByRole("button", { name: /Prospects/ }))
+
+    const cards = container.querySelectorAll(".client-card")
+    expect(cards).toHaveLength(1)
+    expect(cards[0]!.textContent).toContain("Lead SAS")
+  })
+
+  it("badges a LEAD row and leaves an ACTIVE row unbadged", () => {
+    useClientsMock.mockReturnValue(
+      clientsResult({ data: [buildClient({ stage: "LEAD" })] }),
+    )
+    const lead = render(<ClientsPage />)
+    expect(screen.getByText("Prospect")).toBeInTheDocument()
+    lead.unmount()
+
+    useClientsMock.mockReturnValue(
+      clientsResult({ data: [buildClient({ stage: "ACTIVE" })] }),
+    )
+    render(<ClientsPage />)
+    expect(screen.queryByText("Prospect")).not.toBeInTheDocument()
+    expect(screen.queryByText("Dormant")).not.toBeInTheDocument()
   })
 
   it("requests archived clients when the archived chip is toggled", () => {

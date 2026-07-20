@@ -24,7 +24,9 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
   cacheTag(navTag(userId))
 
   const [clients, projects, tasks, invoices] = await Promise.all([
-    prisma.client.count({ where: { userId, archivedAt: null } }),
+    prisma.client.count({
+      where: { userId, archivedAt: null, stage: { not: "LEAD" } },
+    }),
     prisma.project.count({ where: { userId, status: "ACTIVE" } }),
     prisma.task.count({ where: { userId, status: "PENDING_INVOICE" } }),
     prisma.invoice.count({

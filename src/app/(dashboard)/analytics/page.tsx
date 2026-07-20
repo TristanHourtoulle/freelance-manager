@@ -331,12 +331,30 @@ function DesktopAnalyticsPage() {
             </div>
             <div className="ana-metric">
               <div className="ana-metric-row">
-                <span className="ana-metric-label">Taux de conversion</span>
-                <span className="ana-metric-value">{kpi.conversion}%</span>
+                <span className="ana-metric-label">
+                  Taux d&apos;encaissement
+                </span>
+                <span className="ana-metric-value">{kpi.collectionRate}%</span>
               </div>
               <div className="row gap-4 xs muted">
                 tasks done → factures payées
               </div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Taux de signature</span>
+                <span className="ana-metric-value">{kpi.winRate}%</span>
+              </div>
+              <div className="row gap-4 xs muted">devis acceptés</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Délai de décision</span>
+                <span className="ana-metric-value">
+                  {kpi.avgDecisionDays} j
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">envoi → réponse client</div>
             </div>
             <div className="ana-metric">
               <div className="ana-metric-row">

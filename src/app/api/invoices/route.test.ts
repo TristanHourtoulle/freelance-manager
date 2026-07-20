@@ -29,6 +29,9 @@ vi.mock("@/domain/billing/serialize", () => ({
   }),
 }))
 vi.mock("@/lib/data/nav", () => ({ navTag: (id: string) => `user-${id}-nav` }))
+vi.mock("@/lib/data/clients", () => ({
+  clientsTag: (id: string) => `user-${id}-clients`,
+}))
 vi.mock("@/lib/activity", () => ({ deferActivityLog: vi.fn() }))
 vi.mock("@/lib/payments", () => ({ recomputeInvoicePayment: vi.fn() }))
 vi.mock("@/lib/invoice-numbering", () => ({ nextAutoNumber: vi.fn() }))
@@ -133,5 +136,65 @@ describe("GET /api/invoices", () => {
 
     expect(res.status).toBe(401)
     expect(prismaMock.invoice.findMany).not.toHaveBeenCalled()
+  })
+})
+
+describe("POST /api/invoices — client stage promotion", () => {
+  const tx = {
+    invoice: { create: vi.fn(), findFirst: vi.fn() },
+    task: { updateMany: vi.fn() },
+    payment: { create: vi.fn() },
+    client: { update: vi.fn() },
+  }
+
+  function postRequest() {
+    return new Request("http://localhost/api/invoices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        clientId: "c1",
+        status: "DRAFT",
+        kind: "STANDARD",
+        issueDate: "2026-03-01",
+        dueDate: "2026-03-31",
+        lines: [{ label: "Dev", qty: 1, rate: 500 }],
+      }),
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    delete process.env.NEXT_PUBLIC_APP_URL
+    getAuthUser.mockResolvedValue({ id: "user-1" })
+    tx.invoice.create.mockResolvedValue({
+      id: "i9",
+      number: "2026-1025",
+      clientId: "c1",
+    })
+    tx.invoice.findFirst.mockResolvedValue(null)
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    )
+  })
+
+  it("promotes a LEAD client to ACTIVE inside the transaction", async () => {
+    prismaMock.client.findFirst.mockResolvedValue({ id: "c1", stage: "LEAD" })
+    const { POST } = await import("./route")
+    const res = await POST(postRequest())
+
+    expect(res.status).toBe(201)
+    expect(tx.client.update).toHaveBeenCalledWith({
+      where: { id: "c1" },
+      data: { stage: "ACTIVE" },
+    })
+  })
+
+  it("leaves an already ACTIVE client untouched", async () => {
+    prismaMock.client.findFirst.mockResolvedValue({ id: "c1", stage: "ACTIVE" })
+    const { POST } = await import("./route")
+    const res = await POST(postRequest())
+
+    expect(res.status).toBe(201)
+    expect(tx.client.update).not.toHaveBeenCalled()
   })
 })

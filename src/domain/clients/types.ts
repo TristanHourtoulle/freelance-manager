@@ -22,6 +22,7 @@ export interface ClientWireRow {
   deposit: number | null
   paymentTerms: number | null
   category: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  stage: "LEAD" | "ACTIVE" | "DORMANT"
   color: string | null
   starred: boolean
   archived: boolean

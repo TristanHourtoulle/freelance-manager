@@ -110,4 +110,32 @@ describe("GET /api/clients", () => {
     expect(res.status).toBe(401)
     expect(prismaMock.client.findMany).not.toHaveBeenCalled()
   })
+
+  it("pushes ?stage=LEAD into the where clause", async () => {
+    const { GET } = await import("./route")
+    await GET(request("?stage=LEAD&limit=6"))
+
+    const where = prismaMock.client.findMany.mock.calls[0]![0].where
+    expect(where).toEqual({
+      userId: "user-1",
+      archivedAt: null,
+      stage: "LEAD",
+    })
+  })
+
+  it("bypasses the cached first page when a stage filter is given", async () => {
+    const { GET } = await import("./route")
+    await GET(request("?stage=DORMANT"))
+
+    expect(getClientsFirstPage).not.toHaveBeenCalled()
+    expect(prismaMock.client.findMany).toHaveBeenCalledTimes(1)
+  })
+
+  it("rejects an unknown stage value with a 400", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(request("?stage=NOPE"))
+
+    expect(res.status).toBe(400)
+    expect(prismaMock.client.findMany).not.toHaveBeenCalled()
+  })
 })

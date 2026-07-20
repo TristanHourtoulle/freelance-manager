@@ -7,6 +7,7 @@ import {
   getAuthUser,
 } from "@/lib/api"
 import { withEffectiveRates } from "@/domain/analytics/effective-rate"
+import { computeQuoteKpis } from "@/domain/quotes/kpis"
 
 const RANGE_MONTHS: Record<string, number> = { "3m": 3, "6m": 6, "12m": 12 }
 
@@ -26,57 +27,77 @@ export async function GET(req: Request) {
       1,
     )
 
-    const [invoices, payments, clients, tasks, paidByMonth, issuedByMonth] =
-      await Promise.all([
-        prisma.invoice.findMany({
-          where: { userId: user.id, status: { not: "CANCELLED" } },
-          select: {
-            id: true,
-            clientId: true,
-            status: true,
-            paymentStatus: true,
-            issueDate: true,
-            total: true,
-          },
-        }),
-        prisma.payment.findMany({
-          where: { userId: user.id },
-          select: { invoiceId: true, amount: true, paidAt: true },
-        }),
-        prisma.client.findMany({
-          where: { userId: user.id, archivedAt: null },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            company: true,
-            color: true,
-            billingMode: true,
-          },
-        }),
-        prisma.task.findMany({
-          where: {
-            userId: user.id,
-            completedAt: { not: null, gte: periodStart },
-          },
-          select: {
-            id: true,
-            completedAt: true,
-            status: true,
-            invoiceId: true,
-            clientId: true,
-            estimate: true,
-            actualDays: true,
-          },
-        }),
-        prisma.$queryRaw<{ month: Date; total: number }[]>`
+    const [
+      invoices,
+      payments,
+      clients,
+      tasks,
+      quotes,
+      paidByMonth,
+      issuedByMonth,
+    ] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { userId: user.id, status: { not: "CANCELLED" } },
+        select: {
+          id: true,
+          clientId: true,
+          status: true,
+          paymentStatus: true,
+          issueDate: true,
+          total: true,
+        },
+      }),
+      prisma.payment.findMany({
+        where: { userId: user.id },
+        select: { invoiceId: true, amount: true, paidAt: true },
+      }),
+      prisma.client.findMany({
+        where: {
+          userId: user.id,
+          archivedAt: null,
+          stage: { not: "LEAD" },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          company: true,
+          color: true,
+          billingMode: true,
+        },
+      }),
+      prisma.task.findMany({
+        where: {
+          userId: user.id,
+          completedAt: { not: null, gte: periodStart },
+        },
+        select: {
+          id: true,
+          completedAt: true,
+          status: true,
+          invoiceId: true,
+          clientId: true,
+          estimate: true,
+          actualDays: true,
+        },
+      }),
+      prisma.quote.findMany({
+        where: { userId: user.id },
+        select: {
+          status: true,
+          sentAt: true,
+          decidedAt: true,
+          total: true,
+        },
+      }),
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
         SELECT date_trunc('month', "paidAt") AS month, SUM(amount)::float AS total
         FROM payments
         WHERE "userId" = ${user.id} AND "paidAt" >= ${periodStart}
         GROUP BY 1
         ORDER BY 1
       `,
-        prisma.$queryRaw<{ month: Date; total: number }[]>`
+      prisma.$queryRaw<{ month: Date; total: number }[]>`
         SELECT date_trunc('month', "issueDate") AS month, SUM(total)::float AS total
         FROM invoices
         WHERE "userId" = ${user.id}
@@ -85,7 +106,7 @@ export async function GET(req: Request) {
         GROUP BY 1
         ORDER BY 1
       `,
-      ])
+    ])
 
     const paidByMonthMap = new Map(
       paidByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
@@ -254,7 +275,7 @@ export async function GET(req: Request) {
         (inv.paymentStatus === "UNPAID" ||
           inv.paymentStatus === "PARTIALLY_PAID"),
     ).length
-    const conversion =
+    const collectionRate =
       fullyPaidInvoices.length + sentCount > 0
         ? Math.round(
             (fullyPaidInvoices.length /
@@ -268,6 +289,15 @@ export async function GET(req: Request) {
         ? Math.round(totalRevenue / fullyPaidInvoices.length)
         : 0
 
+    const quoteKpis = computeQuoteKpis(
+      quotes.map((q) => ({
+        status: q.status,
+        sentAt: q.sentAt?.toISOString() ?? null,
+        decidedAt: q.decidedAt?.toISOString() ?? null,
+        total: decimalToNumber(q.total) ?? 0,
+      })),
+    )
+
     return NextResponse.json({
       range: rangeKey,
       months: monthBuckets,
@@ -278,7 +308,9 @@ export async function GET(req: Request) {
         paidCount: fullyPaidInvoices.length,
         avgDelay,
         avgInvoice,
-        conversion,
+        collectionRate,
+        winRate: quoteKpis.winRate,
+        avgDecisionDays: quoteKpis.avgDecisionDays,
         runRate: avgRevenue * 12,
       },
       byClient,
