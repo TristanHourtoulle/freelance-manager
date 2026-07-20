@@ -204,6 +204,16 @@ export function MobileAnalyticsPage() {
               </div>
               <div className="divider" style={{ margin: 0 }} />
               <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted">Taux de signature</span>
+                <span className="num strong">{kpi.winRate}%</span>
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="small muted">Délai de décision</span>
+                <span className="num strong">{kpi.avgDecisionDays} j</span>
+              </div>
+              <div className="divider" style={{ margin: 0 }} />
+              <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="small muted">Run-rate annuel</span>
                 <span className="num strong" style={{ color: "var(--accent)" }}>
                   {fmtEUR(kpi.runRate)}

@@ -17,6 +17,8 @@ export interface AnalyticsDTO {
     avgDelay: number
     avgInvoice: number
     collectionRate: number
+    winRate: number
+    avgDecisionDays: number
     runRate: number
   }
   byClient: {

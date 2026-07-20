@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { computeQuoteKpis } from "@/domain/quotes/kpis"
 
 type InvoiceRow = {
   id: string
@@ -28,12 +29,19 @@ type TaskRow = {
   actualDays: number | null
 }
 type MonthBucket = { month: Date; total: number }
+type QuoteRow = {
+  status: "DRAFT" | "SENT" | "ACCEPTED" | "REFUSED" | "EXPIRED"
+  sentAt: Date | null
+  decidedAt: Date | null
+  total: number
+}
 
 type Dataset = {
   invoices: InvoiceRow[]
   payments: PaymentRow[]
   clients: ClientRow[]
   tasks: TaskRow[]
+  quotes?: QuoteRow[]
   paidByMonth: MonthBucket[]
   issuedByMonth: MonthBucket[]
 }
@@ -47,6 +55,7 @@ vi.mock("@/lib/db", () => ({
     payment: { findMany: (...a: unknown[]) => findMany("payment", ...a) },
     client: { findMany: (...a: unknown[]) => findMany("client", ...a) },
     task: { findMany: (...a: unknown[]) => findMany("task", ...a) },
+    quote: { findMany: (...a: unknown[]) => findMany("quote", ...a) },
     $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
       queryRaw(strings, ...values),
   },
@@ -255,6 +264,15 @@ function referenceAnalytics(
       ? Math.round(totalRevenue / fullyPaidInvoices.length)
       : 0
 
+  const quoteKpis = computeQuoteKpis(
+    (data.quotes ?? []).map((q) => ({
+      status: q.status,
+      sentAt: q.sentAt?.toISOString() ?? null,
+      decidedAt: q.decidedAt?.toISOString() ?? null,
+      total: q.total,
+    })),
+  )
+
   return {
     range: rangeKey,
     months: monthBuckets,
@@ -266,6 +284,8 @@ function referenceAnalytics(
       avgDelay,
       avgInvoice,
       collectionRate,
+      winRate: quoteKpis.winRate,
+      avgDecisionDays: quoteKpis.avgDecisionDays,
       runRate: avgRevenue * 12,
     },
     byClient,
@@ -425,7 +445,15 @@ function buildDataset(): Dataset {
     { month: new Date(Date.UTC(2026, 1, 1)), total: 4200 },
     { month: new Date(Date.UTC(2026, 2, 1)), total: 1300 },
   ]
-  return { invoices, payments, clients, tasks, paidByMonth, issuedByMonth }
+  return {
+    invoices,
+    payments,
+    clients,
+    tasks,
+    quotes: [],
+    paidByMonth,
+    issuedByMonth,
+  }
 }
 
 function wireMocks(data: Dataset) {
@@ -444,6 +472,8 @@ function wireMocks(data: Dataset) {
       }
       case "task":
         return Promise.resolve(data.tasks)
+      case "quote":
+        return Promise.resolve(data.quotes ?? [])
       default:
         return Promise.resolve([])
     }
@@ -569,6 +599,39 @@ describe("GET /api/analytics", () => {
     const body = await res.json()
     expect(body.kpi.collectionRate).toBe(60)
     expect(body.kpi.conversion).toBeUndefined()
+  })
+
+  it("surfaces the quote win rate and decision delay in the KPI payload", async () => {
+    const data = buildDataset()
+    data.quotes = [
+      {
+        status: "ACCEPTED",
+        sentAt: new Date(2026, 1, 1),
+        decidedAt: new Date(2026, 1, 5),
+        total: 4000,
+      },
+      {
+        status: "REFUSED",
+        sentAt: new Date(2026, 1, 1),
+        decidedAt: new Date(2026, 1, 3),
+        total: 1000,
+      },
+      {
+        status: "SENT",
+        sentAt: new Date(2026, 2, 1),
+        decidedAt: null,
+        total: 2500,
+      },
+    ]
+    wireMocks(data)
+    const { GET } = await import("./route")
+    const res = await GET(
+      new Request("http://localhost/api/analytics?range=12m"),
+    )
+    const body = await res.json()
+
+    expect(body.kpi.winRate).toBe(50)
+    expect(body.kpi.avgDecisionDays).toBe(3)
   })
 
   it("collapses multiple payments into one delay per invoice", async () => {

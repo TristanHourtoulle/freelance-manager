@@ -26,6 +26,7 @@ model User {
   projects Project[]
   tasks    Task[]
   invoices Invoice[]
+  quotes   Quote[]
   payments Payment[]
   activity ActivityLog[]
   clientActions ClientAction[]
@@ -209,6 +210,7 @@ model Client {
   projects       Project[]
   tasks          Task[]
   invoices       Invoice[]
+  quotes         Quote[]
   activity       ActivityLog[]
   clientActions  ClientAction[]
   meetings       Meeting[]
@@ -269,6 +271,7 @@ model Project {
 
   tasks    Task[]
   invoices Invoice[]
+  quotes   Quote[]
   activity ActivityLog[]
 
   @@index([userId])
@@ -474,6 +477,67 @@ model InvoiceFile {
 
   @@index([invoiceId])
   @@map("invoice_files")
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+  EXPIRED
+}
+
+model Quote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  number String
+  status QuoteStatus @default(DRAFT)
+
+  issueDate  DateTime
+  validUntil DateTime?
+  sentAt     DateTime?
+  decidedAt  DateTime?
+
+  subtotal Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @default(0) @db.Decimal(10, 2)
+  notes    String? @db.Text
+
+  externalUrl String?
+
+  lines QuoteLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, number])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, issueDate(sort: Desc)])
+  @@index([clientId])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id      String  @id @default(cuid())
+  quoteId String
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  taskId  String?
+
+  label    String
+  qty      Decimal @db.Decimal(10, 2)
+  rate     Decimal @db.Decimal(10, 2)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([quoteId])
+  @@map("quote_lines")
 }
 
 // =====================================================================

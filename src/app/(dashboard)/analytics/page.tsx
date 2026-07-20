@@ -337,6 +337,22 @@ function DesktopAnalyticsPage() {
             </div>
             <div className="ana-metric">
               <div className="ana-metric-row">
+                <span className="ana-metric-label">Taux de signature</span>
+                <span className="ana-metric-value">{kpi.winRate}%</span>
+              </div>
+              <div className="row gap-4 xs muted">devis acceptés</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
+                <span className="ana-metric-label">Délai de décision</span>
+                <span className="ana-metric-value">
+                  {kpi.avgDecisionDays} j
+                </span>
+              </div>
+              <div className="row gap-4 xs muted">envoi → réponse client</div>
+            </div>
+            <div className="ana-metric">
+              <div className="ana-metric-row">
                 <span className="ana-metric-label">Run-rate annuel</span>
                 <span className="ana-metric-value">{fmtEUR(kpi.runRate)}</span>
               </div>

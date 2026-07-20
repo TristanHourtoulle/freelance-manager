@@ -27,6 +27,13 @@ export const qk = {
   invoices: () => ["invoices"] as const,
   invoice: (id: string | null | undefined) => ["invoice", id] as const,
 
+  quotes: <F>(filters?: F) =>
+    (filters === undefined ? ["quotes"] : ["quotes", filters]) as
+      | readonly ["quotes"]
+      | readonly ["quotes", F],
+  quotesAll: () => ["quotes"] as const,
+  quote: (id: string | null | undefined) => ["quote", id] as const,
+
   projects: () => ["projects"] as const,
 
   search: (resource: string, term: string) =>
