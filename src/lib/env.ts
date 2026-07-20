@@ -26,6 +26,10 @@ const envSchema = z.object({
       "ENCRYPTION_KEY must be 64 hex chars (32 bytes). Generate with: openssl rand -hex 32",
     ),
   CRON_SECRET: z.string().min(1).optional(),
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().min(1).optional(),
   TRUST_PROXY: z.coerce.boolean().default(false),
   HEALTH_KEY: z.string().min(16).optional(),
 })

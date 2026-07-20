@@ -29,6 +29,8 @@ export const qk = {
 
   projects: () => ["projects"] as const,
 
+  push: () => ["push"] as const,
+
   search: (resource: string, term: string) =>
     ["search", resource, term] as const,
 

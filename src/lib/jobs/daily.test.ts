@@ -3,11 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     user: { findMany: vi.fn() },
-    invoice: { findMany: vi.fn() },
-    clientAction: { createMany: vi.fn() },
+    invoice: { findMany: vi.fn(), count: vi.fn() },
+    clientAction: { createMany: vi.fn(), count: vi.fn() },
+    meeting: { count: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
+
+const sendPushToUser = vi.fn()
+vi.mock("@/lib/push/send", () => ({
+  sendPushToUser: (userId: string, payload: unknown) =>
+    sendPushToUser(userId, payload),
+}))
 
 const NOW = new Date("2026-07-20T07:00:00.000Z")
 const PAST = new Date("2026-01-10T00:00:00.000Z")
@@ -32,6 +39,10 @@ describe("runDailyJobs — overdue-relances", () => {
     vi.clearAllMocks()
     prismaMock.user.findMany.mockResolvedValue([{ id: "user-1" }])
     prismaMock.clientAction.createMany.mockResolvedValue({ count: 1 })
+    prismaMock.clientAction.count.mockResolvedValue(0)
+    prismaMock.meeting.count.mockResolvedValue(0)
+    prismaMock.invoice.count.mockResolvedValue(0)
+    sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
   it("creates one relance action for an overdue unpaid invoice", async () => {
@@ -121,5 +132,54 @@ describe("runDailyJobs — overdue-relances", () => {
     expect(typeof result.startedAt).toBe("string")
     expect(typeof result.finishedAt).toBe("string")
     spy.mockRestore()
+  })
+})
+
+describe("runDailyJobs — push-digest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.user.findMany.mockResolvedValue([{ id: "user-1" }])
+    prismaMock.invoice.findMany.mockResolvedValue([])
+    prismaMock.clientAction.createMany.mockResolvedValue({ count: 0 })
+    sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
+  })
+
+  it("sends at most one notification per user regardless of item count", async () => {
+    prismaMock.clientAction.count.mockResolvedValue(5)
+    prismaMock.meeting.count.mockResolvedValue(3)
+    prismaMock.invoice.count.mockResolvedValue(2)
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(sendPushToUser).toHaveBeenCalledTimes(1)
+    const [userId, payload] = sendPushToUser.mock.calls[0] ?? []
+    expect(userId).toBe("user-1")
+    expect(payload).toEqual({
+      title: "Aujourd'hui",
+      body: "5 actions, 3 RDV, 2 factures en retard",
+      url: "/dashboard",
+    })
+    expect(result.jobs).toContainEqual({
+      name: "push-digest",
+      ok: true,
+      count: 1,
+    })
+  })
+
+  it("sends nothing when there is nothing to report", async () => {
+    prismaMock.clientAction.count.mockResolvedValue(0)
+    prismaMock.meeting.count.mockResolvedValue(0)
+    prismaMock.invoice.count.mockResolvedValue(0)
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(sendPushToUser).not.toHaveBeenCalled()
+    expect(result.jobs).toContainEqual({
+      name: "push-digest",
+      ok: true,
+      count: 0,
+    })
   })
 })

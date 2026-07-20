@@ -66,8 +66,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then((r) => handle<T>(r)),
-  delete: <T>(url: string) =>
-    fetch(url, { method: "DELETE", credentials: "include" }).then((r) =>
-      handle<T>(r),
-    ),
+  delete: <T>(url: string, body?: unknown) =>
+    fetch(url, {
+      method: "DELETE",
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    }).then((r) => handle<T>(r)),
 }
