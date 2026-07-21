@@ -13,6 +13,7 @@ interface ListItem {
 }
 
 const ITEMS: ListItem[] = [
+  { href: "/suivi", icon: "calendar", label: "Suivi" },
   { href: "/projects", icon: "folder", label: "Projets" },
   { href: "/analytics", icon: "chart", label: "Analytics" },
   { href: "/settings", icon: "settings", label: "Réglages" },

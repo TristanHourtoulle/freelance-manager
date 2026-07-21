@@ -22,6 +22,7 @@ import {
 } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useToast } from "@/components/providers/toast-provider"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import {
   matchesInvoiceFilter,
   summarizeInvoices,
@@ -36,7 +37,12 @@ export function MobileBillingPage() {
   const initialId = search.get("invoiceId")
   const initialFilter = (search.get("filter") as InvoiceFilterId) ?? "all"
 
-  const { data: invoices = [] } = useInvoices()
+  const {
+    data: invoices = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInvoices()
   const { data: clients = [] } = useClients()
   const [filter, setFilter] = useState<InvoiceFilterId>(initialFilter)
   const [openId, setOpenId] = useState<string | null>(initialId)
@@ -191,6 +197,12 @@ export function MobileBillingPage() {
               </div>
             )}
           </div>
+
+          <InfiniteScrollSentinel
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={() => fetchNextPage()}
+          />
         </div>
       </div>
 

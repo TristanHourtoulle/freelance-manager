@@ -16,9 +16,8 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
-import { SuiviView } from "@/components/suivi/suivi-view"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
@@ -61,9 +60,6 @@ export function DesktopTasksPage() {
   const [clientFilter, setClientFilter] = useState<string>(clientParam)
   const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [mode, setMode] = useState<"dev" | "suivi">("dev")
-  const [page, setPage] = useState(1)
-  const PAGE_SIZE = 50
 
   const [syncedParams, setSyncedParams] = useState({
     clientParam,
@@ -76,7 +72,6 @@ export function DesktopTasksPage() {
     setSyncedParams({ clientParam, projectParam })
     setClientFilter(clientParam)
     setProjectFilter(projectParam)
-    setPage(1)
   }
 
   const {
@@ -137,13 +132,6 @@ export function DesktopTasksPage() {
     [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
   )
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const paged = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
-  )
-
   type Group = {
     clientId: string
     projectId: string
@@ -151,7 +139,7 @@ export function DesktopTasksPage() {
   }
   const groups: Group[] = useMemo(() => {
     const m = new Map<string, Group>()
-    for (const t of paged) {
+    for (const t of filtered) {
       const key = `${t.clientId}::${t.projectId}`
       let g = m.get(key)
       if (!g) {
@@ -161,7 +149,7 @@ export function DesktopTasksPage() {
       g.tasks.push(t)
     }
     return Array.from(m.values())
-  }, [paged])
+  }, [filtered])
 
   const clientById = useMemo(
     () => new Map(clients.map((c) => [c.id, c])),
@@ -188,7 +176,6 @@ export function DesktopTasksPage() {
     setStatusFilter("all")
     setClientFilter("all")
     setProjectFilter("all")
-    setPage(1)
   }
 
   const selectedTasks = tasks.filter((t) => selected.has(t.id))
@@ -224,532 +211,442 @@ export function DesktopTasksPage() {
         <div>
           <h1 className="page-title">Tasks</h1>
           <div className="page-sub">
-            {mode === "dev" ? (
+            Synchronisées depuis Linear · {counts.all} tasks visibles · dernière
+            sync {fmtRelative(settings?.linearLastSyncedAt)}
+            {isSyncOld && (
               <>
-                Synchronisées depuis Linear · {counts.all} tasks visibles ·
-                dernière sync {fmtRelative(settings?.linearLastSyncedAt)}
-                {isSyncOld && (
-                  <>
-                    {" "}
-                    <span
-                      className="pill pill-partial"
-                      title="Les tâches affichées peuvent être obsolètes : lance une synchronisation Linear."
-                    >
-                      {SYNC_STALE_LABEL}
-                    </span>
-                  </>
-                )}
-                {pendingPipeline.count > 0 && (
-                  <>
-                    {" · "}
-                    <span className="strong" style={{ color: "var(--accent)" }}>
-                      À facturer : {fmtEUR(pendingPipeline.value)}
-                    </span>{" "}
-                    <span className="muted">
-                      ({pendingPipeline.count} task
-                      {pendingPipeline.count > 1 ? "s" : ""})
-                    </span>
-                  </>
-                )}
+                {" "}
+                <span
+                  className="pill pill-partial"
+                  title="Les tâches affichées peuvent être obsolètes : lance une synchronisation Linear."
+                >
+                  {SYNC_STALE_LABEL}
+                </span>
               </>
-            ) : (
-              "Actions & réunions client"
+            )}
+            {pendingPipeline.count > 0 && (
+              <>
+                {" · "}
+                <span className="strong" style={{ color: "var(--accent)" }}>
+                  À facturer : {fmtEUR(pendingPipeline.value)}
+                </span>{" "}
+                <span className="muted">
+                  ({pendingPipeline.count} task
+                  {pendingPipeline.count > 1 ? "s" : ""})
+                </span>
+              </>
             )}
           </div>
         </div>
-        {mode === "dev" && (
-          <div className="page-actions">
+        <div className="page-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={doSync}
+            disabled={isSyncing}
+          >
+            <Icon name="sync" size={14} className={isSyncing ? "spin" : ""} />
+            {isSyncing ? syncProgress.buttonLabel : "Sync Linear"}
+          </button>
+          {selected.size > 0 && canInvoiceSelected && (
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                router.push(
+                  `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
+                )
+              }
+            >
+              <Icon name="invoice" size={14} />
+              Facturer ({selected.size}) · {fmtEUR(selectedValue)}
+            </button>
+          )}
+          {selected.size > 0 && !canInvoiceSelected && (
             <button
               className="btn btn-secondary"
-              onClick={doSync}
-              disabled={isSyncing}
+              disabled
+              title="Sélectionne un seul client"
             >
-              <Icon name="sync" size={14} className={isSyncing ? "spin" : ""} />
-              {isSyncing ? syncProgress.buttonLabel : "Sync Linear"}
+              <Icon name="alert" size={14} />
+              Plusieurs clients
             </button>
-            {selected.size > 0 && canInvoiceSelected && (
+          )}
+        </div>
+      </div>
+
+      <div
+        className="row gap-12"
+        style={{
+          marginBottom: 14,
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
+          <Icon
+            name="search"
+            size={14}
+            className="muted"
+            style={{ position: "absolute", left: 12, top: 10 }}
+          />
+          <input
+            className="input"
+            style={{ paddingLeft: 34 }}
+            placeholder="Rechercher par ID ou titre…"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value)
+            }}
+          />
+        </div>
+        <div className="row gap-12" style={{ flexWrap: "wrap" }}>
+          <div className="chip-row">
+            {(
+              [
+                { id: "all", label: "Tout", count: counts.all },
+                {
+                  id: "pending",
+                  label: "À facturer",
+                  count: counts.pending,
+                },
+                { id: "done", label: "Done", count: counts.done },
+                {
+                  id: "in_progress",
+                  label: "In progress",
+                  count: counts.in_progress,
+                },
+              ] as { id: StatusFilterId; label: string; count: number }[]
+            ).map((f) => (
               <button
-                className="btn btn-primary"
-                onClick={() =>
-                  router.push(
-                    `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
-                  )
-                }
+                key={f.id}
+                className={"chip" + (statusFilter === f.id ? " active" : "")}
+                onClick={() => {
+                  setStatusFilter(f.id)
+                }}
               >
-                <Icon name="invoice" size={14} />
-                Facturer ({selected.size}) · {fmtEUR(selectedValue)}
+                {f.label} <span className="count">{f.count}</span>
               </button>
-            )}
-            {selected.size > 0 && !canInvoiceSelected && (
-              <button
-                className="btn btn-secondary"
-                disabled
-                title="Sélectionne un seul client"
-              >
-                <Icon name="alert" size={14} />
-                Plusieurs clients
-              </button>
-            )}
+            ))}
           </div>
-        )}
-      </div>
-
-      <div className="seg" style={{ maxWidth: 220, marginBottom: 16 }}>
-        <button
-          type="button"
-          className={mode === "dev" ? "active" : ""}
-          onClick={() => setMode("dev")}
-        >
-          Dev
-        </button>
-        <button
-          type="button"
-          className={mode === "suivi" ? "active" : ""}
-          onClick={() => setMode("suivi")}
-        >
-          Suivi
-        </button>
-      </div>
-
-      {mode === "suivi" && <SuiviView />}
-
-      {mode === "dev" && (
-        <>
-          <div
-            className="row gap-12"
-            style={{
-              marginBottom: 14,
-              justifyContent: "space-between",
-              flexWrap: "wrap",
+          <select
+            className="select"
+            style={{ width: 200 }}
+            value={clientFilter}
+            onChange={(e) => {
+              setClientFilter(e.target.value)
+              setProjectFilter("all")
             }}
           >
-            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
-              <Icon
-                name="search"
-                size={14}
-                className="muted"
-                style={{ position: "absolute", left: 12, top: 10 }}
-              />
-              <input
-                className="input"
-                style={{ paddingLeft: 34 }}
-                placeholder="Rechercher par ID ou titre…"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  setPage(1)
-                }}
-              />
-            </div>
-            <div className="row gap-12" style={{ flexWrap: "wrap" }}>
-              <div className="chip-row">
-                {(
-                  [
-                    { id: "all", label: "Tout", count: counts.all },
-                    {
-                      id: "pending",
-                      label: "À facturer",
-                      count: counts.pending,
-                    },
-                    { id: "done", label: "Done", count: counts.done },
-                    {
-                      id: "in_progress",
-                      label: "In progress",
-                      count: counts.in_progress,
-                    },
-                  ] as { id: StatusFilterId; label: string; count: number }[]
-                ).map((f) => (
-                  <button
-                    key={f.id}
-                    className={
-                      "chip" + (statusFilter === f.id ? " active" : "")
-                    }
-                    onClick={() => {
-                      setStatusFilter(f.id)
-                      setPage(1)
-                    }}
-                  >
-                    {f.label} <span className="count">{f.count}</span>
-                  </button>
-                ))}
-              </div>
-              <select
-                className="select"
-                style={{ width: 200 }}
-                value={clientFilter}
-                onChange={(e) => {
-                  setClientFilter(e.target.value)
-                  setProjectFilter("all")
-                  setPage(1)
-                }}
-              >
-                <option value="all">Tous les clients</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.company ?? `${c.firstName} ${c.lastName}`}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="select"
-                style={{ width: 220 }}
-                value={projectFilter}
-                onChange={(e) => {
-                  setProjectFilter(e.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="all">Tous les projets</option>
-                {projects
-                  .filter(
-                    (p) =>
-                      clientFilter === "all" || p.clientId === clientFilter,
-                  )
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-              </select>
+            <option value="all">Tous les clients</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.company ?? `${c.firstName} ${c.lastName}`}
+              </option>
+            ))}
+          </select>
+          <select
+            className="select"
+            style={{ width: 220 }}
+            value={projectFilter}
+            onChange={(e) => {
+              setProjectFilter(e.target.value)
+            }}
+          >
+            <option value="all">Tous les projets</option>
+            {projects
+              .filter(
+                (p) => clientFilter === "all" || p.clientId === clientFilter,
+              )
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="col gap-16">
+        {isPending && <TasksLoadingSkeleton />}
+        {!isPending && groups.length === 0 && tasks.length === 0 && (
+          <div className="card">
+            <div className="empty">
+              <div className="empty-title">Aucune task</div>
+              <div>Ajuste les filtres ou lance une sync</div>
             </div>
           </div>
-
-          <div className="col gap-16">
-            {isPending && <TasksLoadingSkeleton />}
-            {!isPending && groups.length === 0 && tasks.length === 0 && (
-              <div className="card">
-                <div className="empty">
-                  <div className="empty-title">Aucune task</div>
-                  <div>Ajuste les filtres ou lance une sync</div>
+        )}
+        {!isPending &&
+          groups.length === 0 &&
+          tasks.length > 0 &&
+          !hasActiveFilters && (
+            <div className="card">
+              <div className="empty">
+                <div className="empty-title">Aucune task active</div>
+                <div>
+                  Toutes tes tasks sont en backlog ou annulées, elles ne sont
+                  pas affichées ici
                 </div>
               </div>
-            )}
-            {!isPending &&
-              groups.length === 0 &&
-              tasks.length > 0 &&
-              !hasActiveFilters && (
-                <div className="card">
-                  <div className="empty">
-                    <div className="empty-title">Aucune task active</div>
-                    <div>
-                      Toutes tes tasks sont en backlog ou annulées, elles ne
-                      sont pas affichées ici
-                    </div>
-                  </div>
-                </div>
-              )}
-            {!isPending &&
-              groups.length === 0 &&
-              tasks.length > 0 &&
-              hasActiveFilters && (
-                <div className="card">
-                  <div className="empty">
-                    <div className="empty-title">Aucun résultat</div>
-                    <div>Aucune task ne correspond aux filtres actuels</div>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ marginTop: 12 }}
-                      onClick={resetFilters}
-                    >
-                      <Icon name="x" size={12} />
-                      Réinitialiser les filtres
-                    </button>
-                  </div>
-                </div>
-              )}
-            {!isPending &&
-              groups.map((g) => {
-                const c = clientById.get(g.clientId)
-                const p = projectById.get(g.projectId)
-                const groupValue = g.tasks.reduce((s, t) => {
-                  if (!c) return s
-                  return (
-                    s +
-                    pipelineValueForTask({
-                      billingMode: c.billingMode,
-                      rate: c.rate,
-                      estimateDays: t.estimate,
-                    })
-                  )
-                }, 0)
-                const allSelected = g.tasks.every((t) => selected.has(t.id))
-                return (
+            </div>
+          )}
+        {!isPending &&
+          groups.length === 0 &&
+          tasks.length > 0 &&
+          hasActiveFilters && (
+            <div className="card">
+              <div className="empty">
+                <div className="empty-title">Aucun résultat</div>
+                <div>Aucune task ne correspond aux filtres actuels</div>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 12 }}
+                  onClick={resetFilters}
+                >
+                  <Icon name="x" size={12} />
+                  Réinitialiser les filtres
+                </button>
+              </div>
+            </div>
+          )}
+        {!isPending &&
+          groups.map((g) => {
+            const c = clientById.get(g.clientId)
+            const p = projectById.get(g.projectId)
+            const groupValue = g.tasks.reduce((s, t) => {
+              if (!c) return s
+              return (
+                s +
+                pipelineValueForTask({
+                  billingMode: c.billingMode,
+                  rate: c.rate,
+                  estimateDays: t.estimate,
+                })
+              )
+            }, 0)
+            const allSelected = g.tasks.every((t) => selected.has(t.id))
+            return (
+              <div
+                key={`${g.clientId}${g.projectId}`}
+                className="card"
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  contentVisibility: "auto",
+                  containIntrinsicSize: "auto 320px",
+                }}
+              >
+                <div
+                  className="row gap-12"
+                  style={{
+                    padding: "14px 18px",
+                    borderBottom: "1px solid var(--border)",
+                    background: "var(--bg-2)",
+                  }}
+                >
                   <div
-                    key={`${g.clientId}${g.projectId}`}
-                    className="card"
+                    className="av av-sm"
                     style={{
-                      padding: 0,
-                      overflow: "hidden",
-                      contentVisibility: "auto",
-                      containIntrinsicSize: "auto 320px",
+                      background: c
+                        ? (c.color ??
+                          avatarColor(`${c.firstName}${c.lastName}`))
+                        : undefined,
                     }}
                   >
-                    <div
-                      className="row gap-12"
-                      style={{
-                        padding: "14px 18px",
-                        borderBottom: "1px solid var(--border)",
-                        background: "var(--bg-2)",
-                      }}
-                    >
-                      <div
-                        className="av av-sm"
-                        style={{
-                          background: c
-                            ? (c.color ??
-                              avatarColor(`${c.firstName}${c.lastName}`))
-                            : undefined,
-                        }}
-                      >
-                        {c ? initials(`${c.firstName} ${c.lastName}`) : ""}
-                      </div>
-                      <div>
-                        <div className="strong small">
-                          {c?.company ?? "—"} ·{" "}
-                          <span className="muted">{p?.name ?? "—"}</span>
-                        </div>
-                        <div className="xs muted">
-                          {g.tasks.length} task{g.tasks.length > 1 ? "s" : ""} ·{" "}
-                          {c?.billingMode === "DAILY"
-                            ? `${c.rate}€/j`
-                            : c?.billingMode === "HOURLY"
-                              ? `${c.rate}€/h`
-                              : "Forfait"}
-                        </div>
-                      </div>
-                      <div
-                        style={{ marginLeft: "auto" }}
-                        className="num strong"
-                      >
-                        {groupValue > 0 ? fmtEUR(groupValue) : "—"}
-                      </div>
+                    {c ? initials(`${c.firstName} ${c.lastName}`) : ""}
+                  </div>
+                  <div>
+                    <div className="strong small">
+                      {c?.company ?? "—"} ·{" "}
+                      <span className="muted">{p?.name ?? "—"}</span>
                     </div>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th style={{ paddingLeft: 18, width: 40 }}>
+                    <div className="xs muted">
+                      {g.tasks.length} task{g.tasks.length > 1 ? "s" : ""} ·{" "}
+                      {c?.billingMode === "DAILY"
+                        ? `${c.rate}€/j`
+                        : c?.billingMode === "HOURLY"
+                          ? `${c.rate}€/h`
+                          : "Forfait"}
+                    </div>
+                  </div>
+                  <div style={{ marginLeft: "auto" }} className="num strong">
+                    {groupValue > 0 ? fmtEUR(groupValue) : "—"}
+                  </div>
+                </div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th style={{ paddingLeft: 18, width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={(e) => {
+                            const next = new Set(selected)
+                            g.tasks.forEach((t) =>
+                              e.target.checked
+                                ? next.add(t.id)
+                                : next.delete(t.id),
+                            )
+                            setSelected(next)
+                          }}
+                        />
+                      </th>
+                      <th style={{ width: 88 }}>ID</th>
+                      <th>Title</th>
+                      <th style={{ width: 130 }}>Statut</th>
+                      <th className="right" style={{ width: 90 }}>
+                        Estimate
+                      </th>
+                      <th className="right" style={{ width: 92 }}>
+                        Réel
+                      </th>
+                      <th className="right" style={{ width: 110 }}>
+                        Valeur
+                      </th>
+                      <th style={{ width: 110, paddingRight: 18 }}>Facturée</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.tasks.map((t) => {
+                      const value = c
+                        ? pipelineValueForTask({
+                            billingMode: c.billingMode,
+                            rate: c.rate,
+                            estimateDays: t.estimate,
+                          })
+                        : 0
+                      const inv = t.invoiceId
+                        ? invoices.find((i) => i.id === t.invoiceId)
+                        : null
+                      const isSel = selected.has(t.id)
+                      return (
+                        <tr
+                          key={t.id}
+                          style={
+                            isSel ? { background: "var(--accent-soft)" } : {}
+                          }
+                        >
+                          <td style={{ paddingLeft: 18 }}>
                             <input
                               type="checkbox"
-                              checked={allSelected}
+                              checked={isSel}
                               onChange={(e) => {
                                 const next = new Set(selected)
-                                g.tasks.forEach((t) =>
-                                  e.target.checked
-                                    ? next.add(t.id)
-                                    : next.delete(t.id),
-                                )
+                                if (e.target.checked) next.add(t.id)
+                                else next.delete(t.id)
                                 setSelected(next)
                               }}
                             />
-                          </th>
-                          <th style={{ width: 88 }}>ID</th>
-                          <th>Title</th>
-                          <th style={{ width: 130 }}>Statut</th>
-                          <th className="right" style={{ width: 90 }}>
-                            Estimate
-                          </th>
-                          <th className="right" style={{ width: 92 }}>
-                            Réel
-                          </th>
-                          <th className="right" style={{ width: 110 }}>
-                            Valeur
-                          </th>
-                          <th style={{ width: 110, paddingRight: 18 }}>
-                            Facturée
-                          </th>
+                          </td>
+                          <td>
+                            <TaskIdLink
+                              identifier={t.linearIdentifier}
+                              url={t.linearUrl}
+                              className="task-id"
+                            />
+                          </td>
+                          <td className="strong">{t.title}</td>
+                          <td>
+                            <StatusPill status={taskStatusToPill(t.status)} />
+                          </td>
+                          <td className="right num">
+                            {t.estimate ? `${t.estimate}j` : "—"}
+                          </td>
+                          <td className="right">
+                            <TaskEffortInput
+                              taskId={t.id}
+                              actualDays={t.actualDays}
+                              className="num"
+                              style={{
+                                width: 68,
+                                padding: "4px 8px",
+                                textAlign: "right",
+                              }}
+                            />
+                          </td>
+                          <td className="right num">
+                            {value > 0 ? fmtEUR(value) : "—"}
+                          </td>
+                          <td style={{ paddingRight: 18 }}>
+                            {inv ? (
+                              <Link
+                                href={`/billing?invoiceId=${t.invoiceId}`}
+                                className="mono xs"
+                                style={{ color: "var(--accent)" }}
+                              >
+                                {inv.number}
+                              </Link>
+                            ) : (
+                              <span className="muted xs">—</span>
+                            )}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {g.tasks.map((t) => {
-                          const value = c
-                            ? pipelineValueForTask({
-                                billingMode: c.billingMode,
-                                rate: c.rate,
-                                estimateDays: t.estimate,
-                              })
-                            : 0
-                          const inv = t.invoiceId
-                            ? invoices.find((i) => i.id === t.invoiceId)
-                            : null
-                          const isSel = selected.has(t.id)
-                          return (
-                            <tr
-                              key={t.id}
-                              style={
-                                isSel
-                                  ? { background: "var(--accent-soft)" }
-                                  : {}
-                              }
-                            >
-                              <td style={{ paddingLeft: 18 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={isSel}
-                                  onChange={(e) => {
-                                    const next = new Set(selected)
-                                    if (e.target.checked) next.add(t.id)
-                                    else next.delete(t.id)
-                                    setSelected(next)
-                                  }}
-                                />
-                              </td>
-                              <td>
-                                <TaskIdLink
-                                  identifier={t.linearIdentifier}
-                                  url={t.linearUrl}
-                                  className="task-id"
-                                />
-                              </td>
-                              <td className="strong">{t.title}</td>
-                              <td>
-                                <StatusPill
-                                  status={taskStatusToPill(t.status)}
-                                />
-                              </td>
-                              <td className="right num">
-                                {t.estimate ? `${t.estimate}j` : "—"}
-                              </td>
-                              <td className="right">
-                                <TaskEffortInput
-                                  taskId={t.id}
-                                  actualDays={t.actualDays}
-                                  className="num"
-                                  style={{
-                                    width: 68,
-                                    padding: "4px 8px",
-                                    textAlign: "right",
-                                  }}
-                                />
-                              </td>
-                              <td className="right num">
-                                {value > 0 ? fmtEUR(value) : "—"}
-                              </td>
-                              <td style={{ paddingRight: 18 }}>
-                                {inv ? (
-                                  <Link
-                                    href={`/billing?invoiceId=${t.invoiceId}`}
-                                    className="mono xs"
-                                    style={{ color: "var(--accent)" }}
-                                  >
-                                    {inv.number}
-                                  </Link>
-                                ) : (
-                                  <span className="muted xs">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )
-              })}
-          </div>
-
-          {filtered.length > PAGE_SIZE && (
-            <div
-              className="row gap-12"
-              style={{
-                justifyContent: "space-between",
-                marginTop: 18,
-                padding: "12px 4px",
-                color: "var(--text-2)",
-                fontSize: 12,
-              }}
-            >
-              <span>
-                {(safePage - 1) * PAGE_SIZE + 1}–
-                {Math.min(safePage * PAGE_SIZE, filtered.length)} sur{" "}
-                {filtered.length} tasks
-              </span>
-              <div className="row gap-8">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={safePage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <Icon name="chevron-left" size={12} />
-                  Précédent
-                </button>
-                <span
-                  className="num small"
-                  style={{ minWidth: 64, textAlign: "center" }}
-                >
-                  {safePage} / {totalPages}
-                </span>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Suivant
-                  <Icon name="chevron-right" size={12} />
-                </button>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
+            )
+          })}
+      </div>
 
-          <LoadMoreButton
-            onClick={() => fetchNextPage()}
-            isLoading={isFetchingNextPage}
-            hasMore={Boolean(hasNextPage)}
-          />
+      <InfiniteScrollSentinel
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={() => fetchNextPage()}
+      />
 
-          {selected.size > 0 && (
-            <div
-              style={{
-                position: "fixed",
-                bottom: 24,
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "var(--bg-1)",
-                border: "1px solid var(--border-strong)",
-                borderRadius: 12,
-                padding: "10px 16px",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                zIndex: 20,
-              }}
+      {selected.size > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--bg-1)",
+            border: "1px solid var(--border-strong)",
+            borderRadius: 12,
+            padding: "10px 16px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            zIndex: 20,
+          }}
+        >
+          <span className="strong small">
+            {selected.size} task{selected.size > 1 ? "s" : ""} sélectionnée
+            {selected.size > 1 ? "s" : ""}
+          </span>
+          <span className="muted xs">·</span>
+          <span className="num strong">{fmtEUR(selectedValue)}</span>
+          {hiddenSelectedCount > 0 && (
+            <span
+              className="pill pill-no-dot xs pill-draft"
+              title="Sélections masquées par les filtres actuels"
             >
-              <span className="strong small">
-                {selected.size} task{selected.size > 1 ? "s" : ""} sélectionnée
-                {selected.size > 1 ? "s" : ""}
-              </span>
-              <span className="muted xs">·</span>
-              <span className="num strong">{fmtEUR(selectedValue)}</span>
-              {hiddenSelectedCount > 0 && (
-                <span
-                  className="pill pill-no-dot xs pill-draft"
-                  title="Sélections masquées par les filtres actuels"
-                >
-                  {hiddenSelectedCount} hors filtre
-                </span>
-              )}
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setSelected(new Set())}
-              >
-                <Icon name="x" size={12} /> Désélectionner
-              </button>
-              {canInvoiceSelected && (
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() =>
-                    router.push(
-                      `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
-                    )
-                  }
-                >
-                  <Icon name="invoice" size={12} />
-                  Créer facture
-                </button>
-              )}
-            </div>
+              {hiddenSelectedCount} hors filtre
+            </span>
           )}
-        </>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setSelected(new Set())}
+          >
+            <Icon name="x" size={12} /> Désélectionner
+          </button>
+          {canInvoiceSelected && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() =>
+                router.push(
+                  `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
+                )
+              }
+            >
+              <Icon name="invoice" size={12} />
+              Créer facture
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
