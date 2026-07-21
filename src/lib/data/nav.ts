@@ -7,6 +7,7 @@ export interface NavCounts {
   projects: number
   tasks: number
   invoices: number
+  quotes: number
 }
 
 export const navTag = (userId: string) => `user-${userId}-nav`
@@ -23,7 +24,7 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
   cacheLife("minutes")
   cacheTag(navTag(userId))
 
-  const [clients, projects, tasks, invoices] = await Promise.all([
+  const [clients, projects, tasks, invoices, quotes] = await Promise.all([
     prisma.client.count({
       where: { userId, archivedAt: null, stage: { not: "LEAD" } },
     }),
@@ -36,7 +37,8 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
         paymentStatus: { in: ["UNPAID", "PARTIALLY_PAID"] },
       },
     }),
+    prisma.quote.count({ where: { userId, status: "SENT" } }),
   ])
 
-  return { clients, projects, tasks, invoices }
+  return { clients, projects, tasks, invoices, quotes }
 }
