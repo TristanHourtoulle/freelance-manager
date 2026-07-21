@@ -22,7 +22,12 @@ export interface NavSection {
 }
 
 /** Keys for the sidebar badge counters. */
-export type NavBadgeKey = "clients" | "projects" | "tasks" | "invoices"
+export type NavBadgeKey =
+  | "clients"
+  | "projects"
+  | "tasks"
+  | "invoices"
+  | "quotes"
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -82,6 +87,7 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/quotes",
         label: "Devis",
         icon: "list",
+        badgeKey: "quotes",
       },
       {
         id: "invoices",

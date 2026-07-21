@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes, type QuoteStatus } from "@/hooks/use-quotes"
@@ -11,6 +12,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { QuoteDrawer } from "@/components/quotes/quote-drawer"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
 
 const MobileQuotesPage = dynamic(
@@ -58,6 +60,9 @@ export default function QuotesPage() {
 }
 
 function DesktopQuotesPage() {
+  const router = useRouter()
+  const search = useSearchParams()
+  const [openId, setOpenId] = useState<string | null>(search.get("openId"))
   const [filter, setFilter] = useState<QuoteFilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -96,6 +101,15 @@ function DesktopQuotesPage() {
           <div className="page-sub">
             Suivi commercial · le document est émis depuis Abby
           </div>
+        </div>
+        <div className="page-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => router.push("/quotes/new")}
+          >
+            <Icon name="plus" size={14} />
+            Nouveau devis
+          </button>
         </div>
       </div>
 
@@ -181,7 +195,11 @@ function DesktopQuotesPage() {
             {filtered.map((q) => {
               const client = clientById.get(q.clientId)
               return (
-                <tr key={q.id}>
+                <tr
+                  key={q.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setOpenId(q.id)}
+                >
                   <td style={{ paddingLeft: 20 }}>
                     <div className="row gap-8">
                       <span className="mono small strong">{q.number}</span>
@@ -191,6 +209,7 @@ function DesktopQuotesPage() {
                           href={q.externalUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Icon name="link" size={12} />
                           Voir sur Abby
@@ -247,6 +266,10 @@ function DesktopQuotesPage() {
         isFetchingNextPage={isFetchingNextPage}
         fetchNextPage={() => fetchNextPage()}
       />
+
+      {openId && (
+        <QuoteDrawer quoteId={openId} onClose={() => setOpenId(null)} />
+      )}
     </div>
   )
 }
