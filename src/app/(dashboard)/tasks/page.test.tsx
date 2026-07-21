@@ -76,10 +76,6 @@ vi.mock("@/hooks/use-is-mobile", () => ({
   useIsMobile: () => false,
 }))
 
-vi.mock("@/components/suivi/suivi-view", () => ({
-  SuiviView: () => null,
-}))
-
 function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
   return {
     id: "task-1",
@@ -309,5 +305,19 @@ describe("DesktopTasksPage", () => {
       screen.queryByText("Implementer le dashboard"),
     ).not.toBeInTheDocument()
     expect(screen.getByText("Aucun résultat")).toBeInTheDocument()
+  })
+
+  it("no longer renders the Dev/Suivi mode toggle", () => {
+    mockTasks({ data: [buildTask()] })
+
+    render(<DesktopTasksPage />)
+
+    expect(
+      screen.queryByRole("button", { name: "Dev" }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Suivi" }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
   })
 })
