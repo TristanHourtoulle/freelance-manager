@@ -10,6 +10,7 @@ import { useProjects } from "@/hooks/use-projects"
 import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useInvoices } from "@/hooks/use-invoices"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { useClients } from "@/hooks/use-clients"
 
 const LinearMappingsModal = dynamic(
@@ -22,7 +23,12 @@ const LinearMappingsModal = dynamic(
 
 export function MobileProjectsPage() {
   const router = useRouter()
-  const { data: projects = [] } = useProjects()
+  const {
+    data: projects = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useProjects()
   const { data: tasks = [] } = useTasks()
   const { data: clients = [] } = useClients()
   const { data: invoices = [] } = useInvoices()
@@ -168,6 +174,12 @@ export function MobileProjectsPage() {
               </button>
             </div>
           )}
+
+          <InfiniteScrollSentinel
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={() => fetchNextPage()}
+          />
         </div>
       </div>
 

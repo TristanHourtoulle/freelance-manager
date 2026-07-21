@@ -12,13 +12,19 @@ import { pipelineValueForTask } from "@/lib/billing-math"
 import { useToast } from "@/components/providers/toast-provider"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { TaskEffortInput } from "@/components/tasks/task-effort-input"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 
 type Filter = "all" | "pending" | "done" | "invoiced"
 
 export function MobileTasksPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: tasks = [] } = useTasks()
+  const {
+    data: tasks = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useTasks()
   const { data: clients = [] } = useClients()
   const sync = useSyncLinear()
   const syncProgress = useLinearSyncProgress()
@@ -281,6 +287,12 @@ export function MobileTasksPage() {
               <div>Change le filtre ou sync depuis Linear.</div>
             </div>
           )}
+
+          <InfiniteScrollSentinel
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={() => fetchNextPage()}
+          />
         </div>
       </div>
 
