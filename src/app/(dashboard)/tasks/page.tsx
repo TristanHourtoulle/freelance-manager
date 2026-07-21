@@ -16,7 +16,7 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { pipelineValueForTask } from "@/lib/billing-math"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -60,8 +60,6 @@ export function DesktopTasksPage() {
   const [clientFilter, setClientFilter] = useState<string>(clientParam)
   const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [page, setPage] = useState(1)
-  const PAGE_SIZE = 50
 
   const [syncedParams, setSyncedParams] = useState({
     clientParam,
@@ -74,7 +72,6 @@ export function DesktopTasksPage() {
     setSyncedParams({ clientParam, projectParam })
     setClientFilter(clientParam)
     setProjectFilter(projectParam)
-    setPage(1)
   }
 
   const {
@@ -135,13 +132,6 @@ export function DesktopTasksPage() {
     [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
   )
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const paged = useMemo(
-    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filtered, safePage],
-  )
-
   type Group = {
     clientId: string
     projectId: string
@@ -149,7 +139,7 @@ export function DesktopTasksPage() {
   }
   const groups: Group[] = useMemo(() => {
     const m = new Map<string, Group>()
-    for (const t of paged) {
+    for (const t of filtered) {
       const key = `${t.clientId}::${t.projectId}`
       let g = m.get(key)
       if (!g) {
@@ -159,7 +149,7 @@ export function DesktopTasksPage() {
       g.tasks.push(t)
     }
     return Array.from(m.values())
-  }, [paged])
+  }, [filtered])
 
   const clientById = useMemo(
     () => new Map(clients.map((c) => [c.id, c])),
@@ -186,7 +176,6 @@ export function DesktopTasksPage() {
     setStatusFilter("all")
     setClientFilter("all")
     setProjectFilter("all")
-    setPage(1)
   }
 
   const selectedTasks = tasks.filter((t) => selected.has(t.id))
@@ -306,7 +295,6 @@ export function DesktopTasksPage() {
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value)
-              setPage(1)
             }}
           />
         </div>
@@ -333,7 +321,6 @@ export function DesktopTasksPage() {
                 className={"chip" + (statusFilter === f.id ? " active" : "")}
                 onClick={() => {
                   setStatusFilter(f.id)
-                  setPage(1)
                 }}
               >
                 {f.label} <span className="count">{f.count}</span>
@@ -347,7 +334,6 @@ export function DesktopTasksPage() {
             onChange={(e) => {
               setClientFilter(e.target.value)
               setProjectFilter("all")
-              setPage(1)
             }}
           >
             <option value="all">Tous les clients</option>
@@ -363,7 +349,6 @@ export function DesktopTasksPage() {
             value={projectFilter}
             onChange={(e) => {
               setProjectFilter(e.target.value)
-              setPage(1)
             }}
           >
             <option value="all">Tous les projets</option>
@@ -604,53 +589,10 @@ export function DesktopTasksPage() {
           })}
       </div>
 
-      {filtered.length > PAGE_SIZE && (
-        <div
-          className="row gap-12"
-          style={{
-            justifyContent: "space-between",
-            marginTop: 18,
-            padding: "12px 4px",
-            color: "var(--text-2)",
-            fontSize: 12,
-          }}
-        >
-          <span>
-            {(safePage - 1) * PAGE_SIZE + 1}–
-            {Math.min(safePage * PAGE_SIZE, filtered.length)} sur{" "}
-            {filtered.length} tasks
-          </span>
-          <div className="row gap-8">
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <Icon name="chevron-left" size={12} />
-              Précédent
-            </button>
-            <span
-              className="num small"
-              style={{ minWidth: 64, textAlign: "center" }}
-            >
-              {safePage} / {totalPages}
-            </span>
-            <button
-              className="btn btn-secondary btn-sm"
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Suivant
-              <Icon name="chevron-right" size={12} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <LoadMoreButton
-        onClick={() => fetchNextPage()}
-        isLoading={isFetchingNextPage}
-        hasMore={Boolean(hasNextPage)}
+      <InfiniteScrollSentinel
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={() => fetchNextPage()}
       />
 
       {selected.size > 0 && (
