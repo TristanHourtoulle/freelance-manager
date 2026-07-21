@@ -21,7 +21,7 @@ import { useInvoices } from "@/hooks/use-invoices"
 import { useProjects } from "@/hooks/use-projects"
 import { fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { SkeletonCard, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
@@ -486,10 +486,10 @@ function DesktopClientsPage() {
         </div>
       )}
 
-      <LoadMoreButton
-        onClick={() => fetchNextPage()}
-        isLoading={isFetchingNextPage}
-        hasMore={Boolean(hasNextPage)}
+      <InfiniteScrollSentinel
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={() => fetchNextPage()}
       />
 
       {showNew && <NewClientModal onClose={() => setShowNew(false)} />}

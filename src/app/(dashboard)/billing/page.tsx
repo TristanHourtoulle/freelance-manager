@@ -9,7 +9,7 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import {
   matchesInvoiceFilter,
   summarizeInvoices,
@@ -288,10 +288,10 @@ function DesktopBillingPage() {
         </table>
       </div>
 
-      <LoadMoreButton
-        onClick={() => fetchNextPage()}
-        isLoading={isFetchingNextPage}
-        hasMore={Boolean(hasNextPage)}
+      <InfiniteScrollSentinel
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={() => fetchNextPage()}
       />
 
       {openId && (

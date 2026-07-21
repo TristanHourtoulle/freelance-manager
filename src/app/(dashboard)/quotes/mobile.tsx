@@ -6,7 +6,7 @@ import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes } from "@/hooks/use-quotes"
 import { useClients } from "@/hooks/use-clients"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
 import {
   QUOTE_FILTERS,
@@ -148,10 +148,10 @@ export function MobileQuotesPage() {
             })}
           </div>
 
-          <LoadMoreButton
-            hasMore={hasNextPage}
-            isLoading={isFetchingNextPage}
-            onClick={() => fetchNextPage()}
+          <InfiniteScrollSentinel
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={() => fetchNextPage()}
           />
         </div>
       </div>

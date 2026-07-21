@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-clients"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useProjects } from "@/hooks/use-projects"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 
 const NewClientModal = dynamic(
   () =>
@@ -27,7 +28,12 @@ type Filter = "all" | "DAILY" | "FIXED" | "HOURLY" | "LEAD" | "DORMANT"
 
 export function MobileClientsPage() {
   const router = useRouter()
-  const { data: clients = [] } = useClients()
+  const {
+    data: clients = [],
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useClients()
   const { data: invoices = [] } = useInvoices()
   const { data: billable } = useClientsBillable()
   const { data: projects = [] } = useProjects()
@@ -228,6 +234,12 @@ export function MobileClientsPage() {
               </div>
             )}
           </div>
+
+          <InfiniteScrollSentinel
+            hasNextPage={Boolean(hasNextPage)}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={() => fetchNextPage()}
+          />
         </div>
       </div>
 

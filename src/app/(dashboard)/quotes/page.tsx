@@ -7,7 +7,7 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes, type QuoteStatus } from "@/hooks/use-quotes"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
-import { LoadMoreButton } from "@/components/ui/load-more-button"
+import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
@@ -245,10 +245,10 @@ function DesktopQuotesPage() {
         </table>
       </div>
 
-      <LoadMoreButton
-        hasMore={hasNextPage}
-        isLoading={isFetchingNextPage}
-        onClick={() => fetchNextPage()}
+      <InfiniteScrollSentinel
+        hasNextPage={Boolean(hasNextPage)}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={() => fetchNextPage()}
       />
     </div>
   )
