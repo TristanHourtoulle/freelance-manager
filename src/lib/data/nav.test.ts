@@ -6,6 +6,7 @@ const { prismaMock } = vi.hoisted(() => ({
     project: { count: vi.fn() },
     task: { count: vi.fn() },
     invoice: { count: vi.fn() },
+    quote: { count: vi.fn() },
   },
 }))
 
@@ -24,6 +25,7 @@ describe("getNavCounts", () => {
     prismaMock.project.count.mockResolvedValue(2)
     prismaMock.task.count.mockResolvedValue(7)
     prismaMock.invoice.count.mockResolvedValue(4)
+    prismaMock.quote.count.mockResolvedValue(5)
   })
 
   it("excludes LEAD clients from the sidebar client badge", async () => {
@@ -52,12 +54,21 @@ describe("getNavCounts", () => {
     })
   })
 
-  it("returns the four counts", async () => {
+  it("counts only SENT quotes for the quotes badge", async () => {
+    await getNavCounts("user-1")
+
+    expect(prismaMock.quote.count).toHaveBeenCalledWith({
+      where: { userId: "user-1", status: "SENT" },
+    })
+  })
+
+  it("returns the five counts", async () => {
     await expect(getNavCounts("user-1")).resolves.toEqual({
       clients: 3,
       projects: 2,
       tasks: 7,
       invoices: 4,
+      quotes: 5,
     })
   })
 })

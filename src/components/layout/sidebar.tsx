@@ -13,6 +13,7 @@ const ZERO_COUNTS: NavCounts = {
   projects: 0,
   tasks: 0,
   invoices: 0,
+  quotes: 0,
 }
 
 /**

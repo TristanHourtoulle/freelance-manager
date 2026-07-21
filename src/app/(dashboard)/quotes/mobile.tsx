@@ -1,12 +1,14 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes } from "@/hooks/use-quotes"
 import { useClients } from "@/hooks/use-clients"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
+import { QuoteDrawer } from "@/components/quotes/quote-drawer"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
 import {
   QUOTE_FILTERS,
@@ -16,7 +18,9 @@ import {
 } from "./page"
 
 export function MobileQuotesPage() {
+  const router = useRouter()
   const [filter, setFilter] = useState<QuoteFilterId>("all")
+  const [openId, setOpenId] = useState<string | null>(null)
 
   const {
     data: quotes = [],
@@ -39,7 +43,19 @@ export function MobileQuotesPage() {
 
   return (
     <div className="m-screen">
-      <MobileTopbar title="Devis" />
+      <MobileTopbar
+        title="Devis"
+        action={
+          <button
+            type="button"
+            className="m-topbar-action primary"
+            onClick={() => router.push("/quotes/new")}
+            aria-label="Nouveau devis"
+          >
+            <Icon name="plus" size={16} />
+          </button>
+        }
+      />
 
       <div className="m-content">
         <div className="m-stack" style={{ paddingTop: 8 }}>
@@ -88,7 +104,20 @@ export function MobileQuotesPage() {
             {sorted.map((q) => {
               const c = clients.find((cl) => cl.id === q.clientId)
               return (
-                <div key={q.id} className="card card-tight">
+                <div
+                  key={q.id}
+                  className="card card-tight"
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setOpenId(q.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      setOpenId(q.id)
+                    }
+                  }}
+                >
                   <div className="row gap-10">
                     <div
                       className="av av-sm"
@@ -138,6 +167,7 @@ export function MobileQuotesPage() {
                       href={q.externalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Icon name="link" size={12} />
                       Voir sur Abby
@@ -155,6 +185,10 @@ export function MobileQuotesPage() {
           />
         </div>
       </div>
+
+      {openId && (
+        <QuoteDrawer quoteId={openId} onClose={() => setOpenId(null)} />
+      )}
     </div>
   )
 }
