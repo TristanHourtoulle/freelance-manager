@@ -22,8 +22,12 @@ const {
 }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => ({ get: (key: string) => searchParamsMock(key) }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => ({
+    get: (key: string) => searchParamsMock(key),
+    toString: () => "",
+  }),
 }))
 
 vi.mock("next/dynamic", () => ({

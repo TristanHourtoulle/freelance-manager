@@ -42,6 +42,7 @@ export type IconName =
   | "mail"
   | "list"
   | "grid"
+  | "split"
   | "eye-off"
   | "lock"
   | "user"
@@ -774,7 +775,7 @@ export function Icon({ name, size = 16, className, ...rest }: IconProps) {
           />
         </svg>
       )
-    case "grid":
+    case "split":
       return (
         <svg {...common}>
           <path
@@ -785,6 +786,31 @@ export function Icon({ name, size = 16, className, ...rest }: IconProps) {
           />
           <path
             d="M9.00009 16.5C8.58599 16.5 8.25009 16.1641 8.25009 15.75V2.25C8.25009 1.8359 8.58599 1.5 9.00009 1.5C9.41419 1.5 9.75009 1.8359 9.75009 2.25V15.75C9.75009 16.1641 9.41419 16.5 9.00009 16.5Z"
+            fill="currentColor"
+          />
+        </svg>
+      )
+    case "grid":
+      return (
+        <svg {...common}>
+          <path
+            d="M6.75 2H3.75C2.7835 2 2 2.7835 2 3.75V6.75C2 7.7165 2.7835 8.5 3.75 8.5H6.75C7.7165 8.5 8.5 7.7165 8.5 6.75V3.75C8.5 2.7835 7.7165 2 6.75 2Z"
+            fill="currentColor"
+          />
+          <path
+            opacity="0.4"
+            d="M14.25 2H11.25C10.2835 2 9.5 2.7835 9.5 3.75V6.75C9.5 7.7165 10.2835 8.5 11.25 8.5H14.25C15.2165 8.5 16 7.7165 16 6.75V3.75C16 2.7835 15.2165 2 14.25 2Z"
+            fill="currentColor"
+            data-color="color-2"
+          />
+          <path
+            opacity="0.4"
+            d="M6.75 9.5H3.75C2.7835 9.5 2 10.2835 2 11.25V14.25C2 15.2165 2.7835 16 3.75 16H6.75C7.7165 16 8.5 15.2165 8.5 14.25V11.25C8.5 10.2835 7.7165 9.5 6.75 9.5Z"
+            fill="currentColor"
+            data-color="color-2"
+          />
+          <path
+            d="M14.25 9.5H11.25C10.2835 9.5 9.5 10.2835 9.5 11.25V14.25C9.5 15.2165 10.2835 16 11.25 16H14.25C15.2165 16 16 15.2165 16 14.25V11.25C16 10.2835 15.2165 9.5 14.25 9.5Z"
             fill="currentColor"
           />
         </svg>

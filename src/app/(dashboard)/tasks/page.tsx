@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
@@ -30,13 +30,18 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
-import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 import { NonBillableDialog } from "@/components/tasks/non-billable-dialog"
 import { TaskSelectionBar } from "@/components/tasks/task-selection-bar"
 import { TasksLoadingSkeleton } from "@/components/tasks/tasks-loading-skeleton"
+import {
+  DEFAULT_STATUS_FILTER,
+  TasksFilterBar,
+  type StatusFilterId,
+} from "@/components/tasks/tasks-filter-bar"
+import { useTasksSelection } from "@/components/tasks/use-tasks-selection"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -53,15 +58,6 @@ const MobileTasksPage = dynamic(
   },
 )
 
-type StatusFilterId =
-  | "all"
-  | "pending"
-  | "done"
-  | "in_progress"
-  | "non_billable"
-
-const DEFAULT_STATUS_FILTER: StatusFilterId = "pending"
-
 export default function TasksPage() {
   const isMobile = useIsMobile()
   return (
@@ -73,34 +69,22 @@ export default function TasksPage() {
 
 export function DesktopTasksPage() {
   const router = useRouter()
-  const search = useSearchParams()
-  const clientParam = search.get("clientId") ?? "all"
-  const projectParam = search.get("projectId") ?? "all"
 
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilterId>(
     DEFAULT_STATUS_FILTER,
   )
-  const [clientFilter, setClientFilter] = useState<string>(clientParam)
-  const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [billabilityDialog, setBillabilityDialog] = useState<{
     taskIds: string[]
     fromSelection: boolean
   } | null>(null)
 
-  const [syncedParams, setSyncedParams] = useState({
-    clientParam,
-    projectParam,
-  })
-  if (
-    syncedParams.clientParam !== clientParam ||
-    syncedParams.projectParam !== projectParam
-  ) {
-    setSyncedParams({ clientParam, projectParam })
-    setClientFilter(clientParam)
-    setProjectFilter(projectParam)
-  }
+  const { data: clients = [] } = useClients()
+  const { data: billable } = useClientsBillable()
+  const { data: projects = [] } = useProjects()
+  const { data: invoices = [] } = useInvoices()
+  const { clientIds, projectIds, setSelection } = useTasksSelection(projects)
 
   const {
     data: tasks = [],
@@ -108,11 +92,7 @@ export function DesktopTasksPage() {
     hasNextPage,
     isFetchingNextPage,
     isPending,
-  } = useTasks()
-  const { data: clients = [] } = useClients()
-  const { data: billable } = useClientsBillable()
-  const { data: projects = [] } = useProjects()
-  const { data: invoices = [] } = useInvoices()
+  } = useTasks({ clientIds, projectIds })
   const { data: settings } = useSettings()
   const sync = useSyncLinear()
   const setBillability = useSetTaskBillability()
@@ -124,10 +104,7 @@ export function DesktopTasksPage() {
   const isSyncOld =
     Boolean(settings) && isSyncStale(settings?.linearLastSyncedAt)
 
-  const { data: counts } = useTaskCounts({
-    clientId: clientFilter !== "all" ? clientFilter : undefined,
-    projectId: projectFilter !== "all" ? projectFilter : undefined,
-  })
+  const { data: counts } = useTaskCounts({ clientIds, projectIds })
   const visibleCount = counts ? counts[statusFilter] : null
   const unestimatedCount = counts?.unestimatedCount ?? 0
 
@@ -152,12 +129,13 @@ export function DesktopTasksPage() {
           !["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status)
         )
           return false
-        if (clientFilter !== "all" && t.clientId !== clientFilter) return false
-        if (projectFilter !== "all" && t.projectId !== projectFilter)
+        if (clientIds.length > 0 && !clientIds.includes(t.clientId))
+          return false
+        if (projectIds.length > 0 && !projectIds.includes(t.projectId))
           return false
         return true
       }),
-    [tasks, searchTerm, statusFilter, clientFilter, projectFilter],
+    [tasks, searchTerm, statusFilter, clientIds, projectIds],
   )
 
   type Group = {
@@ -194,15 +172,14 @@ export function DesktopTasksPage() {
   }
 
   const hasNarrowingFilters =
-    searchTerm !== "" || clientFilter !== "all" || projectFilter !== "all"
+    searchTerm !== "" || clientIds.length > 0 || projectIds.length > 0
   const hasActiveFilters =
     hasNarrowingFilters || statusFilter !== DEFAULT_STATUS_FILTER
 
   function resetFilters() {
     setSearchTerm("")
     setStatusFilter(DEFAULT_STATUS_FILTER)
-    setClientFilter("all")
-    setProjectFilter("all")
+    setSelection({ clientIds: [], projectIds: [] })
   }
 
   const selectedTasks = tasks.filter((t) => selected.has(t.id))
@@ -371,89 +348,18 @@ export function DesktopTasksPage() {
         </div>
       </div>
 
-      <div
-        className="row gap-12"
-        style={{
-          marginBottom: 14,
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
-          <Icon
-            name="search"
-            size={14}
-            className="muted"
-            style={{ position: "absolute", left: 12, top: 10 }}
-          />
-          <input
-            className="input"
-            style={{ paddingLeft: 34 }}
-            placeholder="Rechercher par ID ou titre…"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value)
-            }}
-          />
-        </div>
-        <div className="row gap-12" style={{ flexWrap: "wrap" }}>
-          <SegmentedControl<StatusFilterId>
-            options={[
-              { id: "all", label: "Tout", count: counts?.all },
-              { id: "pending", label: "À facturer", count: counts?.pending },
-              { id: "done", label: "Done", count: counts?.done },
-              {
-                id: "in_progress",
-                label: "In progress",
-                count: counts?.in_progress,
-              },
-              {
-                id: "non_billable",
-                label: "Non facturable",
-                count: counts?.non_billable,
-              },
-            ]}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            label="Filtrer par statut"
-          />
-          <select
-            className="select"
-            style={{ width: 200 }}
-            value={clientFilter}
-            onChange={(e) => {
-              setClientFilter(e.target.value)
-              setProjectFilter("all")
-            }}
-          >
-            <option value="all">Tous les clients</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.company ?? `${c.firstName} ${c.lastName}`}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
-            style={{ width: 220 }}
-            value={projectFilter}
-            onChange={(e) => {
-              setProjectFilter(e.target.value)
-            }}
-          >
-            <option value="all">Tous les projets</option>
-            {projects
-              .filter(
-                (p) => clientFilter === "all" || p.clientId === clientFilter,
-              )
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-          </select>
-        </div>
-      </div>
+      <TasksFilterBar
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        counts={counts}
+        clients={clients}
+        projects={projects}
+        clientIds={clientIds}
+        projectIds={projectIds}
+        onSelectionChange={setSelection}
+      />
 
       <div className="col gap-16">
         {isPending && <TasksLoadingSkeleton />}

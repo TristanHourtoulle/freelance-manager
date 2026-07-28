@@ -11,6 +11,7 @@ import {
   useState,
 } from "react"
 import { Icon, type IconName } from "@/components/ui/icon"
+import { fuzzyScore } from "@/lib/fuzzy-score"
 
 export interface CommandItem {
   id: string
@@ -31,28 +32,6 @@ interface CommandPaletteProps {
   commands: CommandItem[]
   placeholder?: string
   onQueryChange?: (query: string) => void
-}
-
-function fuzzyScore(text: string, q: string): number {
-  if (!q) return 1
-  const lt = text.toLowerCase()
-  const lq = q.toLowerCase()
-  if (lt.includes(lq)) return 100 - lt.indexOf(lq)
-  let ti = 0,
-    qi = 0,
-    score = 0,
-    streak = 0
-  while (ti < lt.length && qi < lq.length) {
-    if (lt[ti] === lq[qi]) {
-      qi++
-      streak++
-      score += 1 + streak
-    } else {
-      streak = 0
-    }
-    ti++
-  }
-  return qi === lq.length ? score : 0
 }
 
 interface IndexedCommand extends CommandItem {

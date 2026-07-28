@@ -47,8 +47,8 @@ export interface TaskBillabilityPayload {
 }
 
 interface TaskFilters {
-  clientId?: string
-  projectId?: string
+  clientIds?: string[]
+  projectIds?: string[]
   status?: string
   billable?: boolean
 }
@@ -61,26 +61,44 @@ interface UseTasksOptions {
 
 const DEFAULT_TASK_OPTIONS: UseTasksOptions = {}
 
+function normalizeIds(ids: string[] | undefined): string[] | undefined {
+  if (!ids || ids.length === 0) return undefined
+  return [...new Set(ids)].sort()
+}
+
 /**
  * Paginated task list for the given filters.
  *
- * @param filters - Optional client / project / status narrowing.
+ * `clientIds` / `projectIds` are multi-select narrowings sent to the API as
+ * comma-separated params. They are deduped and sorted before entering the
+ * query key, so two equivalent selections share one cache entry, and an empty
+ * array means "no narrowing".
+ *
+ * @param filters - Optional client / project / status / billable narrowing.
  * @param options - `enabled` (default `true`) gates the network request.
  */
 export function useTasks(
   filters: TaskFilters = EMPTY_TASK_FILTERS,
   { enabled = true }: UseTasksOptions = DEFAULT_TASK_OPTIONS,
 ) {
+  const clientIds = normalizeIds(filters.clientIds)
+  const projectIds = normalizeIds(filters.projectIds)
+  const normalized: TaskFilters = {
+    ...(clientIds ? { clientIds } : {}),
+    ...(projectIds ? { projectIds } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.billable !== undefined ? { billable: filters.billable } : {}),
+  }
   const baseQs = new URLSearchParams()
-  if (filters.clientId) baseQs.set("clientId", filters.clientId)
-  if (filters.projectId) baseQs.set("projectId", filters.projectId)
-  if (filters.status) baseQs.set("status", filters.status)
-  if (filters.billable !== undefined)
-    baseQs.set("billable", String(filters.billable))
+  if (clientIds) baseQs.set("clientIds", clientIds.join(","))
+  if (projectIds) baseQs.set("projectIds", projectIds.join(","))
+  if (normalized.status) baseQs.set("status", normalized.status)
+  if (normalized.billable !== undefined)
+    baseQs.set("billable", String(normalized.billable))
   baseQs.set("limit", "50")
   return useInfiniteQuery({
     enabled,
-    queryKey: qk.tasks.list(filters),
+    queryKey: qk.tasks.list(normalized),
     queryFn: ({ pageParam }) => {
       const qs = new URLSearchParams(baseQs)
       if (pageParam) qs.set("cursor", pageParam)
@@ -103,8 +121,13 @@ const EMPTY_COUNT_FILTERS: TaskCountsQuery = {}
  * nests under the `["tasks", …]` prefix, so every mutation invalidating
  * `qk.tasks.all()` (billability, effort, sync) refreshes these counts too.
  *
- * @param filters - Optional client / project narrowing matching the page
- *   filters, forwarded to the server so the chips stay truthful.
+ * `clientIds` / `projectIds` are multi-select narrowings sent to the API as
+ * comma-separated params, deduped and sorted before entering the query key so
+ * two equivalent selections share one cache entry. An empty array means "no
+ * narrowing".
+ *
+ * @param filters - Optional client / project multi-select narrowing matching
+ *   the page filters, forwarded to the server so the chips stay truthful.
  * @param options - `enabled` (default `true`) gates the network request.
  * @returns A query resolving to {@link TaskCountsSummary}.
  */
@@ -112,12 +135,18 @@ export function useTaskCounts(
   filters: TaskCountsQuery = EMPTY_COUNT_FILTERS,
   { enabled = true }: UseTasksOptions = DEFAULT_TASK_OPTIONS,
 ) {
+  const clientIds = normalizeIds(filters.clientIds)
+  const projectIds = normalizeIds(filters.projectIds)
+  const normalized: TaskCountsQuery = {
+    ...(clientIds ? { clientIds } : {}),
+    ...(projectIds ? { projectIds } : {}),
+  }
   const qs = new URLSearchParams({ summary: "status" })
-  if (filters.clientId) qs.set("clientId", filters.clientId)
-  if (filters.projectId) qs.set("projectId", filters.projectId)
+  if (clientIds) qs.set("clientIds", clientIds.join(","))
+  if (projectIds) qs.set("projectIds", projectIds.join(","))
   return useQuery({
     enabled,
-    queryKey: qk.tasks.counts(filters),
+    queryKey: qk.tasks.counts(normalized),
     queryFn: () => api.get<TaskCountsSummary>(`/api/tasks?${qs.toString()}`),
     staleTime: STALE_TIME.list,
   })

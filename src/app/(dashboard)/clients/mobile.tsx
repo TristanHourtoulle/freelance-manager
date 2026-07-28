@@ -149,6 +149,11 @@ export function MobileClientsPage() {
                       {c.firstName} {c.lastName}
                     </div>
                   </div>
+                </div>
+                <div
+                  className="row gap-8"
+                  style={{ marginTop: 8, flexWrap: "wrap" }}
+                >
                   {c.stage === "LEAD" && (
                     <span className="pill pill-sent">Prospect</span>
                   )}
@@ -156,14 +161,12 @@ export function MobileClientsPage() {
                     <span className="pill pill-draft">Dormant</span>
                   )}
                   <BillingTypePill type={c.billingMode} />
-                </div>
-                {c.isSilent && (
-                  <div className="row" style={{ marginTop: 8 }}>
+                  {c.isSilent && (
                     <span className="pill pill-overdue pill-no-dot">
                       Silencieux depuis {c.silentDays} j
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div className="divider" style={{ margin: "10px 0" }} />
                 <div
                   style={{

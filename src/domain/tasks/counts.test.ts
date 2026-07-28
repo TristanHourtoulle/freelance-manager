@@ -1,5 +1,46 @@
 import { describe, expect, it } from "vitest"
-import { buildTaskCountsSummary, taskCountsQuerySchema } from "./counts"
+import {
+  buildTaskCountsSummary,
+  taskCountsQuerySchema,
+  taskIdListParamSchema,
+  TASK_ID_FILTER_MAX,
+} from "./counts"
+
+describe("taskIdListParamSchema", () => {
+  it("decodes a comma-separated list into a string array", () => {
+    expect(taskIdListParamSchema.parse("c1,c2")).toEqual(["c1", "c2"])
+  })
+
+  it("decodes a single value as a one-element list", () => {
+    expect(taskIdListParamSchema.parse("c1")).toEqual(["c1"])
+  })
+
+  it("decodes an empty param to an empty list, meaning no narrowing", () => {
+    expect(taskIdListParamSchema.parse("")).toEqual([])
+  })
+
+  it("drops blank segments instead of producing empty ids", () => {
+    expect(taskIdListParamSchema.parse("c1,, c2 ,")).toEqual(["c1", "c2"])
+  })
+
+  it("rejects a list longer than the cap", () => {
+    const oversized = Array.from(
+      { length: TASK_ID_FILTER_MAX + 1 },
+      (_, i) => `c${i}`,
+    ).join(",")
+
+    expect(() => taskIdListParamSchema.parse(oversized)).toThrow()
+  })
+
+  it("accepts a list exactly at the cap", () => {
+    const atCap = Array.from(
+      { length: TASK_ID_FILTER_MAX },
+      (_, i) => `c${i}`,
+    ).join(",")
+
+    expect(taskIdListParamSchema.parse(atCap)).toHaveLength(TASK_ID_FILTER_MAX)
+  })
+})
 
 describe("taskCountsQuerySchema", () => {
   it("accepts the status summary mode with no narrowing", () => {
@@ -8,15 +49,15 @@ describe("taskCountsQuerySchema", () => {
     expect(parsed).toEqual({ summary: "status" })
   })
 
-  it("accepts clientId and projectId narrowing", () => {
+  it("decodes clientIds and projectIds multi-select narrowing", () => {
     const parsed = taskCountsQuerySchema.parse({
       summary: "status",
-      clientId: "c1",
-      projectId: "p1",
+      clientIds: "c1,c2",
+      projectIds: "p1",
     })
 
-    expect(parsed.clientId).toBe("c1")
-    expect(parsed.projectId).toBe("p1")
+    expect(parsed.clientIds).toEqual(["c1", "c2"])
+    expect(parsed.projectIds).toEqual(["p1"])
   })
 
   it("rejects an unknown summary mode", () => {
@@ -25,9 +66,14 @@ describe("taskCountsQuerySchema", () => {
     ).toThrow()
   })
 
-  it("rejects an empty clientId", () => {
+  it("rejects an oversized clientIds list", () => {
+    const oversized = Array.from(
+      { length: TASK_ID_FILTER_MAX + 1 },
+      (_, i) => `c${i}`,
+    ).join(",")
+
     expect(() =>
-      taskCountsQuerySchema.parse({ summary: "status", clientId: "" }),
+      taskCountsQuerySchema.parse({ summary: "status", clientIds: oversized }),
     ).toThrow()
   })
 })

@@ -316,6 +316,11 @@ function DesktopClientsPage() {
                   </div>
                   <div className="muted small truncate">{c.company ?? "—"}</div>
                 </div>
+              </div>
+              <div
+                className="row gap-8"
+                style={{ marginTop: 10, flexWrap: "wrap" }}
+              >
                 {c.stage === "LEAD" && (
                   <span className="pill pill-sent">Prospect</span>
                 )}

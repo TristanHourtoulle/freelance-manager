@@ -230,7 +230,7 @@ export function MobileInvoiceSummary({
             disabled={!b.effectiveTotal || b.isPending}
             onClick={() => b.setShowSplit(true)}
           >
-            <Icon name="grid" size={14} />
+            <Icon name="split" size={14} />
             Diviser en plusieurs
           </button>
         </div>
