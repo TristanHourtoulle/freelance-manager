@@ -444,6 +444,7 @@ enum ActivityKind {
   LINEAR_SYNCED
   ACTION_DONE
   MEETING_LOGGED
+  MCP_TOOL_CALL
 }
 
 model ActivityLog {
