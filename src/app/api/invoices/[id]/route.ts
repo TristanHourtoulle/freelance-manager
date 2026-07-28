@@ -21,6 +21,7 @@ import {
 import { deferActivityLog } from "@/lib/activity"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
+import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -217,10 +218,11 @@ export async function PATCH(req: Request, { params }: Params) {
         },
       })
 
-      if (data.taskIds?.length) {
+      const invoicedTaskIds = collectInvoicedTaskIds(data.taskIds, data.lines)
+      if (invoicedTaskIds.length) {
         await tx.task.updateMany({
           where: {
-            id: { in: data.taskIds },
+            id: { in: invoicedTaskIds },
             userId: user.id,
             clientId: owned.clientId,
           },

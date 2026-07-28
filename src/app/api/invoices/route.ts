@@ -13,6 +13,7 @@ import {
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { recomputeInvoicePayment } from "@/lib/payments"
 import { serializeInvoice } from "@/domain/billing/serialize"
+import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { getInvoicesFirstPage, invoicesTag } from "@/lib/data/invoices"
@@ -185,10 +186,11 @@ export async function POST(req: Request) {
         },
       })
 
-      if (data.taskIds?.length) {
+      const invoicedTaskIds = collectInvoicedTaskIds(data.taskIds, data.lines)
+      if (invoicedTaskIds.length) {
         await tx.task.updateMany({
           where: {
-            id: { in: data.taskIds },
+            id: { in: invoicedTaskIds },
             userId: user.id,
             clientId: data.clientId,
           },
