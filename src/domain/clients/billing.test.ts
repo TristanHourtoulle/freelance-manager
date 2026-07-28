@@ -1,9 +1,19 @@
 import { describe, it, expect } from "vitest"
-import { deriveClientBilling } from "./page"
-import type { ClientDetailDTO } from "@/hooks/use-client-detail"
+import {
+  deriveClientBilling,
+  type BillableTaskRow,
+  type ClientBillingInput,
+} from "./billing"
 
-type Task = ClientDetailDTO["tasks"][number]
-type BillingInput = Parameters<typeof deriveClientBilling>[0]
+interface Task extends BillableTaskRow {
+  id: string
+  linearIdentifier: string
+  linearUrl: string | null
+  title: string
+  projectId: string
+}
+
+type BillingInput = ClientBillingInput<Task>
 
 function task(overrides: Partial<Task>): Task {
   return {

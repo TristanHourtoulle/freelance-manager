@@ -19,13 +19,8 @@ import {
   formatWorkloadCoverage,
   formatWorkloadDays,
 } from "@/domain/capacity/workload"
-import {
-  useClientActivity,
-  useClientDetail,
-  type ClientDetailDTO,
-} from "@/hooks/use-client-detail"
-import { pipelineValueForTask } from "@/lib/billing-math"
-import { isPipelineEligible } from "@/domain/tasks/billability"
+import { useClientActivity, useClientDetail } from "@/hooks/use-client-detail"
+import { deriveClientBilling } from "@/domain/clients/billing"
 import { Skeleton, SkeletonKpi } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 
@@ -64,49 +59,6 @@ interface PageProps {
  * exactly this many placeholders so the hero never shifts on resolve.
  */
 export const HERO_KPI_COUNT = 5
-
-interface ClientBillingSummary {
-  billableTasks: ClientDetailDTO["tasks"]
-  pipelineValue: number
-}
-
-/**
- * Derive the client's billable pipeline from its cached tasks.
- *
- * The gate is the canonical `isPipelineEligible` filter: a task must be
- * `PENDING_INVOICE`, uninvoiced and billable, on an active FREELANCE client.
- * The pipeline value sums `pipelineValueForTask` over that set (FIXED clients
- * and unestimated tasks contribute 0).
- *
- * @param client - Billing terms, pipeline gate fields and tasks from the
- *   client detail DTO.
- * @returns The billable task subset and its total pipeline value in euros.
- */
-export function deriveClientBilling(
-  client: Pick<
-    ClientDetailDTO,
-    "billingMode" | "rate" | "tasks" | "archivedAt" | "category"
-  >,
-): ClientBillingSummary {
-  const gate = { archivedAt: client.archivedAt, category: client.category }
-  const billableTasks = client.tasks.filter((t) =>
-    isPipelineEligible(
-      { status: t.status, invoiceId: t.invoiceId, billable: t.billable },
-      gate,
-    ),
-  )
-  const pipelineValue = billableTasks.reduce(
-    (sum, t) =>
-      sum +
-      pipelineValueForTask({
-        billingMode: client.billingMode,
-        rate: client.rate,
-        estimateDays: t.estimate,
-      }),
-    0,
-  )
-  return { billableTasks, pipelineValue }
-}
 
 export default function ClientDetailPage({ params }: PageProps) {
   const { id } = use(params)

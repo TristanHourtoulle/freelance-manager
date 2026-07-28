@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { MobileClientDetailPage } from "./mobile"
-import { deriveClientBilling } from "./page"
+import { deriveClientBilling } from "@/domain/clients/billing"
 import type { ClientDetailDTO } from "@/hooks/use-client-detail"
 
 const { useClientDetailMock } = vi.hoisted(() => ({
