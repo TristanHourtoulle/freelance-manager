@@ -5,6 +5,7 @@ import type { TaskDTO } from "@/hooks/use-tasks"
 
 const {
   useTasksMock,
+  useTaskCountsMock,
   useClientsBillableMock,
   useSettingsMock,
   searchParamsMock,
@@ -12,6 +13,7 @@ const {
   bulkBillabilityMock,
 } = vi.hoisted(() => ({
   useTasksMock: vi.fn(),
+  useTaskCountsMock: vi.fn(),
   useClientsBillableMock: vi.fn(),
   useSettingsMock: vi.fn(),
   searchParamsMock: vi.fn<(key: string) => string | null>(() => null),
@@ -30,6 +32,7 @@ vi.mock("next/dynamic", () => ({
 
 vi.mock("@/hooks/use-tasks", () => ({
   useTasks: () => useTasksMock(),
+  useTaskCounts: () => useTaskCountsMock(),
   useSyncLinear: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateTaskEffort: () => ({ mutate: vi.fn(), isPending: false }),
   useSetTaskBillability: () => ({
@@ -112,6 +115,26 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
   }
 }
 
+function countsFromTasks(tasks: TaskDTO[]) {
+  return {
+    all: tasks.filter((t) =>
+      ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status),
+    ).length,
+    pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
+    done: tasks.filter((t) => t.status === "DONE").length,
+    in_progress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
+    invoiced: tasks.filter((t) => t.invoiceId != null).length,
+    non_billable: tasks.filter((t) => !t.billable).length,
+    unestimatedCount: tasks.filter(
+      (t) =>
+        t.status === "PENDING_INVOICE" &&
+        t.billable &&
+        t.invoiceId === null &&
+        t.estimate === null,
+    ).length,
+  }
+}
+
 function mockTasks(opts: { data: TaskDTO[]; isPending?: boolean }) {
   useTasksMock.mockReturnValue({
     data: opts.data,
@@ -120,6 +143,11 @@ function mockTasks(opts: { data: TaskDTO[]; isPending?: boolean }) {
     isFetchingNextPage: false,
     isPending: opts.isPending ?? false,
   })
+  useTaskCountsMock.mockReturnValue(
+    opts.isPending
+      ? { data: undefined, isPending: true }
+      : { data: countsFromTasks(opts.data), isPending: false },
+  )
 }
 
 function mockBillable(totalCount: number, totalValue: number) {
@@ -140,6 +168,7 @@ function subHeaderText() {
 describe("DesktopTasksPage", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
+    useTaskCountsMock.mockReset()
     useClientsBillableMock.mockReset()
     useSettingsMock.mockReset()
     searchParamsMock.mockReset()
@@ -282,7 +311,7 @@ describe("DesktopTasksPage", () => {
 
     render(<DesktopTasksPage />)
 
-    expect(screen.getByText("Aucune task active")).toBeInTheDocument()
+    expect(screen.getByText("Aucune task à facturer")).toBeInTheDocument()
     expect(screen.queryByText("Aucune task")).not.toBeInTheDocument()
     expect(
       screen.queryByText("Ajuste les filtres ou lance une sync"),
@@ -291,6 +320,77 @@ describe("DesktopTasksPage", () => {
     expect(
       screen.queryByRole("button", { name: /initialiser les filtres/ }),
     ).not.toBeInTheDocument()
+  })
+
+  it("widens to the active scope in one click and still explains backlog-only data", () => {
+    mockTasks({ data: [buildTask({ status: "BACKLOG" })] })
+
+    render(<DesktopTasksPage />)
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Voir toutes les tasks" }),
+    )
+
+    expect(screen.getByText("Aucune task active")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Toutes tes tasks sont en backlog ou annulées, elles ne sont pas affichées ici",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: /initialiser les filtres/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("defaults the status filter to À facturer and hides other statuses", () => {
+    mockTasks({
+      data: [
+        buildTask(),
+        buildTask({
+          id: "task-2",
+          linearIdentifier: "TRI-2",
+          title: "Task done",
+          status: "DONE",
+        }),
+      ],
+    })
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.getByRole("button", { name: /^À facturer/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
+    expect(screen.queryByText("Task done")).not.toBeInTheDocument()
+  })
+
+  it("reports the visible count of the active status filter in the sub-header", () => {
+    mockTasks({
+      data: [
+        buildTask(),
+        buildTask({
+          id: "task-2",
+          linearIdentifier: "TRI-2",
+          title: "Task done",
+          status: "DONE",
+        }),
+        buildTask({
+          id: "task-3",
+          linearIdentifier: "TRI-3",
+          title: "Autre task done",
+          status: "DONE",
+        }),
+      ],
+    })
+
+    render(<DesktopTasksPage />)
+
+    expect(subHeaderText()).toContain("1 tasks visibles")
+
+    fireEvent.click(screen.getByRole("button", { name: /^Tout/ }))
+
+    expect(subHeaderText()).toContain("3 tasks visibles")
   })
 
   it("applies the clientId search param on mount", () => {
@@ -352,6 +452,7 @@ function selectFirstRow() {
 describe("DesktopTasksPage billability", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
+    useTaskCountsMock.mockReset()
     useClientsBillableMock.mockReset()
     useSettingsMock.mockReset()
     searchParamsMock.mockReset()
@@ -454,7 +555,9 @@ describe("DesktopTasksPage billability", () => {
     })
 
     const { container } = render(<DesktopTasksPage />)
+    fireEvent.click(screen.getByRole("button", { name: /^Tout/ }))
 
+    expect(screen.getByText("TRI-2")).toBeInTheDocument()
     const groupValue = container.querySelector(".card .num.strong")
     expect(normalize(groupValue?.textContent)).toBe("1 000 €")
   })
@@ -475,7 +578,7 @@ describe("DesktopTasksPage billability", () => {
 
     render(<DesktopTasksPage />)
 
-    const chip = screen.getByRole("button", { name: /Non facturable 1/ })
+    const chip = screen.getByRole("button", { name: /Non facturable\s*1/ })
     fireEvent.click(chip)
 
     expect(screen.getByText("Task offerte")).toBeInTheDocument()

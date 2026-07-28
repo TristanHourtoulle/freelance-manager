@@ -9,6 +9,7 @@ import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
 import { isSyncStale, SYNC_STALE_LABEL } from "@/lib/sync-staleness"
 import {
   useTasks,
+  useTaskCounts,
   useSyncLinear,
   useSetTaskBillability,
   useBulkSetTaskBillability,
@@ -29,6 +30,8 @@ import { useIsMobile } from "@/hooks/use-is-mobile"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { SegmentedControl } from "@/components/ui/segmented-control"
+import { Skeleton } from "@/components/ui/skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 import { NonBillableDialog } from "@/components/tasks/non-billable-dialog"
@@ -57,6 +60,8 @@ type StatusFilterId =
   | "in_progress"
   | "non_billable"
 
+const DEFAULT_STATUS_FILTER: StatusFilterId = "pending"
+
 export default function TasksPage() {
   const isMobile = useIsMobile()
   return (
@@ -73,7 +78,9 @@ export function DesktopTasksPage() {
   const projectParam = search.get("projectId") ?? "all"
 
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<StatusFilterId>("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilterId>(
+    DEFAULT_STATUS_FILTER,
+  )
   const [clientFilter, setClientFilter] = useState<string>(clientParam)
   const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -117,18 +124,12 @@ export function DesktopTasksPage() {
   const isSyncOld =
     Boolean(settings) && isSyncStale(settings?.linearLastSyncedAt)
 
-  const counts = useMemo(
-    () => ({
-      all: tasks.filter((t) =>
-        ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status),
-      ).length,
-      pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
-      done: tasks.filter((t) => t.status === "DONE").length,
-      in_progress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
-      non_billable: tasks.filter((t) => !t.billable).length,
-    }),
-    [tasks],
-  )
+  const { data: counts } = useTaskCounts({
+    clientId: clientFilter !== "all" ? clientFilter : undefined,
+    projectId: projectFilter !== "all" ? projectFilter : undefined,
+  })
+  const visibleCount = counts ? counts[statusFilter] : null
+  const unestimatedCount = counts?.unestimatedCount ?? 0
 
   const filtered = useMemo(
     () =>
@@ -192,15 +193,14 @@ export function DesktopTasksPage() {
     count: billable?.totalCount ?? 0,
   }
 
+  const hasNarrowingFilters =
+    searchTerm !== "" || clientFilter !== "all" || projectFilter !== "all"
   const hasActiveFilters =
-    searchTerm !== "" ||
-    statusFilter !== "all" ||
-    clientFilter !== "all" ||
-    projectFilter !== "all"
+    hasNarrowingFilters || statusFilter !== DEFAULT_STATUS_FILTER
 
   function resetFilters() {
     setSearchTerm("")
-    setStatusFilter("all")
+    setStatusFilter(DEFAULT_STATUS_FILTER)
     setClientFilter("all")
     setProjectFilter("all")
   }
@@ -224,14 +224,6 @@ export function DesktopTasksPage() {
 
   const selectionAllNonBillable =
     selectedTasks.length > 0 && selectedTasks.every((t) => !t.billable)
-
-  const unestimatedCount = tasks.filter(
-    (t) =>
-      t.status === "PENDING_INVOICE" &&
-      t.billable &&
-      t.invoiceId === null &&
-      t.estimate === null,
-  ).length
 
   function confirmNonBillable(reason: NonBillableReason, note: string | null) {
     if (!billabilityDialog) return
@@ -297,8 +289,17 @@ export function DesktopTasksPage() {
         <div>
           <h1 className="page-title">Tasks</h1>
           <div className="page-sub">
-            Synchronisées depuis Linear · {counts.all} tasks visibles · dernière
-            sync {fmtRelative(settings?.linearLastSyncedAt)}
+            Synchronisées depuis Linear ·{" "}
+            {visibleCount === null ? (
+              <Skeleton
+                width={54}
+                height={10}
+                className="inline-block align-middle"
+              />
+            ) : (
+              `${visibleCount} tasks visibles`
+            )}{" "}
+            · dernière sync {fmtRelative(settings?.linearLastSyncedAt)}
             {isSyncOld && (
               <>
                 {" "}
@@ -396,39 +397,26 @@ export function DesktopTasksPage() {
           />
         </div>
         <div className="row gap-12" style={{ flexWrap: "wrap" }}>
-          <div className="chip-row">
-            {(
-              [
-                { id: "all", label: "Tout", count: counts.all },
-                {
-                  id: "pending",
-                  label: "À facturer",
-                  count: counts.pending,
-                },
-                { id: "done", label: "Done", count: counts.done },
-                {
-                  id: "in_progress",
-                  label: "In progress",
-                  count: counts.in_progress,
-                },
-                {
-                  id: "non_billable",
-                  label: "Non facturable",
-                  count: counts.non_billable,
-                },
-              ] as { id: StatusFilterId; label: string; count: number }[]
-            ).map((f) => (
-              <button
-                key={f.id}
-                className={"chip" + (statusFilter === f.id ? " active" : "")}
-                onClick={() => {
-                  setStatusFilter(f.id)
-                }}
-              >
-                {f.label} <span className="count">{f.count}</span>
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<StatusFilterId>
+            options={[
+              { id: "all", label: "Tout", count: counts?.all },
+              { id: "pending", label: "À facturer", count: counts?.pending },
+              { id: "done", label: "Done", count: counts?.done },
+              {
+                id: "in_progress",
+                label: "In progress",
+                count: counts?.in_progress,
+              },
+              {
+                id: "non_billable",
+                label: "Non facturable",
+                count: counts?.non_billable,
+              },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            label="Filtrer par statut"
+          />
           <select
             className="select"
             style={{ width: 200 }}
@@ -483,6 +471,29 @@ export function DesktopTasksPage() {
           !hasActiveFilters && (
             <div className="card">
               <div className="empty">
+                <div className="empty-title">Aucune task à facturer</div>
+                <div>
+                  Le filtre « À facturer » est actif par défaut. Les tasks en
+                  backlog ou annulées ne sont jamais listées ici.
+                </div>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setStatusFilter("all")}
+                >
+                  Voir toutes les tasks
+                </button>
+              </div>
+            </div>
+          )}
+        {!isPending &&
+          groups.length === 0 &&
+          tasks.length > 0 &&
+          hasActiveFilters &&
+          statusFilter === "all" &&
+          !hasNarrowingFilters && (
+            <div className="card">
+              <div className="empty">
                 <div className="empty-title">Aucune task active</div>
                 <div>
                   Toutes tes tasks sont en backlog ou annulées, elles ne sont
@@ -494,7 +505,8 @@ export function DesktopTasksPage() {
         {!isPending &&
           groups.length === 0 &&
           tasks.length > 0 &&
-          hasActiveFilters && (
+          hasActiveFilters &&
+          (statusFilter !== "all" || hasNarrowingFilters) && (
             <div className="card">
               <div className="empty">
                 <div className="empty-title">Aucun résultat</div>

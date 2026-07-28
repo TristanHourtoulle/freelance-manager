@@ -8,6 +8,7 @@ import { fmtEUR, initials, avatarColor, fmtRelative } from "@/lib/format"
 import { useClients } from "@/hooks/use-clients"
 import {
   useTasks,
+  useTaskCounts,
   useSyncLinear,
   useBulkSetTaskBillability,
 } from "@/hooks/use-tasks"
@@ -18,6 +19,7 @@ import {
   isPipelineEligible,
   NON_BILLABLE_REASON_LABELS,
 } from "@/domain/tasks/billability"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { NonBillableDialog } from "@/components/tasks/non-billable-dialog"
 import { useToast } from "@/components/providers/toast-provider"
 import { TaskIdLink } from "@/components/ui/task-id-link"
@@ -25,6 +27,8 @@ import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 
 type Filter = "all" | "pending" | "done" | "invoiced" | "non_billable"
+
+const DEFAULT_STATUS_FILTER: Filter = "pending"
 
 export function MobileTasksPage() {
   const router = useRouter()
@@ -34,12 +38,14 @@ export function MobileTasksPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isPending,
   } = useTasks()
+  const { data: counts } = useTaskCounts()
   const { data: clients = [] } = useClients()
   const sync = useSyncLinear()
   const syncProgress = useLinearSyncProgress()
   const isSyncing = sync.isPending || syncProgress.isRunning
-  const [filter, setFilter] = useState<Filter>("all")
+  const [filter, setFilter] = useState<Filter>(DEFAULT_STATUS_FILTER)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [billabilityDialogOpen, setBillabilityDialogOpen] = useState(false)
   const bulkBillability = useBulkSetTaskBillability()
@@ -60,29 +66,7 @@ export function MobileTasksPage() {
       )
   }, [tasks, filter])
 
-  const counts = useMemo(
-    () => ({
-      all: tasks.filter((t) =>
-        ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status),
-      ).length,
-      pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
-      invoiced: tasks.filter((t) => t.invoiceId != null).length,
-      non_billable: tasks.filter((t) => !t.billable).length,
-    }),
-    [tasks],
-  )
-
-  const unestimatedCount = useMemo(
-    () =>
-      tasks.filter(
-        (t) =>
-          t.status === "PENDING_INVOICE" &&
-          t.billable &&
-          t.invoiceId === null &&
-          t.estimate === null,
-      ).length,
-    [tasks],
-  )
+  const unestimatedCount = counts?.unestimatedCount ?? 0
 
   const grouped = useMemo(() => {
     const map = new Map<
@@ -189,39 +173,23 @@ export function MobileTasksPage() {
         </div>
 
         <div className="m-stack">
-          <div className="chip-row">
-            {(
-              [
-                { id: "all" as Filter, label: "Tous", count: counts.all },
-                {
-                  id: "pending" as Filter,
-                  label: "À facturer",
-                  count: counts.pending,
-                },
-                { id: "done" as Filter, label: "Done", count: undefined },
-                {
-                  id: "invoiced" as Filter,
-                  label: "Facturée",
-                  count: counts.invoiced,
-                },
-                {
-                  id: "non_billable" as Filter,
-                  label: "Non facturable",
-                  count: counts.non_billable,
-                },
-              ] as { id: Filter; label: string; count: number | undefined }[]
-            ).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={"chip" + (filter === f.id ? " active" : "")}
-                onClick={() => setFilter(f.id)}
-              >
-                {f.label}
-                {f.count != null && <span className="count">{f.count}</span>}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl<Filter>
+            options={[
+              { id: "all", label: "Tous", count: counts?.all },
+              { id: "pending", label: "À facturer", count: counts?.pending },
+              { id: "done", label: "Done" },
+              { id: "invoiced", label: "Facturée", count: counts?.invoiced },
+              {
+                id: "non_billable",
+                label: "Non facturable",
+                count: counts?.non_billable,
+              },
+            ]}
+            value={filter}
+            onChange={setFilter}
+            scrollable
+            label="Filtrer par statut"
+          />
 
           {unestimatedCount > 0 && (
             <div className="xs muted row gap-8">
@@ -367,12 +335,62 @@ export function MobileTasksPage() {
             )
           })}
 
-          {filtered.length === 0 && (
+          {!isPending && filtered.length === 0 && tasks.length === 0 && (
             <div className="empty">
               <div className="empty-title">Aucune task</div>
               <div>Change le filtre ou sync depuis Linear.</div>
             </div>
           )}
+          {!isPending &&
+            filtered.length === 0 &&
+            tasks.length > 0 &&
+            filter === DEFAULT_STATUS_FILTER && (
+              <div className="empty">
+                <div className="empty-title">Aucune task à facturer</div>
+                <div>
+                  Le filtre « À facturer » est actif par défaut. Les tasks en
+                  backlog ou annulées ne sont jamais listées ici.
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setFilter("all")}
+                >
+                  Voir toutes les tasks
+                </button>
+              </div>
+            )}
+          {!isPending &&
+            filtered.length === 0 &&
+            tasks.length > 0 &&
+            filter === "all" && (
+              <div className="empty">
+                <div className="empty-title">Aucune task active</div>
+                <div>
+                  Toutes tes tasks sont en backlog ou annulées, elles ne sont
+                  pas affichées ici
+                </div>
+              </div>
+            )}
+          {!isPending &&
+            filtered.length === 0 &&
+            tasks.length > 0 &&
+            filter !== DEFAULT_STATUS_FILTER &&
+            filter !== "all" && (
+              <div className="empty">
+                <div className="empty-title">Aucun résultat</div>
+                <div>Aucune task ne correspond au filtre actuel</div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: 12 }}
+                  onClick={() => setFilter(DEFAULT_STATUS_FILTER)}
+                >
+                  Réinitialiser le filtre
+                </button>
+              </div>
+            )}
 
           <InfiniteScrollSentinel
             hasNextPage={Boolean(hasNextPage)}
