@@ -128,7 +128,7 @@ export function DesktopNewInvoicePage() {
                 disabled={!effectiveTotal || b.isPending}
                 onClick={() => b.setShowSplit(true)}
               >
-                <Icon name="grid" size={14} />
+                <Icon name="split" size={14} />
                 Diviser en plusieurs
               </button>
               <div className="row gap-8">
@@ -230,7 +230,7 @@ export function DesktopNewInvoicePage() {
                   disabled={!effectiveTotal || b.isPending}
                   onClick={() => b.setShowSplit(true)}
                 >
-                  <Icon name="grid" size={14} />
+                  <Icon name="split" size={14} />
                   Diviser en plusieurs
                 </button>
               </div>
