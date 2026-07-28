@@ -25,6 +25,10 @@ import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel
 import { SkeletonCard, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 const MobileClientsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileClientsPage),
@@ -36,6 +40,11 @@ const MobileClientsPage = dynamic(
 
 type FilterId = "all" | "DAILY" | "FIXED" | "HOURLY" | "LEAD" | "DORMANT"
 type ViewMode = "grid" | "list"
+
+const VIEW_OPTIONS: readonly SegmentedControlOption<ViewMode>[] = [
+  { id: "grid", label: "Vue grille", icon: "grid" },
+  { id: "list", label: "Vue liste", icon: "list" },
+]
 
 interface EnrichedClient extends ClientDTO {
   projectsCount: number
@@ -258,38 +267,13 @@ function DesktopClientsPage() {
               <Icon name="archive" size={12} /> Archivés
             </button>
           </div>
-          <div
-            className="row gap-4"
-            style={{
-              background: "var(--bg-1)",
-              borderRadius: 7,
-              padding: 3,
-              border: "1px solid var(--border)",
-            }}
-          >
-            <button
-              className="icon-btn"
-              style={
-                view === "grid"
-                  ? { background: "var(--bg-3)", color: "var(--text-0)" }
-                  : {}
-              }
-              onClick={() => setView("grid")}
-            >
-              <Icon name="grid" size={14} />
-            </button>
-            <button
-              className="icon-btn"
-              style={
-                view === "list"
-                  ? { background: "var(--bg-3)", color: "var(--text-0)" }
-                  : {}
-              }
-              onClick={() => setView("list")}
-            >
-              <Icon name="list" size={14} />
-            </button>
-          </div>
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={view}
+            onChange={setView}
+            className="seg-raised"
+            label="Affichage"
+          />
         </div>
       </div>
 

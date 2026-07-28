@@ -14,6 +14,18 @@ import type { ClientDetailDTO } from "@/hooks/use-client-detail"
 import type { ClientUpdateInput } from "@/lib/schemas/client"
 import { initials, avatarColor } from "@/lib/format"
 import { AVATAR_COLORS } from "@/lib/avatar-colors"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
+
+const BILLING_MODE_OPTIONS: readonly SegmentedControlOption<
+  "DAILY" | "FIXED" | "HOURLY"
+>[] = [
+  { id: "DAILY", label: "TJM" },
+  { id: "FIXED", label: "Forfait" },
+  { id: "HOURLY", label: "Horaire" },
+]
 
 interface EditClientModalProps {
   client: ClientDTO | ClientDetailDTO
@@ -299,33 +311,12 @@ export function EditClientModal({ client, onClose }: EditClientModalProps) {
             <div className="field-label" id={`${fieldId}-billing-mode`}>
               Type
             </div>
-            <div
-              className="seg"
-              role="group"
-              aria-labelledby={`${fieldId}-billing-mode`}
-            >
-              <button
-                type="button"
-                className={billingMode === "DAILY" ? "active" : ""}
-                onClick={() => setBillingMode("DAILY")}
-              >
-                TJM
-              </button>
-              <button
-                type="button"
-                className={billingMode === "FIXED" ? "active" : ""}
-                onClick={() => setBillingMode("FIXED")}
-              >
-                Forfait
-              </button>
-              <button
-                type="button"
-                className={billingMode === "HOURLY" ? "active" : ""}
-                onClick={() => setBillingMode("HOURLY")}
-              >
-                Horaire
-              </button>
-            </div>
+            <SegmentedControl
+              options={BILLING_MODE_OPTIONS}
+              value={billingMode}
+              onChange={setBillingMode}
+              labelledBy={`${fieldId}-billing-mode`}
+            />
           </div>
           <div className="field-grid-2">
             {billingMode !== "FIXED" ? (

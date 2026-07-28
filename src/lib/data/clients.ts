@@ -57,17 +57,22 @@ interface BillableSqlRow {
   rate: number
   taskCount: number
   estimateDays: number
+  unestimatedCount: number
 }
 
 /**
- * Global "à facturer" aggregate for every client of a user.
+ * Global "à facturer" aggregate for every client of a user, gated by the
+ * canonical pipeline filter (pending invoice, uninvoiced, billable, active
+ * FREELANCE client).
  *
  * Deliberately uncached and computed by a single grouped query: it folds task
  * rows, so it must never be capped by the clients/tasks page size nor served
  * from the hour-long clients cache, which no task mutation invalidates.
+ * `estimateDays` sums only non-null estimates, so unestimated tasks contribute
+ * 0 € and are surfaced through `unestimatedCount` instead.
  *
  * @param userId - Owner of the clients and tasks.
- * @returns Per-client billable count/value plus the global totals.
+ * @returns Per-client billable count/value/unestimated plus the global totals.
  */
 export async function getClientsBillableSummary(
   userId: string,
@@ -77,12 +82,16 @@ export async function getClientsBillableSummary(
            c."billingMode"::text                     AS "billingMode",
            c."rate"::float                           AS "rate",
            COUNT(*)::int                             AS "taskCount",
-           COALESCE(SUM(COALESCE(t."estimate", 1)), 0)::float AS "estimateDays"
+           COALESCE(SUM(t."estimate"), 0)::float     AS "estimateDays",
+           COUNT(*) FILTER (WHERE t."estimate" IS NULL)::int AS "unestimatedCount"
     FROM tasks t
     JOIN clients c ON c.id = t."clientId"
     WHERE t."userId" = ${userId}
       AND t.status = 'PENDING_INVOICE'
       AND t."invoiceId" IS NULL
+      AND t."billable" = true
+      AND c."archivedAt" IS NULL
+      AND c."category" = 'FREELANCE'
     GROUP BY t."clientId", c."billingMode", c."rate"
   `
   const groups: BillableGroupRow[] = rows.map((r) => ({
@@ -91,6 +100,7 @@ export async function getClientsBillableSummary(
     rate: Number(r.rate),
     taskCount: Number(r.taskCount),
     estimateDays: Number(r.estimateDays),
+    unestimatedCount: Number(r.unestimatedCount),
   }))
   return buildClientsBillableSummary(groups)
 }

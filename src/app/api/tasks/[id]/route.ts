@@ -9,6 +9,7 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { taskUpdateSchema } from "@/lib/schemas/task"
+import { buildBillabilityUpdate } from "@/domain/tasks/billability"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -17,8 +18,10 @@ interface Params {
 /**
  * Update the freelancer-owned fields of a Linear-mirrored task.
  *
- * Only `actualDays` (real effort spent) is writable — every other column is
- * owned by the Linear sync and would be overwritten on the next pull.
+ * The app-owned writable fields are `actualDays` (real effort spent) and the
+ * billability columns (`billable`, `nonBillableReason`, `nonBillableNote`,
+ * `nonBillableAt` via the `billability` payload) — every other column is owned
+ * by the Linear sync and would be overwritten on the next pull.
  *
  * @param req - The incoming request; must be same-origin.
  * @param params - Route params carrying the task id.
@@ -45,6 +48,7 @@ export async function PATCH(req: Request, { params }: Params) {
         ...("actualDays" in data
           ? { actualDays: data.actualDays ?? null }
           : {}),
+        ...(data.billability ? buildBillabilityUpdate(data.billability) : {}),
       },
       select: {
         id: true,
@@ -59,6 +63,9 @@ export async function PATCH(req: Request, { params }: Params) {
         invoiceId: true,
         clientId: true,
         projectId: true,
+        billable: true,
+        nonBillableReason: true,
+        nonBillableNote: true,
       },
     })
 
@@ -75,6 +82,9 @@ export async function PATCH(req: Request, { params }: Params) {
       invoiceId: updated.invoiceId,
       clientId: updated.clientId,
       projectId: updated.projectId,
+      billable: updated.billable,
+      nonBillableReason: updated.nonBillableReason,
+      nonBillableNote: updated.nonBillableNote,
     })
   } catch (error) {
     return apiServerError(error)

@@ -4,11 +4,18 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query"
 import { api, isApiErrorWithStatus } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
+
+export type NonBillableReason =
+  | "BUG_FIX_ALREADY_INVOICED"
+  | "NON_BILLED_WORK"
+  | "COMMERCIAL_GESTURE"
+  | "OTHER"
 
 export interface TaskDTO {
   id: string
@@ -24,12 +31,22 @@ export interface TaskDTO {
   invoiceId: string | null
   clientId: string
   projectId: string
+  billable: boolean
+  nonBillableReason: NonBillableReason | null
+  nonBillableNote: string | null
+}
+
+export interface TaskBillabilityPayload {
+  billable: boolean
+  nonBillableReason: NonBillableReason | null
+  nonBillableNote: string | null
 }
 
 interface TaskFilters {
   clientId?: string
   projectId?: string
   status?: string
+  billable?: boolean
 }
 
 const EMPTY_TASK_FILTERS: TaskFilters = {}
@@ -54,6 +71,8 @@ export function useTasks(
   if (filters.clientId) baseQs.set("clientId", filters.clientId)
   if (filters.projectId) baseQs.set("projectId", filters.projectId)
   if (filters.status) baseQs.set("status", filters.status)
+  if (filters.billable !== undefined)
+    baseQs.set("billable", String(filters.billable))
   baseQs.set("limit", "50")
   return useInfiniteQuery({
     enabled,
@@ -97,6 +116,80 @@ export function useUpdateTaskEffort() {
       toast({
         variant: "error",
         title: "Temps réel non enregistré",
+        description: e instanceof Error ? e.message : String(e),
+      })
+    },
+  })
+}
+
+function invalidateBillabilityGraph(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: qk.tasks.all() })
+  qc.invalidateQueries({ queryKey: qk.analyticsAll() })
+  qc.invalidateQueries({ queryKey: qk.dashboard() })
+  qc.invalidateQueries({ queryKey: [...qk.clients(), "billable"] })
+}
+
+/**
+ * Mark one task billable or non-billable, with the structured reason.
+ *
+ * Server roundtrip only (no optimistic update — this is money-adjacent).
+ * Invalidates the task lists plus every aggregate consuming the pipeline:
+ * analytics, dashboard and the clients billable summary ("À facturer").
+ */
+export function useSetTaskBillability() {
+  const qc = useQueryClient()
+  const { toast } = useToast()
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...billability
+    }: { id: string } & TaskBillabilityPayload) =>
+      api.patch<TaskDTO>(`/api/tasks/${id}`, { billability }),
+    onSuccess: (task) => {
+      invalidateBillabilityGraph(qc)
+      toast({
+        variant: "success",
+        title: task.billable
+          ? "Tâche remise en facturation"
+          : "Tâche exclue de la facturation",
+      })
+    },
+    onError: (e) => {
+      toast({
+        variant: "error",
+        title: "Facturabilité non enregistrée",
+        description: e instanceof Error ? e.message : String(e),
+      })
+    },
+  })
+}
+
+/**
+ * Mark a batch of tasks billable or non-billable in one call.
+ *
+ * Same invalidation surface as {@link useSetTaskBillability}; the success
+ * toast reports the number of rows actually updated by the server.
+ */
+export function useBulkSetTaskBillability() {
+  const qc = useQueryClient()
+  const { toast } = useToast()
+  return useMutation({
+    mutationFn: (input: { taskIds: string[] } & TaskBillabilityPayload) =>
+      api.post<{ updated: number }>("/api/tasks/billability", input),
+    onSuccess: (result, variables) => {
+      invalidateBillabilityGraph(qc)
+      toast({
+        variant: "success",
+        title: variables.billable
+          ? "Tâches remises en facturation"
+          : "Tâches exclues de la facturation",
+        description: `${result.updated} tâche${result.updated > 1 ? "s" : ""} mise${result.updated > 1 ? "s" : ""} à jour.`,
+      })
+    },
+    onError: (e) => {
+      toast({
+        variant: "error",
+        title: "Facturabilité non enregistrée",
         description: e instanceof Error ? e.message : String(e),
       })
     },

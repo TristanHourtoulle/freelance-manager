@@ -11,6 +11,8 @@ import { useSyncLinear } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { formatWorkloadDays } from "@/domain/capacity/workload"
+import { isPipelineEligible } from "@/domain/tasks/billability"
+import { pipelineValueForTask } from "@/lib/billing-math"
 const LinearMappingsModal = dynamic(
   () =>
     import("@/components/clients/linear-mappings-modal").then(
@@ -124,18 +126,29 @@ function DesktopProjectsPage() {
         (t) => t.status === "DONE" || t.status === "PENDING_INVOICE",
       )
       const client = clientById.get(p.clientId)
-      const pipeline =
-        client?.billingMode === "DAILY"
-          ? pendingTasks.reduce(
-              (s, t) => s + (t.estimate ?? 0) * client.rate,
+      const pipeline = client
+        ? projectTasks
+            .filter((t) =>
+              isPipelineEligible(
+                {
+                  status: t.status,
+                  invoiceId: t.invoiceId,
+                  billable: t.billable,
+                },
+                { archivedAt: client.archivedAt, category: client.category },
+              ),
+            )
+            .reduce(
+              (s, t) =>
+                s +
+                pipelineValueForTask({
+                  billingMode: client.billingMode,
+                  rate: client.rate,
+                  estimateDays: t.estimate,
+                }),
               0,
             )
-          : client?.billingMode === "HOURLY"
-            ? pendingTasks.reduce(
-                (s, t) => s + (t.estimate ?? 0) * 8 * client.rate,
-                0,
-              )
-            : 0
+        : 0
       const revenue = invoices
         .filter((i) => i.projectId === p.id)
         .reduce((s, i) => s + i.paidAmount, 0)

@@ -34,14 +34,25 @@ describe("getNavCounts", () => {
     })
   })
 
-  it("keeps the project, task and invoice counts unchanged", async () => {
+  it("counts the task badge through the canonical pipeline gate", async () => {
+    await getNavCounts("user-1")
+
+    expect(prismaMock.task.count).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        status: "PENDING_INVOICE",
+        invoiceId: null,
+        billable: true,
+        client: { archivedAt: null, category: "FREELANCE" },
+      },
+    })
+  })
+
+  it("keeps the project and invoice counts unchanged", async () => {
     await getNavCounts("user-1")
 
     expect(prismaMock.project.count).toHaveBeenCalledWith({
       where: { userId: "user-1", status: "ACTIVE" },
-    })
-    expect(prismaMock.task.count).toHaveBeenCalledWith({
-      where: { userId: "user-1", status: "PENDING_INVOICE" },
     })
     expect(prismaMock.invoice.count).toHaveBeenCalledWith({
       where: {

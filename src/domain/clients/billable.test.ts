@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { buildClientsBillableSummary, type BillableGroupRow } from "./billable"
+import {
+  buildClientsBillableSummary,
+  EMPTY_BILLABLE_SUMMARY,
+  type BillableGroupRow,
+} from "./billable"
 
 function group(overrides: Partial<BillableGroupRow> = {}): BillableGroupRow {
   return {
@@ -8,6 +12,7 @@ function group(overrides: Partial<BillableGroupRow> = {}): BillableGroupRow {
     rate: 500,
     taskCount: 1,
     estimateDays: 1,
+    unestimatedCount: 0,
     ...overrides,
   }
 }
@@ -18,7 +23,9 @@ describe("buildClientsBillableSummary", () => {
       byClient: {},
       totalCount: 0,
       totalValue: 0,
+      unestimatedCount: 0,
     })
+    expect(buildClientsBillableSummary([])).toEqual(EMPTY_BILLABLE_SUMMARY)
   })
 
   it("values a DAILY group at estimateDays * rate", () => {
@@ -26,7 +33,11 @@ describe("buildClientsBillableSummary", () => {
       group({ taskCount: 3, estimateDays: 5 }),
     ])
 
-    expect(summary.byClient["client-1"]).toEqual({ count: 3, value: 2500 })
+    expect(summary.byClient["client-1"]).toEqual({
+      count: 3,
+      value: 2500,
+      unestimatedCount: 0,
+    })
     expect(summary.totalValue).toBe(2500)
     expect(summary.totalCount).toBe(3)
   })
@@ -36,7 +47,11 @@ describe("buildClientsBillableSummary", () => {
       group({ billingMode: "HOURLY", rate: 80, taskCount: 2, estimateDays: 3 }),
     ])
 
-    expect(summary.byClient["client-1"]).toEqual({ count: 2, value: 1920 })
+    expect(summary.byClient["client-1"]).toEqual({
+      count: 2,
+      value: 1920,
+      unestimatedCount: 0,
+    })
   })
 
   it("counts FIXED tasks but values them at zero", () => {
@@ -44,7 +59,11 @@ describe("buildClientsBillableSummary", () => {
       group({ billingMode: "FIXED", rate: 0, taskCount: 4, estimateDays: 9 }),
     ])
 
-    expect(summary.byClient["client-1"]).toEqual({ count: 4, value: 0 })
+    expect(summary.byClient["client-1"]).toEqual({
+      count: 4,
+      value: 0,
+      unestimatedCount: 0,
+    })
     expect(summary.totalCount).toBe(4)
     expect(summary.totalValue).toBe(0)
   })
@@ -65,6 +84,36 @@ describe("buildClientsBillableSummary", () => {
     expect(summary.totalValue).toBe(1000)
   })
 
+  it("counts unestimated tasks without adding to the value", () => {
+    const summary = buildClientsBillableSummary([
+      group({
+        clientId: "a",
+        taskCount: 3,
+        estimateDays: 2,
+        unestimatedCount: 1,
+      }),
+      group({
+        clientId: "b",
+        taskCount: 2,
+        estimateDays: 0,
+        unestimatedCount: 2,
+      }),
+    ])
+
+    expect(summary.byClient["a"]).toEqual({
+      count: 3,
+      value: 1000,
+      unestimatedCount: 1,
+    })
+    expect(summary.byClient["b"]).toEqual({
+      count: 2,
+      value: 0,
+      unestimatedCount: 2,
+    })
+    expect(summary.totalValue).toBe(1000)
+    expect(summary.unestimatedCount).toBe(3)
+  })
+
   it("aggregates far beyond one page of tasks", () => {
     const rows = Array.from({ length: 60 }, (_, i) =>
       group({ clientId: `client-${i}`, taskCount: 3, estimateDays: 2 }),
@@ -74,15 +123,28 @@ describe("buildClientsBillableSummary", () => {
 
     expect(summary.totalCount).toBe(180)
     expect(summary.totalValue).toBe(60 * 1000)
-    expect(summary.byClient["client-57"]).toEqual({ count: 3, value: 1000 })
+    expect(summary.byClient["client-57"]).toEqual({
+      count: 3,
+      value: 1000,
+      unestimatedCount: 0,
+    })
   })
 
   it("folds duplicate rows for the same client", () => {
     const summary = buildClientsBillableSummary([
       group({ clientId: "a", taskCount: 1, estimateDays: 1 }),
-      group({ clientId: "a", taskCount: 2, estimateDays: 3 }),
+      group({
+        clientId: "a",
+        taskCount: 2,
+        estimateDays: 3,
+        unestimatedCount: 1,
+      }),
     ])
 
-    expect(summary.byClient["a"]).toEqual({ count: 3, value: 2000 })
+    expect(summary.byClient["a"]).toEqual({
+      count: 3,
+      value: 2000,
+      unestimatedCount: 1,
+    })
   })
 })

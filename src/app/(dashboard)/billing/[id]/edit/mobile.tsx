@@ -16,11 +16,20 @@ import type { EditStatus } from "@/features/billing/invoice-builder-types"
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { ClientDTO } from "@/hooks/use-clients"
 import type { InvoiceDetail } from "@/hooks/use-invoices"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
-const STATUS_OPTIONS: { id: EditStatus; label: string }[] = [
+const STATUS_OPTIONS: readonly SegmentedControlOption<EditStatus>[] = [
   { id: "DRAFT", label: "Brouillon" },
   { id: "SENT", label: "Envoyée" },
   { id: "CANCELLED", label: "Annulée" },
+]
+
+const KIND_OPTIONS: readonly SegmentedControlOption<InvoiceKind>[] = [
+  { id: "STANDARD", label: "Facture" },
+  { id: "DEPOSIT", label: "Acompte" },
 ]
 
 function clientAvatar(client: ClientDTO): string {
@@ -110,33 +119,17 @@ export function MobileEditInvoicePage({
             </div>
           )}
 
-          <div className="seg">
-            {(["STANDARD", "DEPOSIT"] as InvoiceKind[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={kind === k ? "active" : ""}
-                aria-pressed={kind === k}
-                onClick={() => b.setKind(k)}
-              >
-                {k === "STANDARD" ? "Facture" : "Acompte"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={KIND_OPTIONS}
+            value={kind}
+            onChange={b.setKind}
+          />
 
-          <div className="seg">
-            {STATUS_OPTIONS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={b.status === s.id ? "active" : ""}
-                aria-pressed={b.status === s.id}
-                onClick={() => b.setStatus(s.id)}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={STATUS_OPTIONS}
+            value={b.status}
+            onChange={b.setStatus}
+          />
 
           {isDeposit ? (
             <div className="card">

@@ -13,6 +13,11 @@ import {
   InvoiceLinesPanel,
 } from "@/features/billing/invoice-builder-parts"
 import type { InvoiceKind } from "@/domain/billing/types"
+import type { EditStatus } from "@/features/billing/invoice-builder-types"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
@@ -21,6 +26,17 @@ import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 interface PageProps {
   params: Promise<{ id: string }>
 }
+
+const KIND_OPTIONS: readonly SegmentedControlOption<InvoiceKind>[] = [
+  { id: "STANDARD", label: "Standard" },
+  { id: "DEPOSIT", label: "Acompte" },
+]
+
+const STATUS_OPTIONS: readonly SegmentedControlOption<EditStatus>[] = [
+  { id: "DRAFT", label: "Brouillon" },
+  { id: "SENT", label: "Envoyée" },
+  { id: "CANCELLED", label: "Annulée" },
+]
 
 const MobileEditInvoicePage = dynamic(
   () => import("./mobile").then((m) => m.MobileEditInvoicePage),
@@ -182,80 +198,25 @@ function EditInvoiceForm({ invoice, id }: EditInvoiceFormProps) {
             <div className="field-label" id={`${fieldId}-kind`}>
               Type
             </div>
-            <div
-              className="row gap-4"
-              role="group"
-              aria-labelledby={`${fieldId}-kind`}
-              style={{
-                background: "var(--bg-2)",
-                borderRadius: 7,
-                padding: 3,
-                border: "1px solid var(--border)",
-              }}
-            >
-              {(["STANDARD", "DEPOSIT"] as InvoiceKind[]).map((k) => (
-                <button
-                  key={k}
-                  className="chip"
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    background: kind === k ? "var(--accent)" : "transparent",
-                    color: kind === k ? "var(--accent-text)" : "var(--text-1)",
-                    border: "none",
-                  }}
-                  onClick={() => b.setKind(k)}
-                >
-                  {k === "STANDARD" ? "Standard" : "Acompte"}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={KIND_OPTIONS}
+              value={kind}
+              onChange={b.setKind}
+              variant="accent"
+              labelledBy={`${fieldId}-kind`}
+            />
           </div>
           <div className="field" style={{ width: 320 }}>
             <div className="field-label" id={`${fieldId}-status`}>
               Statut
             </div>
-            <div
-              className="row gap-4"
-              role="group"
-              aria-labelledby={`${fieldId}-status`}
-              style={{
-                background: "var(--bg-2)",
-                borderRadius: 7,
-                padding: 3,
-                border: "1px solid var(--border)",
-              }}
-            >
-              {(
-                [
-                  { id: "DRAFT", label: "Brouillon" },
-                  { id: "SENT", label: "Envoyée" },
-                  { id: "CANCELLED", label: "Annulée" },
-                ] as {
-                  id: "DRAFT" | "SENT" | "CANCELLED"
-                  label: string
-                }[]
-              ).map((s) => (
-                <button
-                  key={s.id}
-                  className="chip"
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    background:
-                      b.status === s.id ? "var(--accent)" : "transparent",
-                    color:
-                      b.status === s.id
-                        ? "var(--accent-text)"
-                        : "var(--text-1)",
-                    border: "none",
-                  }}
-                  onClick={() => b.setStatus(s.id)}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={STATUS_OPTIONS}
+              value={b.status}
+              onChange={b.setStatus}
+              variant="accent"
+              labelledBy={`${fieldId}-status`}
+            />
           </div>
         </div>
         {client && <ClientSummaryBar client={client} />}

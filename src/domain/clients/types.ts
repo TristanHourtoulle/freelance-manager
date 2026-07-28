@@ -26,5 +26,6 @@ export interface ClientWireRow {
   color: string | null
   starred: boolean
   archived: boolean
+  archivedAt: string | null
   createdAt: string
 }

@@ -38,14 +38,64 @@ vi.mock("@/lib/api", async () => {
   }
 })
 
-const PENDING_WHERE = {
+const PIPELINE_WHERE = {
   userId: "user-1",
   status: "PENDING_INVOICE",
+  invoiceId: null,
+  billable: true,
+  client: { archivedAt: null, category: "FREELANCE" },
 } as const
 
 type TaskFindManyArgs = {
-  where?: { status?: string | { in?: string[] } }
+  where?: {
+    status?: string | { in?: string[] }
+    invoiceId?: string | null
+    billable?: boolean
+    client?: { archivedAt?: Date | null; category?: string }
+  }
   select?: { clientId?: boolean; estimate?: boolean; completedAt?: boolean }
+}
+
+interface PipelineFixtureRow {
+  clientId: string
+  estimate: number | null
+  completedAt: Date | null
+  status: string
+  invoiceId: string | null
+  billable: boolean
+  clientArchivedAt: Date | null
+  clientCategory: string
+  clientBillingMode: string
+  clientRate: number
+}
+
+/**
+ * Emulate Prisma's evaluation of the pipeline where clause over full task
+ * rows, then project each surviving row to the route's select shape.
+ *
+ * @param rows - Full fixture rows carrying the task and client gate fields.
+ * @param where - The where clause the route passed to `task.findMany`.
+ * @returns The selected projection of the rows matching the clause.
+ */
+function applyPipelineWhere(
+  rows: PipelineFixtureRow[],
+  where: NonNullable<TaskFindManyArgs["where"]>,
+) {
+  return rows
+    .filter(
+      (row) =>
+        row.status === where.status &&
+        row.invoiceId === (where.invoiceId ?? null) &&
+        row.billable === where.billable &&
+        row.clientArchivedAt === (where.client?.archivedAt ?? null) &&
+        row.clientCategory === where.client?.category,
+    )
+    .map((row) => ({
+      clientId: row.clientId,
+      estimate: row.estimate,
+      completedAt: row.completedAt,
+      client: { billingMode: row.clientBillingMode, rate: row.clientRate },
+    }))
 }
 
 /**
@@ -146,10 +196,112 @@ describe("GET /api/dashboard", () => {
       (c) => (c[0] as TaskFindManyArgs)?.where?.status === "PENDING_INVOICE",
     )
     const pipelineArgs = pipelineCall?.[0] as TaskFindManyArgs
-    expect(pipelineArgs.where).toEqual(PENDING_WHERE)
+    expect(pipelineArgs.where).toEqual(PIPELINE_WHERE)
     expect(pipelineArgs.select?.clientId).toBe(true)
     expect(pipelineArgs.select?.completedAt).toBe(true)
     expect(taskFindMany).toHaveBeenCalledTimes(4)
+  })
+
+  it("excludes archived, non-freelance and already-invoiced tasks from the pipeline", async () => {
+    const rows: PipelineFixtureRow[] = [
+      {
+        clientId: "c1",
+        estimate: 2,
+        completedAt: null,
+        status: "PENDING_INVOICE",
+        invoiceId: null,
+        billable: true,
+        clientArchivedAt: null,
+        clientCategory: "FREELANCE",
+        clientBillingMode: "DAILY",
+        clientRate: 500,
+      },
+      {
+        clientId: "c-archived",
+        estimate: 4,
+        completedAt: null,
+        status: "PENDING_INVOICE",
+        invoiceId: null,
+        billable: true,
+        clientArchivedAt: new Date(2026, 0, 1),
+        clientCategory: "FREELANCE",
+        clientBillingMode: "DAILY",
+        clientRate: 500,
+      },
+      {
+        clientId: "c-personal",
+        estimate: 3,
+        completedAt: null,
+        status: "PENDING_INVOICE",
+        invoiceId: null,
+        billable: true,
+        clientArchivedAt: null,
+        clientCategory: "PERSONAL",
+        clientBillingMode: "DAILY",
+        clientRate: 500,
+      },
+      {
+        clientId: "c1",
+        estimate: 5,
+        completedAt: null,
+        status: "PENDING_INVOICE",
+        invoiceId: "inv-1",
+        billable: true,
+        clientArchivedAt: null,
+        clientCategory: "FREELANCE",
+        clientBillingMode: "DAILY",
+        clientRate: 500,
+      },
+    ]
+    invoiceFindMany.mockResolvedValue([])
+    taskFindMany.mockImplementation((args: TaskFindManyArgs) => {
+      const status = args?.where?.status
+      if (status === "PENDING_INVOICE") {
+        return Promise.resolve(applyPipelineWhere(rows, args.where!))
+      }
+      return Promise.resolve([])
+    })
+    userSettingsFindUnique.mockResolvedValue({ linearLastSyncedAt: null })
+    mockPaymentTotals()
+
+    const { GET } = await import("./route")
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.kpi.pipelineCount).toBe(1)
+    expect(body.kpi.pipelineEur).toBe(1000)
+    expect(body.kpi.pipelineClientCount).toBe(1)
+  })
+
+  it("reports unestimated pipeline tasks without valuing them", async () => {
+    invoiceFindMany.mockResolvedValue([])
+    mockTaskFindMany(
+      [
+        {
+          clientId: "c1",
+          estimate: 2,
+          completedAt: null,
+          client: { billingMode: "DAILY", rate: 500 },
+        },
+        {
+          clientId: "c1",
+          estimate: null,
+          completedAt: null,
+          client: { billingMode: "DAILY", rate: 500 },
+        },
+      ],
+      [],
+    )
+    userSettingsFindUnique.mockResolvedValue({ linearLastSyncedAt: null })
+    mockPaymentTotals()
+
+    const { GET } = await import("./route")
+    const res = await GET()
+    const body = await res.json()
+
+    expect(body.kpi.pipelineCount).toBe(2)
+    expect(body.kpi.pipelineEur).toBe(1000)
+    expect(body.kpi.unestimatedCount).toBe(1)
   })
 
   it("counts FIXED pending tasks without adding to the pipeline value", async () => {

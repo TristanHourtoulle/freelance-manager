@@ -9,6 +9,7 @@ import {
   parsePagination,
   parseSearchQuery,
 } from "@/lib/api"
+import { taskBillableQuerySchema } from "@/lib/schemas/task"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -19,6 +20,11 @@ export async function GET(req: Request) {
     const clientId = url.searchParams.get("clientId") ?? undefined
     const projectId = url.searchParams.get("projectId") ?? undefined
     const status = url.searchParams.get("status") ?? undefined
+    const billableParam = url.searchParams.get("billable")
+    const billable =
+      billableParam === null
+        ? undefined
+        : taskBillableQuerySchema.parse(billableParam)
     const { cursor, limit } = parsePagination(req)
     const q = parseSearchQuery(req)
 
@@ -27,6 +33,7 @@ export async function GET(req: Request) {
         userId: user.id,
         ...(clientId ? { clientId } : {}),
         ...(projectId ? { projectId } : {}),
+        ...(billable === undefined ? {} : { billable }),
         ...(q
           ? {
               OR: [
@@ -76,6 +83,9 @@ export async function GET(req: Request) {
         invoiceId: true,
         clientId: true,
         projectId: true,
+        billable: true,
+        nonBillableReason: true,
+        nonBillableNote: true,
       },
     })
 
@@ -95,6 +105,9 @@ export async function GET(req: Request) {
         invoiceId: t.invoiceId,
         clientId: t.clientId,
         projectId: t.projectId,
+        billable: t.billable,
+        nonBillableReason: t.nonBillableReason,
+        nonBillableNote: t.nonBillableNote,
       })),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,

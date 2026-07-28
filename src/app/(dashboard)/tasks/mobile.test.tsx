@@ -3,10 +3,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { MobileTasksPage } from "./mobile"
 import type { TaskDTO } from "@/hooks/use-tasks"
 
-const { useTasksMock, updateEffortMock } = vi.hoisted(() => ({
-  useTasksMock: vi.fn(),
-  updateEffortMock: vi.fn(),
-}))
+const { useTasksMock, updateEffortMock, bulkBillabilityMock } = vi.hoisted(
+  () => ({
+    useTasksMock: vi.fn(),
+    updateEffortMock: vi.fn(),
+    bulkBillabilityMock: vi.fn(),
+  }),
+)
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -16,6 +19,10 @@ vi.mock("@/hooks/use-tasks", () => ({
   useTasks: () => useTasksMock(),
   useSyncLinear: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateTaskEffort: () => ({ mutate: updateEffortMock, isPending: false }),
+  useBulkSetTaskBillability: () => ({
+    mutate: bulkBillabilityMock,
+    isPending: false,
+  }),
 }))
 
 vi.mock("@/hooks/use-linear-sync", () => ({
@@ -40,6 +47,8 @@ vi.mock("@/hooks/use-clients", () => ({
         billingMode: "DAILY",
         rate: 500,
         color: null,
+        category: "FREELANCE",
+        archivedAt: null,
       },
     ],
   }),
@@ -68,6 +77,9 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
     invoiceId: null,
     clientId: "client-1",
     projectId: "project-1",
+    billable: true,
+    nonBillableReason: null,
+    nonBillableNote: null,
     ...overrides,
   }
 }
@@ -141,6 +153,157 @@ describe("MobileTasksPage effort capture", () => {
     expect(screen.getByText("TRI-1").closest("a")).toHaveAttribute(
       "href",
       "https://linear.app/x/issue/TRI-1",
+    )
+  })
+})
+
+function normalize(text: string | null | undefined) {
+  return (text ?? "").replace(/\s+/g, " ").trim()
+}
+
+function selectFirstCard(container: HTMLElement) {
+  fireEvent.click(container.querySelector(".task-item-hit")!)
+}
+
+describe("MobileTasksPage billability", () => {
+  beforeEach(() => {
+    useTasksMock.mockReset()
+    bulkBillabilityMock.mockReset()
+    useTasksMock.mockReturnValue({ data: [buildTask()] })
+  })
+
+  it("bulk marking opens the dialog and calls the bulk hook with ids and reason", () => {
+    const { container } = render(<MobileTasksPage />)
+    selectFirstCard(container)
+
+    fireEvent.click(screen.getByRole("button", { name: "Non facturable" }))
+    expect(
+      screen.getByRole("dialog", {
+        name: "Marquer 1 tâche comme non facturable",
+      }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("radio", { name: "Bug déjà facturé" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }))
+
+    expect(bulkBillabilityMock).toHaveBeenCalledWith(
+      {
+        taskIds: ["task-1"],
+        billable: false,
+        nonBillableReason: "BUG_FIX_ALREADY_INVOICED",
+        nonBillableNote: null,
+      },
+      expect.anything(),
+    )
+  })
+
+  it("keeps confirm disabled for OTHER until a note is provided", () => {
+    const { container } = render(<MobileTasksPage />)
+    selectFirstCard(container)
+    fireEvent.click(screen.getByRole("button", { name: "Non facturable" }))
+    fireEvent.click(screen.getByRole("radio", { name: "Autre" }))
+
+    expect(screen.getByRole("button", { name: "Confirmer" })).toBeDisabled()
+    expect(
+      screen.getByText("Une note est requise pour la raison « Autre »."),
+    ).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Note/), {
+      target: { value: "Geste offert" },
+    })
+
+    expect(screen.getByRole("button", { name: "Confirmer" })).toBeEnabled()
+  })
+
+  it("renders a non-billable card muted with its reason pill and a 0 € value", () => {
+    useTasksMock.mockReturnValue({
+      data: [
+        buildTask({
+          billable: false,
+          nonBillableReason: "COMMERCIAL_GESTURE",
+        }),
+      ],
+    })
+
+    const { container } = render(<MobileTasksPage />)
+
+    const card = container.querySelector(".task-item")
+    expect(card).not.toBeNull()
+    expect(card).toHaveStyle({ opacity: "0.7" })
+    expect(screen.getByText("Geste commercial")).toBeInTheDocument()
+
+    const meta = container.querySelector(".task-meta")
+    expect(normalize(meta?.textContent)).toContain("0 €")
+  })
+
+  it("filters to non-billable tasks via the Non facturable chip with its count", () => {
+    useTasksMock.mockReturnValue({
+      data: [
+        buildTask({ title: "Task facturable" }),
+        buildTask({
+          id: "task-2",
+          linearIdentifier: "TRI-2",
+          title: "Task offerte",
+          billable: false,
+          nonBillableReason: "NON_BILLED_WORK",
+        }),
+      ],
+    })
+
+    render(<MobileTasksPage />)
+
+    fireEvent.click(screen.getByRole("button", { name: /Non facturable\s*1/ }))
+
+    expect(screen.getByText("Task offerte")).toBeInTheDocument()
+    expect(screen.queryByText("Task facturable")).not.toBeInTheDocument()
+  })
+
+  it("surfaces the count of billable pending tasks without estimate", () => {
+    useTasksMock.mockReturnValue({
+      data: [
+        buildTask({ estimate: null }),
+        buildTask({
+          id: "task-2",
+          linearIdentifier: "TRI-2",
+          estimate: null,
+          billable: false,
+          nonBillableReason: "NON_BILLED_WORK",
+        }),
+      ],
+    })
+
+    render(<MobileTasksPage />)
+
+    expect(
+      screen.getByText(/1 tâche à facturer sans estimation/),
+    ).toBeInTheDocument()
+  })
+
+  it("restores an all-non-billable selection without any dialog", () => {
+    useTasksMock.mockReturnValue({
+      data: [
+        buildTask({
+          billable: false,
+          nonBillableReason: "COMMERCIAL_GESTURE",
+        }),
+      ],
+    })
+
+    const { container } = render(<MobileTasksPage />)
+    selectFirstCard(container)
+
+    expect(screen.queryByText("Facturer")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Facturable" }))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(bulkBillabilityMock).toHaveBeenCalledWith(
+      {
+        taskIds: ["task-1"],
+        billable: true,
+        nonBillableReason: null,
+        nonBillableNote: null,
+      },
+      expect.anything(),
     )
   })
 })

@@ -15,15 +15,19 @@ import {
   type ClientActionType,
 } from "@/hooks/use-actions"
 import { fmtEUR } from "@/lib/format"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
-const TYPE_OPTIONS: { id: ClientActionType; label: string }[] = [
+const TYPE_OPTIONS: readonly SegmentedControlOption<ClientActionType>[] = [
   { id: "RELANCE", label: "Relance" },
   { id: "LINK", label: "Lien" },
   { id: "RDV", label: "RDV" },
   { id: "OTHER", label: "Autre" },
 ]
 
-const STATUS_OPTIONS: { id: ClientActionStatus; label: string }[] = [
+const STATUS_OPTIONS: readonly SegmentedControlOption<ClientActionStatus>[] = [
   { id: "TODO", label: "À faire" },
   { id: "WAITING", label: "En attente" },
   { id: "DONE", label: "Fait" },
@@ -186,35 +190,21 @@ export function ActionModal({
         {isEdit && (
           <div className="modal-section">
             <div className="modal-section-title">Statut</div>
-            <div className="seg">
-              {STATUS_OPTIONS.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  className={status === o.id ? "active" : ""}
-                  onClick={() => setStatus(o.id)}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={STATUS_OPTIONS}
+              value={status}
+              onChange={setStatus}
+            />
           </div>
         )}
 
         <div className="modal-section">
           <div className="modal-section-title">Type</div>
-          <div className="seg">
-            {TYPE_OPTIONS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={type === t.id ? "active" : ""}
-                onClick={() => setType(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={TYPE_OPTIONS}
+            value={type}
+            onChange={setType}
+          />
         </div>
 
         <div className="modal-section">

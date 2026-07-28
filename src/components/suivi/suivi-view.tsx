@@ -15,8 +15,17 @@ import { useMeetings, type MeetingDTO } from "@/hooks/use-meetings"
 import { ActionModal } from "@/components/suivi/action-modal"
 import { MeetingModal } from "@/components/suivi/meeting-modal"
 import { avatarColor, fmtDate, fmtRelative, initials } from "@/lib/format"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 type SubTab = "actions" | "meetings"
+
+const SUB_TAB_OPTIONS: readonly SegmentedControlOption<SubTab>[] = [
+  { id: "actions", label: "Actions" },
+  { id: "meetings", label: "Réunions" },
+]
 export type ActionFilter =
   | "today"
   | "upcoming"
@@ -183,22 +192,12 @@ export function SuiviView({ clientId }: SuiviViewProps) {
   return (
     <div className="suivi">
       <div className="suivi-head">
-        <div className="seg" style={{ maxWidth: 240 }}>
-          <button
-            type="button"
-            className={sub === "actions" ? "active" : ""}
-            onClick={() => setSub("actions")}
-          >
-            Actions
-          </button>
-          <button
-            type="button"
-            className={sub === "meetings" ? "active" : ""}
-            onClick={() => setSub("meetings")}
-          >
-            Réunions
-          </button>
-        </div>
+        <SegmentedControl
+          options={SUB_TAB_OPTIONS}
+          value={sub}
+          onChange={setSub}
+          style={{ maxWidth: 240 }}
+        />
         <button
           type="button"
           className="btn btn-primary btn-sm"

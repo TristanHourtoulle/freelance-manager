@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
 import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
 import { computeDashboardKpis } from "@/domain/billing/kpis"
+import { PIPELINE_TASK_WHERE } from "@/domain/tasks/billability"
 import {
   clampWorkingDaysPerWeek,
   summarizeWorkload,
@@ -19,10 +20,7 @@ export async function GET() {
     const yearStart = new Date(today.getFullYear(), 0, 1)
     const chartStart = new Date(today.getFullYear(), today.getMonth() - 7, 1)
 
-    const pendingTasksWhere: Prisma.TaskWhereInput = {
-      userId: user.id,
-      status: "PENDING_INVOICE",
-    }
+    const pendingTasksWhere = PIPELINE_TASK_WHERE(user.id)
 
     const openTasksWhere: Prisma.TaskWhereInput = {
       userId: user.id,

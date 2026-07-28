@@ -198,3 +198,118 @@ describe("POST /api/invoices — client stage promotion", () => {
     expect(tx.client.update).not.toHaveBeenCalled()
   })
 })
+
+describe("POST /api/invoices — task attachment", () => {
+  const tx = {
+    invoice: { create: vi.fn(), findFirst: vi.fn() },
+    task: { updateMany: vi.fn() },
+    payment: { create: vi.fn() },
+    client: { update: vi.fn() },
+  }
+
+  function postRequest(body: Record<string, unknown>) {
+    return new Request("http://localhost/api/invoices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        clientId: "c1",
+        status: "DRAFT",
+        kind: "STANDARD",
+        issueDate: "2026-03-01",
+        dueDate: "2026-03-31",
+        ...body,
+      }),
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    delete process.env.NEXT_PUBLIC_APP_URL
+    getAuthUser.mockResolvedValue({ id: "user-1" })
+    prismaMock.client.findFirst.mockResolvedValue({ id: "c1", stage: "ACTIVE" })
+    tx.invoice.create.mockResolvedValue({
+      id: "i9",
+      number: "2026-1025",
+      clientId: "c1",
+    })
+    tx.invoice.findFirst.mockResolvedValue(null)
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    )
+  })
+
+  it("attaches a task referenced only by a line, even without taskIds", async () => {
+    const { POST } = await import("./route")
+    const res = await POST(
+      postRequest({
+        lines: [{ taskId: "t1", label: "[TRI-1] Dev", qty: 1, rate: 500 }],
+        taskIds: [],
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["t1"] }, userId: "user-1", clientId: "c1" },
+      data: { invoiceId: "i9", status: "DONE" },
+    })
+  })
+
+  it("still attaches tasks selected via taskIds without a matching line", async () => {
+    const { POST } = await import("./route")
+    const res = await POST(
+      postRequest({
+        lines: [{ label: "Forfait", qty: 1, rate: 500 }],
+        taskIds: ["t1"],
+      }),
+    )
+
+    expect(res.status).toBe(201)
+    expect(tx.task.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["t1"] }, userId: "user-1", clientId: "c1" },
+      data: { invoiceId: "i9", status: "DONE" },
+    })
+  })
+
+  it("deduplicates a task referenced by both taskIds and a line", async () => {
+    const { POST } = await import("./route")
+    await POST(
+      postRequest({
+        lines: [
+          { taskId: "t1", label: "[TRI-1] Dev", qty: 1, rate: 500 },
+          { taskId: "t2", label: "[TRI-2] Fix", qty: 2, rate: 500 },
+        ],
+        taskIds: ["t1"],
+      }),
+    )
+
+    expect(tx.task.updateMany).toHaveBeenCalledTimes(1)
+    expect(tx.task.updateMany.mock.calls[0]![0].where.id).toEqual({
+      in: ["t1", "t2"],
+    })
+  })
+
+  it("scopes the attach query to the authenticated user and invoice client", async () => {
+    getAuthUser.mockResolvedValue({ id: "user-9" })
+    prismaMock.client.findFirst.mockResolvedValue({ id: "c1", stage: "ACTIVE" })
+    const { POST } = await import("./route")
+    await POST(
+      postRequest({
+        lines: [{ taskId: "t-foreign", label: "Dev", qty: 1, rate: 500 }],
+      }),
+    )
+
+    const where = tx.task.updateMany.mock.calls[0]![0].where
+    expect(where.userId).toBe("user-9")
+    expect(where.clientId).toBe("c1")
+  })
+
+  it("skips the attach query when nothing references a task", async () => {
+    const { POST } = await import("./route")
+    const res = await POST(
+      postRequest({ lines: [{ label: "Forfait", qty: 1, rate: 500 }] }),
+    )
+
+    expect(res.status).toBe(201)
+    expect(tx.task.updateMany).not.toHaveBeenCalled()
+  })
+})

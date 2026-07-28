@@ -21,6 +21,7 @@ export interface DashboardDTO {
     pipelineCount: number
     pipelineEur: number
     pipelineClientCount: number
+    unestimatedCount: number
   }
   capacity: {
     days: number

@@ -63,6 +63,7 @@ function buildClient(overrides: Partial<ClientDTO> = {}): ClientDTO {
     color: null,
     starred: false,
     archived: false,
+    archivedAt: null,
     createdAt: "2026-07-01T00:00:00.000Z",
     ...overrides,
   }
@@ -321,11 +322,9 @@ describe("ClientsPage (desktop)", () => {
   it("labels the pending column exactly as the design reference", () => {
     useClientsMock.mockReturnValue(clientsResult({ data: [buildClient()] }))
 
-    const { container } = render(<ClientsPage />)
+    render(<ClientsPage />)
 
-    const toggles = container.querySelectorAll(".icon-btn")
-    expect(toggles).toHaveLength(2)
-    fireEvent.click(toggles[1] as Element)
+    fireEvent.click(screen.getByRole("button", { name: "Vue liste" }))
 
     expect(screen.getByRole("columnheader", { name: "Pending" })).toBeVisible()
     expect(

@@ -23,6 +23,7 @@ export interface ClientDetailDTO {
   color: string | null
   starred: boolean
   archived: boolean
+  archivedAt: string | null
   createdAt: string
   workload: {
     days: number
@@ -70,6 +71,7 @@ export interface ClientDetailDTO {
     estimate: number | null
     projectId: string
     invoiceId: string | null
+    billable: boolean
   }[]
   invoices: {
     id: string

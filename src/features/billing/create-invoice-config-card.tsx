@@ -3,6 +3,15 @@
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { CreateInvoiceBuilder } from "@/features/billing/invoice-builder-types"
 import { ClientSummaryBar } from "@/features/billing/invoice-builder-parts"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
+
+const KIND_OPTIONS: readonly SegmentedControlOption<InvoiceKind>[] = [
+  { id: "STANDARD", label: "Standard" },
+  { id: "DEPOSIT", label: "Acompte" },
+]
 
 /**
  * The create-mode configuration card: client and project pickers, invoice
@@ -55,32 +64,13 @@ export function CreateInvoiceConfigCard({
         </div>
         <div className="field" style={{ width: 220 }}>
           <label className="field-label">Type</label>
-          <div
-            className="row gap-4"
-            style={{
-              background: "var(--bg-2)",
-              borderRadius: 7,
-              padding: 3,
-              border: "1px solid var(--border)",
-            }}
-          >
-            {(["STANDARD", "DEPOSIT"] as InvoiceKind[]).map((k) => (
-              <button
-                key={k}
-                className="chip"
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  background: kind === k ? "var(--accent)" : "transparent",
-                  color: kind === k ? "var(--accent-text)" : "var(--text-1)",
-                  border: "none",
-                }}
-                onClick={() => b.setKind(k)}
-              >
-                {k === "STANDARD" ? "Standard" : "Acompte"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={KIND_OPTIONS}
+            value={kind}
+            onChange={b.setKind}
+            variant="accent"
+            label="Type"
+          />
         </div>
         <div className="field" style={{ width: 180 }}>
           <label className="field-label">Émise le</label>
