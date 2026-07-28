@@ -63,6 +63,17 @@ describe("SegmentedControl", () => {
     expect(screen.getByRole("button", { name: /Deux/ })).toContainElement(badge)
   })
 
+  it("exposes 'label count' as accessible name when a count is present", () => {
+    render(
+      <SegmentedControl options={OPTIONS} value="one" onChange={vi.fn()} />,
+    )
+    expect(screen.getByRole("button", { name: "Deux 4" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Un" })).toBeInTheDocument()
+    expect(
+      screen.queryByRole("button", { name: "Deux4" }),
+    ).not.toBeInTheDocument()
+  })
+
   it("renders an icon-only button exposing its label as accessible name", () => {
     const iconOptions: readonly SegmentedControlOption<"grid" | "list">[] = [
       { id: "grid", label: "Vue grille", icon: "grid" },
@@ -93,6 +104,23 @@ describe("SegmentedControl", () => {
     const group = screen.getByRole("group", { name: "Type" })
     expect(group).toHaveClass("seg")
     expect(group).toHaveClass("seg-accent")
+  })
+
+  it("applies the scrollable modifier class only when requested", () => {
+    const { rerender } = render(
+      <SegmentedControl
+        options={OPTIONS}
+        value="one"
+        onChange={vi.fn()}
+        scrollable
+      />,
+    )
+    expect(screen.getByRole("group")).toHaveClass("seg")
+    expect(screen.getByRole("group")).toHaveClass("seg-scroll")
+    rerender(
+      <SegmentedControl options={OPTIONS} value="one" onChange={vi.fn()} />,
+    )
+    expect(screen.getByRole("group")).not.toHaveClass("seg-scroll")
   })
 
   it("keeps the neutral base class by default and merges className", () => {

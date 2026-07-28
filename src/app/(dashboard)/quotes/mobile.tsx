@@ -7,6 +7,7 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes } from "@/hooks/use-quotes"
 import { useClients } from "@/hooks/use-clients"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
 import {
   QUOTE_FILTERS,
@@ -66,18 +67,13 @@ export function MobileQuotesPage() {
             </div>
           </div>
 
-          <div className="chip-row">
-            {QUOTE_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={"chip" + (filter === f.id ? " active" : "")}
-                onClick={() => setFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={QUOTE_FILTERS}
+            value={filter}
+            onChange={setFilter}
+            scrollable
+            label="Filtrer par statut"
+          />
 
           <div className="col gap-8">
             {sorted.length === 0 && (

@@ -34,6 +34,15 @@ export type ActionFilter =
   | "all"
   | "done"
 
+const ACTION_FILTER_OPTIONS: readonly SegmentedControlOption<ActionFilter>[] = [
+  { id: "today", label: "Aujourd'hui" },
+  { id: "upcoming", label: "À venir" },
+  { id: "waiting", label: "En attente" },
+  { id: "inbox", label: "Non classé" },
+  { id: "all", label: "Tout" },
+  { id: "done", label: "Fait" },
+]
+
 const TODO_AND_WAITING: readonly ClientActionStatus[] = ["TODO", "WAITING"]
 const ONLY_DONE: readonly ClientActionStatus[] = ["DONE"]
 const ONLY_WAITING: readonly ClientActionStatus[] = ["WAITING"]
@@ -214,27 +223,14 @@ export function SuiviView({ clientId }: SuiviViewProps) {
 
       {sub === "actions" ? (
         <>
-          <div className="chip-row" style={{ marginBottom: 14 }}>
-            {(
-              [
-                { id: "today", label: "Aujourd'hui" },
-                { id: "upcoming", label: "À venir" },
-                { id: "waiting", label: "En attente" },
-                { id: "inbox", label: "Non classé" },
-                { id: "all", label: "Tout" },
-                { id: "done", label: "Fait" },
-              ] as { id: ActionFilter; label: string }[]
-            ).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={"chip" + (filter === f.id ? " active" : "")}
-                onClick={() => setFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={ACTION_FILTER_OPTIONS}
+            value={filter}
+            onChange={setFilter}
+            scrollable
+            label="Filtrer par échéance"
+            style={{ marginBottom: 14 }}
+          />
 
           {visibleActions.length === 0 ? (
             <div className="empty">

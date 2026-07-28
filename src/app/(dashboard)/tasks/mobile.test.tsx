@@ -3,13 +3,17 @@ import { describe, expect, it, vi, beforeEach } from "vitest"
 import { MobileTasksPage } from "./mobile"
 import type { TaskDTO } from "@/hooks/use-tasks"
 
-const { useTasksMock, updateEffortMock, bulkBillabilityMock } = vi.hoisted(
-  () => ({
-    useTasksMock: vi.fn(),
-    updateEffortMock: vi.fn(),
-    bulkBillabilityMock: vi.fn(),
-  }),
-)
+const {
+  useTasksMock,
+  useTaskCountsMock,
+  updateEffortMock,
+  bulkBillabilityMock,
+} = vi.hoisted(() => ({
+  useTasksMock: vi.fn(),
+  useTaskCountsMock: vi.fn(),
+  updateEffortMock: vi.fn(),
+  bulkBillabilityMock: vi.fn(),
+}))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -17,6 +21,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/hooks/use-tasks", () => ({
   useTasks: () => useTasksMock(),
+  useTaskCounts: () => useTaskCountsMock(),
   useSyncLinear: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateTaskEffort: () => ({ mutate: updateEffortMock, isPending: false }),
   useBulkSetTaskBillability: () => ({
@@ -84,6 +89,34 @@ function buildTask(overrides: Partial<TaskDTO> = {}): TaskDTO {
   }
 }
 
+function countsFromTasks(tasks: TaskDTO[]) {
+  return {
+    all: tasks.filter((t) =>
+      ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status),
+    ).length,
+    pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
+    done: tasks.filter((t) => t.status === "DONE").length,
+    in_progress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
+    invoiced: tasks.filter((t) => t.invoiceId != null).length,
+    non_billable: tasks.filter((t) => !t.billable).length,
+    unestimatedCount: tasks.filter(
+      (t) =>
+        t.status === "PENDING_INVOICE" &&
+        t.billable &&
+        t.invoiceId === null &&
+        t.estimate === null,
+    ).length,
+  }
+}
+
+function mockTasks(data: TaskDTO[]) {
+  useTasksMock.mockReturnValue({ data })
+  useTaskCountsMock.mockReturnValue({
+    data: countsFromTasks(data),
+    isPending: false,
+  })
+}
+
 function effortInput() {
   return screen.getByLabelText("Temps réel passé, en jours")
 }
@@ -91,8 +124,9 @@ function effortInput() {
 describe("MobileTasksPage effort capture", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
+    useTaskCountsMock.mockReset()
     updateEffortMock.mockReset()
-    useTasksMock.mockReturnValue({ data: [buildTask()] })
+    mockTasks([buildTask()])
   })
 
   it("renders the effort input inside the task card, not as a sibling strip", () => {
@@ -138,9 +172,7 @@ describe("MobileTasksPage effort capture", () => {
   })
 
   it("disables the effort input on an already invoiced task", () => {
-    useTasksMock.mockReturnValue({
-      data: [buildTask({ invoiceId: "inv-1", actualDays: 3 })],
-    })
+    mockTasks([buildTask({ invoiceId: "inv-1", actualDays: 3 })])
 
     render(<MobileTasksPage />)
 
@@ -168,8 +200,9 @@ function selectFirstCard(container: HTMLElement) {
 describe("MobileTasksPage billability", () => {
   beforeEach(() => {
     useTasksMock.mockReset()
+    useTaskCountsMock.mockReset()
     bulkBillabilityMock.mockReset()
-    useTasksMock.mockReturnValue({ data: [buildTask()] })
+    mockTasks([buildTask()])
   })
 
   it("bulk marking opens the dialog and calls the bulk hook with ids and reason", () => {
@@ -216,14 +249,12 @@ describe("MobileTasksPage billability", () => {
   })
 
   it("renders a non-billable card muted with its reason pill and a 0 € value", () => {
-    useTasksMock.mockReturnValue({
-      data: [
-        buildTask({
-          billable: false,
-          nonBillableReason: "COMMERCIAL_GESTURE",
-        }),
-      ],
-    })
+    mockTasks([
+      buildTask({
+        billable: false,
+        nonBillableReason: "COMMERCIAL_GESTURE",
+      }),
+    ])
 
     const { container } = render(<MobileTasksPage />)
 
@@ -237,40 +268,36 @@ describe("MobileTasksPage billability", () => {
   })
 
   it("filters to non-billable tasks via the Non facturable chip with its count", () => {
-    useTasksMock.mockReturnValue({
-      data: [
-        buildTask({ title: "Task facturable" }),
-        buildTask({
-          id: "task-2",
-          linearIdentifier: "TRI-2",
-          title: "Task offerte",
-          billable: false,
-          nonBillableReason: "NON_BILLED_WORK",
-        }),
-      ],
-    })
+    mockTasks([
+      buildTask({ title: "Task facturable" }),
+      buildTask({
+        id: "task-2",
+        linearIdentifier: "TRI-2",
+        title: "Task offerte",
+        billable: false,
+        nonBillableReason: "NON_BILLED_WORK",
+      }),
+    ])
 
     render(<MobileTasksPage />)
 
-    fireEvent.click(screen.getByRole("button", { name: /Non facturable\s*1/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Non facturable 1" }))
 
     expect(screen.getByText("Task offerte")).toBeInTheDocument()
     expect(screen.queryByText("Task facturable")).not.toBeInTheDocument()
   })
 
   it("surfaces the count of billable pending tasks without estimate", () => {
-    useTasksMock.mockReturnValue({
-      data: [
-        buildTask({ estimate: null }),
-        buildTask({
-          id: "task-2",
-          linearIdentifier: "TRI-2",
-          estimate: null,
-          billable: false,
-          nonBillableReason: "NON_BILLED_WORK",
-        }),
-      ],
-    })
+    mockTasks([
+      buildTask({ estimate: null }),
+      buildTask({
+        id: "task-2",
+        linearIdentifier: "TRI-2",
+        estimate: null,
+        billable: false,
+        nonBillableReason: "NON_BILLED_WORK",
+      }),
+    ])
 
     render(<MobileTasksPage />)
 
@@ -280,14 +307,12 @@ describe("MobileTasksPage billability", () => {
   })
 
   it("restores an all-non-billable selection without any dialog", () => {
-    useTasksMock.mockReturnValue({
-      data: [
-        buildTask({
-          billable: false,
-          nonBillableReason: "COMMERCIAL_GESTURE",
-        }),
-      ],
-    })
+    mockTasks([
+      buildTask({
+        billable: false,
+        nonBillableReason: "COMMERCIAL_GESTURE",
+      }),
+    ])
 
     const { container } = render(<MobileTasksPage />)
     selectFirstCard(container)
@@ -305,5 +330,68 @@ describe("MobileTasksPage billability", () => {
       },
       expect.anything(),
     )
+  })
+})
+
+describe("MobileTasksPage default scope", () => {
+  beforeEach(() => {
+    useTasksMock.mockReset()
+    useTaskCountsMock.mockReset()
+  })
+
+  it("defaults the filter to À facturer and hides other statuses", () => {
+    mockTasks([
+      buildTask(),
+      buildTask({
+        id: "task-2",
+        linearIdentifier: "TRI-2",
+        title: "Task done",
+        status: "DONE",
+      }),
+    ])
+
+    render(<MobileTasksPage />)
+
+    expect(screen.getByRole("button", { name: /^À facturer/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
+    expect(screen.queryByText("Task done")).not.toBeInTheDocument()
+  })
+
+  it("explains the default status scope instead of blaming filters nobody set", () => {
+    mockTasks([buildTask({ status: "BACKLOG" })])
+
+    render(<MobileTasksPage />)
+
+    expect(screen.getByText("Aucune task à facturer")).toBeInTheDocument()
+    expect(screen.queryByText("Aucune task")).not.toBeInTheDocument()
+    expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Voir toutes les tasks" }),
+    )
+
+    expect(screen.getByText("Aucune task active")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "Toutes tes tasks sont en backlog ou annulées, elles ne sont pas affichées ici",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("offers a one-tap reset back to the default filter from an empty scope", () => {
+    mockTasks([buildTask()])
+
+    render(<MobileTasksPage />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }))
+    expect(screen.getByText("Aucun résultat")).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Réinitialiser le filtre" }),
+    )
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
   })
 })

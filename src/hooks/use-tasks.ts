@@ -3,6 +3,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query"
@@ -10,6 +11,9 @@ import { api, isApiErrorWithStatus } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
+import type { TaskCountsQuery, TaskCountsSummary } from "@/domain/tasks/counts"
+
+export type { TaskCountsQuery, TaskCountsSummary } from "@/domain/tasks/counts"
 
 export type NonBillableReason =
   | "BUG_FIX_ALREADY_INVOICED"
@@ -85,6 +89,36 @@ export function useTasks(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
+    staleTime: STALE_TIME.list,
+  })
+}
+
+const EMPTY_COUNT_FILTERS: TaskCountsQuery = {}
+
+/**
+ * Uncapped Tasks-page chip counts, computed server-side.
+ *
+ * Hits `GET /api/tasks?summary=status`, so every figure covers the full task
+ * table instead of the 50-row pages {@link useTasks} has scrolled in. The key
+ * nests under the `["tasks", …]` prefix, so every mutation invalidating
+ * `qk.tasks.all()` (billability, effort, sync) refreshes these counts too.
+ *
+ * @param filters - Optional client / project narrowing matching the page
+ *   filters, forwarded to the server so the chips stay truthful.
+ * @param options - `enabled` (default `true`) gates the network request.
+ * @returns A query resolving to {@link TaskCountsSummary}.
+ */
+export function useTaskCounts(
+  filters: TaskCountsQuery = EMPTY_COUNT_FILTERS,
+  { enabled = true }: UseTasksOptions = DEFAULT_TASK_OPTIONS,
+) {
+  const qs = new URLSearchParams({ summary: "status" })
+  if (filters.clientId) qs.set("clientId", filters.clientId)
+  if (filters.projectId) qs.set("projectId", filters.projectId)
+  return useQuery({
+    enabled,
+    queryKey: qk.tasks.counts(filters),
+    queryFn: () => api.get<TaskCountsSummary>(`/api/tasks?${qs.toString()}`),
     staleTime: STALE_TIME.list,
   })
 }

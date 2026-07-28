@@ -362,6 +362,9 @@ textarea {
   background: var(--bg-3);
   color: var(--text-0);
 }
+.nav-item.active .ic {
+  color: var(--accent);
+}
 .nav-item .ic {
   width: 16px;
   height: 16px;
@@ -1057,23 +1060,119 @@ textarea {
   margin: 16px 0;
 }
 
-/* Dashboard chart container */
-.chart-grid {
+/* Dashboard money strip (direction A « Matin ») — 5 equal cells separated
+   by 1px borders drawn with the grid gap over the border background. */
+.strip {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 18px;
-  margin-bottom: 18px;
-}
-.chart-card {
-  background: var(--bg-1);
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px;
+  overflow: hidden;
+  margin-bottom: 18px;
 }
-.chart-svg {
-  width: 100%;
-  height: 240px;
-  display: block;
+.strip-cell {
+  background: var(--bg-1);
+  padding: 16px 20px;
+  min-width: 0;
+}
+.strip-value {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}
+.strip-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+@media (max-width: 1100px) {
+  .strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .strip-cell:nth-child(4) {
+    grid-column: span 2;
+  }
+}
+
+/* Dashboard triage queue — hero list of decisions, severity-ordered. */
+.triage-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) {
+  .triage-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.triage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.triage-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--border-strong);
+  background: var(--bg-2);
+}
+.triage-row .triage-ic {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-2);
+}
+.triage-danger {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+.triage-danger .triage-ic {
+  color: var(--danger);
+}
+.triage-warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+.triage-warn .triage-ic {
+  color: var(--warn);
+}
+.triage-info {
+  border-left-color: var(--info);
+  background: var(--info-soft);
+}
+.triage-info .triage-ic {
+  color: var(--info);
+}
+.triage-main {
+  flex: 1;
+  min-width: 0;
+}
+.triage-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+  line-height: 1.35;
+}
+.triage-detail {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.triage-action {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.task-id.task-id-live {
+  color: var(--info);
 }
 
 /* =====================================================================
@@ -1989,28 +2088,6 @@ textarea {
   width: 220px;
   height: 64px;
 }
-.ana-rangepicker {
-  display: inline-flex;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
-}
-.ana-rangepicker button {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-2);
-  border-radius: 6px;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-}
-.ana-rangepicker button.active {
-  background: var(--bg-3);
-  color: var(--text-0);
-}
-
 .ana-grid {
   display: grid;
   gap: 16px;
@@ -2900,6 +2977,19 @@ textarea {
 }
 .seg-sm button {
   padding: 5px 10px;
+}
+.seg-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.seg-scroll button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* iOS-style list group */
@@ -3883,22 +3973,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-.today-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.today-section-title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-2);
-  margin-top: 4px;
-}
-.today-sections > .today-section-title:first-child {
-  margin-top: 0;
 }
 .suivi-item {
   display: flex;

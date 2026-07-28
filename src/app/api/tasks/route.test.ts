@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     task: { findMany: vi.fn() },
+    $queryRaw: vi.fn(),
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -102,5 +103,76 @@ describe("GET /api/tasks", () => {
     const res = await GET(get())
 
     expect(res.status).toBe(401)
+  })
+})
+
+describe("GET /api/tasks?summary=status", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getAuthUser.mockResolvedValue({ id: "user-1" })
+    prismaMock.$queryRaw.mockResolvedValue([
+      {
+        all: 137,
+        pending: 80,
+        done: 40,
+        inProgress: 17,
+        invoiced: 61,
+        nonBillable: 9,
+        unestimated: 52,
+      },
+    ])
+  })
+
+  it("returns uncapped counts from a database aggregate, never from fetched rows", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(get("?summary=status"))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(1)
+    expect(prismaMock.task.findMany).not.toHaveBeenCalled()
+    expect(body).toEqual({
+      all: 137,
+      pending: 80,
+      done: 40,
+      in_progress: 17,
+      invoiced: 61,
+      non_billable: 9,
+      unestimatedCount: 52,
+    })
+  })
+
+  it("scopes the aggregate to the authenticated user", async () => {
+    const { GET } = await import("./route")
+    await GET(get("?summary=status"))
+
+    const values = prismaMock.$queryRaw.mock.calls[0]!.slice(1)
+    expect(values[0]).toBe("user-1")
+  })
+
+  it("forwards clientId and projectId narrowing to the aggregate", async () => {
+    const { GET } = await import("./route")
+    await GET(get("?summary=status&clientId=c1&projectId=p1"))
+
+    const values = prismaMock.$queryRaw.mock.calls[0]!.slice(1)
+    expect(values).toEqual(["user-1", "c1", "c1", "p1", "p1"])
+  })
+
+  it("rejects an unknown summary mode without touching the database", async () => {
+    const { GET } = await import("./route")
+    const res = await GET(get("?summary=everything"))
+
+    expect(res.status).toBe(400)
+    expect(prismaMock.$queryRaw).not.toHaveBeenCalled()
+    expect(prismaMock.task.findMany).not.toHaveBeenCalled()
+  })
+
+  it("returns 401 when unauthenticated", async () => {
+    getAuthUser.mockResolvedValue(null)
+    const { GET } = await import("./route")
+    const res = await GET(get("?summary=status"))
+
+    expect(res.status).toBe(401)
+    expect(prismaMock.$queryRaw).not.toHaveBeenCalled()
   })
 })

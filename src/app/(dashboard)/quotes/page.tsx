@@ -7,6 +7,7 @@ import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes, type QuoteStatus } from "@/hooks/use-quotes"
 import { useClients } from "@/hooks/use-clients"
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
@@ -144,17 +145,13 @@ function DesktopQuotesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="chip-row">
-          {QUOTE_FILTERS.map((f) => (
-            <button
-              key={f.id}
-              className={"chip" + (filter === f.id ? " active" : "")}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          options={QUOTE_FILTERS}
+          value={filter}
+          onChange={setFilter}
+          scrollable
+          label="Filtrer par statut"
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>
