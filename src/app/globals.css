@@ -1523,6 +1523,11 @@ textarea {
   background: var(--accent);
   color: var(--accent-text);
 }
+/* Active tab bg is --bg-3 (never accent), so the icon can take the accent
+   tone — same treatment as .nav-item.active .ic in the sidebar. */
+.tab.active .ic {
+  color: var(--accent);
+}
 
 /* =====================================================================
    Client detail hero
@@ -3073,6 +3078,11 @@ textarea {
 .seg button.active .count {
   background: var(--accent);
   color: var(--accent-text);
+}
+/* Selected-option icon goes accent, except on accent-filled segments where
+   the icon must keep --accent-text to stay visible on the green fill. */
+.seg:not(.seg-accent) button.active .ic {
+  color: var(--accent);
 }
 .seg-accent button {
   color: var(--text-1);
