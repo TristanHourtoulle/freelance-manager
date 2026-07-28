@@ -484,12 +484,63 @@ async function bulkUpsertTasks(
         dueDate: r.dueDate,
         linearUpdatedAt: r.linearUpdatedAt,
         lastSyncedAt: syncedAt,
-      },
+      } satisfies LinearTaskMirrorUpdate,
     })
   }
 
   return rows.length
 }
+
+/**
+ * Columns on `Task` that the Linear sync owns and is allowed to overwrite.
+ *
+ * Linear is the source of truth for this subset only. Any column absent from
+ * this list is app-owned and must survive every sync untouched.
+ */
+export const LINEAR_MIRRORED_TASK_FIELDS = [
+  "clientId",
+  "completedAt",
+  "description",
+  "dueDate",
+  "estimate",
+  "lastSyncedAt",
+  "linearIdentifier",
+  "linearStateName",
+  "linearStateType",
+  "linearUpdatedAt",
+  "linearUrl",
+  "priority",
+  "projectId",
+  "status",
+  "title",
+] as const
+
+/**
+ * Columns on `Task` that only the app writes, through the invoice lifecycle
+ * and `PATCH /api/tasks/[id]` / `POST /api/tasks/billability`. The Linear sync
+ * must never appear to touch them.
+ */
+export const APP_OWNED_TASK_FIELDS = [
+  "actualDays",
+  "billable",
+  "invoiceId",
+  "linearCreatedAt",
+  "nonBillableAt",
+  "nonBillableNote",
+  "nonBillableReason",
+] as const
+
+/**
+ * The only shape a Linear sync may pass as a `task.update` payload.
+ *
+ * Annotating each payload with `satisfies LinearTaskMirrorUpdate` turns an
+ * accidental app-owned write into a compile error, because an object literal
+ * checked against `satisfies` rejects excess properties.
+ */
+export type LinearTaskMirrorUpdate = Pick<
+  Prisma.TaskUncheckedUpdateInput,
+  (typeof LINEAR_MIRRORED_TASK_FIELDS)[number]
+>
 
 /**
  * Columns on `Project` that the Linear sync owns and is allowed to overwrite.

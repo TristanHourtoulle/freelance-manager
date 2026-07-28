@@ -41,11 +41,13 @@ vi.mock("@/lib/linear-sync-progress", () => ({
 
 import {
   APP_OWNED_PROJECT_FIELDS,
+  APP_OWNED_TASK_FIELDS,
   fetchAllPages,
   fetchIssuesWithRelations,
   ISSUES_PAGE_SIZE,
   keyFromIdentifier,
   LINEAR_MIRRORED_PROJECT_FIELDS,
+  LINEAR_MIRRORED_TASK_FIELDS,
   mapLinearPriority,
   mapLinearStateType,
   MAX_SYNC_PAGES,
@@ -939,5 +941,114 @@ describe("Project mirror whitelist", () => {
     expect(storedRow.stagingUrl).toBe("https://staging.acme.dev")
     expect(storedRow.prodUrl).toBe("https://acme.dev")
     expect(storedRow.runbook).toBe("## Déploiement\n\n1. `pnpm build`")
+  })
+})
+
+describe("Task mirror whitelist", () => {
+  const BILLABILITY_FIELDS = [
+    "billable",
+    "nonBillableReason",
+    "nonBillableNote",
+    "nonBillableAt",
+  ] as const
+
+  function issueNode(): RawNode {
+    return {
+      id: "issue-1",
+      identifier: "TRI-1",
+      url: "https://linear.app/acme/issue/TRI-1/task-one",
+      title: "Task one",
+      description: null,
+      priority: 0,
+      estimate: null,
+      completedAt: null,
+      createdAt: null,
+      updatedAt: null,
+      dueDate: null,
+      state: { name: "Todo", type: "unstarted" },
+      team: { id: "team-1", key: "TRI" },
+      project: {
+        id: "lp-1",
+        name: "Alpha",
+        description: null,
+        state: "started",
+        createdAt: null,
+        startDate: null,
+        targetDate: null,
+      },
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      linearApiTokenEncrypted: new Uint8Array([1, 2, 3]),
+      linearApiTokenIv: new Uint8Array([4, 5, 6]),
+      linearApiTokenKeyVersion: 1,
+      linearLastSyncedAt: null,
+    })
+    prismaMock.userSettings.upsert.mockResolvedValue({})
+    prismaMock.linearMapping.findMany.mockResolvedValue([
+      {
+        clientId: "client-1",
+        linearProjectId: "lp-1",
+        linearTeamId: null,
+        client: {
+          userId: "user-1",
+          company: "Acme",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      },
+    ])
+    prismaMock.task.findMany.mockResolvedValue([
+      { linearIssueId: "issue-1", invoiceId: null },
+    ])
+    prismaMock.task.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.task.update.mockResolvedValue({})
+    prismaMock.project.upsert.mockResolvedValue({ id: "local-project-1" })
+    prismaMock.project.update.mockResolvedValue({})
+    prismaMock.$transaction.mockImplementation(
+      async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock),
+    )
+    rawRequest.mockResolvedValue({
+      status: 200,
+      data: { issues: { nodes: [issueNode()] } },
+    })
+  })
+
+  it("never lists an app-owned column as a Linear-mirrored column", () => {
+    const mirrored = new Set<string>(LINEAR_MIRRORED_TASK_FIELDS)
+    for (const field of APP_OWNED_TASK_FIELDS) {
+      expect(mirrored.has(field)).toBe(false)
+    }
+  })
+
+  it("declares every billability column as app-owned", () => {
+    const appOwned = new Set<string>(APP_OWNED_TASK_FIELDS)
+    for (const field of BILLABILITY_FIELDS) {
+      expect(appOwned.has(field)).toBe(true)
+    }
+  })
+
+  it("only writes mirrored columns on the task sync update path", async () => {
+    await syncFromLinear("user-1")
+
+    expect(prismaMock.task.update).toHaveBeenCalled()
+    const call = prismaMock.task.update.mock.calls[0]![0]
+    const mirrored = new Set<string>(LINEAR_MIRRORED_TASK_FIELDS)
+    for (const key of Object.keys(call.data)) {
+      expect(mirrored.has(key)).toBe(true)
+    }
+  })
+
+  it("never writes a billability column on the task sync update path", async () => {
+    await syncFromLinear("user-1")
+
+    expect(prismaMock.task.update).toHaveBeenCalled()
+    const call = prismaMock.task.update.mock.calls[0]![0]
+    for (const field of BILLABILITY_FIELDS) {
+      expect(call.data).not.toHaveProperty(field)
+    }
   })
 })
