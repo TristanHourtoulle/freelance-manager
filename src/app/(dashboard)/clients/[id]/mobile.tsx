@@ -12,6 +12,7 @@ import {
   taskStatusToPill,
 } from "@/components/ui/pill"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
+import { isPipelineEligible } from "@/domain/tasks/billability"
 import {
   formatWorkloadCoverage,
   formatWorkloadDays,
@@ -92,7 +93,16 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
         (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
     )
     .reduce((s, i) => s + i.balanceDue, 0)
-  const pendingTasks = tasks.filter((t) => t.status === "PENDING_INVOICE")
+  const pipelineGate = {
+    archivedAt: client.archivedAt,
+    category: client.category,
+  }
+  const pendingTasks = tasks.filter((t) =>
+    isPipelineEligible(
+      { status: t.status, invoiceId: t.invoiceId, billable: t.billable },
+      pipelineGate,
+    ),
+  )
 
   const gradient = client.color ?? avatarColor(fullName)
 
