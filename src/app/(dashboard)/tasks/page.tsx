@@ -92,6 +92,7 @@ export function DesktopTasksPage() {
     hasNextPage,
     isFetchingNextPage,
     isPending,
+    isPlaceholderData,
   } = useTasks({ clientIds, projectIds })
   const { data: settings } = useSettings()
   const sync = useSyncLinear()
@@ -175,6 +176,7 @@ export function DesktopTasksPage() {
     searchTerm !== "" || clientIds.length > 0 || projectIds.length > 0
   const hasActiveFilters =
     hasNarrowingFilters || statusFilter !== DEFAULT_STATUS_FILTER
+  const isSettled = !isPending && !isPlaceholderData
 
   function resetFilters() {
     setSearchTerm("")
@@ -361,9 +363,12 @@ export function DesktopTasksPage() {
         onSelectionChange={setSelection}
       />
 
-      <div className="col gap-16">
+      <div
+        className={"col gap-16" + (isPlaceholderData ? " list-refreshing" : "")}
+        aria-busy={isPlaceholderData || undefined}
+      >
         {isPending && <TasksLoadingSkeleton />}
-        {!isPending && groups.length === 0 && tasks.length === 0 && (
+        {isSettled && groups.length === 0 && tasks.length === 0 && (
           <div className="card">
             <div className="empty">
               <div className="empty-title">Aucune task</div>
@@ -371,7 +376,7 @@ export function DesktopTasksPage() {
             </div>
           </div>
         )}
-        {!isPending &&
+        {isSettled &&
           groups.length === 0 &&
           tasks.length > 0 &&
           !hasActiveFilters && (
@@ -392,7 +397,7 @@ export function DesktopTasksPage() {
               </div>
             </div>
           )}
-        {!isPending &&
+        {isSettled &&
           groups.length === 0 &&
           tasks.length > 0 &&
           hasActiveFilters &&
@@ -408,7 +413,7 @@ export function DesktopTasksPage() {
               </div>
             </div>
           )}
-        {!isPending &&
+        {isSettled &&
           groups.length === 0 &&
           tasks.length > 0 &&
           hasActiveFilters &&

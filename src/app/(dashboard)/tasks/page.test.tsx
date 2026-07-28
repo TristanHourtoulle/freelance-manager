@@ -139,13 +139,18 @@ function countsFromTasks(tasks: TaskDTO[]) {
   }
 }
 
-function mockTasks(opts: { data: TaskDTO[]; isPending?: boolean }) {
+function mockTasks(opts: {
+  data: TaskDTO[]
+  isPending?: boolean
+  isPlaceholderData?: boolean
+}) {
   useTasksMock.mockReturnValue({
     data: opts.data,
     fetchNextPage: vi.fn(),
     hasNextPage: false,
     isFetchingNextPage: false,
     isPending: opts.isPending ?? false,
+    isPlaceholderData: opts.isPlaceholderData ?? false,
   })
   useTaskCountsMock.mockReturnValue(
     opts.isPending
@@ -189,6 +194,37 @@ describe("DesktopTasksPage", () => {
     expect(container.querySelectorAll(".skeleton").length).toBeGreaterThan(0)
     expect(screen.queryByText("Aucune task")).not.toBeInTheDocument()
     expect(screen.queryByText("Aucun resultat")).not.toBeInTheDocument()
+  })
+
+  it("keeps the previous list on screen without a skeleton while a filter refetches", () => {
+    mockTasks({ data: [buildTask()], isPlaceholderData: true })
+
+    const { container } = render(<DesktopTasksPage />)
+
+    expect(container.querySelectorAll(".skeleton").length).toBe(0)
+    expect(screen.getByText("Implementer le dashboard")).toBeInTheDocument()
+    const list = container.querySelector(".col.gap-16")
+    expect(list).toHaveClass("list-refreshing")
+    expect(list).toHaveAttribute("aria-busy", "true")
+  })
+
+  it("suppresses empty states while previous data is being kept during a refetch", () => {
+    mockTasks({ data: [], isPlaceholderData: true })
+
+    render(<DesktopTasksPage />)
+
+    expect(screen.queryByText("Aucune task")).not.toBeInTheDocument()
+    expect(screen.queryByText("Aucun résultat")).not.toBeInTheDocument()
+  })
+
+  it("does not flag the list as refreshing when data is settled", () => {
+    mockTasks({ data: [buildTask()] })
+
+    const { container } = render(<DesktopTasksPage />)
+
+    const list = container.querySelector(".col.gap-16")
+    expect(list).not.toHaveClass("list-refreshing")
+    expect(list).not.toHaveAttribute("aria-busy")
   })
 
   it("shows the design's empty state verbatim when there is genuinely no task", () => {

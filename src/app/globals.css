@@ -2007,6 +2007,17 @@ textarea {
   padding: 1px 6px;
   line-height: 1.4;
 }
+.filter-combobox-count.is-empty {
+  background: var(--bg-3);
+  color: var(--text-2);
+}
+.filter-combobox-clear.is-hidden {
+  visibility: hidden;
+}
+.list-refreshing {
+  opacity: 0.6;
+  transition: opacity 0.15s ease-out;
+}
 .filter-combobox-chevron {
   transition: transform 0.14s ease-out;
 }
@@ -3064,6 +3075,7 @@ textarea {
   padding: 7px 14px;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
   color: var(--text-2);
   border-radius: var(--radius-pill);
   background: transparent;
@@ -3115,7 +3127,6 @@ textarea {
 }
 .seg-scroll button {
   flex: 0 0 auto;
-  white-space: nowrap;
 }
 
 /* iOS-style list group */

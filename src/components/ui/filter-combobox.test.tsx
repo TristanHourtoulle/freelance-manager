@@ -206,7 +206,51 @@ describe("FilterCombobox", () => {
 
     fireEvent.mouseDown(document.body)
     expect(chevron()).not.toHaveClass("is-open")
-    expect(trigger).toHaveAccessibleName("Filtres")
+    expect(trigger).toHaveAccessibleName("Filtres 0")
+  })
+
+  it("always renders the count badge, as a grey zero when nothing is selected", () => {
+    render(<Harness />)
+
+    const trigger = screen.getByRole("button", { name: /^Filtres/ })
+    const badge = trigger.querySelector(".filter-combobox-count")
+    expect(badge).not.toBeNull()
+    expect(badge).toHaveTextContent("0")
+    expect(badge).toHaveClass("is-empty")
+  })
+
+  it("switches the badge to the accent variant once filters are selected", () => {
+    render(<Harness initial={["c1", "p1"]} />)
+
+    const trigger = screen.getByRole("button", { name: /^Filtres/ })
+    const badge = trigger.querySelector(".filter-combobox-count")
+    expect(badge).toHaveTextContent("2")
+    expect(badge).not.toHaveClass("is-empty")
+  })
+
+  it("reserves the clear button space when empty, out of the tab order and a11y tree", () => {
+    const { container } = render(<Harness />)
+
+    const clear = container.querySelector(".filter-combobox-clear")
+    expect(clear).not.toBeNull()
+    expect(clear).toHaveClass("is-hidden")
+    expect(clear).toHaveAttribute("aria-hidden", "true")
+    expect(clear).toHaveAttribute("tabindex", "-1")
+    expect(
+      screen.queryByRole("button", { name: "Effacer les filtres Filtres" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("restores the clear button to the tab order once a filter is selected", () => {
+    const { container } = render(<Harness initial={["c1"]} />)
+
+    const clear = container.querySelector(".filter-combobox-clear")
+    expect(clear).not.toHaveClass("is-hidden")
+    expect(clear).not.toHaveAttribute("aria-hidden")
+    expect(clear).not.toHaveAttribute("tabindex")
+    expect(
+      screen.getByRole("button", { name: "Effacer les filtres Filtres" }),
+    ).toBeInTheDocument()
   })
 
   it("renders no native select", () => {
