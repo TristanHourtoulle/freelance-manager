@@ -281,7 +281,7 @@ describe("MobileTasksPage billability", () => {
 
     render(<MobileTasksPage />)
 
-    fireEvent.click(screen.getByRole("button", { name: /Non facturable\s*1/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Non facturable 1" }))
 
     expect(screen.getByText("Task offerte")).toBeInTheDocument()
     expect(screen.queryByText("Task facturable")).not.toBeInTheDocument()

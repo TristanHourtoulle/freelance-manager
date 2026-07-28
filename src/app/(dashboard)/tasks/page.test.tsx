@@ -578,7 +578,7 @@ describe("DesktopTasksPage billability", () => {
 
     render(<DesktopTasksPage />)
 
-    const chip = screen.getByRole("button", { name: /Non facturable\s*1/ })
+    const chip = screen.getByRole("button", { name: "Non facturable 1" })
     fireEvent.click(chip)
 
     expect(screen.getByText("Task offerte")).toBeInTheDocument()
