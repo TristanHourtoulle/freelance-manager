@@ -4,6 +4,7 @@ import { authorizeMcpRequest } from "@/lib/mcp/auth"
 import { validateMcpOrigin } from "@/lib/mcp/origin"
 import { mcpRateLimiter } from "@/lib/mcp/rate-limit"
 import { recordMcpToolCall } from "@/lib/mcp/audit"
+import { registerMcpTools } from "@/lib/mcp/tools"
 
 const SERVER_INFO = { name: "freelance-manager", version: "0.1.0" }
 
@@ -56,8 +57,10 @@ async function probeJsonRpc(request: Request): Promise<JsonRpcProbe> {
   }
 }
 
-function buildServer(): McpServer {
-  return new McpServer(SERVER_INFO)
+function buildServer(userId: string): McpServer {
+  const server = new McpServer(SERVER_INFO)
+  registerMcpTools(server, userId)
+  return server
 }
 
 /**
@@ -76,8 +79,9 @@ function buildServer(): McpServer {
  * rejection itself is audited to ActivityLog) → a fresh McpServer +
  * transport pair per request with `sessionIdGenerator: undefined` and
  * `enableJsonResponse: true`, so no session id is ever issued and every
- * POST gets a plain JSON reply. No tools are registered yet; the tool
- * layer (second pass) must wrap every handler in `withMcpAudit`.
+ * POST gets a plain JSON reply. The v1 tool surface is registered per
+ * request via `registerMcpTools`, scoped to the resolved principal; every
+ * tool handler is wrapped in `withMcpAudit`.
  *
  * @param request - The incoming JSON-RPC POST.
  * @returns The transport's JSON response, or a JSON-RPC error envelope.
@@ -120,7 +124,7 @@ export async function POST(request: Request): Promise<Response> {
     })
   }
 
-  const server = buildServer()
+  const server = buildServer(auth.userId)
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

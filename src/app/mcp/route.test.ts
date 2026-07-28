@@ -14,7 +14,11 @@ vi.mock("@/lib/mcp/rate-limit", () => ({
 const recordMcpToolCall = vi.fn()
 vi.mock("@/lib/mcp/audit", () => ({
   recordMcpToolCall: (entry: unknown) => recordMcpToolCall(entry),
+  withMcpAudit: (_context: unknown, execute: () => Promise<unknown>) =>
+    execute(),
 }))
+vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: vi.fn() } } }))
+vi.mock("@/lib/activity", () => ({ deferActivityLog: vi.fn() }))
 
 const APP_URL = "https://freelance-manager.example.test"
 const TOKEN = "9c2b4a6f8e0d1c3b5a3f7a1c9d2e4b6a8c0f1e3d5c7b9a2f4e6d8c0b1a3f5e7d"
@@ -161,6 +165,35 @@ describe("POST /mcp", () => {
       result: { serverInfo: { name: string } }
     }
     expect(payload.result.serverInfo.name).toBe("freelance-manager")
+  })
+
+  it("lists the registered v1 tools for a valid token", async () => {
+    const { POST } = await import("./route")
+    const body = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/list",
+      params: {},
+    })
+    const res = await POST(mcpRequest({ token: TOKEN, body }))
+    expect(res.status).toBe(200)
+    const payload = (await res.json()) as {
+      result: {
+        tools: {
+          name: string
+          annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean }
+        }[]
+      }
+    }
+    const names = payload.result.tools.map((t) => t.name)
+    expect(names).toHaveLength(16)
+    expect(names).toContain("list_clients")
+    expect(names).toContain("create_invoice_draft")
+    const draft = payload.result.tools.find(
+      (t) => t.name === "create_invoice_draft",
+    )
+    expect(draft?.annotations?.readOnlyHint).toBe(false)
+    expect(draft?.annotations?.destructiveHint).toBe(false)
   })
 
   it("never leaks the token or hash in a successful response", async () => {
