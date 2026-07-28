@@ -6,15 +6,25 @@ import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtEUR, initials, avatarColor, fmtRelative } from "@/lib/format"
 import { useClients } from "@/hooks/use-clients"
-import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import {
+  useTasks,
+  useSyncLinear,
+  useBulkSetTaskBillability,
+} from "@/hooks/use-tasks"
+import type { NonBillableReason } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import {
+  isPipelineEligible,
+  NON_BILLABLE_REASON_LABELS,
+} from "@/domain/tasks/billability"
+import { NonBillableDialog } from "@/components/tasks/non-billable-dialog"
 import { useToast } from "@/components/providers/toast-provider"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 
-type Filter = "all" | "pending" | "done" | "invoiced"
+type Filter = "all" | "pending" | "done" | "invoiced" | "non_billable"
 
 export function MobileTasksPage() {
   const router = useRouter()
@@ -31,6 +41,8 @@ export function MobileTasksPage() {
   const isSyncing = sync.isPending || syncProgress.isRunning
   const [filter, setFilter] = useState<Filter>("all")
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [billabilityDialogOpen, setBillabilityDialogOpen] = useState(false)
+  const bulkBillability = useBulkSetTaskBillability()
 
   const filtered = useMemo(() => {
     return tasks
@@ -38,6 +50,7 @@ export function MobileTasksPage() {
         if (filter === "pending") return t.status === "PENDING_INVOICE"
         if (filter === "done") return t.status === "DONE"
         if (filter === "invoiced") return t.invoiceId != null
+        if (filter === "non_billable") return !t.billable
         return ["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status)
       })
       .sort(
@@ -54,7 +67,20 @@ export function MobileTasksPage() {
       ).length,
       pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
       invoiced: tasks.filter((t) => t.invoiceId != null).length,
+      non_billable: tasks.filter((t) => !t.billable).length,
     }),
+    [tasks],
+  )
+
+  const unestimatedCount = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          t.status === "PENDING_INVOICE" &&
+          t.billable &&
+          t.invoiceId === null &&
+          t.estimate === null,
+      ).length,
     [tasks],
   )
 
@@ -101,6 +127,39 @@ export function MobileTasksPage() {
     sync.mutate()
   }
 
+  const selectedTasks = tasks.filter((t) => selected.has(t.id))
+  const selectionAllNonBillable =
+    selectedTasks.length > 0 && selectedTasks.every((t) => !t.billable)
+
+  function confirmNonBillable(reason: NonBillableReason, note: string | null) {
+    bulkBillability.mutate(
+      {
+        taskIds: [...selected],
+        billable: false,
+        nonBillableReason: reason,
+        nonBillableNote: note,
+      },
+      {
+        onSuccess: () => {
+          setBillabilityDialogOpen(false)
+          setSelected(new Set())
+        },
+      },
+    )
+  }
+
+  function restoreSelectedBillable() {
+    bulkBillability.mutate(
+      {
+        taskIds: [...selected],
+        billable: true,
+        nonBillableReason: null,
+        nonBillableNote: null,
+      },
+      { onSuccess: () => setSelected(new Set()) },
+    )
+  }
+
   return (
     <div className="m-screen">
       <MobileTopbar
@@ -145,6 +204,11 @@ export function MobileTasksPage() {
                   label: "Facturée",
                   count: counts.invoiced,
                 },
+                {
+                  id: "non_billable" as Filter,
+                  label: "Non facturable",
+                  count: counts.non_billable,
+                },
               ] as { id: Filter; label: string; count: number | undefined }[]
             ).map((f) => (
               <button
@@ -158,6 +222,16 @@ export function MobileTasksPage() {
               </button>
             ))}
           </div>
+
+          {unestimatedCount > 0 && (
+            <div className="xs muted row gap-8">
+              <Icon name="alert" size={12} />
+              <span>
+                {unestimatedCount} tâche{unestimatedCount > 1 ? "s" : ""} à
+                facturer sans estimation — 0 € dans le pipeline
+              </span>
+            </div>
+          )}
 
           {grouped.map(({ client, tasks: clientTasks }) => {
             if (!client) return null
@@ -193,16 +267,20 @@ export function MobileTasksPage() {
 
                 {clientTasks.map((t) => {
                   const isSel = selected.has(t.id)
-                  const value = pipelineValueForTask({
-                    billingMode: client.billingMode,
-                    rate: client.rate,
-                    estimateDays: t.estimate,
-                  })
+                  const value = isPipelineEligible(t, client)
+                    ? pipelineValueForTask({
+                        billingMode: client.billingMode,
+                        rate: client.rate,
+                        estimateDays: t.estimate,
+                      })
+                    : 0
                   return (
                     <div
                       key={t.id}
                       className={"task-item" + (isSel ? " selected" : "")}
-                      style={{ opacity: t.invoiceId ? 0.7 : 1 }}
+                      style={{
+                        opacity: t.invoiceId || !t.billable ? 0.7 : 1,
+                      }}
                     >
                       <button
                         type="button"
@@ -243,6 +321,14 @@ export function MobileTasksPage() {
                           </span>
                         </div>
                         <div className="task-title">{t.title}</div>
+                        {!t.billable && t.nonBillableReason && (
+                          <span
+                            className="pill pill-no-dot xs pill-draft"
+                            title={t.nonBillableNote ?? undefined}
+                          >
+                            {NON_BILLABLE_REASON_LABELS[t.nonBillableReason]}
+                          </span>
+                        )}
                       </button>
                       <div className="task-meta">
                         <span>
@@ -313,16 +399,47 @@ export function MobileTasksPage() {
           >
             Annuler
           </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={startInvoice}
-          >
-            <Icon name="invoice" size={13} />
-            Facturer
-          </button>
+          {selectionAllNonBillable ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={restoreSelectedBillable}
+              disabled={bulkBillability.isPending}
+            >
+              <Icon name="eye" size={13} />
+              Facturable
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setBillabilityDialogOpen(true)}
+                disabled={bulkBillability.isPending}
+              >
+                <Icon name="eye-off" size={13} />
+                Non facturable
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={startInvoice}
+              >
+                <Icon name="invoice" size={13} />
+                Facturer
+              </button>
+            </>
+          )}
         </div>
       )}
+
+      <NonBillableDialog
+        open={billabilityDialogOpen}
+        taskCount={selected.size}
+        isPending={bulkBillability.isPending}
+        onCancel={() => setBillabilityDialogOpen(false)}
+        onConfirm={confirmNonBillable}
+      />
     </div>
   )
 }

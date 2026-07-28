@@ -7,21 +7,33 @@ import { Icon } from "@/components/ui/icon"
 import { StatusPill, taskStatusToPill } from "@/components/ui/pill"
 import { fmtEUR, fmtRelative, initials, avatarColor } from "@/lib/format"
 import { isSyncStale, SYNC_STALE_LABEL } from "@/lib/sync-staleness"
-import { useTasks, useSyncLinear } from "@/hooks/use-tasks"
+import {
+  useTasks,
+  useSyncLinear,
+  useSetTaskBillability,
+  useBulkSetTaskBillability,
+} from "@/hooks/use-tasks"
+import type { NonBillableReason } from "@/hooks/use-tasks"
 import { useLinearSyncProgress } from "@/hooks/use-linear-sync"
 import { useSettings } from "@/hooks/use-settings"
 import { useClients, useClientsBillable } from "@/hooks/use-clients"
 import { useProjects } from "@/hooks/use-projects"
 import { useInvoices } from "@/hooks/use-invoices"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import {
+  isPipelineEligible,
+  NON_BILLABLE_REASON_LABELS,
+} from "@/domain/tasks/billability"
 import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
-import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { TaskEffortInput } from "@/components/tasks/task-effort-input"
+import { NonBillableDialog } from "@/components/tasks/non-billable-dialog"
+import { TaskSelectionBar } from "@/components/tasks/task-selection-bar"
+import { TasksLoadingSkeleton } from "@/components/tasks/tasks-loading-skeleton"
 
 const MobileTasksPage = dynamic(
   () => import("./mobile").then((m) => m.MobileTasksPage),
@@ -38,7 +50,12 @@ const MobileTasksPage = dynamic(
   },
 )
 
-type StatusFilterId = "all" | "pending" | "done" | "in_progress"
+type StatusFilterId =
+  | "all"
+  | "pending"
+  | "done"
+  | "in_progress"
+  | "non_billable"
 
 export default function TasksPage() {
   const isMobile = useIsMobile()
@@ -60,6 +77,10 @@ export function DesktopTasksPage() {
   const [clientFilter, setClientFilter] = useState<string>(clientParam)
   const [projectFilter, setProjectFilter] = useState<string>(projectParam)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [billabilityDialog, setBillabilityDialog] = useState<{
+    taskIds: string[]
+    fromSelection: boolean
+  } | null>(null)
 
   const [syncedParams, setSyncedParams] = useState({
     clientParam,
@@ -87,6 +108,10 @@ export function DesktopTasksPage() {
   const { data: invoices = [] } = useInvoices()
   const { data: settings } = useSettings()
   const sync = useSyncLinear()
+  const setBillability = useSetTaskBillability()
+  const bulkBillability = useBulkSetTaskBillability()
+  const billabilityPending =
+    setBillability.isPending || bulkBillability.isPending
   const syncProgress = useLinearSyncProgress()
   const isSyncing = sync.isPending || syncProgress.isRunning
   const isSyncOld =
@@ -100,6 +125,7 @@ export function DesktopTasksPage() {
       pending: tasks.filter((t) => t.status === "PENDING_INVOICE").length,
       done: tasks.filter((t) => t.status === "DONE").length,
       in_progress: tasks.filter((t) => t.status === "IN_PROGRESS").length,
+      non_billable: tasks.filter((t) => !t.billable).length,
     }),
     [tasks],
   )
@@ -119,6 +145,7 @@ export function DesktopTasksPage() {
         if (statusFilter === "done" && t.status !== "DONE") return false
         if (statusFilter === "in_progress" && t.status !== "IN_PROGRESS")
           return false
+        if (statusFilter === "non_billable" && t.billable) return false
         if (
           statusFilter === "all" &&
           !["PENDING_INVOICE", "DONE", "IN_PROGRESS"].includes(t.status)
@@ -184,7 +211,7 @@ export function DesktopTasksPage() {
 
   const selectedValue = selectedTasks.reduce((s, t) => {
     const c = clientById.get(t.clientId)
-    if (!c) return s
+    if (!c || !isPipelineEligible(t, c)) return s
     return (
       s +
       pipelineValueForTask({
@@ -194,6 +221,65 @@ export function DesktopTasksPage() {
       })
     )
   }, 0)
+
+  const selectionAllNonBillable =
+    selectedTasks.length > 0 && selectedTasks.every((t) => !t.billable)
+
+  const unestimatedCount = tasks.filter(
+    (t) =>
+      t.status === "PENDING_INVOICE" &&
+      t.billable &&
+      t.invoiceId === null &&
+      t.estimate === null,
+  ).length
+
+  function confirmNonBillable(reason: NonBillableReason, note: string | null) {
+    if (!billabilityDialog) return
+    const payload = {
+      billable: false as const,
+      nonBillableReason: reason,
+      nonBillableNote: note,
+    }
+    if (billabilityDialog.fromSelection) {
+      bulkBillability.mutate(
+        { taskIds: billabilityDialog.taskIds, ...payload },
+        {
+          onSuccess: () => {
+            setBillabilityDialog(null)
+            setSelected(new Set())
+          },
+        },
+      )
+      return
+    }
+    const id = billabilityDialog.taskIds[0]
+    if (!id) return
+    setBillability.mutate(
+      { id, ...payload },
+      { onSuccess: () => setBillabilityDialog(null) },
+    )
+  }
+
+  function restoreSelectedBillable() {
+    bulkBillability.mutate(
+      {
+        taskIds: [...selected],
+        billable: true,
+        nonBillableReason: null,
+        nonBillableNote: null,
+      },
+      { onSuccess: () => setSelected(new Set()) },
+    )
+  }
+
+  function restoreTaskBillable(id: string) {
+    setBillability.mutate({
+      id,
+      billable: true,
+      nonBillableReason: null,
+      nonBillableNote: null,
+    })
+  }
 
   const selectedInViewCount = filtered.reduce(
     (n, t) => (selected.has(t.id) ? n + 1 : n),
@@ -233,6 +319,17 @@ export function DesktopTasksPage() {
                 <span className="muted">
                   ({pendingPipeline.count} task
                   {pendingPipeline.count > 1 ? "s" : ""})
+                </span>
+              </>
+            )}
+            {unestimatedCount > 0 && (
+              <>
+                {" "}
+                <span
+                  className="pill pill-partial"
+                  title="Ces tâches comptent pour 0 € dans le pipeline tant qu'elles n'ont pas d'estimation Linear."
+                >
+                  {unestimatedCount} à estimer
                 </span>
               </>
             )}
@@ -313,6 +410,11 @@ export function DesktopTasksPage() {
                   id: "in_progress",
                   label: "In progress",
                   count: counts.in_progress,
+                },
+                {
+                  id: "non_billable",
+                  label: "Non facturable",
+                  count: counts.non_billable,
                 },
               ] as { id: StatusFilterId; label: string; count: number }[]
             ).map((f) => (
@@ -413,7 +515,7 @@ export function DesktopTasksPage() {
             const c = clientById.get(g.clientId)
             const p = projectById.get(g.projectId)
             const groupValue = g.tasks.reduce((s, t) => {
-              if (!c) return s
+              if (!c || !isPipelineEligible(t, c)) return s
               return (
                 s +
                 pipelineValueForTask({
@@ -502,18 +604,23 @@ export function DesktopTasksPage() {
                       <th className="right" style={{ width: 110 }}>
                         Valeur
                       </th>
-                      <th style={{ width: 110, paddingRight: 18 }}>Facturée</th>
+                      <th style={{ width: 110 }}>Facturée</th>
+                      <th
+                        style={{ width: 44, paddingRight: 18 }}
+                        aria-label="Actions"
+                      />
                     </tr>
                   </thead>
                   <tbody>
                     {g.tasks.map((t) => {
-                      const value = c
-                        ? pipelineValueForTask({
-                            billingMode: c.billingMode,
-                            rate: c.rate,
-                            estimateDays: t.estimate,
-                          })
-                        : 0
+                      const value =
+                        c && isPipelineEligible(t, c)
+                          ? pipelineValueForTask({
+                              billingMode: c.billingMode,
+                              rate: c.rate,
+                              estimateDays: t.estimate,
+                            })
+                          : 0
                       const inv = t.invoiceId
                         ? invoices.find((i) => i.id === t.invoiceId)
                         : null
@@ -521,9 +628,12 @@ export function DesktopTasksPage() {
                       return (
                         <tr
                           key={t.id}
-                          style={
-                            isSel ? { background: "var(--accent-soft)" } : {}
-                          }
+                          style={{
+                            ...(isSel
+                              ? { background: "var(--accent-soft)" }
+                              : {}),
+                            ...(t.billable ? {} : { opacity: 0.55 }),
+                          }}
                         >
                           <td style={{ paddingLeft: 18 }}>
                             <input
@@ -547,6 +657,19 @@ export function DesktopTasksPage() {
                           <td className="strong">{t.title}</td>
                           <td>
                             <StatusPill status={taskStatusToPill(t.status)} />
+                            {!t.billable && t.nonBillableReason && (
+                              <span
+                                className="pill pill-no-dot xs pill-draft"
+                                style={{ marginLeft: 6 }}
+                                title={t.nonBillableNote ?? undefined}
+                              >
+                                {
+                                  NON_BILLABLE_REASON_LABELS[
+                                    t.nonBillableReason
+                                  ]
+                                }
+                              </span>
+                            )}
                           </td>
                           <td className="right num">
                             {t.estimate ? `${t.estimate}j` : "—"}
@@ -566,7 +689,7 @@ export function DesktopTasksPage() {
                           <td className="right num">
                             {value > 0 ? fmtEUR(value) : "—"}
                           </td>
-                          <td style={{ paddingRight: 18 }}>
+                          <td>
                             {inv ? (
                               <Link
                                 href={`/billing?invoiceId=${t.invoiceId}`}
@@ -578,6 +701,38 @@ export function DesktopTasksPage() {
                             ) : (
                               <span className="muted xs">—</span>
                             )}
+                          </td>
+                          <td style={{ paddingRight: 18 }}>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              aria-label={
+                                t.billable
+                                  ? `Marquer ${t.linearIdentifier} non facturable`
+                                  : `Remettre ${t.linearIdentifier} en facturation`
+                              }
+                              title={
+                                t.billable
+                                  ? "Marquer non facturable"
+                                  : "Marquer facturable"
+                              }
+                              disabled={
+                                billabilityPending || t.invoiceId != null
+                              }
+                              onClick={() =>
+                                t.billable
+                                  ? setBillabilityDialog({
+                                      taskIds: [t.id],
+                                      fromSelection: false,
+                                    })
+                                  : restoreTaskBillable(t.id)
+                              }
+                            >
+                              <Icon
+                                name={t.billable ? "eye-off" : "eye"}
+                                size={14}
+                              />
+                            </button>
                           </td>
                         </tr>
                       )
@@ -596,99 +751,36 @@ export function DesktopTasksPage() {
       />
 
       {selected.size > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--bg-1)",
-            border: "1px solid var(--border-strong)",
-            borderRadius: 12,
-            padding: "10px 16px",
-            boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            zIndex: 20,
-          }}
-        >
-          <span className="strong small">
-            {selected.size} task{selected.size > 1 ? "s" : ""} sélectionnée
-            {selected.size > 1 ? "s" : ""}
-          </span>
-          <span className="muted xs">·</span>
-          <span className="num strong">{fmtEUR(selectedValue)}</span>
-          {hiddenSelectedCount > 0 && (
-            <span
-              className="pill pill-no-dot xs pill-draft"
-              title="Sélections masquées par les filtres actuels"
-            >
-              {hiddenSelectedCount} hors filtre
-            </span>
-          )}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setSelected(new Set())}
-          >
-            <Icon name="x" size={12} /> Désélectionner
-          </button>
-          {canInvoiceSelected && (
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() =>
-                router.push(
-                  `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
-                )
-              }
-            >
-              <Icon name="invoice" size={12} />
-              Créer facture
-            </button>
-          )}
-        </div>
+        <TaskSelectionBar
+          selectedCount={selected.size}
+          selectedValue={selectedValue}
+          hiddenSelectedCount={hiddenSelectedCount}
+          canInvoiceSelected={canInvoiceSelected}
+          selectionAllNonBillable={selectionAllNonBillable}
+          billabilityPending={billabilityPending}
+          onClear={() => setSelected(new Set())}
+          onMarkNonBillable={() =>
+            setBillabilityDialog({
+              taskIds: [...selected],
+              fromSelection: true,
+            })
+          }
+          onRestoreBillable={restoreSelectedBillable}
+          onCreateInvoice={() =>
+            router.push(
+              `/billing/new?clientId=${[...selectedClientIds][0]}&taskIds=${[...selected].join(",")}`,
+            )
+          }
+        />
       )}
-    </div>
-  )
-}
 
-/**
- * Placeholder group cards shown while the first tasks page is loading, so the
- * true empty state never flashes during the initial fetch.
- */
-function TasksLoadingSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 2 }, (_, gi) => (
-        <div
-          key={gi}
-          className="card"
-          style={{ padding: 0, overflow: "hidden" }}
-        >
-          <div
-            className="row gap-12"
-            style={{
-              padding: "14px 18px",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--bg-2)",
-            }}
-          >
-            <Skeleton width={22} height={22} radius="var(--radius-sm)" />
-            <div className="col gap-8">
-              <Skeleton width={180} height={12} />
-              <Skeleton width={120} height={10} />
-            </div>
-            <div style={{ marginLeft: "auto" }}>
-              <Skeleton width={80} height={14} />
-            </div>
-          </div>
-          <div style={{ padding: "8px 18px" }}>
-            {Array.from({ length: 4 }, (_, ri) => (
-              <SkeletonRow key={ri} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
+      <NonBillableDialog
+        open={billabilityDialog !== null}
+        taskCount={billabilityDialog?.taskIds.length ?? 0}
+        isPending={billabilityPending}
+        onCancel={() => setBillabilityDialog(null)}
+        onConfirm={confirmNonBillable}
+      />
+    </div>
   )
 }
