@@ -2,7 +2,7 @@
 
 import { Fragment } from "react"
 import { usePathname } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { skipToken, useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
 import { useCmdK } from "@/components/cmdk/cmdk-provider"
 import { deriveCrumbs } from "@/lib/breadcrumbs"
@@ -21,7 +21,7 @@ export function Topbar() {
   const clientId = clientIdFromPathname(pathname)
   const { data: client } = useQuery<ClientDetailDTO>({
     queryKey: qk.client.detail(clientId),
-    enabled: false,
+    queryFn: skipToken,
   })
   const crumbs = deriveCrumbs(
     pathname,
