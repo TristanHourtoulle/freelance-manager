@@ -1,63 +1,188 @@
 "use client"
 
-import { memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
-import { fmtEUR, fmtRelative } from "@/lib/format"
-import { useDashboard } from "@/hooks/use-dashboard"
+import { Skeleton } from "@/components/ui/skeleton"
+import { fmtEUR } from "@/lib/format"
+import { useDashboard, type DashboardDTO } from "@/hooks/use-dashboard"
 import {
   formatWorkloadCoverage,
   formatWorkloadDays,
 } from "@/domain/capacity/workload"
-import { TodayPanel } from "@/components/suivi/today-panel"
-import { RelanceButton } from "@/components/dashboard/relance-button"
-import { TaskIdLink } from "@/components/ui/task-id-link"
+import { countEstimatedPipelineTasks } from "@/domain/dashboard/triage"
+import { TriageQueue } from "@/components/dashboard/triage-queue"
+import {
+  InProgressCard,
+  LastSyncLine,
+  RecentDoneCard,
+} from "@/components/dashboard/dashboard-rail"
 
+const EMPTY_KPI: DashboardDTO["kpi"] = {
+  revenueMonth: 0,
+  revenueYear: 0,
+  paidCount: 0,
+  paidCountMonth: 0,
+  paidCountYear: 0,
+  outstanding: 0,
+  sentCount: 0,
+  overdueAmount: 0,
+  overdueCount: 0,
+  pipelineCount: 0,
+  pipelineEur: 0,
+  pipelineClientCount: 0,
+  unestimatedCount: 0,
+}
+
+const EMPTY_CAPACITY: DashboardDTO["capacity"] = {
+  days: 0,
+  taskCount: 0,
+  estimatedTaskCount: 0,
+  missingEstimateCount: 0,
+  workingDaysPerWeek: 5,
+}
+
+const EMPTY_AGING: DashboardDTO["pipelineAging"] = {
+  oldestDays: null,
+  staleCount: 0,
+  staleValue: 0,
+  buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
+}
+
+const EMPTY_IN_PROGRESS: DashboardDTO["inProgress"] = { count: 0, top: [] }
+
+const TILE_GRID = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+} as const
+
+function MoneyTiles({
+  kpi,
+  capacity,
+  year,
+}: {
+  kpi: DashboardDTO["kpi"]
+  capacity: DashboardDTO["capacity"]
+  year: number
+}) {
+  const estimatedCount = countEstimatedPipelineTasks(
+    kpi.pipelineCount,
+    kpi.unestimatedCount,
+  )
+  return (
+    <div style={TILE_GRID}>
+      <div className="kpi-tile accent">
+        <div className="kpi-label">
+          <Icon name="euro" size={11} />
+          Revenu · ce mois
+        </div>
+        <div className="kpi-value">{fmtEUR(kpi.revenueMonth)}</div>
+        <div className="kpi-sub muted">
+          {kpi.paidCountMonth} factures payées
+        </div>
+      </div>
+      <div className="kpi-tile warn">
+        <div className="kpi-label">
+          <Icon name="send" size={11} />
+          Encours
+        </div>
+        <div className="kpi-value">{fmtEUR(kpi.outstanding)}</div>
+        {kpi.overdueAmount > 0 && (
+          <div className="kpi-sub" style={{ color: "var(--danger)" }}>
+            dont {fmtEUR(kpi.overdueAmount)} en retard
+          </div>
+        )}
+      </div>
+      <div className="kpi-tile info">
+        <div className="kpi-label">
+          <Icon name="clock" size={11} />
+          Facturable
+        </div>
+        <div className="kpi-value">{fmtEUR(kpi.pipelineEur)}</div>
+        <div className="kpi-sub muted">
+          {estimatedCount} tasks estimées · {kpi.pipelineClientCount} clients
+        </div>
+      </div>
+      <div className="kpi-tile">
+        <div className="kpi-label">
+          <Icon name="clock" size={11} />
+          Charge
+        </div>
+        <div className="kpi-value num">{formatWorkloadDays(capacity.days)}</div>
+        <div className="kpi-sub muted">{formatWorkloadCoverage(capacity)}</div>
+      </div>
+      <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
+        <div className="kpi-label">
+          <Icon name="chart" size={11} />
+          Revenu · {year}
+        </div>
+        <div className="kpi-value">{fmtEUR(kpi.revenueYear)}</div>
+        <div className="kpi-sub muted">{kpi.paidCountYear} factures payées</div>
+      </div>
+    </div>
+  )
+}
+
+function MobileDashboardSkeleton() {
+  return (
+    <div aria-hidden className="m-stack">
+      <div className="card">
+        <Skeleton width="50%" height={14} />
+        <div className="col gap-8" style={{ marginTop: 12 }}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} height={54} radius="var(--radius-sm)" />
+          ))}
+        </div>
+      </div>
+      <div style={TILE_GRID}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="kpi-tile">
+            <div className="kpi-label">
+              <Skeleton width="55%" height={9} />
+            </div>
+            <div className="kpi-value">
+              <Skeleton width="70%" height={18} />
+            </div>
+            <div className="kpi-sub">
+              <Skeleton width="45%" height={10} />
+            </div>
+          </div>
+        ))}
+        <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
+          <div className="kpi-label">
+            <Skeleton width="40%" height={9} />
+          </div>
+          <div className="kpi-value">
+            <Skeleton width="50%" height={18} />
+          </div>
+          <div className="kpi-sub">
+            <Skeleton width="35%" height={10} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Mobile dashboard twin of direction A « Matin ».
+ *
+ * Same information architecture as the desktop page: the triage queue first
+ * and full width, then the money tiles mirroring the strip's semantics, the
+ * quick actions, and the shared « En cours » / « Terminées récemment » rail.
+ */
 export function MobileDashboardPage() {
   const router = useRouter()
-  const { data } = useDashboard()
+  const { data, isPending } = useDashboard()
 
-  const kpi = data?.kpi ?? {
-    revenueMonth: 0,
-    revenueYear: 0,
-    paidCount: 0,
-    paidCountMonth: 0,
-    paidCountYear: 0,
-    outstanding: 0,
-    sentCount: 0,
-    overdueAmount: 0,
-    overdueCount: 0,
-    pipelineCount: 0,
-    pipelineEur: 0,
-    pipelineClientCount: 0,
-  }
-  const capacity = data?.capacity ?? {
-    days: 0,
-    taskCount: 0,
-    estimatedTaskCount: 0,
-    missingEstimateCount: 0,
-    workingDaysPerWeek: 5,
-  }
-  const pipelineAging = data?.pipelineAging ?? {
-    oldestDays: null,
-    staleCount: 0,
-    staleValue: 0,
-    buckets: { fresh: 0, warm: 0, stale: 0, undated: 0 },
-  }
-  const months = useMemo(() => data?.months ?? [], [data?.months])
+  const kpi = data?.kpi ?? EMPTY_KPI
+  const capacity = data?.capacity ?? EMPTY_CAPACITY
+  const pipelineAging = data?.pipelineAging ?? EMPTY_AGING
+  const inProgress = data?.inProgress ?? EMPTY_IN_PROGRESS
   const overdue = data?.overdue ?? []
   const recentTasks = data?.recentTasks ?? []
-  const monthlyTotal = months.reduce((s, m) => s + m.total, 0)
-  const barMonths = useMemo(
-    () =>
-      months.map((m) => ({
-        label: m.month,
-        value: m.total,
-        isCurrent: m.isCurrent,
-      })),
-    [months],
-  )
+  const year = new Date().getFullYear()
 
   return (
     <div className="m-screen">
@@ -81,281 +206,50 @@ export function MobileDashboardPage() {
           <div className="big-sub">Vue d&apos;ensemble du mois</div>
         </div>
 
-        <div className="m-stack">
-          <TodayPanel />
+        {isPending ? (
+          <MobileDashboardSkeleton />
+        ) : (
+          <div className="m-stack">
+            <TriageQueue
+              overdue={overdue}
+              pipelineAging={pipelineAging}
+              unestimatedCount={kpi.unestimatedCount}
+              pipelineCount={kpi.pipelineCount}
+            />
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-            }}
-          >
-            <div className="kpi-tile accent">
-              <div className="kpi-label">
-                <Icon name="euro" size={11} />
-                Mois
-              </div>
-              <div className="kpi-value">{fmtEUR(kpi.revenueMonth)}</div>
-              <div className="kpi-sub muted">
-                {kpi.paidCountMonth} paiements
-              </div>
-            </div>
-            <div className="kpi-tile info">
-              <div className="kpi-label">
-                <Icon name="chart" size={11} />
-                Année
-              </div>
-              <div className="kpi-value">{fmtEUR(kpi.revenueYear)}</div>
-              <div className="kpi-sub muted">YTD</div>
-            </div>
-            <div className="kpi-tile warn">
-              <div className="kpi-label">
-                <Icon name="clock" size={11} />
-                Pipeline
-              </div>
-              <div className="kpi-value">{fmtEUR(kpi.pipelineEur)}</div>
-              <div className="kpi-sub muted">
-                {kpi.pipelineCount} tasks à facturer
-              </div>
-            </div>
-            <div className="kpi-tile danger">
-              <div className="kpi-label">
-                <Icon name="invoice" size={11} />
-                Encours
-              </div>
-              <div className="kpi-value">{fmtEUR(kpi.outstanding)}</div>
-              <div className="kpi-sub muted">{kpi.overdueCount} en retard</div>
-            </div>
-            <div className="kpi-tile" style={{ gridColumn: "1 / -1" }}>
-              <div className="kpi-label">
-                <Icon name="clock" size={11} />
-                Charge
-              </div>
-              <div className="kpi-value num">
-                {formatWorkloadDays(capacity.days)}
-              </div>
-              <div className="kpi-sub muted">
-                {formatWorkloadCoverage(capacity)}
-              </div>
-            </div>
-          </div>
+            <MoneyTiles kpi={kpi} capacity={capacity} year={year} />
 
-          <div className="card">
-            <div className="card-title">
-              <span>Revenus mensuels</span>
-              <span className="muted xs num">{fmtEUR(monthlyTotal)}</span>
-            </div>
-            <BarChart months={barMonths} />
-          </div>
-
-          {overdue.length > 0 && (
             <div
-              className="card"
-              style={{ borderLeft: "2px solid var(--danger)" }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}
             >
-              <div className="row gap-8" style={{ marginBottom: 8 }}>
-                <Icon
-                  name="alert"
-                  size={14}
-                  style={{ color: "var(--danger)" }}
-                />
-                <div className="strong small">
-                  {overdue.length} facture{overdue.length > 1 ? "s" : ""} en
-                  retard
-                </div>
-              </div>
-              {overdue.slice(0, 2).map((o) => (
-                <div
-                  key={o.id}
-                  className="row gap-8"
-                  style={{
-                    padding: "8px 0",
-                    borderTop: "1px solid var(--border)",
-                  }}
-                >
-                  <div className="grow" style={{ minWidth: 0 }}>
-                    <div className="small strong truncate">{o.number}</div>
-                    <div className="xs muted">
-                      Échue {fmtRelative(o.dueDate)}
-                    </div>
-                  </div>
-                  <div
-                    className="num strong"
-                    style={{ color: "var(--danger)" }}
-                  >
-                    {fmtEUR(o.total)}
-                  </div>
-                  <RelanceButton invoiceId={o.id} clientId={o.clientId} />
-                </div>
-              ))}
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ marginTop: 8, width: "100%" }}
-                onClick={() => router.push("/billing?filter=overdue")}
-              >
-                Tout voir
-              </button>
-            </div>
-          )}
-
-          {pipelineAging.staleCount > 0 && (
-            <div
-              className="card"
-              style={{ borderLeft: "2px solid var(--warn)" }}
-            >
-              <div className="row gap-8" style={{ marginBottom: 8 }}>
-                <Icon name="alert" size={14} style={{ color: "var(--warn)" }} />
-                <div className="strong small">Pipeline vieillissante</div>
-              </div>
-              <div className="xs muted">
-                La plus ancienne attend {pipelineAging.oldestDays} j ·{" "}
-                {pipelineAging.staleCount} task
-                {pipelineAging.staleCount > 1 ? "s" : ""} &gt; 30 j ·{" "}
-                {fmtEUR(pipelineAging.staleValue)}
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{ marginTop: 8, width: "100%" }}
+                className="btn btn-primary"
                 onClick={() => router.push("/billing/new")}
               >
-                Facturer
+                <Icon name="plus" size={13} />
+                Nouvelle facture
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => router.push("/tasks")}
+              >
+                <Icon name="sync" size={13} />
+                Voir les tasks
               </button>
             </div>
-          )}
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
-            }}
-          >
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => router.push("/billing/new")}
-            >
-              <Icon name="plus" size={13} />
-              Nouvelle facture
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => router.push("/tasks")}
-            >
-              <Icon name="sync" size={13} />
-              Voir les tasks
-            </button>
+            <InProgressCard inProgress={inProgress} />
+            <RecentDoneCard tasks={recentTasks} />
+            <LastSyncLine lastSync={data?.lastSync ?? null} />
           </div>
-
-          {recentTasks.length > 0 && (
-            <div className="card">
-              <div className="card-title">
-                <span>Activité récente</span>
-                <button
-                  type="button"
-                  className="sec-link"
-                  onClick={() => router.push("/tasks")}
-                >
-                  Tasks →
-                </button>
-              </div>
-              <div className="col gap-8" style={{ marginTop: -4 }}>
-                {recentTasks.slice(0, 4).map((t) => (
-                  <div
-                    key={t.id}
-                    className="row gap-8"
-                    style={{ padding: "6px 0" }}
-                  >
-                    <span
-                      className={
-                        "pill pill-no-dot " +
-                        (t.status === "DONE" ? "pill-paid" : "pill-pending")
-                      }
-                      style={{
-                        width: 8,
-                        height: 8,
-                        padding: 0,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="small strong truncate">{t.title}</div>
-                      <div className="xs muted truncate">
-                        <TaskIdLink
-                          identifier={t.linearIdentifier}
-                          url={t.linearUrl}
-                        />{" "}
-                        · {t.projectKey ?? "—"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )
 }
-
-interface BarChartProps {
-  months: { label: string; value: number; isCurrent: boolean }[]
-}
-
-const BarChart = memo(function BarChart({ months }: BarChartProps) {
-  if (!months.length) return null
-  const max = Math.max(...months.map((m) => m.value), 1)
-  const W = 320,
-    H = 140,
-    pad = 24
-  const innerW = W - pad * 2,
-    innerH = H - 30
-  const stepX = innerW / months.length
-  const barW = stepX * 0.42
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 140 }}>
-      <defs>
-        <linearGradient id="m-bar" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.86 0.19 128)" stopOpacity="1" />
-          <stop
-            offset="100%"
-            stopColor="oklch(0.86 0.19 128)"
-            stopOpacity="0.5"
-          />
-        </linearGradient>
-      </defs>
-      {months.map((m, i) => {
-        const x = pad + i * stepX + (stepX - barW) / 2
-        const h = (m.value / max) * innerH
-        const y = innerH - h + 6
-        return (
-          <g key={i}>
-            <rect
-              x={x}
-              y={y}
-              width={barW}
-              height={h}
-              rx="3"
-              fill={m.isCurrent ? "url(#m-bar)" : "oklch(0.30 0.01 240)"}
-            />
-            <text
-              x={pad + i * stepX + stepX / 2}
-              y={H - 6}
-              textAnchor="middle"
-              fontSize="10"
-              fill={m.isCurrent ? "var(--text-0)" : "var(--text-3)"}
-              fontWeight={m.isCurrent ? 600 : 400}
-            >
-              {m.label}
-            </text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-})
