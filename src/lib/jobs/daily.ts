@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { sweepOverdueRelances } from "@/lib/relance"
 import { buildDigestBody, DIGEST_TITLE } from "@/lib/push/digest"
 import { sendPushToUser } from "@/lib/push/send"
+import { sweepStaleRateLimitWindows } from "@/lib/mcp/rate-limit"
 
 export interface JobResult {
   name: string
@@ -95,9 +96,14 @@ async function runPushDigest(now: Date): Promise<number> {
   return notified
 }
 
+async function runMcpRateLimitSweep(now: Date): Promise<number> {
+  return sweepStaleRateLimitWindows(now.getTime())
+}
+
 const JOBS: readonly JobDescriptor[] = [
   { name: "overdue-relances", run: runOverdueRelances },
   { name: "push-digest", run: runPushDigest },
+  { name: "mcp-rate-limit-sweep", run: runMcpRateLimitSweep },
 ]
 
 /**

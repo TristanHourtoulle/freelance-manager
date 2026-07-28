@@ -5,7 +5,11 @@ const { prismaMock, txMock } = vi.hoisted(() => ({
     activityLog: { create: vi.fn() },
     client: { findFirst: vi.fn() },
     project: { findFirst: vi.fn() },
-    invoice: { findMany: vi.fn(), findFirst: vi.fn() },
+    invoice: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      count: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
   txMock: {
@@ -72,6 +76,8 @@ beforeEach(() => {
     stage: "ACTIVE",
   })
   prismaMock.project.findFirst.mockResolvedValue({ id: "proj-1" })
+  prismaMock.invoice.count.mockResolvedValue(0)
+  prismaMock.invoice.findFirst.mockResolvedValue(null)
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: typeof txMock) => Promise<unknown>) => fn(txMock),
   )
@@ -181,13 +187,27 @@ describe("createInvoiceDraft", () => {
 describe("listInvoices / getInvoice", () => {
   it("scopes the invoice list to the principal and writes an audit row", async () => {
     prismaMock.invoice.findMany.mockResolvedValue([])
-    const result = await listInvoices(USER_ID, { limit: 25 })
+    const result = await listInvoices(USER_ID, {
+      limit: 25,
+      fetchAll: false,
+    })
     expect(result.isError).toBeUndefined()
     const call = prismaMock.invoice.findMany.mock.calls[0]![0] as {
       where: { userId: string }
     }
     expect(call.where.userId).toBe(USER_ID)
     expect(auditTitles()[0]).toBe("Appel MCP list_invoices (succès)")
+  })
+
+  it("returns the uncapped total from a real count(), not rows.length", async () => {
+    prismaMock.invoice.findMany.mockResolvedValue([])
+    prismaMock.invoice.count.mockResolvedValue(137)
+    const result = await listInvoices(USER_ID, {
+      limit: 25,
+      fetchAll: false,
+    })
+    const { total } = result.structuredContent as { total: number }
+    expect(total).toBe(137)
   })
 
   it("returns not-found for a foreign invoice id, never data", async () => {

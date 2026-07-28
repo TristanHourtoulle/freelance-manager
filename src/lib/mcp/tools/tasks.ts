@@ -2,23 +2,27 @@ import "server-only"
 import { z } from "zod/v4"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
+import type { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
-import { buildPagedResponse, decimalToNumber } from "@/lib/api"
+import { decimalToNumber } from "@/lib/api"
+import { getLinearClient } from "@/lib/linear"
 import { nonBillableReasonSchema, taskStatusSchema } from "@/lib/schemas/task"
 import {
   buildBillabilityUpdate,
   validateBillability,
 } from "@/domain/tasks/billability"
 import {
-  CAPPED_LIST_NOTE,
+  fetchAllInputSchema,
   cursorInputSchema,
   limitInputSchema,
   McpToolError,
   mcpNotFound,
   NOTE_MAX_CHARS,
-  pagedOutputSchema,
+  paginatedOutputSchema,
+  PAGINATED_LIST_NOTE,
   READ_ONLY_ANNOTATIONS,
   runMcpTool,
+  runPaginatedQuery,
   TITLE_MAX_CHARS,
   truncateNullableText,
   truncateText,
@@ -28,6 +32,7 @@ import {
 const listTasksInput = z.object({
   cursor: cursorInputSchema,
   limit: limitInputSchema,
+  fetchAll: fetchAllInputSchema,
   clientIds: z.array(z.string().min(1)).max(50).optional(),
   projectIds: z.array(z.string().min(1)).max(50).optional(),
   status: taskStatusSchema.optional(),
@@ -51,7 +56,7 @@ const taskRowSchema = z.object({
   nonBillableNote: z.string().nullable(),
 })
 
-const listTasksOutput = pagedOutputSchema(taskRowSchema)
+const listTasksOutput = paginatedOutputSchema(taskRowSchema)
 
 const setTaskActualDaysInput = z.object({
   taskId: z.string().min(1),
@@ -83,9 +88,27 @@ const setTaskBillabilityOutput = z.object({
   nonBillableNote: z.string().nullable(),
 })
 
+const setTaskEstimateInput = z.object({
+  taskId: z.string().min(1),
+  estimateDays: z
+    .number()
+    .min(0)
+    .max(9999.99)
+    .nullable()
+    .describe(
+      "New estimate in days. Written to the Linear issue's estimate field FIRST — Linear is the source of truth and the next sync would otherwise overwrite a local-only value — and only reflected locally once that write succeeds. null clears the estimate on both sides.",
+    ),
+})
+
+const setTaskEstimateOutput = z.object({
+  id: z.string(),
+  estimate: z.number().nullable(),
+})
+
 type ListTasksArgs = z.output<typeof listTasksInput>
 type SetTaskActualDaysArgs = z.output<typeof setTaskActualDaysInput>
 type SetTaskBillabilityArgs = z.output<typeof setTaskBillabilityInput>
+type SetTaskEstimateArgs = z.output<typeof setTaskEstimateInput>
 
 const TASK_ROW_SELECT = {
   id: true,
@@ -105,7 +128,8 @@ const TASK_ROW_SELECT = {
 } as const
 
 /**
- * Handler for the list_tasks tool: capped, userId-scoped task page.
+ * Handler for the list_tasks tool: userId-scoped task page on the v2
+ * pagination contract (uncapped `total`, optional `fetchAll`).
  *
  * Mirrors the app's task list filters. The select deliberately excludes the
  * Linear issue body (`description`) — it is untrusted third-party text and
@@ -120,36 +144,43 @@ export async function listTasks(
   args: ListTasksArgs,
 ): Promise<CallToolResult> {
   return runMcpTool({ userId, tool: "list_tasks", args }, async () => {
-    const rows = await prisma.task.findMany({
-      where: {
-        userId,
-        ...(args.clientIds && args.clientIds.length > 0
-          ? { clientId: { in: args.clientIds } }
-          : {}),
-        ...(args.projectIds && args.projectIds.length > 0
-          ? { projectId: { in: args.projectIds } }
-          : {}),
-        ...(args.billable === undefined ? {} : { billable: args.billable }),
-        ...(args.status
-          ? { status: args.status }
-          : {
-              status: {
-                in: ["PENDING_INVOICE", "DONE", "IN_PROGRESS", "BACKLOG"],
-              },
-            }),
-      },
-      orderBy: [
-        { projectId: "asc" },
-        { linearIdentifier: "asc" },
-        { id: "asc" },
-      ],
-      take: args.limit + 1,
-      ...(args.cursor ? { cursor: { id: args.cursor }, skip: 1 } : {}),
-      select: TASK_ROW_SELECT,
+    const where: Prisma.TaskWhereInput = {
+      userId,
+      ...(args.clientIds && args.clientIds.length > 0
+        ? { clientId: { in: args.clientIds } }
+        : {}),
+      ...(args.projectIds && args.projectIds.length > 0
+        ? { projectId: { in: args.projectIds } }
+        : {}),
+      ...(args.billable === undefined ? {} : { billable: args.billable }),
+      ...(args.status
+        ? { status: args.status }
+        : {
+            status: {
+              in: ["PENDING_INVOICE", "DONE", "IN_PROGRESS", "BACKLOG"],
+            },
+          }),
+    }
+
+    const result = await runPaginatedQuery({
+      args,
+      count: () => prisma.task.count({ where }),
+      page: ({ cursor, take }) =>
+        prisma.task.findMany({
+          where,
+          orderBy: [
+            { projectId: "asc" },
+            { linearIdentifier: "asc" },
+            { id: "asc" },
+          ],
+          take,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          select: TASK_ROW_SELECT,
+        }),
     })
-    const paged = buildPagedResponse(rows, args.limit)
+
     return {
-      data: paged.data.map((t) => ({
+      data: result.data.map((t) => ({
         id: t.id,
         linearIdentifier: t.linearIdentifier,
         title: truncateText(t.title, TITLE_MAX_CHARS),
@@ -168,8 +199,10 @@ export async function listTasks(
           NOTE_MAX_CHARS,
         ),
       })),
-      nextCursor: paged.nextCursor,
-      hasMore: paged.hasMore,
+      nextCursor: result.nextCursor,
+      hasMore: result.hasMore,
+      total: result.total,
+      truncated: result.truncated,
     }
   })
 }
@@ -178,7 +211,8 @@ export async function listTasks(
  * Handler for the set_task_actual_days tool.
  *
  * Writes `actualDays` and nothing else: `estimate` is Linear-owned and would
- * be overwritten on the next sync, so this tool never touches it.
+ * be overwritten on the next sync, so this tool never touches it. Use
+ * `set_task_estimate` to change the estimate itself.
  *
  * @param userId - The resolved MCP principal.
  * @param args - Validated task id and actual-days value.
@@ -264,6 +298,75 @@ export async function setTaskBillability(
 }
 
 /**
+ * Handler for the set_task_estimate tool.
+ *
+ * The app's Linear sync treats `Task.estimate` as Linear-owned (see
+ * `LINEAR_MIRRORED_TASK_FIELDS` in `src/lib/linear.ts`): any local-only write
+ * to it is silently overwritten by the next sync. This tool therefore writes
+ * to Linear FIRST, using the app's own stored credential
+ * (`getLinearClient`) — never the MCP bearer token, which never leaves the
+ * request layer — and only mirrors the value locally once that write
+ * succeeds. Ordering rationale: if the Linear call fails, the local row is
+ * left untouched, so it can never silently diverge from Linear (a
+ * local-then-Linear order would instead let a failed Linear write leave a
+ * local value that a later sync would silently revert with no error ever
+ * surfaced). If the local write fails after Linear already succeeded, the
+ * two are briefly inconsistent but self-heal on the next sync, which is the
+ * strictly safer failure mode of the two orderings.
+ *
+ * Touches the Linear issue's `estimate` field only — never title,
+ * description, state, assignee or labels, and never creates or deletes an
+ * issue.
+ *
+ * @param userId - The resolved MCP principal.
+ * @param args - Validated task id and new estimate.
+ * @returns The updated estimate, or an error result (not-found, no Linear
+ *   token configured, or the Linear write itself failing).
+ */
+export async function setTaskEstimate(
+  userId: string,
+  args: SetTaskEstimateArgs,
+): Promise<CallToolResult> {
+  return runMcpTool({ userId, tool: "set_task_estimate", args }, async () => {
+    const owned = await prisma.task.findFirst({
+      where: { id: args.taskId, userId },
+      select: { id: true, linearIssueId: true },
+    })
+    if (!owned) throw mcpNotFound("Task")
+
+    const userLinear = await getLinearClient(userId)
+    if (!userLinear) {
+      throw new McpToolError("No Linear token configured for this user")
+    }
+
+    try {
+      await userLinear.client.updateIssue(owned.linearIssueId, {
+        estimate: args.estimateDays,
+      })
+    } catch (err) {
+      console.error(
+        `[mcp] set_task_estimate: Linear write failed for task ${owned.id}`,
+        err,
+      )
+      throw new McpToolError(
+        "Failed to write the estimate to the Linear issue; the local value was left untouched so it can never silently diverge from Linear",
+      )
+    }
+
+    const updated = await prisma.task.update({
+      where: { id: owned.id },
+      data: { estimate: args.estimateDays },
+      select: { id: true, estimate: true },
+    })
+
+    return {
+      id: updated.id,
+      estimate: decimalToNumber(updated.estimate),
+    }
+  })
+}
+
+/**
  * Register the task tools on the given MCP server for one principal.
  *
  * @param server - The per-request McpServer instance.
@@ -273,7 +376,7 @@ export function registerTaskTools(server: McpServer, userId: string): void {
   server.registerTool(
     "list_tasks",
     {
-      description: `List Linear-mirrored tasks with billing state. Filters: clientIds, projectIds, status, billable. ${CAPPED_LIST_NOTE}`,
+      description: `List Linear-mirrored tasks with billing state. Filters: clientIds, projectIds, status, billable. ${PAGINATED_LIST_NOTE}`,
       inputSchema: listTasksInput,
       outputSchema: listTasksOutput,
       annotations: READ_ONLY_ANNOTATIONS,
@@ -301,5 +404,16 @@ export function registerTaskTools(server: McpServer, userId: string): void {
       annotations: writeAnnotations(true),
     },
     (args) => setTaskBillability(userId, args),
+  )
+  server.registerTool(
+    "set_task_estimate",
+    {
+      description:
+        "Set a task's estimate in days by writing it to the Linear issue first (via the app's own stored Linear credential, never the MCP bearer token), then mirroring it locally. Only the estimate field is touched on the Linear issue. If the Linear write fails the local value is left untouched, so it never silently diverges from Linear.",
+      inputSchema: setTaskEstimateInput,
+      outputSchema: setTaskEstimateOutput,
+      annotations: writeAnnotations(true),
+    },
+    (args) => setTaskEstimate(userId, args),
   )
 }

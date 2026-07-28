@@ -3,21 +3,23 @@ import { z } from "zod/v4"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { prisma } from "@/lib/db"
-import { buildPagedResponse } from "@/lib/api"
 import {
-  CAPPED_LIST_NOTE,
   cursorInputSchema,
+  fetchAllInputSchema,
   limitInputSchema,
   NAME_MAX_CHARS,
-  pagedOutputSchema,
+  PAGINATED_LIST_NOTE,
+  paginatedOutputSchema,
   READ_ONLY_ANNOTATIONS,
   runMcpTool,
+  runPaginatedQuery,
   truncateText,
 } from "@/lib/mcp/tools/common"
 
 const listProjectsInput = z.object({
   cursor: cursorInputSchema,
   limit: limitInputSchema,
+  fetchAll: fetchAllInputSchema,
   status: z.enum(["ACTIVE", "PAUSED", "COMPLETED"]).optional(),
   clientId: z.string().min(1).optional(),
 })
@@ -32,47 +34,56 @@ const projectRowSchema = z.object({
   tasksTotal: z.number(),
 })
 
-const listProjectsOutput = pagedOutputSchema(projectRowSchema)
+const listProjectsOutput = paginatedOutputSchema(projectRowSchema)
 
 type ListProjectsArgs = z.output<typeof listProjectsInput>
 
+const PROJECT_LIST_SELECT = {
+  id: true,
+  clientId: true,
+  name: true,
+  key: true,
+  status: true,
+  targetDate: true,
+  _count: { select: { tasks: true } },
+} as const
+
 /**
- * Handler for the list_projects tool: capped, userId-scoped project page.
+ * Handler for the list_projects tool: v2-paginated, userId-scoped project
+ * page with an uncapped `total` and optional server-side `fetchAll` walk.
  *
  * The select deliberately excludes `description`, `runbook` and every URL
  * column — those fields are free text never exposed through MCP.
  *
  * @param userId - The resolved MCP principal.
  * @param args - Validated pagination and filter arguments.
- * @returns One page of project rows with names truncated.
+ * @returns One page (or the full walked set) of project rows with names
+ *   truncated.
  */
 export async function listProjects(
   userId: string,
   args: ListProjectsArgs,
 ): Promise<CallToolResult> {
   return runMcpTool({ userId, tool: "list_projects", args }, async () => {
-    const rows = await prisma.project.findMany({
-      where: {
-        userId,
-        ...(args.status ? { status: args.status } : {}),
-        ...(args.clientId ? { clientId: args.clientId } : {}),
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: args.limit + 1,
-      ...(args.cursor ? { cursor: { id: args.cursor }, skip: 1 } : {}),
-      select: {
-        id: true,
-        clientId: true,
-        name: true,
-        key: true,
-        status: true,
-        targetDate: true,
-        _count: { select: { tasks: true } },
-      },
+    const where = {
+      userId,
+      ...(args.status ? { status: args.status } : {}),
+      ...(args.clientId ? { clientId: args.clientId } : {}),
+    }
+    const result = await runPaginatedQuery({
+      args,
+      count: () => prisma.project.count({ where }),
+      page: ({ cursor, take }) =>
+        prisma.project.findMany({
+          where,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          select: PROJECT_LIST_SELECT,
+        }),
     })
-    const paged = buildPagedResponse(rows, args.limit)
     return {
-      data: paged.data.map((p) => ({
+      data: result.data.map((p) => ({
         id: p.id,
         clientId: p.clientId,
         name: truncateText(p.name, NAME_MAX_CHARS),
@@ -81,8 +92,10 @@ export async function listProjects(
         targetDate: p.targetDate?.toISOString() ?? null,
         tasksTotal: p._count.tasks,
       })),
-      nextCursor: paged.nextCursor,
-      hasMore: paged.hasMore,
+      nextCursor: result.nextCursor,
+      hasMore: result.hasMore,
+      total: result.total,
+      truncated: result.truncated,
     }
   })
 }
@@ -97,7 +110,7 @@ export function registerProjectTools(server: McpServer, userId: string): void {
   server.registerTool(
     "list_projects",
     {
-      description: `List the user's Linear-mirrored projects (name, key, status, target date, task count). ${CAPPED_LIST_NOTE}`,
+      description: `List the user's Linear-mirrored projects (name, key, status, target date, task count). ${PAGINATED_LIST_NOTE}`,
       inputSchema: listProjectsInput,
       outputSchema: listProjectsOutput,
       annotations: READ_ONLY_ANNOTATIONS,

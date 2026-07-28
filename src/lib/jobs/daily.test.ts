@@ -6,6 +6,7 @@ const { prismaMock } = vi.hoisted(() => ({
     invoice: { findMany: vi.fn(), count: vi.fn() },
     clientAction: { createMany: vi.fn(), count: vi.fn() },
     meeting: { count: vi.fn() },
+    mcpRateLimitWindow: { deleteMany: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -42,6 +43,7 @@ describe("runDailyJobs — overdue-relances", () => {
     prismaMock.clientAction.count.mockResolvedValue(0)
     prismaMock.meeting.count.mockResolvedValue(0)
     prismaMock.invoice.count.mockResolvedValue(0)
+    prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 0 })
     sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
@@ -141,6 +143,7 @@ describe("runDailyJobs — push-digest", () => {
     prismaMock.user.findMany.mockResolvedValue([{ id: "user-1" }])
     prismaMock.invoice.findMany.mockResolvedValue([])
     prismaMock.clientAction.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 0 })
     sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
@@ -181,5 +184,56 @@ describe("runDailyJobs — push-digest", () => {
       ok: true,
       count: 0,
     })
+  })
+})
+
+describe("runDailyJobs — mcp-rate-limit-sweep", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.user.findMany.mockResolvedValue([{ id: "user-1" }])
+    prismaMock.invoice.findMany.mockResolvedValue([])
+    prismaMock.clientAction.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.clientAction.count.mockResolvedValue(0)
+    prismaMock.meeting.count.mockResolvedValue(0)
+    prismaMock.invoice.count.mockResolvedValue(0)
+    sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
+  })
+
+  it("deletes stale rate-limit windows and reports the count", async () => {
+    prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 4 })
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(prismaMock.mcpRateLimitWindow.deleteMany).toHaveBeenCalledWith({
+      where: { updatedAt: { lt: new Date("2026-07-19T07:00:00.000Z") } },
+    })
+    expect(result.jobs).toContainEqual({
+      name: "mcp-rate-limit-sweep",
+      ok: true,
+      count: 4,
+    })
+  })
+
+  it("records a failing sweep without aborting the other jobs", async () => {
+    prismaMock.mcpRateLimitWindow.deleteMany.mockRejectedValue(
+      new Error("db down"),
+    )
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(result.jobs).toContainEqual({
+      name: "mcp-rate-limit-sweep",
+      ok: false,
+      count: 0,
+    })
+    expect(result.jobs).toContainEqual({
+      name: "push-digest",
+      ok: true,
+      count: 0,
+    })
+    spy.mockRestore()
   })
 })

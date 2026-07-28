@@ -34,6 +34,7 @@ model User {
   pushSubscriptions PushSubscription[]
   linearSyncRuns LinearSyncRun[]
   settings UserSettings?
+  mcpRateLimitWindow McpRateLimitWindow?
 
   @@map("users")
 }
@@ -700,4 +701,16 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+model McpRateLimitWindow {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  windowStart DateTime
+  count       Int      @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("mcp_rate_limit_windows")
 }
