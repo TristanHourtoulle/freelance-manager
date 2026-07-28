@@ -87,14 +87,55 @@ describe("getTaskCountsSummary", () => {
     expect(values).toEqual(["user-1", null, null, null, null])
   })
 
-  it("forwards the clientId and projectId filters as parameters", async () => {
-    await getTaskCountsSummary("user-1", { clientId: "c1", projectId: "p1" })
+  it("treats empty id arrays as no narrowing, never as an empty IN ()", async () => {
+    await getTaskCountsSummary("user-1", { clientIds: [], projectIds: [] })
+
+    const [strings, ...values] = firstCall()
+    expect(values).toEqual(["user-1", null, null, null, null])
+    expect(strings.join("?")).not.toContain("IN ()")
+  })
+
+  it("narrows to every selected client via one parameterized array", async () => {
+    await getTaskCountsSummary("user-1", { clientIds: ["c1", "c2"] })
 
     const [strings, ...values] = firstCall()
     const sql = strings.join("?")
-    expect(values).toEqual(["user-1", "c1", "c1", "p1", "p1"])
-    expect(sql).toContain('t."clientId" = ')
-    expect(sql).toContain('t."projectId" = ')
+    expect(values).toEqual(["user-1", ["c1", "c2"], ["c1", "c2"], null, null])
+    expect(sql).toContain('t."clientId" = ANY(')
+    expect(sql).toContain("::text[]")
+  })
+
+  it("combines client and project narrowing as AND", async () => {
+    await getTaskCountsSummary("user-1", {
+      clientIds: ["c1", "c2"],
+      projectIds: ["p1"],
+    })
+
+    const [strings, ...values] = firstCall()
+    const sql = strings.join("?").replace(/\s+/g, " ")
+    expect(values).toEqual([
+      "user-1",
+      ["c1", "c2"],
+      ["c1", "c2"],
+      ["p1"],
+      ["p1"],
+    ])
+    expect(sql).toContain(
+      `AND (?::text[] IS NULL OR t."clientId" = ANY(?::text[])) AND (?::text[] IS NULL OR t."projectId" = ANY(?::text[]))`,
+    )
+  })
+
+  it("keeps a single round trip under multi-select narrowing", async () => {
+    await getTaskCountsSummary("user-1", {
+      clientIds: ["c1", "c2"],
+      projectIds: ["p1", "p2"],
+    })
+
+    const [strings] = firstCall()
+    const sql = strings.join("?")
+    expect(queryRaw).toHaveBeenCalledTimes(1)
+    expect(findMany).not.toHaveBeenCalled()
+    expect(sql).not.toContain("LIMIT")
   })
 
   it("computes the unestimated figure with the billable pending-uninvoiced gate", async () => {

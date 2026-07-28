@@ -22,16 +22,26 @@ import {
  * `getClientsBillableSummary`, which additionally requires uninvoiced +
  * billable + active FREELANCE client — see {@link TaskCountsSummary}.
  *
+ * Multi-select narrowing stays fully parameterized: each id array is bound as
+ * one `text[]` parameter matched with `= ANY(...)`, and an empty or absent
+ * array collapses to a SQL `NULL` so it means "no narrowing" instead of an
+ * impossible empty `IN ()`.
+ *
  * @param userId - Owner of the tasks; every count is scoped to this user.
- * @param filters - Optional client / project narrowing from the page filters.
+ * @param filters - Optional client / project multi-select narrowing from the
+ *   page filters.
  * @returns The normalized chip counts, including `unestimatedCount`.
  */
 export async function getTaskCountsSummary(
   userId: string,
   filters: TaskCountsQuery = {},
 ): Promise<TaskCountsSummary> {
-  const clientId = filters.clientId ?? null
-  const projectId = filters.projectId ?? null
+  const clientIds =
+    filters.clientIds && filters.clientIds.length > 0 ? filters.clientIds : null
+  const projectIds =
+    filters.projectIds && filters.projectIds.length > 0
+      ? filters.projectIds
+      : null
   const rows = await prisma.$queryRaw<TaskCountsAggregateRow[]>`
     SELECT
       COUNT(*) FILTER (WHERE t."status" IN ('PENDING_INVOICE', 'DONE', 'IN_PROGRESS'))::int AS "all",
@@ -47,8 +57,8 @@ export async function getTaskCountsSummary(
     FROM tasks t
     WHERE t."userId" = ${userId}
       AND t."status" IN ('PENDING_INVOICE', 'DONE', 'IN_PROGRESS', 'BACKLOG')
-      AND (${clientId}::text IS NULL OR t."clientId" = ${clientId})
-      AND (${projectId}::text IS NULL OR t."projectId" = ${projectId})
+      AND (${clientIds}::text[] IS NULL OR t."clientId" = ANY(${clientIds}::text[]))
+      AND (${projectIds}::text[] IS NULL OR t."projectId" = ANY(${projectIds}::text[]))
   `
   return buildTaskCountsSummary(rows[0])
 }

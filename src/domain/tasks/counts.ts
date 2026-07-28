@@ -1,24 +1,49 @@
 import { z } from "zod/v4"
 
 /**
+ * Maximum number of ids accepted per multi-select filter param.
+ */
+export const TASK_ID_FILTER_MAX = 200
+
+/**
+ * Wire codec for a multi-select id filter param.
+ *
+ * Decodes one comma-separated query param (`clientIds=c1,c2`) into a string
+ * array, dropping blank segments, so an empty or absent param decodes to "no
+ * narrowing". Rejects lists longer than {@link TASK_ID_FILTER_MAX} entries.
+ */
+export const taskIdListParamSchema = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0),
+  )
+  .pipe(z.array(z.string().min(1)).max(TASK_ID_FILTER_MAX))
+
+/**
  * Query contract of the `GET /api/tasks?summary=status` aggregate mode.
  *
- * `summary` is the mode discriminator; `clientId` / `projectId` narrow the
- * counts to the client or project currently selected on the Tasks page, so the
- * chips stay truthful under those filters.
+ * `summary` is the mode discriminator; `clientIds` / `projectIds` are
+ * comma-separated id lists narrowing the counts to the clients or projects
+ * currently selected on the Tasks page, so the chips stay truthful under a
+ * multi-select. An empty or absent list means "no narrowing".
  */
 export const taskCountsQuerySchema = z.object({
   summary: z.literal("status"),
-  clientId: z.string().min(1).optional(),
-  projectId: z.string().min(1).optional(),
+  clientIds: taskIdListParamSchema.optional(),
+  projectIds: taskIdListParamSchema.optional(),
 })
 
 /**
- * Optional client / project narrowing accepted by the counts aggregate.
+ * Optional client / project multi-select narrowing accepted by the counts
+ * aggregate. Empty or absent arrays mean "no narrowing", never "match
+ * nothing".
  */
 export type TaskCountsQuery = {
-  clientId?: string
-  projectId?: string
+  clientIds?: string[]
+  projectIds?: string[]
 }
 
 /**
