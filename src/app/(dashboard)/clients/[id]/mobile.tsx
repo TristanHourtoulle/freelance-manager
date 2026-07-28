@@ -25,6 +25,10 @@ import { ClientActivityTimeline } from "@/components/clients/client-activity-tim
 import { SuiviView } from "@/components/suivi/suivi-view"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 const LinearMappingsModal = dynamic(
   () =>
@@ -35,6 +39,15 @@ const LinearMappingsModal = dynamic(
 )
 
 type Tab = "overview" | "projects" | "tasks" | "invoices" | "suivi" | "activity"
+
+const TAB_OPTIONS: readonly SegmentedControlOption<Tab>[] = [
+  { id: "overview", label: "Vue" },
+  { id: "projects", label: "Projets" },
+  { id: "tasks", label: "Tasks" },
+  { id: "invoices", label: "Factures" },
+  { id: "suivi", label: "Suivi" },
+  { id: "activity", label: "Activité" },
+]
 
 interface MobileClientDetailPageProps {
   id: string
@@ -194,27 +207,12 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
         </div>
 
         <div style={{ padding: "0 14px" }}>
-          <div className="seg" style={{ overflowX: "auto" }}>
-            {(
-              [
-                { id: "overview" as Tab, label: "Vue" },
-                { id: "projects" as Tab, label: "Projets" },
-                { id: "tasks" as Tab, label: "Tasks" },
-                { id: "invoices" as Tab, label: "Factures" },
-                { id: "suivi" as Tab, label: "Suivi" },
-                { id: "activity" as Tab, label: "Activité" },
-              ] as { id: Tab; label: string }[]
-            ).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={tab === t.id ? "active" : ""}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={TAB_OPTIONS}
+            value={tab}
+            onChange={setTab}
+            style={{ overflowX: "auto" }}
+          />
         </div>
 
         <div className="m-stack" style={{ marginTop: 14 }}>

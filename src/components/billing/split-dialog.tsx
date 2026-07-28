@@ -3,9 +3,19 @@
 import { useId, useState } from "react"
 import { Modal } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 import { fmtEUR } from "@/lib/format"
 
 type Schedule = "MONTHLY" | "WEEKLY" | "ONCE"
+
+const SCHEDULE_OPTIONS: readonly SegmentedControlOption<Schedule>[] = [
+  { id: "MONTHLY", label: "Mensuel" },
+  { id: "WEEKLY", label: "Hebdo" },
+  { id: "ONCE", label: "Même date" },
+]
 
 interface SplitDialogProps {
   total: number
@@ -105,41 +115,13 @@ export function SplitDialog({
         <div className="field-label" id={`${fieldId}-schedule`}>
           Cadence des échéances
         </div>
-        <div
-          className="row gap-4"
-          role="group"
-          aria-labelledby={`${fieldId}-schedule`}
-          style={{
-            background: "var(--bg-2)",
-            borderRadius: 7,
-            padding: 3,
-            border: "1px solid var(--border)",
-          }}
-        >
-          {(
-            [
-              { id: "MONTHLY", label: "Mensuel" },
-              { id: "WEEKLY", label: "Hebdo" },
-              { id: "ONCE", label: "Même date" },
-            ] as { id: Schedule; label: string }[]
-          ).map((s) => (
-            <button
-              key={s.id}
-              className="chip"
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                background: schedule === s.id ? "var(--accent)" : "transparent",
-                color:
-                  schedule === s.id ? "var(--accent-text)" : "var(--text-1)",
-                border: "none",
-              }}
-              onClick={() => setSchedule(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          options={SCHEDULE_OPTIONS}
+          value={schedule}
+          onChange={setSchedule}
+          variant="accent"
+          labelledBy={`${fieldId}-schedule`}
+        />
         <div className="muted xs" style={{ marginTop: 4 }}>
           Émission : {initialIssueDate} · 1ʳᵉ échéance : {initialDueDate}
         </div>

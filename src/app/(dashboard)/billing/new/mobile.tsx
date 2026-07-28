@@ -16,8 +16,17 @@ import {
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { ClientDTO } from "@/hooks/use-clients"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 type Step = 1 | 2 | 3
+
+const KIND_OPTIONS: readonly SegmentedControlOption<InvoiceKind>[] = [
+  { id: "STANDARD", label: "Facture" },
+  { id: "DEPOSIT", label: "Acompte" },
+]
 
 function clientAvatar(client: ClientDTO): string {
   return client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
@@ -90,19 +99,11 @@ export function MobileInvoiceNewPage() {
               </div>
               <div className="big-sub">Et le type de facture</div>
             </div>
-            <div className="seg">
-              {(["STANDARD", "DEPOSIT"] as InvoiceKind[]).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={kind === k ? "active" : ""}
-                  aria-pressed={kind === k}
-                  onClick={() => b.setKind(k)}
-                >
-                  {k === "STANDARD" ? "Facture" : "Acompte"}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              options={KIND_OPTIONS}
+              value={kind}
+              onChange={b.setKind}
+            />
             <div className="col gap-8">
               {b.clients.map((c) => (
                 <button

@@ -15,8 +15,19 @@ import { Markdown } from "@/lib/markdown"
 import { TaskIdLink } from "@/components/ui/task-id-link"
 import { useProjectDetail } from "@/hooks/use-project-detail"
 import { ProjectWorkspaceForm } from "@/components/projects/project-workspace-form"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 type Tab = "overview" | "tasks" | "invoices" | "runbook"
+
+const TAB_OPTIONS: readonly SegmentedControlOption<Tab>[] = [
+  { id: "overview", label: "Vue" },
+  { id: "tasks", label: "Tasks" },
+  { id: "invoices", label: "Factures" },
+  { id: "runbook", label: "Runbook" },
+]
 
 interface MobileProjectDetailPageProps {
   id: string
@@ -158,25 +169,12 @@ export function MobileProjectDetailPage({ id }: MobileProjectDetailPageProps) {
         )}
 
         <div style={{ padding: "0 14px" }}>
-          <div className="seg" style={{ overflowX: "auto" }}>
-            {(
-              [
-                { id: "overview" as Tab, label: "Vue" },
-                { id: "tasks" as Tab, label: "Tasks" },
-                { id: "invoices" as Tab, label: "Factures" },
-                { id: "runbook" as Tab, label: "Runbook" },
-              ] as { id: Tab; label: string }[]
-            ).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={tab === t.id ? "active" : ""}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={TAB_OPTIONS}
+            value={tab}
+            onChange={setTab}
+            style={{ overflowX: "auto" }}
+          />
         </div>
 
         <div className="m-stack" style={{ marginTop: 14 }}>

@@ -51,6 +51,7 @@
   --radius: 10px;
   --radius-sm: 6px;
   --radius-lg: 14px;
+  --radius-pill: 999px;
 }
 
 /* Tell Tailwind v4 these tokens exist as theme colors. */
@@ -1379,7 +1380,7 @@ textarea {
   padding: 4px;
   background: var(--bg-1);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   margin: 22px 0 18px;
   width: fit-content;
   max-width: 100%;
@@ -1387,7 +1388,7 @@ textarea {
 }
 .tab {
   padding: 7px 14px;
-  border-radius: 7px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 500;
   color: var(--text-2);
@@ -2852,17 +2853,21 @@ textarea {
   display: flex;
   background: var(--bg-2);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 3px;
+  border-radius: var(--radius-pill);
+  padding: 4px;
   gap: 2px;
 }
 .seg button {
   flex: 1;
-  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -2870,6 +2875,31 @@ textarea {
 .seg button.active {
   background: var(--bg-3);
   color: var(--text-0);
+}
+.seg button .count {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--bg-3);
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+}
+.seg button.active .count {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.seg-accent button {
+  color: var(--text-1);
+}
+.seg-accent button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.seg-raised {
+  background: var(--bg-1);
+}
+.seg-sm button {
+  padding: 5px 10px;
 }
 
 /* iOS-style list group */
