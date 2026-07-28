@@ -57,6 +57,7 @@ export async function GET(_: Request, { params }: Params) {
           estimate: true,
           projectId: true,
           invoiceId: true,
+          billable: true,
         },
       }),
       prisma.invoice.findMany({
@@ -162,6 +163,7 @@ export async function GET(_: Request, { params }: Params) {
       color: c.color,
       starred: c.starred,
       archived: c.archivedAt != null,
+      archivedAt: c.archivedAt?.toISOString() ?? null,
       createdAt: c.createdAt.toISOString(),
       workload: {
         days: workload.days,
@@ -209,6 +211,7 @@ export async function GET(_: Request, { params }: Params) {
         estimate: decimalToNumber(t.estimate),
         projectId: t.projectId,
         invoiceId: t.invoiceId,
+        billable: t.billable,
       })),
       invoices: invoices.map((inv) => {
         const computed = getInvoiceComputed(inv)

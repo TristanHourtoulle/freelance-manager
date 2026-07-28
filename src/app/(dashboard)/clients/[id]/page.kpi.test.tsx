@@ -74,6 +74,7 @@ function buildClient(): ClientDetailDTO {
     color: null,
     starred: false,
     archived: false,
+    archivedAt: null,
     createdAt: "2026-07-01T00:00:00.000Z",
     lastContactAt: null,
     meetings: [],

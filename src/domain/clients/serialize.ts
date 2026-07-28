@@ -49,6 +49,7 @@ export function serializeClient(c: ClientRowForSerialize): ClientWireRow {
     color: c.color,
     starred: c.starred,
     archived: c.archivedAt != null,
+    archivedAt: c.archivedAt?.toISOString() ?? null,
     createdAt: c.createdAt.toISOString(),
   }
 }

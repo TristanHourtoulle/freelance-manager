@@ -22,7 +22,7 @@ describe("getClientsBillableSummary", () => {
     queryRaw.mockReset()
   })
 
-  it("scopes the aggregate to the user's uninvoiced PENDING_INVOICE tasks", async () => {
+  it("scopes the aggregate to the canonical pipeline gate", async () => {
     queryRaw.mockResolvedValue([])
 
     await getClientsBillableSummary("user-1")
@@ -34,8 +34,23 @@ describe("getClientsBillableSummary", () => {
     const sql = strings.join("?")
     expect(sql).toContain("PENDING_INVOICE")
     expect(sql).toContain('t."invoiceId" IS NULL')
+    expect(sql).toContain('t."billable" = true')
+    expect(sql).toContain('c."archivedAt" IS NULL')
+    expect(sql).toContain("c.\"category\" = 'FREELANCE'")
     expect(sql).toContain('GROUP BY t."clientId"')
     expect(values).toEqual(["user-1"])
+  })
+
+  it("sums only non-null estimates and counts unestimated tasks apart", async () => {
+    queryRaw.mockResolvedValue([])
+
+    await getClientsBillableSummary("user-1")
+
+    const [strings] = queryRaw.mock.calls[0] as [TemplateStringsArray]
+    const sql = strings.join("?")
+    expect(sql).toContain('COALESCE(SUM(t."estimate"), 0)')
+    expect(sql).not.toContain('COALESCE(t."estimate", 1)')
+    expect(sql).toContain('COUNT(*) FILTER (WHERE t."estimate" IS NULL)')
   })
 
   it("issues a single grouped query, never one per client", async () => {
@@ -46,6 +61,7 @@ describe("getClientsBillableSummary", () => {
         rate: 500,
         taskCount: 2,
         estimateDays: 4,
+        unestimatedCount: 0,
       },
       {
         clientId: "b",
@@ -53,16 +69,57 @@ describe("getClientsBillableSummary", () => {
         rate: 80,
         taskCount: 1,
         estimateDays: 1,
+        unestimatedCount: 0,
       },
     ])
 
     const summary = await getClientsBillableSummary("user-1")
 
     expect(queryRaw).toHaveBeenCalledTimes(1)
-    expect(summary.byClient["a"]).toEqual({ count: 2, value: 2000 })
-    expect(summary.byClient["b"]).toEqual({ count: 1, value: 640 })
+    expect(summary.byClient["a"]).toEqual({
+      count: 2,
+      value: 2000,
+      unestimatedCount: 0,
+    })
+    expect(summary.byClient["b"]).toEqual({
+      count: 1,
+      value: 640,
+      unestimatedCount: 0,
+    })
     expect(summary.totalCount).toBe(3)
     expect(summary.totalValue).toBe(2640)
+  })
+
+  it("surfaces per-client and global unestimated counts", async () => {
+    queryRaw.mockResolvedValue([
+      {
+        clientId: "a",
+        billingMode: "DAILY",
+        rate: 500,
+        taskCount: 3,
+        estimateDays: 2,
+        unestimatedCount: 1,
+      },
+      {
+        clientId: "b",
+        billingMode: "DAILY",
+        rate: 400,
+        taskCount: 2,
+        estimateDays: 0,
+        unestimatedCount: 2,
+      },
+    ])
+
+    const summary = await getClientsBillableSummary("user-1")
+
+    expect(summary.byClient["a"]?.unestimatedCount).toBe(1)
+    expect(summary.byClient["b"]).toEqual({
+      count: 2,
+      value: 0,
+      unestimatedCount: 2,
+    })
+    expect(summary.unestimatedCount).toBe(3)
+    expect(summary.totalValue).toBe(1000)
   })
 
   it("aggregates more than one page worth of tasks", async () => {
@@ -73,6 +130,7 @@ describe("getClientsBillableSummary", () => {
         rate: 500,
         taskCount: 2,
         estimateDays: 2,
+        unestimatedCount: 0,
       })),
     )
 
@@ -80,7 +138,11 @@ describe("getClientsBillableSummary", () => {
 
     expect(summary.totalCount).toBe(120)
     expect(summary.totalValue).toBe(60_000)
-    expect(summary.byClient["client-57"]).toEqual({ count: 2, value: 1000 })
+    expect(summary.byClient["client-57"]).toEqual({
+      count: 2,
+      value: 1000,
+      unestimatedCount: 0,
+    })
   })
 
   it("normalizes decimal-like values coming back from the driver", async () => {
@@ -91,12 +153,17 @@ describe("getClientsBillableSummary", () => {
         rate: "500" as unknown as number,
         taskCount: "3" as unknown as number,
         estimateDays: "2" as unknown as number,
+        unestimatedCount: "1" as unknown as number,
       },
     ])
 
     const summary = await getClientsBillableSummary("user-1")
 
-    expect(summary.byClient["a"]).toEqual({ count: 3, value: 1000 })
+    expect(summary.byClient["a"]).toEqual({
+      count: 3,
+      value: 1000,
+      unestimatedCount: 1,
+    })
   })
 })
 
@@ -113,6 +180,7 @@ describe("getClientsBillableSummary — client stage", () => {
         rate: 500,
         taskCount: 2,
         estimateDays: 3,
+        unestimatedCount: 0,
       },
     ])
 
@@ -120,7 +188,11 @@ describe("getClientsBillableSummary — client stage", () => {
 
     const [strings] = queryRaw.mock.calls[0] as [TemplateStringsArray]
     expect(strings.join("?")).not.toContain("stage")
-    expect(summary.byClient["lead-1"]).toEqual({ count: 2, value: 1500 })
+    expect(summary.byClient["lead-1"]).toEqual({
+      count: 2,
+      value: 1500,
+      unestimatedCount: 0,
+    })
   })
 })
 

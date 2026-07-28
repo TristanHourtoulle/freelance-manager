@@ -124,12 +124,13 @@ export function PIPELINE_TASK_WHERE(userId: string): Prisma.TaskWhereInput {
  * Client-side twin of {@link PIPELINE_TASK_WHERE} for rows already in memory.
  *
  * @param task - Task fields relevant to the pipeline gate.
- * @param client - Client fields relevant to the pipeline gate.
+ * @param client - Client fields relevant to the pipeline gate; `archivedAt`
+ *   accepts either the Prisma `Date` or its serialized ISO string.
  * @returns True when the task would match the canonical pipeline filter.
  */
 export function isPipelineEligible(
   task: { status: TaskStatus; invoiceId: string | null; billable: boolean },
-  client: { archivedAt: Date | null; category: ClientCategory },
+  client: { archivedAt: Date | string | null; category: ClientCategory },
 ): boolean {
   return (
     task.status === "PENDING_INVOICE" &&

@@ -152,6 +152,7 @@ describe("computeDashboardKpis", () => {
       pipelineCount: 4,
       pipelineEur: 3900,
       pipelineClientCount: 2,
+      unestimatedCount: 0,
     })
   })
 
@@ -207,6 +208,39 @@ describe("computeDashboardKpis", () => {
     expect(kpi.pipelineClientCount).toBe(2)
     expect(kpi.pipelineCount).toBe(3)
     expect(kpi.pipelineEur).toBe(200)
+  })
+
+  it("values unestimated tasks at zero and totals them in unestimatedCount", () => {
+    const { kpi } = computeDashboardKpis({
+      ...buildInput(),
+      pipelineTasks: [
+        {
+          clientId: "c1",
+          estimate: 2,
+          billingMode: "DAILY",
+          rate: 500,
+          completedAt: null,
+        },
+        {
+          clientId: "c1",
+          estimate: null,
+          billingMode: "DAILY",
+          rate: 500,
+          completedAt: null,
+        },
+        {
+          clientId: "c2",
+          estimate: null,
+          billingMode: "HOURLY",
+          rate: 100,
+          completedAt: null,
+        },
+      ],
+    })
+
+    expect(kpi.pipelineCount).toBe(3)
+    expect(kpi.pipelineEur).toBe(1000)
+    expect(kpi.unestimatedCount).toBe(2)
   })
 
   it("lists only overdue invoices with their balance due", () => {
@@ -301,6 +335,7 @@ describe("computeDashboardKpis", () => {
       pipelineCount: 0,
       pipelineEur: 0,
       pipelineClientCount: 0,
+      unestimatedCount: 0,
     })
     expect(overdue).toEqual([])
     expect(recentInvoices).toEqual([])

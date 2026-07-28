@@ -25,6 +25,7 @@ import {
   type ClientDetailDTO,
 } from "@/hooks/use-client-detail"
 import { pipelineValueForTask } from "@/lib/billing-math"
+import { isPipelineEligible } from "@/domain/tasks/billability"
 import { Skeleton, SkeletonKpi } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
 
@@ -72,18 +73,27 @@ interface ClientBillingSummary {
 /**
  * Derive the client's billable pipeline from its cached tasks.
  *
- * "Billable" is the same gate the invoice builder uses: a task must be
- * `PENDING_INVOICE` and not already attached to an invoice. The pipeline value
- * sums `pipelineValueForTask` over that set (FIXED clients contribute 0).
+ * The gate is the canonical `isPipelineEligible` filter: a task must be
+ * `PENDING_INVOICE`, uninvoiced and billable, on an active FREELANCE client.
+ * The pipeline value sums `pipelineValueForTask` over that set (FIXED clients
+ * and unestimated tasks contribute 0).
  *
- * @param client - Billing mode, rate and tasks from the client detail DTO.
+ * @param client - Billing terms, pipeline gate fields and tasks from the
+ *   client detail DTO.
  * @returns The billable task subset and its total pipeline value in euros.
  */
 export function deriveClientBilling(
-  client: Pick<ClientDetailDTO, "billingMode" | "rate" | "tasks">,
+  client: Pick<
+    ClientDetailDTO,
+    "billingMode" | "rate" | "tasks" | "archivedAt" | "category"
+  >,
 ): ClientBillingSummary {
-  const billableTasks = client.tasks.filter(
-    (t) => t.status === "PENDING_INVOICE" && !t.invoiceId,
+  const gate = { archivedAt: client.archivedAt, category: client.category }
+  const billableTasks = client.tasks.filter((t) =>
+    isPipelineEligible(
+      { status: t.status, invoiceId: t.invoiceId, billable: t.billable },
+      gate,
+    ),
   )
   const pipelineValue = billableTasks.reduce(
     (sum, t) =>

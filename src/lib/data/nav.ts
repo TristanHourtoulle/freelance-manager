@@ -1,6 +1,7 @@
 import "server-only"
 import { cacheLife, cacheTag } from "next/cache"
 import { prisma } from "@/lib/db"
+import { PIPELINE_TASK_WHERE } from "@/domain/tasks/billability"
 
 export interface NavCounts {
   clients: number
@@ -28,7 +29,7 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
       where: { userId, archivedAt: null, stage: { not: "LEAD" } },
     }),
     prisma.project.count({ where: { userId, status: "ACTIVE" } }),
-    prisma.task.count({ where: { userId, status: "PENDING_INVOICE" } }),
+    prisma.task.count({ where: PIPELINE_TASK_WHERE(userId) }),
     prisma.invoice.count({
       where: {
         userId,

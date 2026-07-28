@@ -88,6 +88,7 @@ export interface DashboardKpi {
   pipelineCount: number
   pipelineEur: number
   pipelineClientCount: number
+  unestimatedCount: number
 }
 
 export interface DashboardOverdueRow {
@@ -131,7 +132,9 @@ export interface DashboardKpis {
  * Extracted verbatim from the former inline `/api/dashboard` logic: overdue
  * filtering, outstanding + overdue sums, the distinct pipeline-client count
  * derived from the pipeline tasks, the trailing 8-month payment buckets, and
- * the recent-invoice projection. No DB access, no framework imports —
+ * the recent-invoice projection. `pipelineTasks` must already be gated by the
+ * canonical `PIPELINE_TASK_WHERE` filter; unestimated tasks contribute 0 € and
+ * are totalled in `unestimatedCount`. No DB access, no framework imports —
  * deterministic given its inputs.
  */
 export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
@@ -176,6 +179,10 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
   const pipelineEur = pipelineValues.reduce((sum, row) => sum + row.value, 0)
   const pipelineAging = buildPipelineAging(now, pipelineValues)
   const pipelineClientCount = new Set(pipelineTasks.map((t) => t.clientId)).size
+  const unestimatedCount = pipelineTasks.reduce(
+    (count, task) => count + (task.estimate === null ? 1 : 0),
+    0,
+  )
 
   const bucketByMonth = new Map(
     paymentBuckets.map(
@@ -233,6 +240,7 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
       pipelineCount,
       pipelineEur,
       pipelineClientCount,
+      unestimatedCount,
     },
     months,
     overdue,
