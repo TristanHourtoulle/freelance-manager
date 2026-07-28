@@ -166,4 +166,47 @@ describe("useTasks", () => {
     expect(apiGetMock).toHaveBeenCalledWith("/api/tasks?limit=50")
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })
+
+  it("keeps the previous page as placeholder data while a changed selection refetches", async () => {
+    const firstPage = {
+      data: [{ id: "task-1", title: "Kept task" }],
+      nextCursor: null,
+      hasMore: false,
+    }
+    apiGetMock.mockResolvedValueOnce(firstPage)
+    const { Wrapper } = createWrapper()
+
+    const { result, rerender } = renderHook(
+      ({ clientIds }: { clientIds: string[] }) => useTasks({ clientIds }),
+      { wrapper: Wrapper, initialProps: { clientIds: ["a"] } },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    apiGetMock.mockReturnValueOnce(new Promise(() => {}))
+    rerender({ clientIds: ["b"] })
+
+    expect(result.current.isPending).toBe(false)
+    expect(result.current.isPlaceholderData).toBe(true)
+    expect(result.current.data).toEqual(firstPage.data)
+  })
+})
+
+describe("useTaskCounts placeholder", () => {
+  it("keeps the previous counts while a changed selection refetches", async () => {
+    apiGetMock.mockResolvedValueOnce(COUNTS)
+    const { Wrapper } = createWrapper()
+
+    const { result, rerender } = renderHook(
+      ({ clientIds }: { clientIds: string[] }) => useTaskCounts({ clientIds }),
+      { wrapper: Wrapper, initialProps: { clientIds: ["a"] } },
+    )
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    apiGetMock.mockReturnValueOnce(new Promise(() => {}))
+    rerender({ clientIds: ["b"] })
+
+    expect(result.current.isPending).toBe(false)
+    expect(result.current.isPlaceholderData).toBe(true)
+    expect(result.current.data).toEqual(COUNTS)
+  })
 })

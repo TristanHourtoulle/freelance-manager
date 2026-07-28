@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -74,6 +75,10 @@ function normalizeIds(ids: string[] | undefined): string[] | undefined {
  * query key, so two equivalent selections share one cache entry, and an empty
  * array means "no narrowing".
  *
+ * When the selection changes, the previous results are kept on screen as
+ * placeholder data (`isPlaceholderData` flips true) so the list never
+ * collapses to a skeleton on refetch.
+ *
  * @param filters - Optional client / project / status / billable narrowing.
  * @param options - `enabled` (default `true`) gates the network request.
  */
@@ -107,6 +112,7 @@ export function useTasks(
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     select: (d) => d.pages.flatMap((p) => p.data),
+    placeholderData: keepPreviousData,
     staleTime: STALE_TIME.list,
   })
 }
@@ -148,6 +154,7 @@ export function useTaskCounts(
     enabled,
     queryKey: qk.tasks.counts(normalized),
     queryFn: () => api.get<TaskCountsSummary>(`/api/tasks?${qs.toString()}`),
+    placeholderData: keepPreviousData,
     staleTime: STALE_TIME.list,
   })
 }

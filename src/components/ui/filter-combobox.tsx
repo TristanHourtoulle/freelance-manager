@@ -195,13 +195,18 @@ export function FilterCombobox({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        aria-label={`${label} ${count}`}
         onClick={toggleOpen}
       >
         <Icon name="filter" size={14} />
         {label}
-        {count > 0 && (
-          <span className="filter-combobox-count num">{count}</span>
-        )}
+        <span
+          className={
+            "filter-combobox-count num" + (count === 0 ? " is-empty" : "")
+          }
+        >
+          {count}
+        </span>
         <Icon
           name="chevron-down"
           size={12}
@@ -210,16 +215,18 @@ export function FilterCombobox({
           className={"muted filter-combobox-chevron" + (open ? " is-open" : "")}
         />
       </button>
-      {count > 0 && (
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={`Effacer les filtres ${label}`}
-          onClick={() => onChange([])}
-        >
-          <Icon name="x" size={13} />
-        </button>
-      )}
+      <button
+        type="button"
+        className={
+          "icon-btn filter-combobox-clear" + (count === 0 ? " is-hidden" : "")
+        }
+        aria-label={`Effacer les filtres ${label}`}
+        aria-hidden={count === 0 || undefined}
+        tabIndex={count === 0 ? -1 : undefined}
+        onClick={() => onChange([])}
+      >
+        <Icon name="x" size={13} />
+      </button>
       {open && (
         <div className="filter-pop">
           <div className="filter-pop-search">
