@@ -95,6 +95,23 @@ describe("SegmentedControl", () => {
     expect(group).toHaveClass("seg-accent")
   })
 
+  it("applies the scrollable modifier class only when requested", () => {
+    const { rerender } = render(
+      <SegmentedControl
+        options={OPTIONS}
+        value="one"
+        onChange={vi.fn()}
+        scrollable
+      />,
+    )
+    expect(screen.getByRole("group")).toHaveClass("seg")
+    expect(screen.getByRole("group")).toHaveClass("seg-scroll")
+    rerender(
+      <SegmentedControl options={OPTIONS} value="one" onChange={vi.fn()} />,
+    )
+    expect(screen.getByRole("group")).not.toHaveClass("seg-scroll")
+  })
+
   it("keeps the neutral base class by default and merges className", () => {
     render(
       <SegmentedControl

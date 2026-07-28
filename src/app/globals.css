@@ -362,6 +362,9 @@ textarea {
   background: var(--bg-3);
   color: var(--text-0);
 }
+.nav-item.active .ic {
+  color: var(--accent);
+}
 .nav-item .ic {
   width: 16px;
   height: 16px;
@@ -1989,28 +1992,6 @@ textarea {
   width: 220px;
   height: 64px;
 }
-.ana-rangepicker {
-  display: inline-flex;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 3px;
-}
-.ana-rangepicker button {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-2);
-  border-radius: 6px;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-}
-.ana-rangepicker button.active {
-  background: var(--bg-3);
-  color: var(--text-0);
-}
-
 .ana-grid {
   display: grid;
   gap: 16px;
@@ -2900,6 +2881,19 @@ textarea {
 }
 .seg-sm button {
   padding: 5px 10px;
+}
+.seg-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.seg-scroll button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* iOS-style list group */

@@ -21,6 +21,7 @@ const LinearMappingsModal = dynamic(
   { ssr: false },
 )
 import { useIsMobile } from "@/hooks/use-is-mobile"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import dynamic from "next/dynamic"
@@ -295,24 +296,17 @@ function DesktopProjectsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="chip-row">
-          {(
-            [
-              { id: "all", label: "Tous", count: counts.all },
-              { id: "DAILY", label: "TJM", count: counts.daily },
-              { id: "FIXED", label: "Forfait", count: counts.fixed },
-              { id: "HOURLY", label: "Horaire", count: counts.hourly },
-            ] as { id: FilterId; label: string; count: number }[]
-          ).map((f) => (
-            <button
-              key={f.id}
-              className={"chip" + (filter === f.id ? " active" : "")}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label} <span className="count">{f.count}</span>
-            </button>
-          ))}
-        </div>
+        <SegmentedControl<FilterId>
+          options={[
+            { id: "all", label: "Tous", count: counts.all },
+            { id: "DAILY", label: "TJM", count: counts.daily },
+            { id: "FIXED", label: "Forfait", count: counts.fixed },
+            { id: "HOURLY", label: "Horaire", count: counts.hourly },
+          ]}
+          value={filter}
+          onChange={setFilter}
+          label="Filtrer par mode de facturation"
+        />
       </div>
 
       <div className="card" style={{ padding: 0 }}>

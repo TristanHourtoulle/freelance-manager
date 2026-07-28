@@ -20,6 +20,10 @@ import dynamic from "next/dynamic"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 const MobileAnalyticsPage = dynamic(
   () => import("./mobile").then((m) => m.MobileAnalyticsPage),
@@ -35,6 +39,13 @@ const MobileAnalyticsPage = dynamic(
     ),
   },
 )
+
+export const ANALYTICS_RANGE_OPTIONS: readonly SegmentedControlOption<AnalyticsRange>[] =
+  [
+    { id: "3m", label: "3 mois" },
+    { id: "6m", label: "6 mois" },
+    { id: "12m", label: "12 mois" },
+  ]
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -148,18 +159,12 @@ function DesktopAnalyticsPage() {
           </div>
         </div>
         <div className="page-actions row gap-12">
-          <div className="ana-rangepicker">
-            {(["3m", "6m", "12m"] as AnalyticsRange[]).map((r) => (
-              <button
-                key={r}
-                className={range === r ? "active" : ""}
-                onClick={() => setRange(r)}
-                type="button"
-              >
-                {r === "3m" ? "3 mois" : r === "6m" ? "6 mois" : "12 mois"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={ANALYTICS_RANGE_OPTIONS}
+            value={range}
+            onChange={setRange}
+            label="Période"
+          />
           <button
             className="btn btn-secondary"
             type="button"

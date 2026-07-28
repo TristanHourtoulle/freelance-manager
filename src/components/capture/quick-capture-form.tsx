@@ -5,6 +5,10 @@ import { useToast } from "@/components/providers/toast-provider"
 import { useClients } from "@/hooks/use-clients"
 import { useCreateAction } from "@/hooks/use-actions"
 import { quickDueOptions, toDateInputValue } from "@/lib/quick-capture"
+import {
+  SegmentedControl,
+  type SegmentedControlOption,
+} from "@/components/ui/segmented-control"
 
 type DueChoice = "none" | "today" | "tomorrow" | "monday"
 
@@ -30,6 +34,15 @@ export function QuickCaptureForm({ onDone }: QuickCaptureFormProps) {
   const [clientId, setClientId] = useState("")
 
   const dueOptions = useMemo(() => quickDueOptions(new Date()), [])
+  const dueSegmentOptions = useMemo<
+    readonly SegmentedControlOption<DueChoice>[]
+  >(
+    () => [
+      ...dueOptions.map((o) => ({ id: o.id, label: o.label })),
+      { id: "none", label: "Sans échéance" },
+    ],
+    [dueOptions],
+  )
   const isValid = title.trim().length > 0
 
   function handleSubmit() {
@@ -69,25 +82,15 @@ export function QuickCaptureForm({ onDone }: QuickCaptureFormProps) {
         />
       </div>
 
-      <div className="chip-row" style={{ marginBottom: 12 }}>
-        {dueOptions.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            className={"chip" + (due === o.id ? " active" : "")}
-            onClick={() => setDue(o.id)}
-          >
-            {o.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          className={"chip" + (due === "none" ? " active" : "")}
-          onClick={() => setDue("none")}
-        >
-          Sans échéance
-        </button>
-      </div>
+      <SegmentedControl
+        options={dueSegmentOptions}
+        value={due}
+        onChange={setDue}
+        size="sm"
+        scrollable
+        label="Échéance"
+        style={{ marginBottom: 12 }}
+      />
 
       <div className="field" style={{ marginBottom: 12 }}>
         <label className="field-label" htmlFor={`${fieldId}-client`}>

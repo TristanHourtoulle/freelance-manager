@@ -22,6 +22,8 @@ import {
   ThroughputChart,
 } from "@/components/analytics/charts"
 import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+import { SegmentedControl } from "@/components/ui/segmented-control"
+import { ANALYTICS_RANGE_OPTIONS } from "./page"
 
 const TYPE_LABEL: Record<"DAILY" | "FIXED" | "HOURLY", string> = {
   DAILY: "TJM",
@@ -118,18 +120,13 @@ export function MobileAnalyticsPage() {
         </div>
 
         <div className="m-stack">
-          <div className="ana-rangepicker" style={{ alignSelf: "flex-start" }}>
-            {(["3m", "6m", "12m"] as AnalyticsRange[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={range === r ? "active" : ""}
-                onClick={() => setRange(r)}
-              >
-                {r === "3m" ? "3 mois" : r === "6m" ? "6 mois" : "12 mois"}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            options={ANALYTICS_RANGE_OPTIONS}
+            value={range}
+            onChange={setRange}
+            label="Période"
+            style={{ alignSelf: "flex-start" }}
+          />
 
           <div
             className="card"
