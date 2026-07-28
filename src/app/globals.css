@@ -1344,6 +1344,7 @@ textarea {
   padding: 2px 6px;
   background: var(--bg-2);
   border-radius: 4px;
+  white-space: nowrap;
 }
 .task-pickable.selected .task-id {
   background: rgba(0, 0, 0, 0.2);
@@ -2005,6 +2006,12 @@ textarea {
   border-radius: 99px;
   padding: 1px 6px;
   line-height: 1.4;
+}
+.filter-combobox-chevron {
+  transition: transform 0.14s ease-out;
+}
+.filter-combobox-chevron.is-open {
+  transform: rotate(180deg);
 }
 .filter-pop {
   position: absolute;
@@ -3582,7 +3589,8 @@ textarea {
   .cmdk-modal,
   .cmdk-backdrop,
   .cmdk-glow,
-  .cmdk-item {
+  .cmdk-item,
+  .filter-combobox-chevron {
     transition: none !important;
   }
 }

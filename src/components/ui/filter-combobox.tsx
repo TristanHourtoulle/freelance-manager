@@ -202,7 +202,13 @@ export function FilterCombobox({
         {count > 0 && (
           <span className="filter-combobox-count num">{count}</span>
         )}
-        <Icon name="chevron-down" size={12} className="muted" />
+        <Icon
+          name="chevron-down"
+          size={12}
+          aria-hidden="true"
+          focusable="false"
+          className={"muted filter-combobox-chevron" + (open ? " is-open" : "")}
+        />
       </button>
       {count > 0 && (
         <button
