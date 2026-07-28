@@ -32,6 +32,14 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.string().min(1).optional(),
   TRUST_PROXY: z.coerce.boolean().default(false),
   HEALTH_KEY: z.string().min(16).optional(),
+  MCP_TOKEN_HASH: z
+    .string()
+    .regex(
+      /^[0-9a-f]{64}$/,
+      "MCP_TOKEN_HASH must be 64 lowercase hex chars — the sha256 of the raw token. Generate the pair with: openssl rand -hex 32 | tee /dev/stderr | tr -d '\\n' | shasum -a 256",
+    )
+    .optional(),
+  MCP_RATE_LIMIT: z.coerce.number().int().positive().optional(),
 })
 
 /**
