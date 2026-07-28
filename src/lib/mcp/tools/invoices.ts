@@ -4,7 +4,7 @@ import { z } from "zod/v4"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { prisma } from "@/lib/db"
-import { buildPagedResponse, decimalToNumber } from "@/lib/api"
+import { decimalToNumber } from "@/lib/api"
 import { serializeInvoice } from "@/domain/billing/serialize"
 import type { InvoiceRowForSerialize } from "@/domain/billing/serialize"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
@@ -14,35 +14,52 @@ import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
 import { deferActivityLog } from "@/lib/activity"
 import {
-  CAPPED_LIST_NOTE,
   cursorInputSchema,
+  fetchAllInputSchema,
   isoDateInputSchema,
   LABEL_MAX_CHARS,
   limitInputSchema,
   McpToolError,
   mcpNotFound,
   NOTE_MAX_CHARS,
-  pagedOutputSchema,
+  paginatedOutputSchema,
+  PAGINATED_LIST_NOTE,
   parseIsoDate,
   READ_ONLY_ANNOTATIONS,
   runMcpTool,
+  runPaginatedQuery,
   truncateNullableText,
   truncateText,
   writeAnnotations,
 } from "@/lib/mcp/tools/common"
 
-const invoiceStatusSchema = z.enum(["DRAFT", "SENT", "CANCELLED"])
-const invoiceKindSchema = z.enum(["STANDARD", "DEPOSIT"])
-const paymentStatusSchema = z.enum([
+/**
+ * Shared invoice-domain schemas. Exported for `invoices-write.ts`
+ * (`update_invoice_draft` / `split_invoice` / `record_payment`), which is
+ * split out from this file purely to keep both under the project's
+ * line-count budget — the two files together form one tool surface,
+ * registered as a pair from `registerMcpTools`.
+ */
+export const invoiceKindSchema = z.enum(["STANDARD", "DEPOSIT"])
+export const paymentStatusSchema = z.enum([
   "UNPAID",
   "PARTIALLY_PAID",
   "PAID",
   "OVERPAID",
 ])
+export const draftLineInputSchema = z.object({
+  taskId: z.string().min(1).optional(),
+  label: z.string().min(1).max(240),
+  qty: z.number().min(0).max(100_000),
+  rate: z.number().min(0).max(10_000_000),
+})
+
+const invoiceStatusSchema = z.enum(["DRAFT", "SENT", "CANCELLED"])
 
 const listInvoicesInput = z.object({
   cursor: cursorInputSchema,
   limit: limitInputSchema,
+  fetchAll: fetchAllInputSchema,
   status: invoiceStatusSchema.optional(),
   clientId: z.string().min(1).optional(),
 })
@@ -66,7 +83,7 @@ const invoiceRowSchema = z.object({
   linesCount: z.number(),
 })
 
-const listInvoicesOutput = pagedOutputSchema(invoiceRowSchema)
+const listInvoicesOutput = paginatedOutputSchema(invoiceRowSchema)
 
 const getInvoiceInput = z.object({
   invoiceId: z.string().min(1),
@@ -82,13 +99,6 @@ const invoiceLineSchema = z.object({
 
 const getInvoiceOutput = invoiceRowSchema.extend({
   lines: z.array(invoiceLineSchema),
-})
-
-const draftLineInputSchema = z.object({
-  taskId: z.string().min(1).optional(),
-  label: z.string().min(1).max(240),
-  qty: z.number().min(0).max(100_000),
-  rate: z.number().min(0).max(10_000_000),
 })
 
 const createInvoiceDraftInput = z.object({
@@ -152,7 +162,8 @@ const INVOICE_INCLUDE = {
 } as const
 
 /**
- * Handler for the list_invoices tool: capped, userId-scoped invoice page.
+ * Handler for the list_invoices tool: userId-scoped invoice page on the v2
+ * pagination contract (uncapped `total`, optional `fetchAll`).
  *
  * @param userId - The resolved MCP principal.
  * @param args - Validated pagination and filter arguments.
@@ -163,22 +174,29 @@ export async function listInvoices(
   args: ListInvoicesArgs,
 ): Promise<CallToolResult> {
   return runMcpTool({ userId, tool: "list_invoices", args }, async () => {
-    const rows = await prisma.invoice.findMany({
-      where: {
-        userId,
-        ...(args.status ? { status: args.status } : {}),
-        ...(args.clientId ? { clientId: args.clientId } : {}),
-      },
-      orderBy: [{ issueDate: "desc" }, { id: "desc" }],
-      take: args.limit + 1,
-      ...(args.cursor ? { cursor: { id: args.cursor }, skip: 1 } : {}),
-      include: INVOICE_INCLUDE,
+    const where = {
+      userId,
+      ...(args.status ? { status: args.status } : {}),
+      ...(args.clientId ? { clientId: args.clientId } : {}),
+    }
+    const result = await runPaginatedQuery({
+      args,
+      count: () => prisma.invoice.count({ where }),
+      page: ({ cursor, take }) =>
+        prisma.invoice.findMany({
+          where,
+          orderBy: [{ issueDate: "desc" }, { id: "desc" }],
+          take,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          include: INVOICE_INCLUDE,
+        }),
     })
-    const paged = buildPagedResponse(rows, args.limit)
     return {
-      data: paged.data.map(toInvoiceRow),
-      nextCursor: paged.nextCursor,
-      hasMore: paged.hasMore,
+      data: result.data.map(toInvoiceRow),
+      nextCursor: result.nextCursor,
+      hasMore: result.hasMore,
+      total: result.total,
+      truncated: result.truncated,
     }
   })
 }
@@ -353,7 +371,10 @@ export async function createInvoiceDraft(
 }
 
 /**
- * Register the invoice tools on the given MCP server for one principal.
+ * Register the read tools and `create_invoice_draft` on the given MCP
+ * server for one principal. `update_invoice_draft`, `split_invoice` and
+ * `record_payment` are registered separately by
+ * `registerInvoiceWriteTools` in `invoices-write.ts`.
  *
  * @param server - The per-request McpServer instance.
  * @param userId - The resolved MCP principal.
@@ -362,7 +383,7 @@ export function registerInvoiceTools(server: McpServer, userId: string): void {
   server.registerTool(
     "list_invoices",
     {
-      description: `List the user's invoices with payment state. Filters: status, clientId. ${CAPPED_LIST_NOTE}`,
+      description: `List the user's invoices with payment state. Filters: status, clientId. ${PAGINATED_LIST_NOTE}`,
       inputSchema: listInvoicesInput,
       outputSchema: listInvoicesOutput,
       annotations: READ_ONLY_ANNOTATIONS,

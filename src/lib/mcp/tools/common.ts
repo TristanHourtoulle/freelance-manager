@@ -3,6 +3,7 @@ import { z } from "zod/v4"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js"
 import { withMcpAudit } from "@/lib/mcp/audit"
+import { buildPagedResponse } from "@/lib/api"
 
 export const NAME_MAX_CHARS = 120
 export const TITLE_MAX_CHARS = 200
@@ -207,4 +208,175 @@ export function pagedOutputSchema<T extends z.ZodType>(item: T) {
       .describe("Pass as cursor to fetch the next page"),
     hasMore: z.boolean(),
   })
+}
+
+/**
+ * Hard server-side cap on how many rows `runPaginatedQuery` will walk when
+ * `fetchAll` is set, regardless of how large `total` turns out to be. Chosen
+ * well above any real list size in this single-user app (194 tasks was the
+ * case that motivated the whole v2 contract) while still bounding one MCP
+ * call to a bounded number of DB round trips.
+ */
+export const FETCH_ALL_SAFETY_CAP = 1000
+
+/**
+ * Sentence appended to a list tool's description once it adopts the v2
+ * pagination contract (`total` + `fetchAll`), replacing {@link CAPPED_LIST_NOTE}.
+ */
+export const PAGINATED_LIST_NOTE =
+  `Results are paginated, capped at 50 rows per call. \`total\` is the ` +
+  `UNCAPPED count of every row matching the filters — always trust it over ` +
+  `the number of rows returned. Pass \`nextCursor\` as \`cursor\` to fetch ` +
+  `the next page, or set \`fetchAll: true\` to auto-follow every page ` +
+  `server-side (up to a hard safety cap of ${FETCH_ALL_SAFETY_CAP} rows). ` +
+  `Check \`truncated\`: when true the safety cap was hit and \`data\` is a ` +
+  `partial prefix, never the complete result — never treat it as such.`
+
+/**
+ * Opt-in auto-follow flag accepted by every v2 paginated read tool.
+ */
+export const fetchAllInputSchema = z
+  .boolean()
+  .default(false)
+  .describe(
+    `Auto-follow every page server-side up to a hard safety cap of ` +
+      `${FETCH_ALL_SAFETY_CAP} rows, instead of returning one page. Check ` +
+      `the response's \`truncated\` field: true means the cap was hit and ` +
+      `the result is not the complete set.`,
+  )
+
+/**
+ * Output shape shared by every list tool on the v2 pagination contract: one
+ * page of rows plus an uncapped `total` and a `truncated` flag that is only
+ * ever true when `fetchAll` stopped early at the safety cap.
+ *
+ * @param item - Schema of one row.
+ * @returns The zod object for the tool's outputSchema.
+ */
+export function paginatedOutputSchema<T extends z.ZodType>(item: T) {
+  return z.object({
+    data: z.array(item),
+    nextCursor: z
+      .string()
+      .nullable()
+      .describe("Pass as cursor to fetch the next page"),
+    hasMore: z.boolean(),
+    total: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Uncapped count of every row matching the filters, independent of " +
+          "page size — always the true size of the full result set, never " +
+          "just this page's length.",
+      ),
+    truncated: z
+      .boolean()
+      .describe(
+        "True only when fetchAll stopped at the safety cap before " +
+          "exhausting the result set; data is then a partial prefix, not " +
+          "the complete set.",
+      ),
+  })
+}
+
+/**
+ * Pagination arguments accepted by `runPaginatedQuery`: the validated
+ * `cursor`/`limit`/`fetchAll` a v2 list tool parses out of its own zod
+ * input (which typically also carries tool-specific filters).
+ */
+export interface PaginationArgs {
+  cursor?: string
+  limit: number
+  fetchAll?: boolean
+}
+
+interface RunPaginatedQueryOptions<T extends { id: string }> {
+  /** Validated cursor/limit/fetchAll for this call. */
+  args: PaginationArgs
+  /**
+   * Real DB `count()` over the same filters as `page` — never derived from
+   * `rows.length`. Called exactly once regardless of `fetchAll`.
+   */
+  count: () => Promise<number>
+  /**
+   * One page of rows ordered by a stable, unique-terminated key (so cursor
+   * pagination cannot skip or repeat rows). Must honor `take` as
+   * `limit + 1` semantics: the caller passes `take` already inflated by one
+   * so `runPaginatedQuery` can detect `hasMore` — see `buildPagedResponse`.
+   */
+  page: (params: { cursor?: string; take: number }) => Promise<T[]>
+  /** Overrides {@link FETCH_ALL_SAFETY_CAP}, for tests. */
+  safetyCap?: number
+}
+
+/**
+ * Result shape of `runPaginatedQuery`, matching {@link paginatedOutputSchema}
+ * minus the caller's own row projection (callers map `data` to their
+ * output row shape after calling this).
+ */
+export interface PaginatedQueryResult<T> {
+  data: T[]
+  nextCursor: string | null
+  hasMore: boolean
+  total: number
+  truncated: boolean
+}
+
+/**
+ * Shared orchestration for the v2 pagination contract: one real `count()`
+ * plus either a single page, or — when `args.fetchAll` is set — every page
+ * walked server-side up to a hard safety cap.
+ *
+ * `total` always comes from `count`, never from summing fetched rows, so it
+ * stays correct even when `fetchAll` stops early. Auto-follow never returns
+ * a partial result silently: it is only ever "not truncated" when the walk
+ * reached a page whose own `hasMore` is false, i.e. the underlying query
+ * confirmed there is nothing left — never because the cap and the true end
+ * happened to line up by coincidence of counting.
+ *
+ * @param options - The pagination args, count query and page query.
+ * @returns One page (or the full walked set) plus `total` and `truncated`.
+ */
+export async function runPaginatedQuery<T extends { id: string }>(
+  options: RunPaginatedQueryOptions<T>,
+): Promise<PaginatedQueryResult<T>> {
+  const { args, count, page } = options
+  const safetyCap = options.safetyCap ?? FETCH_ALL_SAFETY_CAP
+  const total = await count()
+
+  if (!args.fetchAll) {
+    const rows = await page({ cursor: args.cursor, take: args.limit + 1 })
+    const paged = buildPagedResponse(rows, args.limit)
+    return {
+      data: paged.data,
+      nextCursor: paged.nextCursor,
+      hasMore: paged.hasMore,
+      total,
+      truncated: false,
+    }
+  }
+
+  const data: T[] = []
+  let cursor = args.cursor
+  let hasMore = false
+
+  while (data.length < safetyCap) {
+    const take = Math.min(args.limit, safetyCap - data.length)
+    const rows = await page({ cursor, take: take + 1 })
+    const paged = buildPagedResponse(rows, take)
+    data.push(...paged.data)
+    hasMore = paged.hasMore
+    cursor = paged.nextCursor ?? undefined
+    if (!hasMore) break
+  }
+
+  const truncated = hasMore && data.length >= safetyCap
+  return {
+    data,
+    nextCursor: truncated ? (cursor ?? null) : null,
+    hasMore: truncated,
+    total,
+    truncated,
+  }
 }

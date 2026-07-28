@@ -142,6 +142,37 @@ describe("POST /mcp", () => {
     })
   })
 
+  it("returns a JSON-RPC 503 (fail closed) when the rate limiter can't reach the DB", async () => {
+    rateCheck.mockReturnValue({
+      allowed: false,
+      retryAfterMs: 60_000,
+      unavailable: true,
+    })
+    const { POST } = await import("./route")
+    const body = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "tools/call",
+      params: { name: "list_clients", arguments: {} },
+    })
+    const res = await POST(mcpRequest({ token: TOKEN, body }))
+    expect(res.status).toBe(503)
+    expect(res.headers.get("retry-after")).toBeNull()
+    const payload = (await res.json()) as {
+      id: number
+      error: { message: string }
+    }
+    expect(payload.id).toBe(9)
+    expect(payload.error.message).toBe("Service unavailable")
+    expect(recordMcpToolCall).toHaveBeenCalledWith({
+      userId: "user-1",
+      tool: "tools/call:list_clients",
+      args: null,
+      outcome: "rate_limited",
+      durationMs: 0,
+    })
+  })
+
   it("still returns 429 when the rate-limit audit write fails", async () => {
     rateCheck.mockReturnValue({ allowed: false, retryAfterMs: 1000 })
     recordMcpToolCall.mockRejectedValue(new Error("db down"))
@@ -167,7 +198,7 @@ describe("POST /mcp", () => {
     expect(payload.result.serverInfo.name).toBe("freelance-manager")
   })
 
-  it("lists the registered v1 tools for a valid token", async () => {
+  it("lists the registered v2 tools for a valid token", async () => {
     const { POST } = await import("./route")
     const body = JSON.stringify({
       jsonrpc: "2.0",
@@ -186,7 +217,7 @@ describe("POST /mcp", () => {
       }
     }
     const names = payload.result.tools.map((t) => t.name)
-    expect(names).toHaveLength(16)
+    expect(names).toHaveLength(26)
     expect(names).toContain("list_clients")
     expect(names).toContain("create_invoice_draft")
     const draft = payload.result.tools.find(

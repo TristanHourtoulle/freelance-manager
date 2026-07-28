@@ -75,8 +75,10 @@ function buildServer(userId: string): McpServer {
  * closed: Origin validation (absent = server-to-server, allowed; present =
  * exact NEXT_PUBLIC_APP_URL match) → constant-time bearer auth resolving
  * the single owner principal (503 unconfigured, 401 otherwise, bodies
- * carry no detail) → per-principal in-process rate limit (429, and the
- * rejection itself is audited to ActivityLog) → a fresh McpServer +
+ * carry no detail) → per-principal Postgres-backed rate limit, shared
+ * across every instance (429 over quota, 503 fail-closed if the DB check
+ * itself cannot run; either way the rejection is audited to ActivityLog) →
+ * a fresh McpServer +
  * transport pair per request with `sessionIdGenerator: undefined` and
  * `enableJsonResponse: true`, so no session id is ever issued and every
  * POST gets a plain JSON reply. The v1 tool surface is registered per
@@ -102,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
     })
   }
 
-  const decision = mcpRateLimiter.check(auth.userId)
+  const decision = await mcpRateLimiter.check(auth.userId)
   if (!decision.allowed) {
     const probe = await probeJsonRpc(request)
     try {
@@ -115,6 +117,9 @@ export async function POST(request: Request): Promise<Response> {
       })
     } catch (err) {
       console.error("[mcp] audit write failed for rate-limited call", err)
+    }
+    if (decision.unavailable) {
+      return jsonRpcError(503, "Service unavailable", { id: probe.id })
     }
     return jsonRpcError(429, "Rate limit exceeded", {
       id: probe.id,
