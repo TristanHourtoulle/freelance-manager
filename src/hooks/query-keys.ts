@@ -48,6 +48,7 @@ export const qk = {
   tasks: {
     all: () => ["tasks"] as const,
     list: <F>(filters: F) => ["tasks", filters] as const,
+    counts: <F>(filters: F) => ["tasks", "counts", filters] as const,
   },
   actions: {
     all: () => ["actions"] as const,

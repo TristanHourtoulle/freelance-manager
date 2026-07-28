@@ -10,6 +10,8 @@ import {
   parseSearchQuery,
 } from "@/lib/api"
 import { taskBillableQuerySchema } from "@/lib/schemas/task"
+import { taskCountsQuerySchema } from "@/domain/tasks/counts"
+import { getTaskCountsSummary } from "@/lib/data/tasks"
 
 export async function GET(req: Request) {
   const user = await getAuthUser()
@@ -17,6 +19,19 @@ export async function GET(req: Request) {
 
   try {
     const url = new URL(req.url)
+    const summaryParam = url.searchParams.get("summary")
+    if (summaryParam !== null) {
+      const parsed = taskCountsQuerySchema.parse({
+        summary: summaryParam,
+        clientId: url.searchParams.get("clientId") ?? undefined,
+        projectId: url.searchParams.get("projectId") ?? undefined,
+      })
+      const counts = await getTaskCountsSummary(user.id, {
+        clientId: parsed.clientId,
+        projectId: parsed.projectId,
+      })
+      return NextResponse.json(counts)
+    }
     const clientId = url.searchParams.get("clientId") ?? undefined
     const projectId = url.searchParams.get("projectId") ?? undefined
     const status = url.searchParams.get("status") ?? undefined
