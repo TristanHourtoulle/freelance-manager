@@ -159,6 +159,13 @@ enum TaskPriority {
   URGENT
 }
 
+enum NonBillableReason {
+  BUG_FIX_ALREADY_INVOICED
+  NON_BILLED_WORK
+  COMMERCIAL_GESTURE
+  OTHER
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -324,6 +331,11 @@ model Task {
   estimate    Decimal?     @db.Decimal(6, 2)
   actualDays  Decimal?     @db.Decimal(6, 2)
 
+  billable          Boolean            @default(true)
+  nonBillableReason NonBillableReason?
+  nonBillableNote   String?
+  nonBillableAt     DateTime?
+
   dueDate         DateTime?
   completedAt     DateTime?
   linearCreatedAt DateTime?
@@ -340,6 +352,7 @@ model Task {
 
   @@index([userId])
   @@index([userId, status])
+  @@index([userId, status, billable])
   @@index([clientId, status])
   @@index([projectId])
   @@index([invoiceId])

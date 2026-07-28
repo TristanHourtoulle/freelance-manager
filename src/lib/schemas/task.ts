@@ -1,4 +1,5 @@
 import { z } from "zod/v4"
+import { validateBillability } from "@/domain/tasks/billability"
 
 export const taskStatusSchema = z.enum([
   "BACKLOG",
@@ -30,3 +31,25 @@ export const taskUpdateSchema = z.object({
 })
 
 export type TaskUpdateInput = z.input<typeof taskUpdateSchema>
+
+export const nonBillableReasonSchema = z.enum([
+  "BUG_FIX_ALREADY_INVOICED",
+  "NON_BILLED_WORK",
+  "COMMERCIAL_GESTURE",
+  "OTHER",
+])
+
+export const taskBillabilitySchema = z
+  .object({
+    billable: z.boolean(),
+    nonBillableReason: nonBillableReasonSchema.nullable().default(null),
+    nonBillableNote: z.string().max(500).nullable().default(null),
+  })
+  .superRefine((value, ctx) => {
+    const result = validateBillability(value)
+    if (!result.ok) {
+      ctx.addIssue({ code: "custom", message: result.error })
+    }
+  })
+
+export type TaskBillabilityWireInput = z.input<typeof taskBillabilitySchema>

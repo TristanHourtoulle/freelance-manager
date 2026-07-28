@@ -6,6 +6,10 @@ import type { BillingMode } from "@/generated/prisma/client"
  * - DAILY:  qty = task.estimate (days),         rate = client.rate (€/day)
  * - HOURLY: qty = task.estimate * 8 (hours),    rate = client.rate (€/hour)
  * - FIXED:  qty = 1, rate = 0 (filled manually for milestones / deposits)
+ *
+ * A missing estimate defaults to 1 day so the seeded line is editable instead
+ * of empty — this default is deliberate and must not leak into pipeline math
+ * (see {@link pipelineValueForTask}).
  */
 export function lineFromTask(opts: {
   billingMode: BillingMode
@@ -21,7 +25,9 @@ export function lineFromTask(opts: {
 /**
  * Pipeline value of an unbilled task = the amount the task would generate if
  * invoiced today. Returns 0 for FIXED clients (their pipeline is the milestone,
- * not the per-task valuation).
+ * not the per-task valuation) and 0 for unestimated tasks — unlike
+ * {@link lineFromTask}, a missing estimate contributes nothing to the pipeline
+ * instead of defaulting to 1 day.
  */
 export function pipelineValueForTask(opts: {
   billingMode: BillingMode
@@ -29,6 +35,7 @@ export function pipelineValueForTask(opts: {
   estimateDays: number | null | undefined
 }): number {
   if (opts.billingMode === "FIXED") return 0
+  if (opts.estimateDays === null || opts.estimateDays === undefined) return 0
   const { qty, rate } = lineFromTask(opts)
   return qty * rate
 }
