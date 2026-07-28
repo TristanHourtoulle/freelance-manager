@@ -192,6 +192,23 @@ describe("FilterCombobox", () => {
     expect(spy).toHaveBeenLastCalledWith(["ghost", "c1"])
   })
 
+  it("marks the trigger chevron as open only while the popover is open", () => {
+    render(<Harness />)
+    const trigger = screen.getByRole("button", { name: /^Filtres/ })
+    const chevron = () => trigger.querySelector(".filter-combobox-chevron")
+
+    expect(chevron()).not.toBeNull()
+    expect(chevron()).not.toHaveClass("is-open")
+    expect(chevron()).toHaveAttribute("aria-hidden", "true")
+
+    fireEvent.click(trigger)
+    expect(chevron()).toHaveClass("is-open")
+
+    fireEvent.mouseDown(document.body)
+    expect(chevron()).not.toHaveClass("is-open")
+    expect(trigger).toHaveAccessibleName("Filtres")
+  })
+
   it("renders no native select", () => {
     const { container } = render(<Harness />)
     openPopover()
