@@ -217,9 +217,11 @@ describe("POST /mcp", () => {
       }
     }
     const names = payload.result.tools.map((t) => t.name)
-    expect(names).toHaveLength(26)
+    expect(names).toHaveLength(28)
     expect(names).toContain("list_clients")
     expect(names).toContain("create_invoice_draft")
+    expect(names).toContain("trigger_linear_sync")
+    expect(names).toContain("get_linear_sync_status")
     const draft = payload.result.tools.find(
       (t) => t.name === "create_invoice_draft",
     )

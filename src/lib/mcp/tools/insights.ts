@@ -22,6 +22,10 @@ import {
   runMcpTool,
   truncateText,
 } from "@/lib/mcp/tools/common"
+import {
+  computeSyncFreshness,
+  syncFreshnessOutputShape,
+} from "@/lib/mcp/tools/sync-freshness"
 
 const getDashboardInput = z.object({})
 
@@ -57,7 +61,7 @@ const getDashboardOutput = z.object({
       dueDate: z.string(),
     }),
   ),
-  lastSync: z.string().nullable(),
+  ...syncFreshnessOutputShape,
 })
 
 const RANGE_MONTHS = { "3m": 3, "6m": 6, "12m": 12 } as const
@@ -210,7 +214,7 @@ export async function getDashboard(userId: string): Promise<CallToolResult> {
       kpi,
       months,
       overdue,
-      lastSync: settings?.linearLastSyncedAt?.toISOString() ?? null,
+      ...computeSyncFreshness(settings?.linearLastSyncedAt ?? null),
     }
   })
 }
@@ -490,7 +494,13 @@ export function registerInsightTools(server: McpServer, userId: string): void {
     "get_dashboard",
     {
       description:
-        "Get the billing dashboard snapshot: revenue KPIs, monthly buckets, overdue invoices, pipeline value.",
+        "Get the billing dashboard snapshot: revenue KPIs, monthly buckets, " +
+        "overdue invoices, pipeline value. Pipeline value and task counts " +
+        "depend on tasks, which are a MANUALLY-PULLED MIRROR of Linear " +
+        "issues — check the response's syncStale field; when true, the " +
+        "data may be out of date and you should call trigger_linear_sync " +
+        "(then poll get_linear_sync_status) before relying on these " +
+        "results, instead of retrying this call.",
       inputSchema: getDashboardInput,
       outputSchema: getDashboardOutput,
       annotations: READ_ONLY_ANNOTATIONS,

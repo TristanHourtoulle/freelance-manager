@@ -4,6 +4,7 @@ const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     activityLog: { create: vi.fn() },
     project: { findMany: vi.fn(), count: vi.fn() },
+    userSettings: { findUnique: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -16,6 +17,7 @@ const USER_ID = "user-1"
 beforeEach(() => {
   vi.clearAllMocks()
   prismaMock.activityLog.create.mockResolvedValue({})
+  prismaMock.userSettings.findUnique.mockResolvedValue(null)
 })
 
 describe("listProjects", () => {
@@ -58,6 +60,9 @@ describe("listProjects", () => {
       hasMore: false,
       total: 0,
       truncated: false,
+      lastSyncedAt: null,
+      syncStale: true,
+      syncAgeMinutes: null,
     })
     const entry = prismaMock.activityLog.create.mock.calls[0]![0] as {
       data: { title: string }

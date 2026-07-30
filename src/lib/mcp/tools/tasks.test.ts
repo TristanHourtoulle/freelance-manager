@@ -9,6 +9,7 @@ const { prismaMock } = vi.hoisted(() => ({
       update: vi.fn(),
       count: vi.fn(),
     },
+    userSettings: { findUnique: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -53,6 +54,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   prismaMock.activityLog.create.mockResolvedValue({})
   prismaMock.task.count.mockResolvedValue(0)
+  prismaMock.userSettings.findUnique.mockResolvedValue(null)
   getLinearClient.mockResolvedValue({ client: { updateIssue } })
   updateIssue.mockResolvedValue({})
 })
