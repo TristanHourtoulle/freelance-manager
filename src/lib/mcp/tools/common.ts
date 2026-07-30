@@ -49,9 +49,17 @@ export function writeAnnotations(idempotent: boolean): ToolAnnotations {
  * (SEP-1303) instead of a protocol error, so it can self-correct.
  */
 export class McpToolError extends Error {
-  constructor(message: string) {
+  /**
+   * Optional machine-readable payload carried alongside the human-readable
+   * message, surfaced on the result's `structuredContent` (e.g. a refusal
+   * that needs a typed `retryAfterSeconds` or `runId`, not just prose).
+   */
+  readonly structured?: Record<string, unknown>
+
+  constructor(message: string, structured?: Record<string, unknown>) {
     super(message)
     this.name = "McpToolError"
+    this.structured = structured
   }
 }
 
@@ -111,14 +119,21 @@ export function structuredResult(
 }
 
 /**
- * Build an `isError` tool result carrying a plain-text message.
+ * Build an `isError` tool result carrying a plain-text message and, when
+ * given, a typed `structuredContent` payload the model can read fields off
+ * of instead of parsing prose (e.g. `retryAfterSeconds`, `runId`).
  *
  * @param message - The message the model may use to self-correct.
+ * @param structured - Optional machine-readable payload for this refusal.
  * @returns The error-shaped CallToolResult.
  */
-export function errorResult(message: string): CallToolResult {
+export function errorResult(
+  message: string,
+  structured?: Record<string, unknown>,
+): CallToolResult {
   return {
     content: [{ type: "text", text: message }],
+    ...(structured ? { structuredContent: structured } : {}),
     isError: true,
   }
 }
@@ -143,7 +158,9 @@ export async function runMcpTool<T extends Record<string, unknown>>(
   try {
     return structuredResult(await withMcpAudit(context, execute))
   } catch (err) {
-    if (err instanceof McpToolError) return errorResult(err.message)
+    if (err instanceof McpToolError) {
+      return errorResult(err.message, err.structured)
+    }
     console.error(`[mcp] tool ${context.tool} failed`, err)
     return errorResult("Internal error")
   }

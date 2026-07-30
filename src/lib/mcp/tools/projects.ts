@@ -15,6 +15,10 @@ import {
   runPaginatedQuery,
   truncateText,
 } from "@/lib/mcp/tools/common"
+import {
+  computeSyncFreshness,
+  syncFreshnessOutputShape,
+} from "@/lib/mcp/tools/sync-freshness"
 
 const listProjectsInput = z.object({
   cursor: cursorInputSchema,
@@ -34,7 +38,9 @@ const projectRowSchema = z.object({
   tasksTotal: z.number(),
 })
 
-const listProjectsOutput = paginatedOutputSchema(projectRowSchema)
+const listProjectsOutput = paginatedOutputSchema(projectRowSchema).extend(
+  syncFreshnessOutputShape,
+)
 
 type ListProjectsArgs = z.output<typeof listProjectsInput>
 
@@ -70,18 +76,24 @@ export async function listProjects(
       ...(args.status ? { status: args.status } : {}),
       ...(args.clientId ? { clientId: args.clientId } : {}),
     }
-    const result = await runPaginatedQuery({
-      args,
-      count: () => prisma.project.count({ where }),
-      page: ({ cursor, take }) =>
-        prisma.project.findMany({
-          where,
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take,
-          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-          select: PROJECT_LIST_SELECT,
-        }),
-    })
+    const [result, settings] = await Promise.all([
+      runPaginatedQuery({
+        args,
+        count: () => prisma.project.count({ where }),
+        page: ({ cursor, take }) =>
+          prisma.project.findMany({
+            where,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            select: PROJECT_LIST_SELECT,
+          }),
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { linearLastSyncedAt: true },
+      }),
+    ])
     return {
       data: result.data.map((p) => ({
         id: p.id,
@@ -96,6 +108,7 @@ export async function listProjects(
       hasMore: result.hasMore,
       total: result.total,
       truncated: result.truncated,
+      ...computeSyncFreshness(settings?.linearLastSyncedAt ?? null),
     }
   })
 }
@@ -110,7 +123,14 @@ export function registerProjectTools(server: McpServer, userId: string): void {
   server.registerTool(
     "list_projects",
     {
-      description: `List the user's Linear-mirrored projects (name, key, status, target date, task count). ${PAGINATED_LIST_NOTE}`,
+      description:
+        `List the user's projects (name, key, status, target date, task ` +
+        `count). Projects are a MANUALLY-PULLED MIRROR of Linear projects, ` +
+        `not a live view — check the response's syncStale field; when ` +
+        `true, the data may be out of date and you should call ` +
+        `trigger_linear_sync (then poll get_linear_sync_status) before ` +
+        `relying on these results, instead of retrying this call. ` +
+        `${PAGINATED_LIST_NOTE}`,
       inputSchema: listProjectsInput,
       outputSchema: listProjectsOutput,
       annotations: READ_ONLY_ANNOTATIONS,

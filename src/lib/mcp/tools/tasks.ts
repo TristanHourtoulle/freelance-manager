@@ -28,6 +28,10 @@ import {
   truncateText,
   writeAnnotations,
 } from "@/lib/mcp/tools/common"
+import {
+  computeSyncFreshness,
+  syncFreshnessOutputShape,
+} from "@/lib/mcp/tools/sync-freshness"
 
 const listTasksInput = z.object({
   cursor: cursorInputSchema,
@@ -56,7 +60,9 @@ const taskRowSchema = z.object({
   nonBillableNote: z.string().nullable(),
 })
 
-const listTasksOutput = paginatedOutputSchema(taskRowSchema)
+const listTasksOutput = paginatedOutputSchema(taskRowSchema).extend(
+  syncFreshnessOutputShape,
+)
 
 const setTaskActualDaysInput = z.object({
   taskId: z.string().min(1),
@@ -162,22 +168,28 @@ export async function listTasks(
           }),
     }
 
-    const result = await runPaginatedQuery({
-      args,
-      count: () => prisma.task.count({ where }),
-      page: ({ cursor, take }) =>
-        prisma.task.findMany({
-          where,
-          orderBy: [
-            { projectId: "asc" },
-            { linearIdentifier: "asc" },
-            { id: "asc" },
-          ],
-          take,
-          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-          select: TASK_ROW_SELECT,
-        }),
-    })
+    const [result, settings] = await Promise.all([
+      runPaginatedQuery({
+        args,
+        count: () => prisma.task.count({ where }),
+        page: ({ cursor, take }) =>
+          prisma.task.findMany({
+            where,
+            orderBy: [
+              { projectId: "asc" },
+              { linearIdentifier: "asc" },
+              { id: "asc" },
+            ],
+            take,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            select: TASK_ROW_SELECT,
+          }),
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { linearLastSyncedAt: true },
+      }),
+    ])
 
     return {
       data: result.data.map((t) => ({
@@ -203,6 +215,7 @@ export async function listTasks(
       hasMore: result.hasMore,
       total: result.total,
       truncated: result.truncated,
+      ...computeSyncFreshness(settings?.linearLastSyncedAt ?? null),
     }
   })
 }
@@ -376,7 +389,13 @@ export function registerTaskTools(server: McpServer, userId: string): void {
   server.registerTool(
     "list_tasks",
     {
-      description: `List Linear-mirrored tasks with billing state. Filters: clientIds, projectIds, status, billable. ${PAGINATED_LIST_NOTE}`,
+      description:
+        `List tasks with billing state. Tasks are a MANUALLY-PULLED MIRROR ` +
+        `of Linear issues, not a live view — check the response's ` +
+        `syncStale field; when true, the data may be out of date and you ` +
+        `should call trigger_linear_sync (then poll get_linear_sync_status) ` +
+        `before relying on these results, instead of retrying this call. ` +
+        `Filters: clientIds, projectIds, status, billable. ${PAGINATED_LIST_NOTE}`,
       inputSchema: listTasksInput,
       outputSchema: listTasksOutput,
       annotations: READ_ONLY_ANNOTATIONS,

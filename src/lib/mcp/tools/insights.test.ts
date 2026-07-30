@@ -39,13 +39,17 @@ describe("getDashboard", () => {
       kpi: { revenueMonth: number; pipelineEur: number }
       months: unknown[]
       overdue: unknown[]
-      lastSync: string | null
+      lastSyncedAt: string | null
+      syncStale: boolean
+      syncAgeMinutes: number | null
     }
     expect(structured.kpi.revenueMonth).toBe(0)
     expect(structured.kpi.pipelineEur).toBe(0)
     expect(structured.months).toHaveLength(8)
     expect(structured.overdue).toEqual([])
-    expect(structured.lastSync).toBeNull()
+    expect(structured.lastSyncedAt).toBeNull()
+    expect(structured.syncStale).toBe(true)
+    expect(structured.syncAgeMinutes).toBeNull()
     const serialized = JSON.stringify(result.structuredContent)
     expect(serialized).not.toContain('"description"')
     expect(serialized).not.toContain('"runbook"')

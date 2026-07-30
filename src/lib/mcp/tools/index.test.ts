@@ -25,6 +25,7 @@ const READ_TOOLS = [
   "get_analytics",
   "list_meetings",
   "list_actions",
+  "get_linear_sync_status",
 ] as const
 
 const WRITE_TOOLS = [
@@ -42,17 +43,26 @@ const WRITE_TOOLS = [
   "update_meeting",
   "create_action",
   "complete_action",
+  "trigger_linear_sync",
 ] as const
 
 const DESTRUCTIVE_TOOLS = ["delete_meeting"] as const
 
 /**
- * Write tools whose name legitimately contains a word the blanket guard
- * below forbids everywhere else — `record_payment` genuinely moves money.
- * Each entry here must be justified the same way `DESTRUCTIVE_TOOLS` is:
- * an explicit, reviewed exception, not a loophole.
+ * Tools whose name legitimately contains a word the blanket guard below
+ * forbids everywhere else. Each entry here must be justified the same way
+ * `DESTRUCTIVE_TOOLS` is: an explicit, reviewed exception, not a loophole.
+ * - `record_payment` genuinely moves money.
+ * - `trigger_linear_sync` / `get_linear_sync_status` genuinely trigger and
+ *   report on a Linear sync — the pull-only, non-destructive, rate-limited
+ *   exception carved out from the "nothing can sync" boundary this guard
+ *   otherwise enforces.
  */
-const NAME_GUARD_EXCEPTIONS = ["record_payment"] as const
+const NAME_GUARD_EXCEPTIONS = [
+  "record_payment",
+  "trigger_linear_sync",
+  "get_linear_sync_status",
+] as const
 
 interface RegisteredToolConfig {
   description: string
