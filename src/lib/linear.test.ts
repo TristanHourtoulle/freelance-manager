@@ -712,7 +712,7 @@ describe("syncFromLinear", () => {
       }
     }
 
-    it("touches the run once per mapping, in order, before each fetch", async () => {
+    it("reports each mapping in order and reaches the final total", async () => {
       prismaMock.linearMapping.findMany.mockResolvedValue([
         mapping("1", "Acme"),
         mapping("2", "Globex"),
@@ -721,11 +721,12 @@ describe("syncFromLinear", () => {
 
       await syncFromLinear("user-1", "run-1")
 
-      expect(touchSyncRun).toHaveBeenCalledTimes(3)
+      expect(touchSyncRun).toHaveBeenCalledTimes(4)
       expect(touchSyncRun.mock.calls.map((c) => c[1])).toEqual([
         { doneMappings: 0, currentLabel: "Acme" },
         { doneMappings: 1, currentLabel: "Globex" },
         { doneMappings: 2, currentLabel: "Initech" },
+        { doneMappings: 3, currentLabel: null },
       ])
       expect(touchSyncRun.mock.calls.every((c) => c[0] === "run-1")).toBe(true)
     })

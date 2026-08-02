@@ -12,7 +12,7 @@ import { runTaskSync } from "@/lib/task-sync/run"
 export const SYNC_STALE_RUN_MS = 10 * 60_000
 
 export type TriggerTaskSyncResult =
-  | { status: "started"; runId: string }
+  | { status: "started"; runId: string; totalMappings: number }
   | { status: "in_progress"; runId: string | null }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -87,5 +87,5 @@ export async function triggerTaskSync(
     }
   })
 
-  return { status: "started", runId }
+  return { status: "started", runId, totalMappings }
 }

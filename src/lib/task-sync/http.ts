@@ -44,7 +44,11 @@ export async function startTaskSync(req: Request, providerId: string) {
   const result = await triggerTaskSync(provider, user.id)
   if (result.status === "in_progress") return syncInProgress(result.runId)
   return NextResponse.json(
-    { status: "started", runId: result.runId },
+    {
+      status: "started",
+      runId: result.runId,
+      totalMappings: result.totalMappings,
+    },
     { status: 202 },
   )
 }

@@ -114,7 +114,11 @@ describe("POST /api/linear/refresh", () => {
     const res = await POST(makeRequest())
 
     expect(res.status).toBe(202)
-    expect(await res.json()).toEqual({ status: "started", runId: "run-1" })
+    expect(await res.json()).toEqual({
+      status: "started",
+      runId: "run-1",
+      totalMappings: 3,
+    })
     expect(createSyncRun).toHaveBeenCalledWith("user-1", "linear", 3)
     expect(runTaskSync).not.toHaveBeenCalled()
     expect(afterCallback).toBeTypeOf("function")
@@ -218,7 +222,11 @@ describe("POST /api/linear/refresh", () => {
     const res = await POST(makeRequest())
 
     expect(res.status).toBe(202)
-    expect(await res.json()).toEqual({ status: "started", runId: "run-1" })
+    expect(await res.json()).toEqual({
+      status: "started",
+      runId: "run-1",
+      totalMappings: 3,
+    })
 
     const arg = prismaMock.taskSyncRun.update.mock.calls[0]![0]
     expect(arg.where).toEqual({ id: "run-stale" })

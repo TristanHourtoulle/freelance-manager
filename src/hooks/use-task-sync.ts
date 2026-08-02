@@ -90,14 +90,30 @@ export function useTaskSyncWatcher({
   const router = useRouter()
   const { toast } = useToast()
   const previousStatus = useRef<TaskSyncStatusDTO["status"] | null>(null)
+  const previousRunId = useRef<string | null>(null)
+  const initialized = useRef(false)
 
   useEffect(() => {
-    const previous = previousStatus.current
-    const current = data?.status ?? null
-    previousStatus.current = current
+    if (!data) return
 
-    if (previous !== "RUNNING") return
+    const previous = previousStatus.current
+    const current = data.status
+    const currentRunId = data.status === "idle" ? null : data.runId
+
+    if (!initialized.current) {
+      initialized.current = true
+      previousStatus.current = current
+      previousRunId.current = currentRunId
+      return
+    }
+
+    const isNewRun =
+      currentRunId !== null && currentRunId !== previousRunId.current
+    previousStatus.current = current
+    previousRunId.current = currentRunId
+
     if (current !== "COMPLETED" && current !== "FAILED") return
+    if (previous !== "RUNNING" && !isNewRun) return
 
     qc.invalidateQueries({ queryKey: qk.tasks.all() })
     qc.invalidateQueries({ queryKey: qk.projects() })
@@ -132,10 +148,22 @@ export function useTriggerTaskSync({
   const { toast } = useToast()
   return useMutation({
     mutationFn: () =>
-      api.post<{ status: string; runId: string }>(
+      api.post<{ status: "started"; runId: string; totalMappings: number }>(
         `/api/task-sync/${providerId}/refresh`,
       ),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      qc.setQueryData<TaskSyncStatusDTO>(qk.taskSync.status(providerId), {
+        runId: result.runId,
+        status: "RUNNING",
+        totalMappings: result.totalMappings,
+        doneMappings: 0,
+        currentLabel: null,
+        projectsUpserted: 0,
+        tasksUpserted: 0,
+        errorMessage: null,
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
+      })
       qc.invalidateQueries({ queryKey: qk.taskSync.status(providerId) })
       toast({
         variant: "success",

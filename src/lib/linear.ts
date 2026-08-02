@@ -662,6 +662,11 @@ export async function syncLinearTasks(
     enrichedByMapping.push({ mapping: m, issues: enriched })
   }
 
+  await reportProgress({
+    doneMappings: mappings.length,
+    currentLabel: null,
+  })
+
   const allIssueIds = enrichedByMapping.flatMap((g) =>
     g.issues.map((e) => e.issue.id),
   )

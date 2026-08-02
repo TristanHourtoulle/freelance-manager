@@ -2,6 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  useLinearSyncProgress,
   useLinearSyncStatus,
   useLinearSyncWatcher,
   type LinearSyncStatusDTO,
@@ -204,6 +205,34 @@ describe("useLinearSyncWatcher", () => {
     expect(toastMock).not.toHaveBeenCalled()
     expect(refreshMock).not.toHaveBeenCalled()
   })
+
+  it("handles a new completed run even when polling missed RUNNING", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    apiGetMock
+      .mockResolvedValueOnce({ status: "idle" } satisfies LinearSyncStatusDTO)
+      .mockResolvedValue(COMPLETED)
+    const { queryClient, Wrapper } = createWrapper()
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries")
+
+    renderHook(() => useLinearSyncWatcher(), { wrapper: Wrapper })
+    await waitFor(() => expect(apiGetMock).toHaveBeenCalledTimes(1))
+
+    await vi.advanceTimersByTimeAsync(15_000)
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+    expect(toastMock).toHaveBeenCalledWith({
+      variant: "success",
+      title: "Synchronisation Linear terminée",
+      description: "17 tasks · 2 projets mis à jour.",
+    })
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(invalidate.mock.calls.map(([arg]) => arg?.queryKey)).toEqual([
+      qk.tasks.all(),
+      qk.projects(),
+      qk.dashboard(),
+      qk.settings(),
+    ])
+  })
 })
 
 describe("useSyncLinear", () => {
@@ -239,7 +268,11 @@ describe("useSyncLinear", () => {
   })
 
   it("does not invalidate the data caches itself — the watcher owns that", async () => {
-    apiPostMock.mockResolvedValue({ status: "started", runId: "run-1" })
+    apiPostMock.mockResolvedValue({
+      status: "started",
+      runId: "run-1",
+      totalMappings: 8,
+    })
     const { queryClient, Wrapper } = createWrapper()
     const invalidate = vi.spyOn(queryClient, "invalidateQueries")
 
@@ -250,5 +283,32 @@ describe("useSyncLinear", () => {
     expect(invalidate.mock.calls.map(([arg]) => arg?.queryKey)).toEqual([
       qk.linear.syncStatus(),
     ])
+  })
+
+  it("shows 0/8 immediately while the first progress poll is pending", async () => {
+    apiGetMock.mockImplementation(() => new Promise(() => {}))
+    apiPostMock.mockResolvedValue({
+      status: "started",
+      runId: "run-1",
+      totalMappings: 8,
+    })
+    const { Wrapper } = createWrapper()
+
+    const { result } = renderHook(
+      () => ({
+        sync: useSyncLinear(),
+        progress: useLinearSyncProgress(),
+      }),
+      { wrapper: Wrapper },
+    )
+    result.current.sync.mutate()
+
+    await waitFor(() =>
+      expect(result.current.progress).toMatchObject({
+        isRunning: true,
+        countLabel: "0/8",
+        buttonLabel: "Synchronisation… 0/8",
+      }),
+    )
   })
 })
