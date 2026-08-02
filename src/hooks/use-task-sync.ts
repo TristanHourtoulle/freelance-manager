@@ -7,7 +7,7 @@ import { api, isApiErrorWithStatus } from "@/lib/api-client"
 import { qk } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 
-const RUNNING_POLL_MS = 1_000
+const RUNNING_POLL_MS = 200
 const IDLE_POLL_MS = 15_000
 
 export interface TaskSyncRunDTO {

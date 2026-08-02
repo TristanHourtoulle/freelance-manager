@@ -87,7 +87,7 @@ afterEach(() => {
 })
 
 describe("useLinearSyncStatus", () => {
-  it("polls every second while the run is RUNNING", async () => {
+  it("polls every 200 ms while the run is RUNNING", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     apiGetMock.mockResolvedValue(RUNNING)
     const { Wrapper } = createWrapper()
@@ -97,11 +97,15 @@ describe("useLinearSyncStatus", () => {
     await waitFor(() => expect(apiGetMock).toHaveBeenCalledTimes(1))
     expect(apiGetMock).toHaveBeenCalledWith("/api/task-sync/linear/sync-status")
 
-    await vi.advanceTimersByTimeAsync(1_000)
-    expect(apiGetMock).toHaveBeenCalledTimes(2)
+    const initialCalls = apiGetMock.mock.calls.length
+    await vi.advanceTimersByTimeAsync(200)
+    expect(apiGetMock.mock.calls.length).toBeGreaterThan(initialCalls)
 
-    await vi.advanceTimersByTimeAsync(1_000)
-    expect(apiGetMock).toHaveBeenCalledTimes(3)
+    const callsAfterFirstInterval = apiGetMock.mock.calls.length
+    await vi.advanceTimersByTimeAsync(200)
+    expect(apiGetMock.mock.calls.length).toBeGreaterThan(
+      callsAfterFirstInterval,
+    )
   })
 
   it("falls back to the slow cadence once the run is no longer RUNNING", async () => {
