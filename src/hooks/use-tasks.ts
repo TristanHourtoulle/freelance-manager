@@ -8,11 +8,12 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query"
-import { api, isApiErrorWithStatus } from "@/lib/api-client"
+import { api } from "@/lib/api-client"
 import { qk, STALE_TIME } from "@/hooks/query-keys"
 import { useToast } from "@/components/providers/toast-provider"
 import type { PaginatedResponse } from "@/lib/schemas/pagination"
 import type { TaskCountsQuery, TaskCountsSummary } from "@/domain/tasks/counts"
+import { useTriggerTaskSync } from "@/hooks/use-task-sync"
 
 export type { TaskCountsQuery, TaskCountsSummary } from "@/domain/tasks/counts"
 
@@ -276,34 +277,5 @@ export function useBulkSetTaskBillability() {
  * poll immediate instead of waiting for the idle tick.
  */
 export function useSyncLinear() {
-  const qc = useQueryClient()
-  const { toast } = useToast()
-  return useMutation({
-    mutationFn: () =>
-      api.post<{ status: string; runId: string }>("/api/linear/refresh"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.linear.syncStatus() })
-      toast({
-        variant: "success",
-        title: "Synchronisation Linear lancée…",
-        description: "Les résultats apparaîtront dans quelques instants.",
-      })
-    },
-    onError: (e) => {
-      if (isApiErrorWithStatus(e, 409)) {
-        qc.invalidateQueries({ queryKey: qk.linear.syncStatus() })
-        toast({
-          variant: "info",
-          title: "Synchronisation déjà en cours",
-          description: "Patiente qu'elle se termine avant d'en relancer une.",
-        })
-        return
-      }
-      toast({
-        variant: "error",
-        title: "Sync échouée",
-        description: e instanceof Error ? e.message : String(e),
-      })
-    },
-  })
+  return useTriggerTaskSync({ providerId: "linear", displayName: "Linear" })
 }

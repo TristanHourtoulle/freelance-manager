@@ -59,10 +59,16 @@ export const qk = {
     list: <F>(filters: F) => ["meetings", filters] as const,
   },
 
+  taskSync: {
+    status: (providerId: string) =>
+      ["task-sync", providerId, "status"] as const,
+  },
+
   linear: {
     mappings: () => ["linear-mappings"] as const,
     projects: () => ["linear-projects"] as const,
-    syncStatus: () => ["linear-sync-status"] as const,
+    /** @deprecated Use `qk.taskSync.status("linear")`. */
+    syncStatus: () => ["task-sync", "linear", "status"] as const,
     clientMappings: {
       all: () => ["client-linear-mappings"] as const,
       detail: (clientId: string | null | undefined) =>

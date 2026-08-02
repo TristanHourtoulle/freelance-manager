@@ -101,6 +101,7 @@ export type ActivityKind =
   | "PAYMENT_DELETED"
   | "TASKS_PENDING"
   | "LINEAR_SYNCED"
+  | "TASKS_SYNCED"
   | "ACTION_DONE"
   | "MEETING_LOGGED"
 

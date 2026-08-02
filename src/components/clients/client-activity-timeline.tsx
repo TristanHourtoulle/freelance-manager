@@ -20,6 +20,7 @@ const DOT_VARIANT: Record<
   PAYMENT_DELETED: "danger",
   TASKS_PENDING: "info",
   LINEAR_SYNCED: "info",
+  TASKS_SYNCED: "info",
   ACTION_DONE: "accent",
   MEETING_LOGGED: "info",
 }

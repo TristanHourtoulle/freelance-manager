@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: { linearSyncRun: { findFirst: vi.fn() } },
+  prismaMock: { taskSyncRun: { findFirst: vi.fn() } },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 
@@ -34,7 +34,7 @@ describe("GET /api/linear/sync-status", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getAuthUser.mockResolvedValue({ id: "user-1" })
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(RUN)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(RUN)
   })
 
   it("returns the latest run as a serialized DTO", async () => {
@@ -60,16 +60,18 @@ describe("GET /api/linear/sync-status", () => {
     const { GET } = await import("./route")
     await GET()
 
-    const arg = prismaMock.linearSyncRun.findFirst.mock.calls[0]![0]
-    expect(arg.where).toEqual({ userId: "user-1" })
+    const arg = prismaMock.taskSyncRun.findFirst.mock.calls[0]![0]
+    expect(arg.where).toEqual({ userId: "user-1", providerId: "linear" })
     expect(arg.orderBy).toEqual({ startedAt: "desc" })
   })
 
   it("never returns another user's run", async () => {
     getAuthUser.mockResolvedValue({ id: "user-2" })
-    prismaMock.linearSyncRun.findFirst.mockImplementation(
-      async (args: { where: { userId: string } }) =>
-        args.where.userId === "user-1" ? RUN : null,
+    prismaMock.taskSyncRun.findFirst.mockImplementation(
+      async (args: { where: { userId: string; providerId: string } }) =>
+        args.where.userId === "user-1" && args.where.providerId === "linear"
+          ? RUN
+          : null,
     )
 
     const { GET } = await import("./route")
@@ -81,7 +83,7 @@ describe("GET /api/linear/sync-status", () => {
   })
 
   it("returns the idle shape when the user has never synced", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
 
     const { GET } = await import("./route")
     const res = await GET()
@@ -97,11 +99,11 @@ describe("GET /api/linear/sync-status", () => {
     const res = await GET()
 
     expect(res.status).toBe(401)
-    expect(prismaMock.linearSyncRun.findFirst).not.toHaveBeenCalled()
+    expect(prismaMock.taskSyncRun.findFirst).not.toHaveBeenCalled()
   })
 
   it("returns 500 when the query throws", async () => {
-    prismaMock.linearSyncRun.findFirst.mockRejectedValue(new Error("db down"))
+    prismaMock.taskSyncRun.findFirst.mockRejectedValue(new Error("db down"))
 
     const { GET } = await import("./route")
     const res = await GET()

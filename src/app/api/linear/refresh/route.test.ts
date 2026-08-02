@@ -18,22 +18,36 @@ vi.mock("next/cache", () => ({
   revalidateTag: (...a: unknown[]) => revalidateTag(...a),
 }))
 
-const syncFromLinear = vi.fn()
-vi.mock("@/lib/linear", () => ({
-  syncFromLinear: (...a: unknown[]) => syncFromLinear(...a),
+const runTaskSync = vi.fn()
+vi.mock("@/lib/task-sync/run", () => ({
+  runTaskSync: (...a: unknown[]) => runTaskSync(...a),
+}))
+
+const countMappings = vi.fn()
+const linearProvider = {
+  id: "linear",
+  displayName: "Linear",
+  countMappings: (...a: unknown[]) => countMappings(...a),
+  sync: vi.fn(),
+  cacheTags: (userId: string) => [
+    `user-${userId}-linear-teams`,
+    `user-${userId}-linear-projects`,
+  ],
+}
+vi.mock("@/lib/task-sync/registry", () => ({
+  getTaskProvider: () => linearProvider,
 }))
 
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
-    linearSyncRun: { findFirst: vi.fn(), update: vi.fn() },
-    linearMapping: { count: vi.fn() },
+    taskSyncRun: { findFirst: vi.fn(), update: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 
 const createSyncRun = vi.fn()
 const failSyncRun = vi.fn()
-vi.mock("@/lib/linear-sync-progress", () => ({
+vi.mock("@/lib/task-sync/progress", () => ({
   createSyncRun: (...a: unknown[]) => createSyncRun(...a),
   failSyncRun: (...a: unknown[]) => failSyncRun(...a),
 }))
@@ -74,20 +88,20 @@ describe("POST /api/linear/refresh", () => {
   beforeEach(() => {
     afterCallback = null
     revalidateTag.mockReset()
-    syncFromLinear.mockReset()
+    runTaskSync.mockReset()
+    countMappings.mockReset()
     deferActivityLog.mockReset()
     getAuthUser.mockReset()
     requireSameOrigin.mockReset()
     requireSameOrigin.mockReturnValue(undefined)
     getAuthUser.mockResolvedValue({ id: "user-1" })
-    prismaMock.linearSyncRun.findFirst.mockReset()
-    prismaMock.linearSyncRun.update.mockReset()
-    prismaMock.linearMapping.count.mockReset()
+    prismaMock.taskSyncRun.findFirst.mockReset()
+    prismaMock.taskSyncRun.update.mockReset()
     createSyncRun.mockReset()
     failSyncRun.mockReset()
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
-    prismaMock.linearSyncRun.update.mockResolvedValue({})
-    prismaMock.linearMapping.count.mockResolvedValue(3)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.update.mockResolvedValue({})
+    countMappings.mockResolvedValue(3)
     createSyncRun.mockResolvedValue("run-1")
   })
 
@@ -101,19 +115,22 @@ describe("POST /api/linear/refresh", () => {
 
     expect(res.status).toBe(202)
     expect(await res.json()).toEqual({ status: "started", runId: "run-1" })
-    expect(createSyncRun).toHaveBeenCalledWith("user-1", 3)
-    expect(syncFromLinear).not.toHaveBeenCalled()
+    expect(createSyncRun).toHaveBeenCalledWith("user-1", "linear", 3)
+    expect(runTaskSync).not.toHaveBeenCalled()
     expect(afterCallback).toBeTypeOf("function")
   })
 
   it("runs the sync, revalidates tags and logs activity in after()", async () => {
-    syncFromLinear.mockResolvedValue({ tasks: 4, projects: 2 })
+    runTaskSync.mockResolvedValue({ tasks: 4, projects: 2 })
 
     const { POST } = await import("./route")
     await POST(makeRequest())
     await afterCallback?.()
 
-    expect(syncFromLinear).toHaveBeenCalledWith("user-1", "run-1")
+    expect(runTaskSync).toHaveBeenCalledWith(linearProvider, {
+      userId: "user-1",
+      runId: "run-1",
+    })
     expect(revalidateTag).toHaveBeenCalledTimes(4)
     expect(revalidateTag).toHaveBeenCalledWith(
       "user-user-1-linear-teams",
@@ -121,13 +138,13 @@ describe("POST /api/linear/refresh", () => {
     )
     expect(revalidateTag).toHaveBeenCalledWith("user-user-1-nav", "max")
     expect(deferActivityLog).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", kind: "LINEAR_SYNCED" }),
+      expect.objectContaining({ userId: "user-1", kind: "TASKS_SYNCED" }),
     )
   })
 
   it("swallows and logs a background sync failure without revalidating", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {})
-    syncFromLinear.mockRejectedValue(new Error("boom"))
+    runTaskSync.mockRejectedValue(new Error("boom"))
 
     const { POST } = await import("./route")
     await POST(makeRequest())
@@ -141,7 +158,7 @@ describe("POST /api/linear/refresh", () => {
   it("marks the run FAILED when the background sync throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {})
     const error = new Error("boom")
-    syncFromLinear.mockRejectedValue(error)
+    runTaskSync.mockRejectedValue(error)
 
     const { POST } = await import("./route")
     await POST(makeRequest())
@@ -161,7 +178,7 @@ describe("POST /api/linear/refresh", () => {
   })
 
   it("returns 409 with the live runId when a sync is already running", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       id: "run-live",
       startedAt: new Date(Date.now() - 30_000),
     })
@@ -175,7 +192,7 @@ describe("POST /api/linear/refresh", () => {
       runId: "run-live",
     })
     expect(createSyncRun).not.toHaveBeenCalled()
-    expect(prismaMock.linearSyncRun.update).not.toHaveBeenCalled()
+    expect(prismaMock.taskSyncRun.update).not.toHaveBeenCalled()
     expect(afterCallback).toBeNull()
   })
 
@@ -183,12 +200,16 @@ describe("POST /api/linear/refresh", () => {
     const { POST } = await import("./route")
     await POST(makeRequest())
 
-    const arg = prismaMock.linearSyncRun.findFirst.mock.calls[0]![0]
-    expect(arg.where).toEqual({ userId: "user-1", status: "RUNNING" })
+    const arg = prismaMock.taskSyncRun.findFirst.mock.calls[0]![0]
+    expect(arg.where).toEqual({
+      userId: "user-1",
+      providerId: "linear",
+      status: "RUNNING",
+    })
   })
 
   it("fails an abandoned run older than 10 minutes and starts a new one", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       id: "run-stale",
       startedAt: new Date(Date.now() - 11 * 60_000),
     })
@@ -199,24 +220,24 @@ describe("POST /api/linear/refresh", () => {
     expect(res.status).toBe(202)
     expect(await res.json()).toEqual({ status: "started", runId: "run-1" })
 
-    const arg = prismaMock.linearSyncRun.update.mock.calls[0]![0]
+    const arg = prismaMock.taskSyncRun.update.mock.calls[0]![0]
     expect(arg.where).toEqual({ id: "run-stale" })
     expect(arg.data).toMatchObject({
       status: "FAILED",
       errorMessage: "Sync timed out or process restarted",
       currentLabel: null,
     })
-    expect(createSyncRun).toHaveBeenCalledWith("user-1", 3)
+    expect(createSyncRun).toHaveBeenCalledWith("user-1", "linear", 3)
     expect(afterCallback).toBeTypeOf("function")
   })
 
   it("flips the abandoned row to FAILED before inserting the new run", async () => {
     const order: string[] = []
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       id: "run-stale",
       startedAt: new Date(Date.now() - 11 * 60_000),
     })
-    prismaMock.linearSyncRun.update.mockImplementation(async () => {
+    prismaMock.taskSyncRun.update.mockImplementation(async () => {
       order.push("fail-stale")
       return {}
     })
@@ -235,7 +256,7 @@ describe("POST /api/linear/refresh", () => {
     createSyncRun.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
     )
-    prismaMock.linearSyncRun.findFirst
+    prismaMock.taskSyncRun.findFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ id: "run-winner" })
 
@@ -254,7 +275,7 @@ describe("POST /api/linear/refresh", () => {
     createSyncRun.mockRejectedValue(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
     )
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
 
     const { POST } = await import("./route")
     const res = await POST(makeRequest())

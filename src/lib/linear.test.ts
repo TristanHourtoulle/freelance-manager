@@ -34,7 +34,7 @@ vi.mock("@linear/sdk", () => ({ LinearClient: LinearClientMock }))
 
 const touchSyncRun = vi.fn()
 const completeSyncRun = vi.fn()
-vi.mock("@/lib/linear-sync-progress", () => ({
+vi.mock("@/lib/task-sync/progress", () => ({
   touchSyncRun: (...a: unknown[]) => touchSyncRun(...a),
   completeSyncRun: (...a: unknown[]) => completeSyncRun(...a),
 }))

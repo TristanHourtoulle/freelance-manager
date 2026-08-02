@@ -2,12 +2,13 @@ import "server-only"
 import { LinearClient } from "@linear/sdk"
 import { prisma } from "@/lib/db"
 import { decrypt, encrypt } from "@/lib/encryption"
-import { completeSyncRun, touchSyncRun } from "@/lib/linear-sync-progress"
+import { completeSyncRun, touchSyncRun } from "@/lib/task-sync/progress"
 import type {
   Prisma,
   TaskStatus,
   TaskPriority,
 } from "@/generated/prisma/client"
+import type { TaskSyncProgress, TaskSyncResult } from "@/lib/task-sync/provider"
 
 interface UserLinear {
   client: LinearClient
@@ -121,10 +122,7 @@ export function keyFromIdentifier(identifier: string): string {
   return idx > 0 ? identifier.slice(0, idx) : identifier
 }
 
-interface SyncResult {
-  projects: number
-  tasks: number
-}
+type SyncProgressReporter = (progress: TaskSyncProgress) => Promise<void>
 
 function mappingLabel(client: {
   company: string | null
@@ -609,20 +607,20 @@ export type LinearProjectMirrorUpdate = Pick<
  * If phase 1 throws (Linear API error), no DB write happens; if phase 2
  * throws, everything rolls back.
  *
- * Progress is reported to the `LinearSyncRun` row identified by `runId`: one
- * best-effort `touchSyncRun` per phase-1 mapping (the only step slow enough to
- * be worth watching), then a single `completeSyncRun` once phase 2 commits. No
- * progress write ever happens inside the phase-2 transaction, which must stay
- * short and free of extra I/O.
+ * Progress is emitted through `reportProgress` once per phase-1 mapping (the
+ * only step slow enough to be worth watching). The provider-neutral
+ * orchestrator owns persistence and completion of the run. No progress event
+ * happens inside the phase-2 transaction, which stays short and free of extra
+ * I/O.
  *
  * @param userId - Owner of the mappings to sync.
- * @param runId - Optional run row to report progress into.
+ * @param reportProgress - Provider-neutral callback for incremental progress.
  * @returns The number of projects and tasks upserted.
  */
-export async function syncFromLinear(
+export async function syncLinearTasks(
   userId: string,
-  runId?: string | null,
-): Promise<SyncResult> {
+  reportProgress: SyncProgressReporter,
+): Promise<TaskSyncResult> {
   const userLinear = await getLinearClient(userId)
   if (!userLinear) {
     throw new Error("No Linear token configured for this user")
@@ -646,7 +644,7 @@ export async function syncFromLinear(
     issues: EnrichedIssue[]
   }[] = []
   for (const [index, m] of mappings.entries()) {
-    await touchSyncRun(runId, {
+    await reportProgress({
       doneMappings: index,
       currentLabel: mappingLabel(m.client),
     })
@@ -758,9 +756,26 @@ export async function syncFromLinear(
     })
   }, SYNC_TX_OPTIONS)
 
-  await completeSyncRun(runId, { projectsUpserted, tasksUpserted })
-
   return { projects: projectsUpserted, tasks: tasksUpserted }
+}
+
+/**
+ * Backwards-compatible Linear entry point.
+ *
+ * New orchestration should use `linearTaskProvider` through `runTaskSync`.
+ */
+export async function syncFromLinear(
+  userId: string,
+  runId?: string | null,
+): Promise<TaskSyncResult> {
+  const result = await syncLinearTasks(userId, (progress) =>
+    touchSyncRun(runId, progress),
+  )
+  await completeSyncRun(runId, {
+    projectsUpserted: result.projects,
+    tasksUpserted: result.tasks,
+  })
+  return result
 }
 
 /**

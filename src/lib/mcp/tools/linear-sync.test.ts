@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { prismaMock } = vi.hoisted(() => ({
   prismaMock: {
     activityLog: { create: vi.fn() },
-    linearSyncRun: { findFirst: vi.fn() },
+    taskSyncRun: { findFirst: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -29,11 +29,16 @@ beforeEach(() => {
 
 describe("triggerLinearSyncTool", () => {
   it("starts a sync when the user has never synced before", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
     triggerLinearSync.mockResolvedValue({ status: "started", runId: "run-1" })
 
     const result = await triggerLinearSyncTool(USER_ID)
 
+    expect(prismaMock.taskSyncRun.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: USER_ID, providerId: "linear" },
+      }),
+    )
     expect(triggerLinearSync).toHaveBeenCalledWith(USER_ID)
     const structured = result.structuredContent as {
       status: string
@@ -48,7 +53,7 @@ describe("triggerLinearSyncTool", () => {
 
   it("refuses with cooldown when the last run finished recently", async () => {
     const startedAt = new Date(Date.now() - 1_000)
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       status: "COMPLETED",
       startedAt,
     })
@@ -70,7 +75,7 @@ describe("triggerLinearSyncTool", () => {
 
   it("starts a new sync once the cooldown has elapsed", async () => {
     const startedAt = new Date(Date.now() - TRIGGER_COOLDOWN_MS - 5_000)
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       status: "FAILED",
       startedAt,
     })
@@ -84,7 +89,7 @@ describe("triggerLinearSyncTool", () => {
   })
 
   it("bypasses the cooldown and reports in_progress when a run is already RUNNING", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       status: "RUNNING",
       startedAt: new Date(),
     })
@@ -108,7 +113,7 @@ describe("triggerLinearSyncTool", () => {
   })
 
   it("still reports in_progress when the race edge case returns a null runId", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
     triggerLinearSync.mockResolvedValue({ status: "in_progress", runId: null })
 
     const result = await triggerLinearSyncTool(USER_ID)
@@ -125,10 +130,15 @@ describe("triggerLinearSyncTool", () => {
 
 describe("getLinearSyncStatus", () => {
   it("returns idle when the user has never synced", async () => {
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue(null)
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue(null)
 
     const result = await getLinearSyncStatus(USER_ID)
 
+    expect(prismaMock.taskSyncRun.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: USER_ID, providerId: "linear" },
+      }),
+    )
     expect(result.structuredContent).toEqual({
       status: "idle",
       runId: null,
@@ -145,7 +155,7 @@ describe("getLinearSyncStatus", () => {
 
   it("maps the latest run, including a null finishedAt while RUNNING", async () => {
     const startedAt = new Date("2026-07-28T10:00:00.000Z")
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       id: "run-1",
       status: "RUNNING",
       totalMappings: 10,
@@ -177,7 +187,7 @@ describe("getLinearSyncStatus", () => {
   it("surfaces errorMessage on a FAILED run", async () => {
     const startedAt = new Date("2026-07-28T10:00:00.000Z")
     const finishedAt = new Date("2026-07-28T10:05:00.000Z")
-    prismaMock.linearSyncRun.findFirst.mockResolvedValue({
+    prismaMock.taskSyncRun.findFirst.mockResolvedValue({
       id: "run-1",
       status: "FAILED",
       totalMappings: 10,

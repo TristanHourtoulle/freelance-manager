@@ -94,6 +94,7 @@ describe("useLinearSyncStatus", () => {
     renderHook(() => useLinearSyncStatus(), { wrapper: Wrapper })
 
     await waitFor(() => expect(apiGetMock).toHaveBeenCalledTimes(1))
+    expect(apiGetMock).toHaveBeenCalledWith("/api/task-sync/linear/sync-status")
 
     await vi.advanceTimersByTimeAsync(1_000)
     expect(apiGetMock).toHaveBeenCalledTimes(2)
@@ -214,6 +215,7 @@ describe("useSyncLinear", () => {
     result.current.mutate()
 
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1))
+    expect(apiPostMock).toHaveBeenCalledWith("/api/task-sync/linear/refresh")
     expect(toastMock).toHaveBeenCalledWith({
       variant: "info",
       title: "Synchronisation déjà en cours",

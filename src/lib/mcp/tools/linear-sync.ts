@@ -91,8 +91,8 @@ export async function triggerLinearSyncTool(
     { userId, tool: "trigger_linear_sync", args: {} },
     async () => {
       const now = Date.now()
-      const latest = await prisma.linearSyncRun.findFirst({
-        where: { userId },
+      const latest = await prisma.taskSyncRun.findFirst({
+        where: { userId, providerId: "linear" },
         orderBy: { startedAt: "desc" },
         select: { status: true, startedAt: true },
       })
@@ -119,10 +119,10 @@ export async function triggerLinearSyncTool(
         throw new McpToolError(
           result.runId
             ? `A Linear sync is already running (runId: ${result.runId}). ` +
-              `Poll get_linear_sync_status with this runId until status is ` +
-              `COMPLETED or FAILED — do not call trigger_linear_sync again.`
+                `Poll get_linear_sync_status with this runId until status is ` +
+                `COMPLETED or FAILED — do not call trigger_linear_sync again.`
             : `A Linear sync is already running. Poll ` +
-              `get_linear_sync_status until status is COMPLETED or FAILED.`,
+                `get_linear_sync_status until status is COMPLETED or FAILED.`,
           {
             status: "in_progress",
             runId: result.runId,
@@ -147,7 +147,7 @@ export async function triggerLinearSyncTool(
 }
 
 /**
- * Handler for the get_linear_sync_status tool: the latest `LinearSyncRun`
+ * Handler for the get_linear_sync_status tool: the latest Linear task sync run
  * for this user, mirroring `GET /api/linear/sync-status`.
  *
  * @param userId - The resolved MCP principal.
@@ -160,8 +160,8 @@ export async function getLinearSyncStatus(
   return runMcpTool(
     { userId, tool: "get_linear_sync_status", args: {} },
     async () => {
-      const run = await prisma.linearSyncRun.findFirst({
-        where: { userId },
+      const run = await prisma.taskSyncRun.findFirst({
+        where: { userId, providerId: "linear" },
         orderBy: { startedAt: "desc" },
         select: SYNC_RUN_STATUS_SELECT,
       })
@@ -220,8 +220,8 @@ export function registerLinearSyncTools(
         "effect (it reads from the Linear API) — not destructive, but " +
         "not idempotent while a sync is in flight. Refuses with an " +
         "isError result in two distinguishable cases (see " +
-        "structuredContent.status): \"in_progress\" when a sync is " +
-        "already running (carries the runId to poll), or \"cooldown\" " +
+        'structuredContent.status): "in_progress" when a sync is ' +
+        'already running (carries the runId to poll), or "cooldown" ' +
         "when the 60s minimum between syncs has not elapsed yet (carries " +
         "retryAfterSeconds and nextTriggerAllowedAt). Check syncStale on " +
         "list_tasks / list_projects / get_dashboard first — do not call " +
