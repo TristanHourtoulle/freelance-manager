@@ -18,6 +18,7 @@ const READ_TOOLS = [
   "get_client",
   "list_projects",
   "list_tasks",
+  "list_task_groups",
   "list_invoices",
   "get_invoice",
   "list_quotes",
@@ -39,6 +40,8 @@ const WRITE_TOOLS = [
   "set_task_actual_days",
   "set_task_estimate",
   "set_task_billability",
+  "create_task_group",
+  "update_task_group",
   "log_meeting",
   "update_meeting",
   "create_action",
@@ -46,7 +49,7 @@ const WRITE_TOOLS = [
   "trigger_linear_sync",
 ] as const
 
-const DESTRUCTIVE_TOOLS = ["delete_meeting"] as const
+const DESTRUCTIVE_TOOLS = ["delete_meeting", "delete_task_group"] as const
 
 /**
  * Tools whose name legitimately contains a word the blanket guard below
@@ -108,7 +111,7 @@ describe("registerMcpTools", () => {
     }
   })
 
-  it("annotates delete_meeting — and only delete_meeting — as destructive", () => {
+  it("annotates only the explicitly reviewed delete tools as destructive", () => {
     const registered = registerAll()
     for (const name of DESTRUCTIVE_TOOLS) {
       const config = registered.get(name)
@@ -119,7 +122,9 @@ describe("registerMcpTools", () => {
     const destructive = [...registered.entries()].filter(
       ([, config]) => config.annotations.destructiveHint,
     )
-    expect(destructive.map(([name]) => name)).toEqual([...DESTRUCTIVE_TOOLS])
+    expect(destructive.map(([name]) => name).sort()).toEqual(
+      [...DESTRUCTIVE_TOOLS].sort(),
+    )
   })
 
   it("tells the model that every list result is capped", () => {

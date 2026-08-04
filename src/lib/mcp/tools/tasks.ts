@@ -41,6 +41,10 @@ const listTasksInput = z.object({
   projectIds: z.array(z.string().min(1)).max(50).optional(),
   status: taskStatusSchema.optional(),
   billable: z.boolean().optional(),
+  grouped: z
+    .boolean()
+    .optional()
+    .describe("true for grouped tasks only; false for standalone tasks only"),
 })
 
 const taskRowSchema = z.object({
@@ -53,6 +57,7 @@ const taskRowSchema = z.object({
   actualDays: z.number().nullable(),
   completedAt: z.string().nullable(),
   invoiceId: z.string().nullable(),
+  taskGroupId: z.string().nullable(),
   clientId: z.string(),
   projectId: z.string(),
   billable: z.boolean(),
@@ -126,6 +131,7 @@ const TASK_ROW_SELECT = {
   actualDays: true,
   completedAt: true,
   invoiceId: true,
+  taskGroupId: true,
   clientId: true,
   projectId: true,
   billable: true,
@@ -159,6 +165,11 @@ export async function listTasks(
         ? { projectId: { in: args.projectIds } }
         : {}),
       ...(args.billable === undefined ? {} : { billable: args.billable }),
+      ...(args.grouped === undefined
+        ? {}
+        : args.grouped
+          ? { taskGroupId: { not: null } }
+          : { taskGroupId: null }),
       ...(args.status
         ? { status: args.status }
         : {
@@ -202,6 +213,7 @@ export async function listTasks(
         actualDays: decimalToNumber(t.actualDays),
         completedAt: t.completedAt?.toISOString() ?? null,
         invoiceId: t.invoiceId,
+        taskGroupId: t.taskGroupId,
         clientId: t.clientId,
         projectId: t.projectId,
         billable: t.billable,
@@ -395,7 +407,7 @@ export function registerTaskTools(server: McpServer, userId: string): void {
         `syncStale field; when true, the data may be out of date and you ` +
         `should call trigger_linear_sync (then poll get_linear_sync_status) ` +
         `before relying on these results, instead of retrying this call. ` +
-        `Filters: clientIds, projectIds, status, billable. ${PAGINATED_LIST_NOTE}`,
+        `Filters: clientIds, projectIds, status, billable, grouped. ${PAGINATED_LIST_NOTE}`,
       inputSchema: listTasksInput,
       outputSchema: listTasksOutput,
       annotations: READ_ONLY_ANNOTATIONS,

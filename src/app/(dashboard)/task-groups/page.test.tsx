@@ -73,6 +73,15 @@ describe("TaskGroupsPage", () => {
     h.create.mockReset()
   })
 
+  it("uses the same full-width page layout as the other dashboard pages", () => {
+    const { container } = render(<TaskGroupsPage />)
+
+    expect(
+      (container.querySelector(".task-groups-page") as HTMLElement).style
+        .maxWidth,
+    ).toBe("")
+  })
+
   it("only offers ungrouped tasks of the selected client", async () => {
     const user = userEvent.setup()
     render(<TaskGroupsPage />)

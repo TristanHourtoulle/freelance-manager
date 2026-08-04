@@ -12,7 +12,8 @@ const { prismaMock, txMock } = vi.hoisted(() => ({
     invoice: { create: vi.fn(), update: vi.fn(), findUniqueOrThrow: vi.fn() },
     invoiceLine: { deleteMany: vi.fn() },
     payment: { create: vi.fn(), aggregate: vi.fn() },
-    task: { updateMany: vi.fn() },
+    task: { findMany: vi.fn(), updateMany: vi.fn() },
+    taskGroup: { findMany: vi.fn(), updateMany: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -106,6 +107,8 @@ beforeEach(() => {
   })
   txMock.payment.aggregate.mockResolvedValue({ _sum: { amount: 100 } })
   txMock.task.updateMany.mockResolvedValue({ count: 0 })
+  txMock.taskGroup.findMany.mockResolvedValue([])
+  txMock.taskGroup.updateMany.mockResolvedValue({ count: 0 })
   nextAutoNumber.mockResolvedValue("2026-1025")
   recomputeInvoicePayment.mockResolvedValue("PARTIALLY_PAID")
 })
@@ -176,6 +179,22 @@ describe("updateInvoiceDraft", () => {
       clientId: "client-1",
       status: "DRAFT",
     })
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+      {
+        id: "task-2",
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
     await updateInvoiceDraft(
       USER_ID,
       updateArgs({
@@ -208,6 +227,85 @@ describe("updateInvoiceDraft", () => {
     expect(recomputeInvoicePayment).toHaveBeenCalledWith("inv-1", txMock)
   })
 
+  it("replaces and reclaims complete task groups atomically", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      number: "2026-0001",
+      clientId: "client-1",
+      status: "DRAFT",
+    })
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: "group-1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+    txMock.taskGroup.findMany.mockResolvedValue([
+      {
+        id: "group-1",
+        invoiceId: null,
+        tasks: [
+          {
+            id: "task-1",
+            status: "PENDING_INVOICE",
+            billable: true,
+            invoiceId: null,
+          },
+        ],
+      },
+    ])
+    txMock.taskGroup.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+
+    const result = await updateInvoiceDraft(
+      USER_ID,
+      updateArgs({
+        taskGroupIds: ["group-1"],
+        lines: [
+          {
+            taskId: "task-1",
+            taskGroupId: "group-1",
+            label: "Lot CDN",
+            qty: 1,
+            rate: 500,
+          },
+        ],
+      }),
+    )
+
+    expect(result.isError).toBeUndefined()
+    expect(txMock.taskGroup.updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        invoiceId: "inv-1",
+        userId: USER_ID,
+        clientId: "client-1",
+      },
+      data: { invoiceId: null },
+    })
+    expect(txMock.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lines: {
+            create: [expect.objectContaining({ taskGroupId: "group-1" })],
+          },
+        }),
+      }),
+    )
+    expect(txMock.taskGroup.updateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: { in: ["group-1"] },
+        userId: USER_ID,
+        clientId: "client-1",
+        OR: [{ invoiceId: null }, { invoiceId: "inv-1" }],
+      },
+      data: { invoiceId: "inv-1" },
+    })
+  })
+
   it("returns not-found for a foreign invoice id", async () => {
     prismaMock.invoice.findFirst.mockResolvedValue(null)
     const result = await updateInvoiceDraft(USER_ID, updateArgs())
@@ -234,6 +332,66 @@ describe("splitInvoice", () => {
       expect(call[0]).toBe(txMock)
       expect(call[1]).toBe(USER_ID)
     }
+  })
+
+  it("attaches and claims complete groups on the first installment only", async () => {
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: "group-1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+    txMock.taskGroup.findMany.mockResolvedValue([
+      {
+        id: "group-1",
+        invoiceId: null,
+        tasks: [
+          {
+            id: "task-1",
+            status: "PENDING_INVOICE",
+            billable: true,
+            invoiceId: null,
+          },
+        ],
+      },
+    ])
+    txMock.taskGroup.updateMany.mockResolvedValue({ count: 1 })
+
+    const result = await splitInvoice(
+      USER_ID,
+      splitArgs({
+        taskGroupIds: ["group-1"],
+        lines: [
+          {
+            taskId: "task-1",
+            taskGroupId: "group-1",
+            label: "Lot CDN",
+            qty: 1,
+            rate: 900,
+          },
+        ],
+      }),
+    )
+
+    expect(result.isError).toBeUndefined()
+    const firstLines = txMock.invoice.create.mock.calls[0]![0].data.lines
+      .create as Array<{ taskGroupId: string | null }>
+    const secondLines = txMock.invoice.create.mock.calls[1]![0].data.lines
+      .create as Array<{ taskGroupId: string | null }>
+    expect(firstLines[0]!.taskGroupId).toBe("group-1")
+    expect(secondLines[0]!.taskGroupId).toBeNull()
+    expect(txMock.taskGroup.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["group-1"] },
+        userId: USER_ID,
+        clientId: "client-1",
+        OR: [{ invoiceId: null }, { invoiceId: "inv-1" }],
+      },
+      data: { invoiceId: "inv-1" },
+    })
   })
 
   it("splits the total into cent-exact installments that sum back exactly", async () => {
@@ -270,6 +428,15 @@ describe("splitInvoice", () => {
       .mockResolvedValueOnce({ id: "inv-a", number: "2026-0001" })
       .mockResolvedValueOnce({ id: "inv-b", number: "2026-0002" })
       .mockResolvedValueOnce({ id: "inv-c", number: "2026-0003" })
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
 
     await splitInvoice(USER_ID, splitArgs({ taskIds: ["task-1"] }))
 

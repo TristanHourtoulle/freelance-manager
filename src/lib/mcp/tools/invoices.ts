@@ -12,7 +12,13 @@ import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { invoicesTag } from "@/lib/data/invoices"
 import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
+import { taskGroupsTag } from "@/lib/data/task-groups"
 import { deferActivityLog } from "@/lib/activity"
+import {
+  claimInvoiceTaskGroups,
+  InvoiceTaskGroupConflictError,
+  validateInvoiceTaskGroups,
+} from "@/lib/invoice-task-groups"
 import {
   cursorInputSchema,
   fetchAllInputSchema,
@@ -49,6 +55,7 @@ export const paymentStatusSchema = z.enum([
 ])
 export const draftLineInputSchema = z.object({
   taskId: z.string().min(1).optional(),
+  taskGroupId: z.string().min(1).optional(),
   label: z.string().min(1).max(240),
   qty: z.number().min(0).max(100_000),
   rate: z.number().min(0).max(10_000_000),
@@ -114,6 +121,13 @@ const createInvoiceDraftInput = z.object({
     .max(200)
     .optional()
     .describe("Extra task ids to attach to the invoice"),
+  taskGroupIds: z
+    .array(z.string().min(1))
+    .max(100)
+    .optional()
+    .describe(
+      "Complete task groups to attach. Every task in each group must have a line carrying both taskId and taskGroupId.",
+    ),
 })
 
 const createInvoiceDraftOutput = z.object({
@@ -290,6 +304,24 @@ export async function createInvoiceDraft(
       const subtotal = args.lines.reduce((s, l) => s + l.qty * l.rate, 0)
 
       const created = await prisma.$transaction(async (tx) => {
+        try {
+          await validateInvoiceTaskGroups(tx, {
+            userId,
+            clientId: args.clientId,
+            taskIds: args.taskIds,
+            taskGroupIds: args.taskGroupIds ?? [],
+            lines: args.lines,
+          })
+        } catch (error) {
+          if (error instanceof InvoiceTaskGroupConflictError) {
+            throw new McpToolError(
+              "Tasks or task groups are not eligible for this invoice. A group must be complete, unbilled, and belong to the invoice client.",
+              { code: "TASK_GROUP_CONFLICT" },
+            )
+          }
+          throw error
+        }
+
         const number = await nextAutoNumber(tx, userId, issueDate.getFullYear())
         const inv = await tx.invoice.create({
           data: {
@@ -309,6 +341,7 @@ export async function createInvoiceDraft(
             lines: {
               create: args.lines.map((l, i) => ({
                 taskId: l.taskId ?? null,
+                taskGroupId: l.taskGroupId ?? null,
                 label: l.label,
                 qty: l.qty,
                 rate: l.rate,
@@ -330,6 +363,13 @@ export async function createInvoiceDraft(
           })
         }
 
+        await claimInvoiceTaskGroups(tx, {
+          userId,
+          clientId: args.clientId,
+          invoiceId: inv.id,
+          taskGroupIds: args.taskGroupIds ?? [],
+        })
+
         if (client.stage === "LEAD") {
           await tx.client.update({
             where: { id: client.id },
@@ -343,6 +383,7 @@ export async function createInvoiceDraft(
       revalidateTag(invoicesTag(userId), "max")
       revalidateTag(clientsTag(userId), "max")
       revalidateTag(navTag(userId), "max")
+      revalidateTag(taskGroupsTag(userId), "max")
       deferActivityLog({
         userId,
         kind: "INVOICE_CREATED",
@@ -404,7 +445,7 @@ export function registerInvoiceTools(server: McpServer, userId: string): void {
     "create_invoice_draft",
     {
       description:
-        "Create a DRAFT invoice for a client. The status is always DRAFT, the total is always computed from the lines, and the number is auto-allocated — this tool can never send an invoice.",
+        "Create a DRAFT invoice for a client from standalone tasks and/or complete task groups. For each grouped task, set both line.taskId and line.taskGroupId and include the group in taskGroupIds. Partial, cross-client, already-grouped elsewhere, or already-invoiced groups are rejected atomically. The status is always DRAFT, the total is computed from the lines, and the number is auto-allocated — this tool can never send an invoice.",
       inputSchema: createInvoiceDraftInput,
       outputSchema: createInvoiceDraftOutput,
       annotations: writeAnnotations(false),

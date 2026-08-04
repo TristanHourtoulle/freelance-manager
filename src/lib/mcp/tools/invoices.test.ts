@@ -14,7 +14,8 @@ const { prismaMock, txMock } = vi.hoisted(() => ({
   },
   txMock: {
     invoice: { create: vi.fn() },
-    task: { updateMany: vi.fn() },
+    task: { findMany: vi.fn(), updateMany: vi.fn() },
+    taskGroup: { findMany: vi.fn(), updateMany: vi.fn() },
     client: { update: vi.fn() },
   },
 }))
@@ -83,6 +84,8 @@ beforeEach(() => {
   )
   txMock.invoice.create.mockResolvedValue(createdInvoiceRow())
   txMock.task.updateMany.mockResolvedValue({ count: 0 })
+  txMock.taskGroup.findMany.mockResolvedValue([])
+  txMock.taskGroup.updateMany.mockResolvedValue({ count: 0 })
   nextAutoNumber.mockResolvedValue("2026-1025")
 })
 
@@ -145,6 +148,22 @@ describe("createInvoiceDraft", () => {
   })
 
   it("scopes attached tasks to the principal and the client", async () => {
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+      {
+        id: "task-2",
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
     await createInvoiceDraft(
       USER_ID,
       draftArgs({
@@ -160,6 +179,156 @@ describe("createInvoiceDraft", () => {
       },
       data: { invoiceId: "inv-1", status: "DONE" },
     })
+  })
+
+  it("validates and atomically claims complete task groups", async () => {
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: "group-1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+    txMock.taskGroup.findMany.mockResolvedValue([
+      {
+        id: "group-1",
+        invoiceId: null,
+        tasks: [
+          {
+            id: "task-1",
+            status: "PENDING_INVOICE",
+            billable: true,
+            invoiceId: null,
+          },
+        ],
+      },
+    ])
+    txMock.taskGroup.updateMany.mockResolvedValue({ count: 1 })
+
+    const result = await createInvoiceDraft(
+      USER_ID,
+      draftArgs({
+        taskGroupIds: ["group-1"],
+        lines: [
+          {
+            taskId: "task-1",
+            taskGroupId: "group-1",
+            label: "Lot CDN",
+            qty: 2,
+            rate: 500,
+          },
+        ],
+      }),
+    )
+
+    expect(result.isError).toBeUndefined()
+    expect(txMock.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lines: {
+            create: [
+              expect.objectContaining({
+                taskId: "task-1",
+                taskGroupId: "group-1",
+              }),
+            ],
+          },
+        }),
+      }),
+    )
+    expect(txMock.taskGroup.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["group-1"] },
+        userId: USER_ID,
+        clientId: "client-1",
+        OR: [{ invoiceId: null }, { invoiceId: "inv-1" }],
+      },
+      data: { invoiceId: "inv-1" },
+    })
+  })
+
+  it("rejects a partial group instead of silently invoicing it", async () => {
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: "group-1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+    txMock.taskGroup.findMany.mockResolvedValue([
+      {
+        id: "group-1",
+        invoiceId: null,
+        tasks: [
+          {
+            id: "task-1",
+            status: "PENDING_INVOICE",
+            billable: true,
+            invoiceId: null,
+          },
+          {
+            id: "task-2",
+            status: "PENDING_INVOICE",
+            billable: true,
+            invoiceId: null,
+          },
+        ],
+      },
+    ])
+
+    const result = await createInvoiceDraft(
+      USER_ID,
+      draftArgs({
+        taskGroupIds: ["group-1"],
+        lines: [
+          {
+            taskId: "task-1",
+            taskGroupId: "group-1",
+            label: "Lot incomplet",
+            qty: 1,
+            rate: 500,
+          },
+        ],
+      }),
+    )
+
+    expect(result.isError).toBe(true)
+    expect(txMock.invoice.create).not.toHaveBeenCalled()
+    expect(txMock.taskGroup.updateMany).not.toHaveBeenCalled()
+  })
+
+  it("rejects grouped task lines when taskGroupIds omits their group", async () => {
+    txMock.task.findMany.mockResolvedValue([
+      {
+        id: "task-1",
+        taskGroupId: "group-1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+
+    const result = await createInvoiceDraft(
+      USER_ID,
+      draftArgs({
+        lines: [
+          {
+            taskId: "task-1",
+            taskGroupId: "group-1",
+            label: "Lot non déclaré",
+            qty: 1,
+            rate: 500,
+          },
+        ],
+      }),
+    )
+
+    expect(result.isError).toBe(true)
+    expect(txMock.invoice.create).not.toHaveBeenCalled()
   })
 
   it("returns not-found for a client owned by another user", async () => {

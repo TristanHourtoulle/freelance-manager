@@ -219,7 +219,7 @@ export default function TaskGroupsPage() {
   }
 
   return (
-    <div className="page task-groups-page" style={{ maxWidth: 1200 }}>
+    <div className="page task-groups-page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Groupes de tasks</h1>

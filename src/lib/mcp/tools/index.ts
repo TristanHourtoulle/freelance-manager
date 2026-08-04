@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { registerClientTools } from "@/lib/mcp/tools/clients"
 import { registerProjectTools } from "@/lib/mcp/tools/projects"
 import { registerTaskTools } from "@/lib/mcp/tools/tasks"
+import { registerTaskGroupTools } from "@/lib/mcp/tools/task-groups"
 import { registerInvoiceTools } from "@/lib/mcp/tools/invoices"
 import { registerInvoiceWriteTools } from "@/lib/mcp/tools/invoices-write"
 import { registerQuoteTools } from "@/lib/mcp/tools/quotes"
@@ -13,12 +14,14 @@ import { registerLinearSyncTools } from "@/lib/mcp/tools/linear-sync"
 /**
  * Register the complete v1 MCP tool surface for one resolved principal.
  *
- * Reads: list_clients, get_client, list_projects, list_tasks, list_invoices,
+ * Reads: list_clients, get_client, list_projects, list_tasks,
+ * list_task_groups, list_invoices,
  * get_invoice, list_quotes, get_dashboard, get_analytics, list_meetings,
  * list_actions, get_linear_sync_status. Writes: create_client,
  * update_client, link_linear_project, create_invoice_draft /
  * update_invoice_draft (DRAFT only), split_invoice, record_payment,
  * set_task_actual_days, set_task_estimate, set_task_billability,
+ * create_task_group, update_task_group, delete_task_group,
  * log_meeting, update_meeting, create_action, complete_action,
  * trigger_linear_sync. Settings and the Linear token itself stay off the
  * surface entirely. `record_payment` and `split_invoice` are the tools that
@@ -39,6 +42,7 @@ export function registerMcpTools(server: McpServer, userId: string): void {
   registerClientTools(server, userId)
   registerProjectTools(server, userId)
   registerTaskTools(server, userId)
+  registerTaskGroupTools(server, userId)
   registerInvoiceTools(server, userId)
   registerInvoiceWriteTools(server, userId)
   registerQuoteTools(server, userId)

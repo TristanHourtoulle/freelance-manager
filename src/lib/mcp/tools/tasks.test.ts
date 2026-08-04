@@ -41,6 +41,7 @@ function taskRow(overrides: Record<string, unknown> = {}) {
     actualDays: null,
     completedAt: null,
     invoiceId: null,
+    taskGroupId: null,
     clientId: "client-1",
     projectId: "proj-1",
     billable: true,
@@ -94,6 +95,21 @@ describe("listTasks", () => {
     const result = await listTasks(USER_ID, { limit: 25, fetchAll: false })
     const { total } = result.structuredContent as { total: number }
     expect(total).toBe(194)
+  })
+
+  it("can list only tasks that are still outside any group", async () => {
+    prismaMock.task.findMany.mockResolvedValue([taskRow()])
+
+    await listTasks(USER_ID, {
+      limit: 25,
+      fetchAll: false,
+      grouped: false,
+    })
+
+    const call = prismaMock.task.findMany.mock.calls[0]![0] as {
+      where: { taskGroupId?: null }
+    }
+    expect(call.where.taskGroupId).toBeNull()
   })
 })
 

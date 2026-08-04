@@ -23,6 +23,20 @@ export async function validateInvoiceTaskGroups(
     lines: readonly GroupedLine[]
   },
 ) {
+  const requestedGroupIds = new Set(args.taskGroupIds)
+  const referencedGroupIds = new Set(
+    args.lines
+      .map((line) => line.taskGroupId)
+      .filter((groupId): groupId is string => Boolean(groupId)),
+  )
+  if (
+    requestedGroupIds.size !== args.taskGroupIds.length ||
+    requestedGroupIds.size !== referencedGroupIds.size ||
+    [...requestedGroupIds].some((groupId) => !referencedGroupIds.has(groupId))
+  ) {
+    throw new InvoiceTaskGroupConflictError()
+  }
+
   const expectedGroupByTask = new Map<string, string | null>()
   for (const line of args.lines) {
     if (!line.taskId) continue

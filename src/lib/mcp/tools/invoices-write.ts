@@ -12,7 +12,13 @@ import { recomputeInvoicePayment } from "@/lib/payments"
 import { paymentCreateSchema } from "@/lib/schemas/payment"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
+import { taskGroupsTag } from "@/lib/data/task-groups"
 import { deferActivityLog } from "@/lib/activity"
+import {
+  claimInvoiceTaskGroups,
+  InvoiceTaskGroupConflictError,
+  validateInvoiceTaskGroups,
+} from "@/lib/invoice-task-groups"
 import {
   draftLineInputSchema,
   invoiceKindSchema,
@@ -50,6 +56,13 @@ const updateInvoiceDraftInput = z.object({
     .max(200)
     .optional()
     .describe("Extra task ids to attach to the invoice"),
+  taskGroupIds: z
+    .array(z.string().min(1))
+    .max(100)
+    .optional()
+    .describe(
+      "Complete task groups to attach. Every grouped task line must carry both taskId and taskGroupId.",
+    ),
 })
 
 const updateInvoiceDraftOutput = z.object({
@@ -79,6 +92,11 @@ const splitInvoiceInput = z.object({
     .max(200)
     .optional()
     .describe("Task ids attached to the FIRST installment only"),
+  taskGroupIds: z
+    .array(z.string().min(1))
+    .max(100)
+    .optional()
+    .describe("Complete task groups attached to the FIRST installment only"),
   totalOverride: z
     .number()
     .min(0)
@@ -217,6 +235,33 @@ export async function updateInvoiceDraft(
           where: { invoiceId: args.invoiceId, userId },
           data: { invoiceId: null, status: "PENDING_INVOICE" },
         })
+        await tx.taskGroup.updateMany({
+          where: {
+            invoiceId: args.invoiceId,
+            userId,
+            clientId: owned.clientId,
+          },
+          data: { invoiceId: null },
+        })
+
+        try {
+          await validateInvoiceTaskGroups(tx, {
+            userId,
+            clientId: owned.clientId,
+            invoiceId: args.invoiceId,
+            taskIds: args.taskIds,
+            taskGroupIds: args.taskGroupIds ?? [],
+            lines: args.lines,
+          })
+        } catch (error) {
+          if (error instanceof InvoiceTaskGroupConflictError) {
+            throw new McpToolError(
+              "Tasks or task groups are not eligible for this invoice. A group must be complete, unbilled, and belong to the invoice client.",
+              { code: "TASK_GROUP_CONFLICT" },
+            )
+          }
+          throw error
+        }
 
         await tx.invoiceLine.deleteMany({
           where: { invoiceId: args.invoiceId },
@@ -239,6 +284,7 @@ export async function updateInvoiceDraft(
             lines: {
               create: args.lines.map((l, i) => ({
                 taskId: l.taskId ?? null,
+                taskGroupId: l.taskGroupId ?? null,
                 label: l.label,
                 qty: l.qty,
                 rate: l.rate,
@@ -260,11 +306,19 @@ export async function updateInvoiceDraft(
           })
         }
 
+        await claimInvoiceTaskGroups(tx, {
+          userId,
+          clientId: owned.clientId,
+          invoiceId: args.invoiceId,
+          taskGroupIds: args.taskGroupIds ?? [],
+        })
+
         await recomputeInvoicePayment(args.invoiceId, tx)
       })
 
       revalidateTag(invoicesTag(userId), "max")
       revalidateTag(navTag(userId), "max")
+      revalidateTag(taskGroupsTag(userId), "max")
 
       return {
         id: args.invoiceId,
@@ -299,7 +353,8 @@ export async function updateInvoiceDraft(
  * read-your-own-writes and can never repeat a number, even under concurrent
  * split calls for the same user. Status is always DRAFT for every
  * installment — there is no `status` input — so this tool can never send an
- * invoice either. Tasks are attached to the FIRST installment only, scoped
+ * invoice either. Standalone tasks and complete task groups are attached to
+ * the FIRST installment only, scoped
  * to `{ userId, clientId }` like the other invoice-write tools (the HTTP
  * route only scopes by `userId`; this tool tightens that to match
  * `create_invoice_draft`/`update_invoice_draft`).
@@ -340,6 +395,24 @@ export async function splitInvoice(
     const year = issueDate.getFullYear()
 
     const items = await prisma.$transaction(async (tx) => {
+      try {
+        await validateInvoiceTaskGroups(tx, {
+          userId,
+          clientId: args.clientId,
+          taskIds: args.taskIds,
+          taskGroupIds: args.taskGroupIds ?? [],
+          lines: args.lines,
+        })
+      } catch (error) {
+        if (error instanceof InvoiceTaskGroupConflictError) {
+          throw new McpToolError(
+            "Tasks or task groups are not eligible for this split invoice. A group must be complete, unbilled, and belong to the invoice client.",
+            { code: "TASK_GROUP_CONFLICT" },
+          )
+        }
+        throw error
+      }
+
       const out: {
         id: string
         number: string
@@ -371,6 +444,7 @@ export async function splitInvoice(
             lines: {
               create: args.lines.map((l, idx) => ({
                 taskId: isFirst ? (l.taskId ?? null) : null,
+                taskGroupId: isFirst ? (l.taskGroupId ?? null) : null,
                 label: l.label,
                 qty: l.qty,
                 rate: l.rate,
@@ -399,11 +473,21 @@ export async function splitInvoice(
         })
       }
 
+      if (out[0]) {
+        await claimInvoiceTaskGroups(tx, {
+          userId,
+          clientId: args.clientId,
+          invoiceId: out[0].id,
+          taskGroupIds: args.taskGroupIds ?? [],
+        })
+      }
+
       return out
     })
 
     revalidateTag(invoicesTag(userId), "max")
     revalidateTag(navTag(userId), "max")
+    revalidateTag(taskGroupsTag(userId), "max")
 
     return { items }
   })
@@ -511,7 +595,7 @@ export function registerInvoiceWriteTools(
     "update_invoice_draft",
     {
       description:
-        "Full-replace edit of an invoice that is still DRAFT (lines, dates, kind, notes, totalOverride, attached tasks). Refuses any invoice not currently DRAFT. The status written back is always DRAFT and the total is always recomputed from the lines — this tool can never send an invoice, and repeating the same call leaves the same state.",
+        "Full-replace edit of an invoice that is still DRAFT (lines, dates, kind, notes, totalOverride, standalone tasks and complete task groups). Refuses partial/cross-client/invoiced groups and any invoice not currently DRAFT. The status written back is always DRAFT and the total is always recomputed from the lines — this tool can never send an invoice, and repeating the same call leaves the same state.",
       inputSchema: updateInvoiceDraftInput,
       outputSchema: updateInvoiceDraftOutput,
       annotations: writeAnnotations(true),
@@ -522,7 +606,7 @@ export function registerInvoiceWriteTools(
     "split_invoice",
     {
       description:
-        "Split a contract total into `parts` DRAFT installments with cent-exact amounts and dueDates shifted by `schedule`. Every invoice number is allocated inside the same transaction, so concurrent splits can never collide. Status is always DRAFT for every installment — this tool can never send an invoice. Not idempotent: repeating the call creates new installments.",
+        "Split a contract total into `parts` DRAFT installments with cent-exact amounts and dueDates shifted by `schedule`. Standalone tasks and complete task groups are attached to the first installment; partial/cross-client/invoiced groups are rejected atomically. Every invoice number is allocated inside the same transaction, so concurrent splits can never collide. Status is always DRAFT for every installment — this tool can never send an invoice. Not idempotent: repeating the call creates new installments.",
       inputSchema: splitInvoiceInput,
       outputSchema: splitInvoiceOutput,
       annotations: writeAnnotations(false),
