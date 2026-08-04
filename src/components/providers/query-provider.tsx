@@ -1,6 +1,7 @@
 "use client"
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 interface QueryProviderProps {
@@ -12,6 +13,7 @@ interface QueryProviderProps {
  * Provides caching, deduplication, and stale-while-revalidate for all data fetching.
  */
 export function QueryProvider({ children }: QueryProviderProps) {
+  const router = useRouter()
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -33,7 +35,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
                 error.message.includes("401") &&
                 typeof window !== "undefined"
               ) {
-                window.location.href = "/"
+                router.replace("/")
               }
             },
           },

@@ -15,13 +15,14 @@ interface ListItem {
 const ITEMS: ListItem[] = [
   { href: "/suivi", icon: "calendar", label: "Suivi" },
   { href: "/projects", icon: "folder", label: "Projets" },
+  { href: "/task-groups", icon: "folder", label: "Groupes de tasks" },
   { href: "/analytics", icon: "chart", label: "Analytics" },
   { href: "/settings", icon: "settings", label: "Réglages" },
 ]
 
 /**
  * Mobile-only "Plus" page reachable via the bottom-nav. Hosts the
- * secondary navigation (Projets / Analytics / Réglages) that on
+ * secondary navigation (Projets / groupes / Analytics / Réglages) that on
  * desktop lives in the sidebar, plus the logout action.
  */
 export default function MorePage() {

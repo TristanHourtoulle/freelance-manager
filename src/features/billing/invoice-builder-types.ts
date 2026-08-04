@@ -1,8 +1,9 @@
-import type { BuilderLine } from "@/domain/billing/builder"
+import type { BuilderLine, BuilderTaskGroup } from "@/domain/billing/builder"
 import type { InvoiceDetail, InvoiceKind } from "@/domain/billing/types"
 import type { ClientDTO } from "@/hooks/use-clients"
 import type { TaskDTO } from "@/hooks/use-tasks"
 import type { ProjectDTO } from "@/hooks/use-projects"
+import type { TaskGroupDTO } from "@/hooks/use-task-groups"
 
 export type CreateStatus = "DRAFT" | "SENT"
 export type EditStatus = "DRAFT" | "SENT" | "CANCELLED"
@@ -11,6 +12,7 @@ export type SplitSchedule = "MONTHLY" | "WEEKLY" | "ONCE"
 export interface CreateBuilderArgs {
   mode: "create"
   preselectedTaskIds: string[]
+  preselectedTaskGroupIds?: string[]
   initialClientId: string
 }
 
@@ -42,6 +44,7 @@ export interface BuilderBase {
   depositAmount: number
   setDepositAmount: (v: number) => void
   lines: BuilderLine[]
+  groups: BuilderTaskGroup[]
   useTotalOverride: boolean
   totalOverride: number
   setTotalOverrideValue: (amount: number) => void
@@ -50,9 +53,13 @@ export interface BuilderBase {
   setDragOver: (v: boolean) => void
   projectById: Map<string, ProjectDTO>
   eligibleTasks: TaskDTO[]
+  eligibleGroups: TaskGroupDTO[]
+  taskGroupsPending: boolean
   subtotal: number
   effectiveTotal: number
   addTask: (task: TaskDTO) => void
+  addTaskGroup: (group: TaskGroupDTO) => void
+  removeTaskGroup: (groupId: string) => void
   addTaskById: (taskId: string) => void
   addBlank: () => void
   updateLine: (id: string, patch: Partial<BuilderLine>) => void

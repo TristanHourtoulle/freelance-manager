@@ -22,6 +22,11 @@ import { deferActivityLog } from "@/lib/activity"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
+import {
+  claimInvoiceTaskGroups,
+  InvoiceTaskGroupConflictError,
+  validateInvoiceTaskGroups,
+} from "@/lib/invoice-task-groups"
 
 interface Params {
   params: Promise<{ id: string }>
@@ -36,6 +41,7 @@ export async function GET(_: Request, { params }: Params) {
       where: { id, userId: user.id },
       include: {
         lines: { orderBy: { position: "asc" } },
+        taskGroups: { select: { id: true, name: true } },
         client: {
           select: {
             id: true,
@@ -83,10 +89,12 @@ export async function GET(_: Request, { params }: Params) {
       lines: inv.lines.map((l) => ({
         id: l.id,
         taskId: l.taskId,
+        taskGroupId: l.taskGroupId,
         label: l.label,
         qty: decimalToNumber(l.qty) ?? 0,
         rate: decimalToNumber(l.rate) ?? 0,
       })),
+      taskGroups: inv.taskGroups,
       payments: inv.payments.map(serializePayment),
     })
   } catch (error) {
@@ -188,6 +196,23 @@ export async function PATCH(req: Request, { params }: Params) {
         where: { invoiceId: id, userId: user.id },
         data: { invoiceId: null, status: "PENDING_INVOICE" },
       })
+      await tx.taskGroup.updateMany({
+        where: {
+          invoiceId: id,
+          userId: user.id,
+          id: { notIn: data.taskGroupIds },
+        },
+        data: { invoiceId: null },
+      })
+
+      await validateInvoiceTaskGroups(tx, {
+        userId: user.id,
+        clientId: owned.clientId,
+        invoiceId: id,
+        taskIds: data.taskIds,
+        taskGroupIds: data.taskGroupIds,
+        lines: data.lines,
+      })
 
       await tx.invoiceLine.deleteMany({ where: { invoiceId: id } })
 
@@ -209,6 +234,7 @@ export async function PATCH(req: Request, { params }: Params) {
           lines: {
             create: data.lines.map((l, i) => ({
               taskId: l.taskId ?? null,
+              taskGroupId: l.taskGroupId ?? null,
               label: l.label,
               qty: Number(l.qty),
               rate: Number(l.rate),
@@ -216,6 +242,13 @@ export async function PATCH(req: Request, { params }: Params) {
             })),
           },
         },
+      })
+
+      await claimInvoiceTaskGroups(tx, {
+        userId: user.id,
+        clientId: owned.clientId,
+        invoiceId: id,
+        taskGroupIds: data.taskGroupIds,
       })
 
       const invoicedTaskIds = collectInvoicedTaskIds(data.taskIds, data.lines)
@@ -237,6 +270,15 @@ export async function PATCH(req: Request, { params }: Params) {
     revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })
   } catch (error) {
+    if (error instanceof InvoiceTaskGroupConflictError) {
+      return NextResponse.json(
+        {
+          error: "Un groupe de tasks a changé ou n'est plus facturable",
+          code: "TASK_GROUP_NOT_INVOICEABLE",
+        },
+        { status: 409 },
+      )
+    }
     return apiServerError(error)
   }
 }

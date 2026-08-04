@@ -9,6 +9,7 @@ import { lineFromTask } from "@/lib/billing-math"
 import type { ClientDTO } from "@/hooks/use-clients"
 import type { InvoiceBuilder } from "@/features/billing/invoice-builder-types"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import { buildInvoiceEntries, type BuilderLine } from "@/domain/billing/builder"
 
 /**
  * The client identity strip (avatar, name, billing mode) shown under the
@@ -139,6 +140,50 @@ export function EligibleTaskColumn({
         />
       </div>
       {beforeList}
+      {b.eligibleGroups.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="xs muted" style={{ marginBottom: 6 }}>
+            Groupes prêts à facturer
+          </div>
+          <div className="col gap-6">
+            {b.eligibleGroups.map((group) => {
+              const total = client
+                ? group.tasks.reduce((sum, task) => {
+                    const value = lineFromTask({
+                      billingMode: client.billingMode,
+                      rate: client.rate,
+                      estimateDays: task.estimate,
+                    })
+                    return sum + value.qty * value.rate
+                  }, 0)
+                : 0
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  className="task-pickable"
+                  aria-label={`Ajouter le groupe ${group.name}`}
+                  onClick={() => b.addTaskGroup(group)}
+                >
+                  <Icon name="folder" size={14} className="muted" />
+                  <div style={{ minWidth: 0 }}>
+                    <div className="strong small truncate">{group.name}</div>
+                    <div className="xs muted">
+                      {group.tasks.length} task
+                      {group.tasks.length > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <span className="num small">
+                    {b.useTotalOverride ? "" : fmtEUR(total)}
+                  </span>
+                  <Icon name="plus" size={14} className="muted" />
+                </button>
+              )
+            })}
+          </div>
+          <div className="divider" style={{ margin: "12px 0" }} />
+        </div>
+      )}
       <div
         style={{
           maxHeight: "calc(100vh - 360px)",
@@ -215,6 +260,65 @@ export function InvoiceLinesPanel({
 }) {
   const b = builder
   const { lines } = b
+  const entries = buildInvoiceEntries(lines, b.groups)
+
+  const renderLine = (line: BuilderLine, nested = false) => (
+    <div
+      key={line.id}
+      className="line-item"
+      style={{
+        ...(b.useTotalOverride ? { gridTemplateColumns: "auto 1fr auto" } : {}),
+        ...(nested
+          ? {
+              margin: "0 8px 8px",
+              background: "var(--bg-2)",
+              borderRadius: 7,
+            }
+          : {}),
+      }}
+    >
+      <Icon name="grip" size={12} className="muted" />
+      <div style={{ minWidth: 0 }}>
+        <input
+          className="input"
+          style={{ padding: "4px 7px", fontSize: 12 }}
+          value={line.label}
+          onChange={(e) => b.updateLine(line.id, { label: e.target.value })}
+        />
+      </div>
+      {!b.useTotalOverride && (
+        <div className="row gap-4">
+          <input
+            type="number"
+            step="0.25"
+            value={line.qty}
+            onChange={(e) =>
+              b.updateLine(line.id, { qty: Number(e.target.value) })
+            }
+            title="Quantité"
+          />
+          <span className="muted xs">×</span>
+          <input
+            type="number"
+            value={line.rate}
+            onChange={(e) =>
+              b.updateLine(line.id, { rate: Number(e.target.value) })
+            }
+            title="Taux"
+          />
+        </div>
+      )}
+      <button
+        type="button"
+        className="line-remove"
+        aria-label={line.taskGroupId ? "Retirer le groupe" : "Retirer la ligne"}
+        onClick={() => b.removeLine(line.id)}
+      >
+        <Icon name="x" size={12} />
+      </button>
+    </div>
+  )
+
   return (
     <div className="invoice-side">
       <div className="card-h2" style={{ marginBottom: 14 }}>
@@ -251,57 +355,52 @@ export function InvoiceLinesPanel({
           </div>
         ) : (
           <>
-            {lines.map((l) => (
-              <div
-                key={l.id}
-                className="line-item"
-                style={
-                  b.useTotalOverride
-                    ? { gridTemplateColumns: "auto 1fr auto" }
-                    : undefined
-                }
-              >
-                <Icon name="grip" size={12} className="muted" />
-                <div style={{ minWidth: 0 }}>
-                  <input
-                    className="input"
-                    style={{ padding: "4px 7px", fontSize: 12 }}
-                    value={l.label}
-                    onChange={(e) =>
-                      b.updateLine(l.id, { label: e.target.value })
-                    }
-                  />
-                </div>
-                {!b.useTotalOverride && (
-                  <div className="row gap-4">
-                    <input
-                      type="number"
-                      step="0.25"
-                      value={l.qty}
-                      onChange={(e) =>
-                        b.updateLine(l.id, { qty: Number(e.target.value) })
-                      }
-                      title="Quantité"
-                    />
-                    <span className="muted xs">×</span>
-                    <input
-                      type="number"
-                      value={l.rate}
-                      onChange={(e) =>
-                        b.updateLine(l.id, { rate: Number(e.target.value) })
-                      }
-                      title="Taux"
-                    />
-                  </div>
-                )}
-                <button
-                  className="line-remove"
-                  onClick={() => b.removeLine(l.id)}
+            {entries.map((entry) =>
+              entry.type === "line" ? (
+                renderLine(entry.line)
+              ) : (
+                <details
+                  key={entry.group.id}
+                  open
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: 9,
+                    marginBottom: 8,
+                    overflow: "hidden",
+                  }}
                 >
-                  <Icon name="x" size={12} />
-                </button>
-              </div>
-            ))}
+                  <summary
+                    className="row gap-8"
+                    style={{ padding: 10, cursor: "pointer" }}
+                  >
+                    <Icon name="folder" size={14} className="muted" />
+                    <span className="strong small grow">
+                      {entry.group.name}
+                    </span>
+                    <span className="xs muted">
+                      {entry.lines.length} task
+                      {entry.lines.length > 1 ? "s" : ""}
+                    </span>
+                    {!b.useTotalOverride && (
+                      <span className="num small">{fmtEUR(entry.total)}</span>
+                    )}
+                    <button
+                      type="button"
+                      className="line-remove"
+                      aria-label={`Retirer le groupe ${entry.group.name}`}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        b.removeTaskGroup(entry.group.id)
+                      }}
+                    >
+                      <Icon name="x" size={12} />
+                    </button>
+                  </summary>
+                  {entry.lines.map((line) => renderLine(line, true))}
+                </details>
+              ),
+            )}
           </>
         )}
       </div>

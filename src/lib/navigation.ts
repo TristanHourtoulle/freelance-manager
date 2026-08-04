@@ -1,7 +1,14 @@
 import type { IconName } from "@/components/ui/icon"
 
 export interface NavItem {
-  id: NavBadgeKey | "dashboard" | "analytics" | "settings" | "quotes" | "suivi"
+  id:
+    | NavBadgeKey
+    | "dashboard"
+    | "analytics"
+    | "settings"
+    | "quotes"
+    | "suivi"
+    | "task-groups"
   href: string
   label: string
   icon: IconName
@@ -64,6 +71,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Finance",
     items: [
+      {
+        id: "task-groups",
+        href: "/task-groups",
+        label: "Groupes de tasks",
+        icon: "folder",
+      },
       {
         id: "quotes",
         href: "/quotes",

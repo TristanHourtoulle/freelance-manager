@@ -8,10 +8,65 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/, "Expected YYYY-MM-DD")
 
 const invoiceLineSchema = z.object({
   taskId: z.string().optional().nullable(),
+  taskGroupId: z.string().optional().nullable(),
   label: z.string().min(1).max(240),
   qty: z.coerce.number().min(0).max(100_000),
   rate: z.coerce.number().min(0).max(10_000_000),
 })
+
+const taskGroupIdsSchema = z
+  .array(z.string().min(1))
+  .max(50)
+  .optional()
+  .default([])
+
+function validateTaskGroups(
+  val: {
+    kind: "STANDARD" | "DEPOSIT"
+    taskGroupIds: string[]
+    lines: { taskGroupId?: string | null }[]
+  },
+  ctx: z.RefinementCtx,
+) {
+  const declared = new Set(val.taskGroupIds)
+  if (declared.size !== val.taskGroupIds.length) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["taskGroupIds"],
+      message: "Task group ids must be unique",
+    })
+  }
+  const referenced = new Set(
+    val.lines
+      .map((line) => line.taskGroupId)
+      .filter((id): id is string => Boolean(id)),
+  )
+  for (const id of referenced) {
+    if (!declared.has(id)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lines"],
+        message: "Invoice line references an unknown task group",
+      })
+    }
+  }
+  for (const id of declared) {
+    if (!referenced.has(id)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["taskGroupIds"],
+        message: "Every task group must contain at least one invoice line",
+      })
+    }
+  }
+  if (val.kind === "DEPOSIT" && (declared.size > 0 || referenced.size > 0)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["taskGroupIds"],
+      message: "Deposit invoices cannot contain task groups",
+    })
+  }
+}
 
 const optionalNumber = z.coerce
   .number()
@@ -45,6 +100,7 @@ export const invoiceCreateSchema = z
     totalOverride: optionalNumber,
     lines: z.array(invoiceLineSchema).min(1),
     taskIds: z.array(z.string()).optional(),
+    taskGroupIds: taskGroupIdsSchema,
     initialPayment: initialPaymentSchema,
   })
   .superRefine((val, ctx) => {
@@ -55,6 +111,7 @@ export const invoiceCreateSchema = z
         message: "Deposit invoice must have exactly one line",
       })
     }
+    validateTaskGroups(val, ctx)
   })
 
 export const invoiceStatusUpdateSchema = z.object({
@@ -78,6 +135,7 @@ export const invoiceUpdateSchema = z
     totalOverride: optionalNumber,
     lines: z.array(invoiceLineSchema).min(1),
     taskIds: z.array(z.string()).optional(),
+    taskGroupIds: taskGroupIdsSchema,
   })
   .superRefine((val, ctx) => {
     if (val.kind === "DEPOSIT" && val.lines.length !== 1) {
@@ -87,6 +145,7 @@ export const invoiceUpdateSchema = z
         message: "Deposit invoice must have exactly one line",
       })
     }
+    validateTaskGroups(val, ctx)
   })
 
 export const invoiceFilterSchema = z.object({

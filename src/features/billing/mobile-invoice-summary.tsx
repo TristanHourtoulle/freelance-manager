@@ -6,6 +6,7 @@ import { fmtEUR } from "@/lib/format"
 import { initials, avatarColor } from "@/lib/format"
 import type { CreateInvoiceBuilder } from "@/features/billing/invoice-builder-types"
 import type { ClientDTO } from "@/hooks/use-clients"
+import { buildInvoiceEntries } from "@/domain/billing/builder"
 
 function clientAvatar(client: ClientDTO): string {
   return client.color ?? avatarColor(`${client.firstName}${client.lastName}`)
@@ -29,6 +30,7 @@ export function MobileInvoiceSummary({
   const b = builder
   const [showOptions, setShowOptions] = useState(false)
   const isDeposit = b.kind === "DEPOSIT"
+  const entries = buildInvoiceEntries(b.lines, b.groups)
 
   return (
     <div className="m-stack">
@@ -70,54 +72,85 @@ export function MobileInvoiceSummary({
               <span />
             </div>
           ) : (
-            b.lines.map((l) => (
-              <div key={l.id} className="builder-line">
-                <div style={{ minWidth: 0 }}>
-                  <input
-                    className="input"
-                    style={{ padding: "4px 7px", fontSize: 12 }}
-                    value={l.label}
-                    aria-label="Libellé de la ligne"
-                    onChange={(e) =>
-                      b.updateLine(l.id, { label: e.target.value })
-                    }
-                  />
-                  <div className="row gap-4" style={{ marginTop: 4 }}>
-                    <input
-                      className="input num"
-                      type="number"
-                      step="0.25"
-                      value={l.qty}
-                      aria-label="Quantité"
-                      style={{ width: 68, padding: "3px 6px", fontSize: 12 }}
-                      onChange={(e) =>
-                        b.updateLine(l.id, { qty: Number(e.target.value) })
-                      }
-                    />
-                    <span className="muted xs">×</span>
-                    <input
-                      className="input num"
-                      type="number"
-                      value={l.rate}
-                      aria-label="Taux"
-                      style={{ width: 82, padding: "3px 6px", fontSize: 12 }}
-                      onChange={(e) =>
-                        b.updateLine(l.id, { rate: Number(e.target.value) })
-                      }
-                    />
+            entries.map((entry) =>
+              entry.type === "group" ? (
+                <div key={entry.group.id} className="builder-line">
+                  <div style={{ minWidth: 0 }}>
+                    <div className="row gap-6 strong small">
+                      <Icon name="folder" size={13} className="muted" />
+                      {entry.group.name}
+                    </div>
+                    <div className="xs muted" style={{ marginTop: 3 }}>
+                      {entry.lines.length} task
+                      {entry.lines.length > 1 ? "s" : ""} ·{" "}
+                      {entry.lines.map((line) => line.label).join(", ")}
+                    </div>
                   </div>
+                  <div className="num strong">{fmtEUR(entry.total)}</div>
+                  <button
+                    type="button"
+                    className="line-remove"
+                    aria-label={`Supprimer le groupe ${entry.group.name}`}
+                    onClick={() => b.removeTaskGroup(entry.group.id)}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
                 </div>
-                <div className="num strong">{fmtEUR(l.qty * l.rate)}</div>
-                <button
-                  type="button"
-                  className="line-remove"
-                  aria-label="Supprimer la ligne"
-                  onClick={() => b.removeLine(l.id)}
-                >
-                  <Icon name="x" size={12} />
-                </button>
-              </div>
-            ))
+              ) : (
+                <div key={entry.line.id} className="builder-line">
+                  <div style={{ minWidth: 0 }}>
+                    <input
+                      className="input"
+                      style={{ padding: "4px 7px", fontSize: 12 }}
+                      value={entry.line.label}
+                      aria-label="Libellé de la ligne"
+                      onChange={(e) =>
+                        b.updateLine(entry.line.id, { label: e.target.value })
+                      }
+                    />
+                    <div className="row gap-4" style={{ marginTop: 4 }}>
+                      <input
+                        className="input num"
+                        type="number"
+                        step="0.25"
+                        value={entry.line.qty}
+                        aria-label="Quantité"
+                        style={{ width: 68, padding: "3px 6px", fontSize: 12 }}
+                        onChange={(e) =>
+                          b.updateLine(entry.line.id, {
+                            qty: Number(e.target.value),
+                          })
+                        }
+                      />
+                      <span className="muted xs">×</span>
+                      <input
+                        className="input num"
+                        type="number"
+                        value={entry.line.rate}
+                        aria-label="Taux"
+                        style={{ width: 82, padding: "3px 6px", fontSize: 12 }}
+                        onChange={(e) =>
+                          b.updateLine(entry.line.id, {
+                            rate: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="num strong">
+                    {fmtEUR(entry.line.qty * entry.line.rate)}
+                  </div>
+                  <button
+                    type="button"
+                    className="line-remove"
+                    aria-label="Supprimer la ligne"
+                    onClick={() => b.removeLine(entry.line.id)}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+              ),
+            )
           )}
         </div>
 

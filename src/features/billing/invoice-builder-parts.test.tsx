@@ -12,16 +12,34 @@ const task = {
   estimate: 2,
   projectId: "p1",
 } as TaskDTO
+const secondTask = {
+  ...task,
+  id: "t2",
+  linearIdentifier: "TRI-2",
+  title: "Deuxieme task",
+} as TaskDTO
 
-function makeBuilder(addTask: (t: TaskDTO) => void): InvoiceBuilder {
+function makeBuilder(
+  addTask: (t: TaskDTO) => void,
+  addTaskGroup = vi.fn(),
+): InvoiceBuilder {
+  const group = {
+    id: "g1",
+    name: "Bucket & CDN",
+    clientId: "c1",
+    invoiceId: null,
+    tasks: [task, secondTask],
+  }
   return {
     client: { billingMode: "DAILY", rate: 500 },
-    eligibleTasks: [task],
+    eligibleTasks: [task, secondTask],
     projectById: new Map(),
     taskSearch: "",
     setTaskSearch: vi.fn(),
     useTotalOverride: false,
     addTask,
+    eligibleGroups: [group],
+    addTaskGroup,
   } as unknown as InvoiceBuilder
 }
 
@@ -38,6 +56,7 @@ describe("EligibleTaskColumn", () => {
     const addTask = vi.fn()
     render(<EligibleTaskColumn builder={makeBuilder(addTask)} />)
 
+    await user.tab()
     await user.tab()
     await user.tab()
     const row = screen.getByRole("button", { name: /TRI-1/ })
@@ -62,6 +81,22 @@ describe("EligibleTaskColumn", () => {
     expect(screen.getByRole("button", { name: /TRI-1/ })).toHaveAttribute(
       "draggable",
       "true",
+    )
+  })
+
+  it("adds a complete persisted group without adding its tasks one by one", async () => {
+    const user = userEvent.setup()
+    const addTask = vi.fn()
+    const addTaskGroup = vi.fn()
+    render(<EligibleTaskColumn builder={makeBuilder(addTask, addTaskGroup)} />)
+
+    await user.click(
+      screen.getByRole("button", { name: /Ajouter le groupe Bucket & CDN/ }),
+    )
+
+    expect(addTask).not.toHaveBeenCalled()
+    expect(addTaskGroup).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "g1", name: "Bucket & CDN" }),
     )
   })
 })

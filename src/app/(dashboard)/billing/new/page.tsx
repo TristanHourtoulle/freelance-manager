@@ -3,6 +3,7 @@
 import { Suspense, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
+import { Skeleton } from "@/components/ui/skeleton"
 import { fmtEUR } from "@/lib/format"
 import { useInvoiceBuilder } from "@/features/billing/use-invoice-builder"
 import {
@@ -44,11 +45,17 @@ export function DesktopNewInvoicePage() {
     () => taskIdsParam.split(",").filter(Boolean),
     [taskIdsParam],
   )
+  const groupIdsParam = search.get("groupIds") ?? ""
+  const preselectedTaskGroupIds = useMemo(
+    () => groupIdsParam.split(",").filter(Boolean),
+    [groupIdsParam],
+  )
   const initialClientId = search.get("clientId") ?? ""
 
   const b = useInvoiceBuilder({
     mode: "create",
     preselectedTaskIds,
+    preselectedTaskGroupIds,
     initialClientId,
   })
   const { client, clientId, kind, lines, effectiveTotal } = b
@@ -156,28 +163,42 @@ export function DesktopNewInvoicePage() {
           <EligibleTaskColumn
             builder={b}
             beforeList={
-              b.eligibleTasks.length === 0 &&
-              lines.length === 0 && (
-                <div className="card">
-                  <div className="empty">
-                    <div className="empty-title">Aucune task à facturer</div>
-                    <div>
-                      {b.taskSearch
-                        ? "Aucune task ne correspond à ta recherche."
-                        : "Ce client n'a pas de task en statut Pending Invoice. Tu peux quand même créer une facture en ajoutant des lignes manuelles."}
-                    </div>
-                    {!b.taskSearch && (
-                      <button
-                        className="btn btn-secondary"
-                        style={{ marginTop: 14 }}
-                        onClick={b.addBlank}
-                      >
-                        <Icon name="plus" size={14} />
-                        Ajouter une ligne manuelle
-                      </button>
-                    )}
+              b.taskGroupsPending ? (
+                <div
+                  className="card"
+                  role="status"
+                  style={{ marginBottom: 12 }}
+                >
+                  <span className="sr-only">Chargement des groupes…</span>
+                  <div className="col gap-8">
+                    <Skeleton width="38%" height={12} />
+                    <Skeleton width="100%" height={52} radius={10} />
                   </div>
                 </div>
+              ) : (
+                b.eligibleTasks.length === 0 &&
+                lines.length === 0 && (
+                  <div className="card">
+                    <div className="empty">
+                      <div className="empty-title">Aucune task à facturer</div>
+                      <div>
+                        {b.taskSearch
+                          ? "Aucune task ne correspond à ta recherche."
+                          : "Ce client n'a pas de task en statut Pending Invoice. Tu peux quand même créer une facture en ajoutant des lignes manuelles."}
+                      </div>
+                      {!b.taskSearch && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ marginTop: 14 }}
+                          onClick={b.addBlank}
+                        >
+                          <Icon name="plus" size={14} />
+                          Ajouter une ligne manuelle
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
               )
             }
           />

@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/components/providers/toast-provider"
 import { PaymentsSection } from "@/components/billing/payments-section"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
+import { buildInvoiceEntries } from "@/domain/billing/builder"
 
 interface InvoiceDrawerProps {
   invoiceId: string
@@ -79,6 +80,13 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
   const client = invoice.client
   const canEdit = invoice.status !== "CANCELLED"
   const hasOverride = invoice.totalOverride != null
+  const entries = buildInvoiceEntries(
+    invoice.lines.map((line) => ({
+      ...line,
+      taskGroupId: line.taskGroupId ?? null,
+    })),
+    invoice.taskGroups ?? [],
+  )
   const isFullyPaid =
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
   const canMarkPaid = invoice.status === "SENT" && !isFullyPaid
@@ -284,25 +292,52 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
               </tr>
             </thead>
             <tbody>
-              {invoice.lines.map((l) => (
-                <tr key={l.id}>
-                  <td style={{ paddingLeft: 14 }} className="small">
-                    {l.label}
-                  </td>
-                  {!hasOverride && (
-                    <>
-                      <td className="right num small">{l.qty}</td>
-                      <td className="right num small">{fmtEUR(l.rate)}</td>
-                      <td
-                        className="right num strong"
-                        style={{ paddingRight: 14 }}
-                      >
-                        {fmtEURprecise(l.qty * l.rate)}
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+              {entries.map((entry) => {
+                return (
+                  <tr
+                    key={entry.type === "line" ? entry.line.id : entry.group.id}
+                  >
+                    <td style={{ paddingLeft: 14 }} className="small">
+                      {entry.type === "group" ? (
+                        <div>
+                          <div className="row gap-6 strong">
+                            <Icon name="folder" size={13} className="muted" />
+                            {entry.group.name}
+                          </div>
+                          <div className="xs muted" style={{ marginTop: 2 }}>
+                            {entry.lines.length} tasks ·{" "}
+                            {entry.lines.map((item) => item.label).join(", ")}
+                          </div>
+                        </div>
+                      ) : (
+                        entry.line.label
+                      )}
+                    </td>
+                    {!hasOverride && (
+                      <>
+                        <td className="right num small">
+                          {entry.type === "line" ? entry.line.qty : "—"}
+                        </td>
+                        <td className="right num small">
+                          {entry.type === "line"
+                            ? fmtEUR(entry.line.rate)
+                            : "—"}
+                        </td>
+                        <td
+                          className="right num strong"
+                          style={{ paddingRight: 14 }}
+                        >
+                          {fmtEURprecise(
+                            entry.type === "line"
+                              ? entry.line.qty * entry.line.rate
+                              : entry.total,
+                          )}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

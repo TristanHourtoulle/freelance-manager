@@ -142,7 +142,7 @@ describe("GET /api/invoices", () => {
 describe("POST /api/invoices — client stage promotion", () => {
   const tx = {
     invoice: { create: vi.fn(), findFirst: vi.fn() },
-    task: { updateMany: vi.fn() },
+    task: { findMany: vi.fn(), updateMany: vi.fn() },
     payment: { create: vi.fn() },
     client: { update: vi.fn() },
   }
@@ -202,7 +202,7 @@ describe("POST /api/invoices — client stage promotion", () => {
 describe("POST /api/invoices — task attachment", () => {
   const tx = {
     invoice: { create: vi.fn(), findFirst: vi.fn() },
-    task: { updateMany: vi.fn() },
+    task: { findMany: vi.fn(), updateMany: vi.fn() },
     payment: { create: vi.fn() },
     client: { update: vi.fn() },
   }
@@ -233,6 +233,15 @@ describe("POST /api/invoices — task attachment", () => {
       clientId: "c1",
     })
     tx.invoice.findFirst.mockResolvedValue(null)
+    tx.task.findMany.mockImplementation(async (args) =>
+      args.where.id.in.map((id: string) => ({
+        id,
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      })),
+    )
     prismaMock.$transaction.mockImplementation(
       async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
     )
@@ -252,6 +261,27 @@ describe("POST /api/invoices — task attachment", () => {
       where: { id: { in: ["t1"] }, userId: "user-1", clientId: "c1" },
       data: { invoiceId: "i9", status: "DONE" },
     })
+  })
+
+  it("rejects invoicing a grouped task as a standalone task", async () => {
+    tx.task.findMany.mockResolvedValue([
+      {
+        id: "t1",
+        taskGroupId: "g1",
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      },
+    ])
+    const { POST } = await import("./route")
+    const res = await POST(
+      postRequest({
+        lines: [{ taskId: "t1", label: "Images", qty: 1, rate: 500 }],
+      }),
+    )
+
+    expect(res.status).toBe(409)
+    expect(tx.invoice.create).not.toHaveBeenCalled()
   })
 
   it("still attaches tasks selected via taskIds without a matching line", async () => {

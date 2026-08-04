@@ -10,10 +10,25 @@ import type { InvoiceLineInput } from "@/lib/schemas/invoice"
 export interface BuilderLine {
   id: string
   taskId: string | null
+  taskGroupId: string | null
   label: string
   qty: number
   rate: number
 }
+
+export interface BuilderTaskGroup {
+  id: string
+  name: string
+}
+
+export type BuilderInvoiceEntry =
+  | { type: "line"; line: BuilderLine }
+  | {
+      type: "group"
+      group: BuilderTaskGroup
+      lines: BuilderLine[]
+      total: number
+    }
 
 interface SeedClient {
   billingMode: BillingMode
@@ -42,6 +57,7 @@ export function buildTaskLine(
   id: string,
   client: SeedClient,
   task: SeedTask,
+  taskGroupId: string | null = null,
 ): BuilderLine {
   const { qty, rate } = lineFromTask({
     billingMode: client.billingMode,
@@ -51,6 +67,7 @@ export function buildTaskLine(
   return {
     id,
     taskId: task.id,
+    taskGroupId,
     label: `[${task.linearIdentifier}] ${task.title}`,
     qty,
     rate,
@@ -65,6 +82,7 @@ interface EligibleTaskRow {
   projectId: string
   linearIdentifier: string
   title: string
+  taskGroupId?: string | null
 }
 
 /**
@@ -102,6 +120,7 @@ export function filterEligibleTasks<T extends EligibleTaskRow>(
     if (t.clientId !== clientId) return false
     if (t.status !== "PENDING_INVOICE") return false
     if (t.invoiceId && t.invoiceId !== excludeInvoiceId) return false
+    if (t.taskGroupId) return false
     if (ownIds.has(t.id)) return false
     if (projectId !== "all" && t.projectId !== projectId) return false
     if (q && !`${t.linearIdentifier} ${t.title}`.toLowerCase().includes(q))
@@ -153,6 +172,7 @@ export function buildLinesPayload(opts: LinesPayloadOpts): InvoiceLineInput[] {
     return [
       {
         taskId: null,
+        taskGroupId: null,
         label: opts.depositLabel,
         qty: 1,
         rate: Number(opts.depositAmount) || 0,
@@ -161,10 +181,54 @@ export function buildLinesPayload(opts: LinesPayloadOpts): InvoiceLineInput[] {
   }
   return opts.lines.map((l) => ({
     taskId: l.taskId ?? null,
+    taskGroupId: l.taskGroupId ?? null,
     label: l.label,
     qty: Number(l.qty),
     rate: Number(l.rate),
   }))
+}
+
+/**
+ * Collapses task lines that share a persisted task group into one ordered
+ * invoice entry. A group occupies the position of its first line.
+ */
+export function buildInvoiceEntries(
+  lines: readonly BuilderLine[],
+  groups: readonly BuilderTaskGroup[],
+): BuilderInvoiceEntry[] {
+  const groupById = new Map(groups.map((group) => [group.id, group]))
+  const groupedLines = new Map<string, BuilderLine[]>()
+  for (const line of lines) {
+    if (!line.taskGroupId) continue
+    const current = groupedLines.get(line.taskGroupId) ?? []
+    current.push(line)
+    groupedLines.set(line.taskGroupId, current)
+  }
+
+  const emitted = new Set<string>()
+  const entries: BuilderInvoiceEntry[] = []
+  for (const line of lines) {
+    const groupId = line.taskGroupId
+    if (!groupId) {
+      entries.push({ type: "line", line })
+      continue
+    }
+    if (emitted.has(groupId)) continue
+    const group = groupById.get(groupId)
+    if (!group) {
+      entries.push({ type: "line", line })
+      continue
+    }
+    emitted.add(groupId)
+    const groupLines = groupedLines.get(groupId) ?? [line]
+    entries.push({
+      type: "group",
+      group,
+      lines: groupLines,
+      total: sumLines(groupLines),
+    })
+  }
+  return entries
 }
 
 /**

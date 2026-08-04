@@ -8,6 +8,11 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceSplitSchema } from "@/lib/schemas/invoice-split"
+import {
+  claimInvoiceTaskGroups,
+  InvoiceTaskGroupConflictError,
+  validateInvoiceTaskGroups,
+} from "@/lib/invoice-task-groups"
 import { allocateSplitAmounts } from "@/lib/billing-math"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
@@ -155,6 +160,13 @@ export async function POST(req: Request) {
     const numbers = await allocateNumbers(user.id, year, parts, base.number)
 
     const created = await prisma.$transaction(async (tx) => {
+      await validateInvoiceTaskGroups(tx, {
+        userId: user.id,
+        clientId: base.clientId,
+        taskIds: base.taskIds,
+        taskGroupIds: base.taskGroupIds,
+        lines: base.lines,
+      })
       const out: {
         id: string
         number: string
@@ -184,6 +196,7 @@ export async function POST(req: Request) {
             lines: {
               create: base.lines.map((l, idx) => ({
                 taskId: isFirst ? (l.taskId ?? null) : null,
+                taskGroupId: isFirst ? (l.taskGroupId ?? null) : null,
                 label: l.label,
                 qty: Number(l.qty),
                 rate: Number(l.rate),
@@ -198,6 +211,14 @@ export async function POST(req: Request) {
           total: partAmount,
           dueDate,
         })
+        if (isFirst) {
+          await claimInvoiceTaskGroups(tx, {
+            userId: user.id,
+            clientId: base.clientId,
+            invoiceId: inv.id,
+            taskGroupIds: base.taskGroupIds,
+          })
+        }
       }
 
       if (base.taskIds?.length && out[0]) {
@@ -214,6 +235,15 @@ export async function POST(req: Request) {
     revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ items: created }, { status: 201 })
   } catch (error) {
+    if (error instanceof InvoiceTaskGroupConflictError) {
+      return NextResponse.json(
+        {
+          error: "Un groupe de tasks a changé ou n'est plus facturable",
+          code: "TASK_GROUP_NOT_INVOICEABLE",
+        },
+        { status: 409 },
+      )
+    }
     return apiServerError(error)
   }
 }

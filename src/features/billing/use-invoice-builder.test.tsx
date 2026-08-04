@@ -18,37 +18,55 @@ const h = vi.hoisted(() => {
     {
       id: "t1",
       linearIdentifier: "TRI-1",
+      linearUrl: null,
       title: "One",
       status: "PENDING_INVOICE",
       estimate: 2,
       invoiceId: null,
+      taskGroupId: null,
       clientId: "c1",
       projectId: "p1",
     },
     {
       id: "t2",
       linearIdentifier: "TRI-2",
+      linearUrl: null,
       title: "Two",
       status: "PENDING_INVOICE",
       estimate: 1,
       invoiceId: null,
+      taskGroupId: null,
       clientId: "c1",
       projectId: "p1",
     },
     {
       id: "t3",
       linearIdentifier: "TRI-3",
+      linearUrl: null,
       title: "Done",
       status: "DONE",
       estimate: 5,
       invoiceId: null,
+      taskGroupId: null,
       clientId: "c1",
       projectId: "p1",
     },
   ]
+  const taskGroup = {
+    id: "g1",
+    name: "Bucket & CDN",
+    clientId: "c1",
+    invoiceId: null,
+    invoiceNumber: null,
+    createdAt: "2026-08-04T00:00:00.000Z",
+    updatedAt: "2026-08-04T00:00:00.000Z",
+    tasks: [tasks[0]!, tasks[1]!],
+  }
   return {
     client,
     tasks,
+    taskGroup,
+    taskGroups: [taskGroup],
     createMutate: vi.fn(),
     updateMutate: vi.fn(),
     splitMutate: vi.fn(),
@@ -80,6 +98,9 @@ vi.mock("@/hooks/use-clients", () => ({
 vi.mock("@/hooks/use-tasks", () => ({
   useTasks: () => ({ data: h.tasks }),
 }))
+vi.mock("@/hooks/use-task-groups", () => ({
+  useTaskGroups: () => ({ data: h.taskGroups }),
+}))
 
 import { useInvoiceBuilder } from "./use-invoice-builder"
 
@@ -87,6 +108,7 @@ const tasks = h.tasks as unknown as TaskDTO[]
 const NONE: string[] = []
 const PRE_T1 = ["t1"]
 const PRE_T2 = ["t2"]
+const PRE_G1 = ["g1"]
 
 describe("useInvoiceBuilder (create mode)", () => {
   beforeEach(() => {
@@ -287,7 +309,108 @@ describe("useInvoiceBuilder (create mode)", () => {
       taskIds: ["t1"],
     })
     expect(payload.lines).toEqual([
-      { taskId: "t1", label: "[TRI-1] One", qty: 2, rate: 500 },
+      {
+        taskId: "t1",
+        taskGroupId: null,
+        label: "[TRI-1] One",
+        qty: 2,
+        rate: 500,
+      },
+    ])
+  })
+
+  it("adds every task from a pending client group in one action", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: NONE,
+        initialClientId: "c1",
+      }),
+    )
+
+    act(() => {
+      result.current.addTaskGroup(h.taskGroup)
+    })
+
+    expect(result.current.groups).toHaveLength(1)
+    expect(result.current.groups[0]?.name).toBe("Bucket & CDN")
+    expect(result.current.lines.map((line) => line.taskId)).toEqual([
+      "t1",
+      "t2",
+    ])
+    expect(
+      new Set(result.current.lines.map((line) => line.taskGroupId)),
+    ).toEqual(new Set([result.current.groups[0]?.id]))
+    expect(result.current.eligibleTasks).toHaveLength(0)
+  })
+
+  it("seeds a preselected group and all of its tasks", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: NONE,
+        preselectedTaskGroupIds: PRE_G1,
+        initialClientId: "c1",
+      }),
+    )
+
+    expect(result.current.groups).toEqual([{ id: "g1", name: "Bucket & CDN" }])
+    expect(result.current.lines.map((line) => line.taskId)).toEqual([
+      "t1",
+      "t2",
+    ])
+    expect(
+      result.current.lines.every((line) => line.taskGroupId === "g1"),
+    ).toBe(true)
+  })
+
+  it("submits a persisted group and keeps standalone tasks ungrouped", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: NONE,
+        initialClientId: "c1",
+      }),
+    )
+
+    act(() => {
+      result.current.addTaskGroup({ ...h.taskGroup, tasks: [h.tasks[0]!] })
+      result.current.addTask(tasks[1]!)
+    })
+    act(() => {
+      result.current.submit("DRAFT")
+    })
+
+    const payload = h.createMutate.mock.calls[0]![0]
+    expect(payload.taskGroupIds).toEqual(["g1"])
+    expect(payload.lines).toEqual([
+      expect.objectContaining({ taskId: "t1", taskGroupId: "g1" }),
+      expect.objectContaining({ taskId: "t2", taskGroupId: null }),
+    ])
+  })
+
+  it("removes a whole group and makes all of its tasks eligible again", () => {
+    const { result } = renderHook(() =>
+      useInvoiceBuilder({
+        mode: "create",
+        preselectedTaskIds: NONE,
+        initialClientId: "c1",
+      }),
+    )
+
+    act(() => {
+      result.current.addTaskGroup(h.taskGroup)
+    })
+    const groupId = result.current.groups[0]!.id
+    act(() => {
+      result.current.removeTaskGroup(groupId)
+    })
+
+    expect(result.current.groups).toEqual([])
+    expect(result.current.lines).toEqual([])
+    expect(result.current.eligibleTasks.map((task) => task.id)).toEqual([
+      "t1",
+      "t2",
     ])
   })
 })

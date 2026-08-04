@@ -14,6 +14,11 @@ import { invoiceCreateSchema } from "@/lib/schemas/invoice"
 import { recomputeInvoicePayment } from "@/lib/payments"
 import { serializeInvoice } from "@/domain/billing/serialize"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
+import {
+  claimInvoiceTaskGroups,
+  InvoiceTaskGroupConflictError,
+  validateInvoiceTaskGroups,
+} from "@/lib/invoice-task-groups"
 import { deferActivityLog } from "@/lib/activity"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { getInvoicesFirstPage, invoicesTag } from "@/lib/data/invoices"
@@ -143,6 +148,13 @@ export async function POST(req: Request) {
       data.totalOverride != null ? Number(data.totalOverride) : subtotal
 
     const created = await prisma.$transaction(async (tx) => {
+      await validateInvoiceTaskGroups(tx, {
+        userId: user.id,
+        clientId: data.clientId,
+        taskIds: data.taskIds,
+        taskGroupIds: data.taskGroupIds,
+        lines: data.lines,
+      })
       const number =
         data.number && data.number.trim()
           ? data.number.trim()
@@ -177,6 +189,7 @@ export async function POST(req: Request) {
           lines: {
             create: data.lines.map((l, i) => ({
               taskId: l.taskId ?? null,
+              taskGroupId: l.taskGroupId ?? null,
               label: l.label,
               qty: Number(l.qty),
               rate: Number(l.rate),
@@ -184,6 +197,13 @@ export async function POST(req: Request) {
             })),
           },
         },
+      })
+
+      await claimInvoiceTaskGroups(tx, {
+        userId: user.id,
+        clientId: data.clientId,
+        invoiceId: inv.id,
+        taskGroupIds: data.taskGroupIds,
       })
 
       const invoicedTaskIds = collectInvoicedTaskIds(data.taskIds, data.lines)
@@ -243,6 +263,15 @@ export async function POST(req: Request) {
     if (error instanceof InvoiceNumberConflictError) {
       return NextResponse.json(
         { error: `Le numéro de facture "${error.number}" est déjà utilisé` },
+        { status: 409 },
+      )
+    }
+    if (error instanceof InvoiceTaskGroupConflictError) {
+      return NextResponse.json(
+        {
+          error: "Un groupe de tasks a changé ou n'est plus facturable",
+          code: "TASK_GROUP_NOT_INVOICEABLE",
+        },
         { status: 409 },
       )
     }

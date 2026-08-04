@@ -53,7 +53,8 @@ const routeParams = { params: Promise.resolve({ id: INVOICE_ID }) }
 
 describe("PATCH /api/invoices/[id] — task re-binding", () => {
   const tx = {
-    task: { updateMany: vi.fn() },
+    task: { findMany: vi.fn(), updateMany: vi.fn() },
+    taskGroup: { updateMany: vi.fn() },
     invoiceLine: { deleteMany: vi.fn() },
     invoice: { update: vi.fn() },
   }
@@ -70,6 +71,15 @@ describe("PATCH /api/invoices/[id] — task re-binding", () => {
     })
     prismaMock.$transaction.mockImplementation(
       async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    )
+    tx.task.findMany.mockImplementation(async (args) =>
+      args.where.id.in.map((id: string) => ({
+        id,
+        taskGroupId: null,
+        status: "PENDING_INVOICE",
+        billable: true,
+        invoiceId: null,
+      })),
     )
   })
 
@@ -155,6 +165,27 @@ describe("PATCH /api/invoices/[id] — task re-binding", () => {
     expect(tx.task.updateMany.mock.calls[0]![0].data).toEqual({
       invoiceId: null,
       status: "PENDING_INVOICE",
+    })
+  })
+
+  it("releases groups removed from the edited invoice", async () => {
+    const { PATCH } = await import("./route")
+    const res = await PATCH(
+      patchRequest({
+        lines: [{ label: "Audit", qty: 1, rate: 500 }],
+        taskGroupIds: [],
+      }),
+      routeParams,
+    )
+
+    expect(res.status).toBe(200)
+    expect(tx.taskGroup.updateMany).toHaveBeenCalledWith({
+      where: {
+        invoiceId: INVOICE_ID,
+        userId: "user-1",
+        id: { notIn: [] },
+      },
+      data: { invoiceId: null },
     })
   })
 

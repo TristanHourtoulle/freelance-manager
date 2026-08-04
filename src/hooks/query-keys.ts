@@ -50,6 +50,11 @@ export const qk = {
     list: <F>(filters: F) => ["tasks", filters] as const,
     counts: <F>(filters: F) => ["tasks", "counts", filters] as const,
   },
+  taskGroups: {
+    all: () => ["task-groups"] as const,
+    list: (status: string, clientId?: string) =>
+      ["task-groups", status, clientId ?? "all"] as const,
+  },
   actions: {
     all: () => ["actions"] as const,
     list: <F>(filters: F) => ["actions", filters] as const,

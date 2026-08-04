@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  buildInvoiceEntries,
   buildLinesPayload,
   buildTaskIds,
   buildTaskLine,
@@ -22,6 +23,7 @@ describe("buildTaskLine", () => {
     expect(line).toEqual({
       id: "L1",
       taskId: "t1",
+      taskGroupId: null,
       label: "[TRI-1] Ship it",
       qty: 3,
       rate: 500,
@@ -143,8 +145,8 @@ describe("filterEligibleTasks", () => {
 
 describe("totals", () => {
   const lines: BuilderLine[] = [
-    { id: "1", taskId: null, label: "A", qty: 2, rate: 100 },
-    { id: "2", taskId: null, label: "B", qty: 1, rate: 50 },
+    { id: "1", taskId: null, taskGroupId: null, label: "A", qty: 2, rate: 100 },
+    { id: "2", taskId: null, taskGroupId: null, label: "B", qty: 1, rate: 50 },
   ]
 
   it("sums standard lines", () => {
@@ -186,10 +188,9 @@ describe("totals", () => {
 
 describe("buildLinesPayload / buildTaskIds", () => {
   const lines: BuilderLine[] = [
-    { id: "1", taskId: "t1", label: "A", qty: 2, rate: 100 },
-    { id: "2", taskId: null, label: "B", qty: 1, rate: 50 },
+    { id: "1", taskId: "t1", taskGroupId: "g1", label: "A", qty: 2, rate: 100 },
+    { id: "2", taskId: null, taskGroupId: null, label: "B", qty: 1, rate: 50 },
   ]
-
   it("emits a single deposit line for DEPOSIT invoices", () => {
     expect(
       buildLinesPayload({
@@ -198,7 +199,15 @@ describe("buildLinesPayload / buildTaskIds", () => {
         depositLabel: "Acompte",
         depositAmount: 800,
       }),
-    ).toEqual([{ taskId: null, label: "Acompte", qty: 1, rate: 800 }])
+    ).toEqual([
+      {
+        taskId: null,
+        taskGroupId: null,
+        label: "Acompte",
+        qty: 1,
+        rate: 800,
+      },
+    ])
   })
 
   it("maps builder lines for STANDARD invoices", () => {
@@ -210,13 +219,71 @@ describe("buildLinesPayload / buildTaskIds", () => {
         depositAmount: 0,
       }),
     ).toEqual([
-      { taskId: "t1", label: "A", qty: 2, rate: 100 },
-      { taskId: null, label: "B", qty: 1, rate: 50 },
+      { taskId: "t1", taskGroupId: "g1", label: "A", qty: 2, rate: 100 },
+      { taskId: null, taskGroupId: null, label: "B", qty: 1, rate: 50 },
+    ])
+  })
+
+  it("keeps the persisted task group id on grouped standard lines", () => {
+    expect(
+      buildLinesPayload({
+        kind: "STANDARD",
+        lines,
+        depositLabel: "",
+        depositAmount: 0,
+      }),
+    ).toEqual([
+      { taskId: "t1", taskGroupId: "g1", label: "A", qty: 2, rate: 100 },
+      { taskId: null, taskGroupId: null, label: "B", qty: 1, rate: 50 },
     ])
   })
 
   it("collects only real task ids for STANDARD, none for DEPOSIT", () => {
     expect(buildTaskIds("STANDARD", lines)).toEqual(["t1"])
     expect(buildTaskIds("DEPOSIT", lines)).toEqual([])
+  })
+})
+
+describe("buildInvoiceEntries", () => {
+  const groupedA: BuilderLine = {
+    id: "1",
+    taskId: "t1",
+    taskGroupId: "g1",
+    label: "Images",
+    qty: 1,
+    rate: 500,
+  }
+  const standalone: BuilderLine = {
+    id: "2",
+    taskId: "t2",
+    taskGroupId: null,
+    label: "Audit",
+    qty: 1,
+    rate: 300,
+  }
+  const groupedB: BuilderLine = {
+    id: "3",
+    taskId: "t3",
+    taskGroupId: "g1",
+    label: "CDN",
+    qty: 2,
+    rate: 250,
+  }
+
+  it("collapses grouped tasks into one ordered invoice entry with a total", () => {
+    const entries = buildInvoiceEntries(
+      [groupedA, standalone, groupedB],
+      [{ id: "g1", name: "Bucket & CDN" }],
+    )
+
+    expect(entries).toEqual([
+      {
+        type: "group",
+        group: { id: "g1", name: "Bucket & CDN" },
+        lines: [groupedA, groupedB],
+        total: 1000,
+      },
+      { type: "line", line: standalone },
+    ])
   })
 })

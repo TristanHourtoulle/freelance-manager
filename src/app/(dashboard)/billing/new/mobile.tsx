@@ -16,6 +16,7 @@ import {
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { ClientDTO } from "@/hooks/use-clients"
 import { TaskIdLink } from "@/components/ui/task-id-link"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   SegmentedControl,
   type SegmentedControlOption,
@@ -52,20 +53,34 @@ export function MobileInvoiceNewPage() {
     () => taskIdsParam.split(",").filter(Boolean),
     [taskIdsParam],
   )
+  const groupIdsParam = search.get("groupIds") ?? ""
+  const preselectedTaskGroupIds = useMemo(
+    () => groupIdsParam.split(",").filter(Boolean),
+    [groupIdsParam],
+  )
   const initialClientId = search.get("clientId") ?? ""
 
   const b = useInvoiceBuilder({
     mode: "create",
     preselectedTaskIds,
+    preselectedTaskGroupIds,
     initialClientId,
   })
   const [step, setStep] = useState<Step>(initialClientId ? 2 : 1)
   const { client, kind, lines, effectiveTotal } = b
 
-  const picked = useMemo(() => selectedTaskIds(lines), [lines])
+  const standaloneLines = useMemo(
+    () => lines.filter((line) => !line.taskGroupId),
+    [lines],
+  )
+  const picked = useMemo(
+    () => selectedTaskIds(standaloneLines),
+    [standaloneLines],
+  )
+  const selectedCount = useMemo(() => selectedTaskIds(lines).size, [lines])
   const pickable = useMemo(
-    () => mergePickableTasks(b.tasks, b.eligibleTasks, lines),
-    [b.tasks, b.eligibleTasks, lines],
+    () => mergePickableTasks(b.tasks, b.eligibleTasks, standaloneLines),
+    [b.tasks, b.eligibleTasks, standaloneLines],
   )
 
   const canContinue =
@@ -201,12 +216,91 @@ export function MobileInvoiceNewPage() {
                     Sélectionne les tasks
                   </div>
                   <div className="big-sub">
-                    {pickable.length} disponibles · {picked.size} sélectionnée
-                    {picked.size > 1 ? "s" : ""}
+                    {pickable.length} disponibles · {selectedCount} sélectionnée
+                    {selectedCount > 1 ? "s" : ""}
                   </div>
                 </div>
 
-                {pickable.length === 0 ? (
+                {(b.groups.length > 0 || b.eligibleGroups.length > 0) && (
+                  <div className="col gap-8">
+                    <div className="field-label">Groupes prêts à facturer</div>
+                    {b.groups.map((group) => {
+                      const groupLines = lines.filter(
+                        (line) => line.taskGroupId === group.id,
+                      )
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          className="task-item selected"
+                          aria-pressed="true"
+                          style={{ textAlign: "left" }}
+                          onClick={() => b.removeTaskGroup(group.id)}
+                        >
+                          <div className="row gap-8">
+                            <div className="checkbox-circle checked">
+                              <Icon name="check" size={13} />
+                            </div>
+                            <Icon name="folder" size={14} className="muted" />
+                            <span className="strong">{group.name}</span>
+                          </div>
+                          <div className="task-meta">
+                            <span>
+                              {groupLines.length} task
+                              {groupLines.length > 1 ? "s" : ""}
+                            </span>
+                            <span>·</span>
+                            <span className="num">
+                              {fmtEUR(
+                                groupLines.reduce(
+                                  (sum, line) => sum + line.qty * line.rate,
+                                  0,
+                                ),
+                              )}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                    {b.eligibleGroups.map((group) => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        className="task-item"
+                        aria-pressed="false"
+                        style={{ textAlign: "left" }}
+                        onClick={() => b.addTaskGroup(group)}
+                      >
+                        <div className="row gap-8">
+                          <div className="checkbox-circle" />
+                          <Icon name="folder" size={14} className="muted" />
+                          <span className="strong">{group.name}</span>
+                        </div>
+                        <div className="task-meta">
+                          <span>{group.tasks.length} tasks</span>
+                          <span>·</span>
+                          <span>
+                            {group.tasks
+                              .map((task) => task.linearIdentifier)
+                              .join(", ")}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {b.taskGroupsPending ? (
+                  <div className="card" role="status">
+                    <span className="sr-only">Chargement des groupes…</span>
+                    <div className="col gap-8">
+                      <Skeleton width="42%" height={12} />
+                      <Skeleton width="100%" height={56} radius={10} />
+                    </div>
+                  </div>
+                ) : pickable.length === 0 &&
+                  b.eligibleGroups.length === 0 &&
+                  b.groups.length === 0 ? (
                   <div className="empty">
                     <div className="empty-title">Aucune task à facturer</div>
                     <div>
@@ -214,8 +308,9 @@ export function MobileInvoiceNewPage() {
                       Linear
                     </div>
                   </div>
-                ) : (
+                ) : pickable.length > 0 ? (
                   <div className="col gap-8">
+                    <div className="field-label">Tasks hors groupe</div>
                     {pickable.map((t) => {
                       const isSel = picked.has(t.id)
                       const { qty, rate } = lineFromTask({
@@ -267,7 +362,7 @@ export function MobileInvoiceNewPage() {
                       )
                     })}
                   </div>
-                )}
+                ) : null}
 
                 <button
                   type="button"

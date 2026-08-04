@@ -28,6 +28,7 @@ import {
   summarizeInvoices,
   type InvoiceFilterId,
 } from "@/domain/billing/filters"
+import { buildInvoiceEntries } from "@/domain/billing/builder"
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 
@@ -317,6 +318,13 @@ export function MobileInvoiceSheet({
     invoice.paymentStatus === "PAID" || invoice.paymentStatus === "OVERPAID"
   const canRecordPayment =
     invoice.status === "SENT" && !isFullyPaid && invoice.balanceDue > 0
+  const entries = buildInvoiceEntries(
+    invoice.lines.map((line) => ({
+      ...line,
+      taskGroupId: line.taskGroupId ?? null,
+    })),
+    invoice.taskGroups ?? [],
+  )
 
   return (
     <MobileSheet onClose={onClose}>
@@ -370,7 +378,7 @@ export function MobileInvoiceSheet({
             gap: 8,
           }}
         >
-          <span>Lignes ({invoice.lines.length})</span>
+          <span>Éléments ({entries.length})</span>
           {hasOverride && (
             <span className="muted xs" style={{ fontStyle: "italic" }}>
               forfait — prix non détaillés
@@ -381,29 +389,54 @@ export function MobileInvoiceSheet({
           className="col gap-6"
           style={{ maxHeight: 220, overflowY: "auto" }}
         >
-          {invoice.lines.map((l) => (
-            <div
-              key={l.id}
-              className="row gap-8"
-              style={{
-                padding: 10,
-                background: "var(--bg-2)",
-                borderRadius: 8,
-              }}
-            >
-              <div className="grow" style={{ minWidth: 0 }}>
-                <div className="small truncate">{l.label}</div>
+          {entries.map((entry) => {
+            return (
+              <div
+                key={entry.type === "line" ? entry.line.id : entry.group.id}
+                className="row gap-8"
+                style={{
+                  padding: 10,
+                  background: "var(--bg-2)",
+                  borderRadius: 8,
+                }}
+              >
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="small truncate">
+                    {entry.type === "group" ? (
+                      <span className="row gap-6 strong">
+                        <Icon name="folder" size={13} className="muted" />
+                        {entry.group.name}
+                      </span>
+                    ) : (
+                      entry.line.label
+                    )}
+                  </div>
+                  {entry.type === "group" && (
+                    <div className="xs muted" style={{ marginTop: 2 }}>
+                      {entry.lines.length} tasks ·{" "}
+                      {entry.lines.map((item) => item.label).join(", ")}
+                    </div>
+                  )}
+                  {!hasOverride && (
+                    <div className="xs muted mono">
+                      {entry.type === "line"
+                        ? `${entry.line.qty} × ${fmtEUR(entry.line.rate)}`
+                        : "Lot complet"}
+                    </div>
+                  )}
+                </div>
                 {!hasOverride && (
-                  <div className="xs muted mono">
-                    {l.qty} × {fmtEUR(l.rate)}
+                  <div className="num strong small">
+                    {fmtEUR(
+                      entry.type === "line"
+                        ? entry.line.qty * entry.line.rate
+                        : entry.total,
+                    )}
                   </div>
                 )}
               </div>
-              {!hasOverride && (
-                <div className="num strong small">{fmtEUR(l.qty * l.rate)}</div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         <div

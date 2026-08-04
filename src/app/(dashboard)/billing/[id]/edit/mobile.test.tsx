@@ -69,6 +69,9 @@ vi.mock("@/hooks/use-clients", () => ({
   useClients: () => ({ data: h.clients }),
 }))
 vi.mock("@/hooks/use-tasks", () => ({ useTasks: () => ({ data: h.tasks }) }))
+vi.mock("@/hooks/use-task-groups", () => ({
+  useTaskGroups: () => ({ data: [] }),
+}))
 
 import { MobileEditInvoicePage } from "./mobile"
 

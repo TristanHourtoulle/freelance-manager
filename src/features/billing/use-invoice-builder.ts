@@ -10,6 +10,7 @@ import {
   computeSubtotal,
   filterEligibleTasks,
   type BuilderLine,
+  type BuilderTaskGroup,
 } from "@/domain/billing/builder"
 import type { InvoiceKind } from "@/domain/billing/types"
 import type { InvoiceCreateInput } from "@/lib/schemas/invoice"
@@ -19,6 +20,7 @@ import { useProjects } from "@/hooks/use-projects"
 import { useSettings } from "@/hooks/use-settings"
 import { useCreateInvoice, useUpdateInvoice } from "@/hooks/use-invoices"
 import { useSplitInvoice } from "@/hooks/use-invoice-split"
+import { useTaskGroups, type TaskGroupDTO } from "@/hooks/use-task-groups"
 import { useToast } from "@/components/providers/toast-provider"
 import type {
   BuilderBase,
@@ -67,6 +69,8 @@ export function useInvoiceBuilder(
   const { data: tasks = [] } = useTasks()
   const { data: projects = [] } = useProjects()
   const { data: settings } = useSettings()
+  const { data: pendingTaskGroups = [], isPending: taskGroupsPending } =
+    useTaskGroups({ status: "pending" })
 
   const createInvoice = useCreateInvoice()
   const splitInvoice = useSplitInvoice()
@@ -113,11 +117,19 @@ export function useInvoiceBuilder(
       ? editInvoice.lines.map((l) => ({
           id: l.id,
           taskId: l.taskId,
+          taskGroupId: l.taskGroupId ?? null,
           label: l.label,
           qty: l.qty,
           rate: l.rate,
         }))
       : [],
+  )
+  const [groups, setGroups] = useState<BuilderTaskGroup[]>(
+    () =>
+      editInvoice?.taskGroups?.map((group) => ({
+        id: group.id,
+        name: group.name,
+      })) ?? [],
   )
   const [dragOver, setDragOver] = useState(false)
   const [useTotalOverride, setUseTotalOverride] = useState(
@@ -169,25 +181,48 @@ export function useInvoiceBuilder(
 
   const preselectedTaskIds =
     args.mode === "create" ? args.preselectedTaskIds : undefined
+  const preselectedTaskGroupIds =
+    args.mode === "create" ? args.preselectedTaskGroupIds : undefined
 
   const preselectedKey = useMemo(
-    () => (preselectedTaskIds ? [...preselectedTaskIds].sort().join(",") : ""),
-    [preselectedTaskIds],
+    () =>
+      `${preselectedTaskIds ? [...preselectedTaskIds].sort().join(",") : ""}|${
+        preselectedTaskGroupIds
+          ? [...preselectedTaskGroupIds].sort().join(",")
+          : ""
+      }`,
+    [preselectedTaskIds, preselectedTaskGroupIds],
   )
 
   useEffect(() => {
     if (isEdit) return
-    if (!client || !preselectedTaskIds || preselectedTaskIds.length === 0)
+    if (!client || preselectedKey === "|") return
+    const selectedGroups = pendingTaskGroups.filter((group) =>
+      preselectedTaskGroupIds?.includes(group.id),
+    )
+    if (
+      preselectedTaskGroupIds?.length &&
+      selectedGroups.length !== preselectedTaskGroupIds.length
+    )
       return
     const seeded: BuilderLine[] = []
-    for (const tid of preselectedTaskIds) {
+    const groupedTaskIds = new Set<string>()
+    for (const group of selectedGroups) {
+      for (const task of group.tasks) {
+        groupedTaskIds.add(task.id)
+        seeded.push(buildTaskLine(newLineId(), client, task, group.id))
+      }
+    }
+    for (const tid of preselectedTaskIds ?? []) {
+      if (groupedTaskIds.has(tid)) continue
       const t = tasks.find((x) => x.id === tid)
       if (!t) continue
       seeded.push(buildTaskLine(newLineId(), client, t))
     }
+    setGroups(selectedGroups.map(({ id, name }) => ({ id, name })))
     setLines(seeded)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, client, preselectedKey, tasks])
+  }, [isEdit, client, preselectedKey, tasks, pendingTaskGroups])
 
   const eligibleTasks = useMemo(
     () =>
@@ -199,6 +234,25 @@ export function useInvoiceBuilder(
         excludeInvoiceId: editInvoice?.id,
       }),
     [tasks, clientId, lines, projectId, taskSearch, editInvoice],
+  )
+
+  const eligibleGroups = useMemo(
+    () =>
+      pendingTaskGroups.filter(
+        (group) =>
+          group.clientId === clientId &&
+          !groups.some((selected) => selected.id === group.id) &&
+          group.tasks.length > 0 &&
+          (projectId === "all" ||
+            group.tasks.every((task) => task.projectId === projectId)) &&
+          (!taskSearch.trim() ||
+            `${group.name} ${group.tasks
+              .map((task) => `${task.linearIdentifier} ${task.title}`)
+              .join(" ")}`
+              .toLowerCase()
+              .includes(taskSearch.trim().toLowerCase())),
+      ),
+    [pendingTaskGroups, clientId, groups, projectId, taskSearch],
   )
 
   const subtotal = computeSubtotal({ kind, lines, depositAmount })
@@ -214,6 +268,28 @@ export function useInvoiceBuilder(
     if (!client) return
     setLines((cur) => [...cur, buildTaskLine(newLineId(), client, task)])
   }
+  function addTaskGroup(group: TaskGroupDTO) {
+    if (!client || group.clientId !== clientId || group.invoiceId) return
+    if (groups.some((selected) => selected.id === group.id)) return
+    const existingTaskIds = new Set(
+      lines
+        .map((line) => line.taskId)
+        .filter((id): id is string => Boolean(id)),
+    )
+    const groupLines = group.tasks
+      .filter((task) => !existingTaskIds.has(task.id))
+      .map((task) => buildTaskLine(newLineId(), client, task, group.id))
+    if (groupLines.length !== group.tasks.length || groupLines.length === 0)
+      return
+    setGroups((current) => [...current, { id: group.id, name: group.name }])
+    setLines((current) => [...current, ...groupLines])
+  }
+  function removeTaskGroup(groupId: string) {
+    setGroups((current) => current.filter((group) => group.id !== groupId))
+    setLines((current) =>
+      current.filter((line) => line.taskGroupId !== groupId),
+    )
+  }
   function addTaskById(taskId: string) {
     const t = tasks.find((x) => x.id === taskId)
     if (t) addTask(t)
@@ -224,6 +300,7 @@ export function useInvoiceBuilder(
       {
         id: newLineId(),
         taskId: null,
+        taskGroupId: null,
         label: "Ligne personnalisée",
         qty: 1,
         rate: 0,
@@ -234,6 +311,11 @@ export function useInvoiceBuilder(
     setLines((cur) => cur.map((l) => (l.id === id ? { ...l, ...patch } : l)))
   }
   function removeLine(id: string) {
+    const line = lines.find((candidate) => candidate.id === id)
+    if (line?.taskGroupId) {
+      removeTaskGroup(line.taskGroupId)
+      return
+    }
     setLines((cur) => cur.filter((l) => l.id !== id))
   }
   function setTotalOverrideValue(amount: number) {
@@ -249,6 +331,7 @@ export function useInvoiceBuilder(
     clients,
     projects,
     tasks,
+    groups,
     client,
     clientId,
     projectId,
@@ -276,9 +359,13 @@ export function useInvoiceBuilder(
     setDragOver,
     projectById,
     eligibleTasks,
+    eligibleGroups,
+    taskGroupsPending,
     subtotal,
     effectiveTotal,
     addTask,
+    addTaskGroup,
+    removeTaskGroup,
     addTaskById,
     addBlank,
     updateLine,
@@ -298,6 +385,7 @@ export function useInvoiceBuilder(
       totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
       lines: buildLinesPayload({ kind, lines, depositLabel, depositAmount }),
       taskIds: buildTaskIds(kind, lines),
+      taskGroupIds: kind === "STANDARD" ? groups.map((group) => group.id) : [],
       initialPayment:
         markPaid && target === "SENT" && effectiveTotal > 0
           ? { amount: effectiveTotal, paidAt, method: null, note: null }
@@ -309,6 +397,7 @@ export function useInvoiceBuilder(
     const selectClient = (id: string) => {
       setPickedClientId(id)
       setLines([])
+      setGroups([])
     }
 
     const submit = (target: CreateStatus) => {
@@ -395,6 +484,8 @@ export function useInvoiceBuilder(
         totalOverride: useTotalOverride ? Number(totalOverride) || 0 : null,
         lines: buildLinesPayload({ kind, lines, depositLabel, depositAmount }),
         taskIds: buildTaskIds(kind, lines),
+        taskGroupIds:
+          kind === "STANDARD" ? groups.map((group) => group.id) : [],
       },
       {
         onSuccess: () => {

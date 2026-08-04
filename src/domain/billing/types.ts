@@ -61,9 +61,14 @@ export interface InvoiceDetail extends InvoiceWireRow {
   lines: {
     id: string
     taskId: string | null
+    taskGroupId?: string | null
     label: string
     qty: number
     rate: number
+  }[]
+  taskGroups?: {
+    id: string
+    name: string
   }[]
   payments: InvoicePaymentDTO[]
 }

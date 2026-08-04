@@ -11,4 +11,15 @@ describe("NAV_SECTIONS", () => {
     expect(suivi?.label).toBe("Suivi")
     expect(suivi?.badgeKey).toBeUndefined()
   })
+
+  it("exposes the task groups workspace in the Finance section", () => {
+    const finance = NAV_SECTIONS.find((section) => section.title === "Finance")
+    const item = finance?.items.find((entry) => entry.id === "task-groups")
+
+    expect(item).toMatchObject({
+      href: "/task-groups",
+      label: "Groupes de tasks",
+      icon: "folder",
+    })
+  })
 })

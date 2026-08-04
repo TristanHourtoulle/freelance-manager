@@ -44,6 +44,7 @@ const h = vi.hoisted(() => {
     params: new URLSearchParams(),
     push: vi.fn(),
     createMutate: vi.fn(),
+    taskGroupsPending: false,
   }
 })
 
@@ -69,6 +70,9 @@ vi.mock("@/hooks/use-clients", () => ({
   useClients: () => ({ data: h.clients }),
 }))
 vi.mock("@/hooks/use-tasks", () => ({ useTasks: () => ({ data: h.tasks }) }))
+vi.mock("@/hooks/use-task-groups", () => ({
+  useTaskGroups: () => ({ data: [], isPending: h.taskGroupsPending }),
+}))
 
 import { MobileInvoiceNewPage } from "./mobile"
 
@@ -89,6 +93,7 @@ beforeEach(() => {
   h.clients = [h.client]
   h.push.mockReset()
   h.createMutate.mockReset()
+  h.taskGroupsPending = false
 })
 
 describe("MobileInvoiceNewPage", () => {
@@ -107,6 +112,18 @@ describe("MobileInvoiceNewPage", () => {
     await user.click(screen.getByRole("button", { name: /Analytical/ }))
     expect(screen.getByText("2/3")).toBeInTheDocument()
     expect(screen.getByText("Sélectionne les tasks")).toBeInTheDocument()
+  })
+
+  it("shows a loading placeholder while task groups are being fetched", () => {
+    h.params = new URLSearchParams({ clientId: "c1" })
+    h.taskGroupsPending = true
+
+    render(<MobileInvoiceNewPage />)
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Chargement des groupes…",
+    )
+    expect(screen.queryByText("Aucune task à facturer")).not.toBeInTheDocument()
   })
 
   it("adds a DAILY line on tap with qty = estimate and rate = client rate", async () => {
@@ -220,7 +237,13 @@ describe("MobileInvoiceNewPage", () => {
     expect(payload.status).toBe("SENT")
     expect(payload.taskIds).toEqual(["t1"])
     expect(payload.lines).toEqual([
-      { taskId: "t1", label: "[TRI-1] Premiere task", qty: 2, rate: 500 },
+      {
+        taskId: "t1",
+        taskGroupId: null,
+        label: "[TRI-1] Premiere task",
+        qty: 2,
+        rate: 500,
+      },
     ])
   })
 

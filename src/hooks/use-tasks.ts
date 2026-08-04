@@ -35,6 +35,7 @@ export interface TaskDTO {
   actualDays: number | null
   completedAt: string | null
   invoiceId: string | null
+  taskGroupId?: string | null
   clientId: string
   projectId: string
   billable: boolean
