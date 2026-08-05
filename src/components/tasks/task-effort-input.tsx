@@ -9,6 +9,7 @@ interface TaskEffortInputProps {
   className?: string
   style?: CSSProperties
   disabled?: boolean
+  ariaLabel?: string
 }
 
 function parseDays(raw: string): number | null | undefined {
@@ -38,6 +39,7 @@ export function TaskEffortInput({
   className,
   style,
   disabled = false,
+  ariaLabel = "Temps réel passé, en jours",
 }: TaskEffortInputProps) {
   const update = useUpdateTaskEffort()
   const [draft, setDraft] = useState<string | null>(null)
@@ -60,7 +62,7 @@ export function TaskEffortInput({
       type="text"
       inputMode="decimal"
       placeholder="—"
-      aria-label="Temps réel passé, en jours"
+      aria-label={ariaLabel}
       value={value}
       disabled={disabled || update.isPending}
       onChange={(e) => setDraft(e.target.value)}

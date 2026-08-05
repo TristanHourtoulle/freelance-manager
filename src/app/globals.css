@@ -2780,10 +2780,85 @@ textarea {
   margin-top: 7px;
   text-align: right;
 }
+.task-group-editor-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.task-group-editor-search {
+  position: relative;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+.task-group-editor-search .ic {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  color: var(--text-3);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.task-group-editor-search .input {
+  padding-left: 36px;
+}
+.task-group-search-empty {
+  min-height: 150px;
+  margin-top: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+.task-pickable.task-group-task-picker {
+  grid-template-columns: auto max-content minmax(0, 1fr) max-content;
+}
+.task-group-task-picker .task-id {
+  width: fit-content;
+  justify-self: start;
+}
+.task-group-task-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-group-task-estimate {
+  white-space: nowrap;
+}
+.task-group-card {
+  overflow: hidden;
+}
 .task-group-card-row {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.task-group-summary-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.task-group-summary-price {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.task-group-missing-effort {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin-left: 3px;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  border-radius: 999px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  font-weight: 600;
+}
+.task-group-identifiers {
+  margin-top: 3px;
 }
 .task-group-card-actions {
   display: flex;
@@ -2791,6 +2866,78 @@ textarea {
   gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
+}
+.task-group-card-actions .ic {
+  transition: transform 0.15s ease;
+}
+.task-group-card-actions .task-group-chevron-open {
+  transform: rotate(180deg);
+}
+.task-group-effort-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.task-group-pricing-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-2);
+}
+.task-group-pricing-progress {
+  text-align: right;
+}
+.task-group-effort-list {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.task-group-effort-row {
+  display: grid;
+  grid-template-columns: max-content minmax(180px, 1fr) 130px 100px;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 9px 12px;
+  background: var(--bg-1);
+}
+.task-group-effort-row + .task-group-effort-row {
+  border-top: 1px solid var(--border);
+}
+.task-group-effort-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-group-effort-control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.task-group-effort-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.task-group-effort-input {
+  width: 82px;
+  height: 30px;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+.task-group-task-price {
+  min-width: 0;
+  text-align: right;
+}
+.task-group-pricing-note {
+  margin-top: 9px;
 }
 
 @media (max-width: 768px) {
@@ -2823,13 +2970,45 @@ textarea {
   }
   .task-group-card-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.15fr;
+    grid-template-columns: 1fr 1fr;
     width: 100%;
     margin-left: 0;
   }
   .task-group-card-actions .btn {
     justify-content: center;
     min-height: 38px;
+  }
+  .task-pickable.task-group-task-picker {
+    grid-template-columns: auto max-content minmax(0, 1fr);
+  }
+  .task-group-task-estimate {
+    display: none;
+  }
+  .task-group-summary-line {
+    row-gap: 4px;
+  }
+  .task-group-pricing-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .task-group-pricing-progress {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+  .task-group-effort-row {
+    grid-template-columns: max-content minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 11px 10px;
+  }
+  .task-group-effort-title {
+    grid-column: 2 / -1;
+    white-space: normal;
+  }
+  .task-group-effort-control {
+    grid-column: 2;
+  }
+  .task-group-task-price {
+    grid-column: 3;
+    align-self: end;
   }
 }
 

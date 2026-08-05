@@ -20,6 +20,7 @@ const taskSelect = {
   linearUrl: true,
   title: true,
   estimate: true,
+  actualDays: true,
   clientId: true,
   projectId: true,
 } as const

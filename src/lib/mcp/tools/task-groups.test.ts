@@ -37,6 +37,7 @@ function task(id = "task-1") {
     linearIdentifier: id === "task-1" ? "QUI-1" : "QUI-2",
     title: `Task ${id}`,
     estimate: 1,
+    actualDays: null,
     clientId: "client-1",
     projectId: "project-1",
   }

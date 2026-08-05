@@ -40,6 +40,7 @@ interface SeedTask {
   linearIdentifier: string
   title: string
   estimate: number | null
+  actualDays?: number | null
 }
 
 /**
@@ -62,7 +63,7 @@ export function buildTaskLine(
   const { qty, rate } = lineFromTask({
     billingMode: client.billingMode,
     rate: client.rate,
-    estimateDays: task.estimate,
+    estimateDays: task.actualDays ?? task.estimate,
   })
   return {
     id,

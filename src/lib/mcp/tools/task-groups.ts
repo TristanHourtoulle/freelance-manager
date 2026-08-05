@@ -50,6 +50,7 @@ const taskGroupTaskSchema = z.object({
   linearIdentifier: z.string(),
   title: z.string(),
   estimate: z.number().nullable(),
+  actualDays: z.number().nullable(),
   clientId: z.string(),
   projectId: z.string(),
 })
@@ -92,6 +93,7 @@ const GROUP_TASK_SELECT = {
   linearIdentifier: true,
   title: true,
   estimate: true,
+  actualDays: true,
   clientId: true,
   projectId: true,
 } satisfies Prisma.TaskSelect
@@ -120,6 +122,7 @@ function toTaskGroup(row: GroupRow) {
       linearIdentifier: task.linearIdentifier,
       title: truncateText(task.title, TITLE_MAX_CHARS),
       estimate: decimalToNumber(task.estimate),
+      actualDays: decimalToNumber(task.actualDays),
       clientId: task.clientId,
       projectId: task.projectId,
     })),

@@ -35,6 +35,16 @@ describe("buildTaskLine", () => {
     expect(line).toMatchObject({ qty: 24, rate: 80 })
   })
 
+  it("prefers captured actual days over the Linear estimate", () => {
+    const line = buildTaskLine(
+      "L-actual",
+      { billingMode: "DAILY", rate: 500 },
+      { ...task, estimate: 3, actualDays: 1.5 },
+    )
+
+    expect(line).toMatchObject({ qty: 1.5, rate: 500 })
+  })
+
   it("seeds a FIXED line: qty = 1, rate = 0 (filled manually)", () => {
     const line = buildTaskLine("L3", { billingMode: "FIXED", rate: 999 }, task)
     expect(line).toMatchObject({ qty: 1, rate: 0 })

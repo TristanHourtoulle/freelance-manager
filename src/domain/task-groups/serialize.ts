@@ -16,6 +16,7 @@ interface TaskGroupRow {
     linearUrl: string | null
     title: string
     estimate: Prisma.Decimal | number | null
+    actualDays: Prisma.Decimal | number | null
     clientId: string
     projectId: string
   }[]
@@ -36,6 +37,7 @@ export function serializeTaskGroup(group: TaskGroupRow): TaskGroupDTO {
       linearUrl: task.linearUrl,
       title: task.title,
       estimate: decimalToNumber(task.estimate),
+      actualDays: decimalToNumber(task.actualDays),
       clientId: task.clientId,
       projectId: task.projectId,
     })),

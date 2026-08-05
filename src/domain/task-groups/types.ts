@@ -4,6 +4,7 @@ export interface TaskGroupTaskDTO {
   linearUrl: string | null
   title: string
   estimate: number | null
+  actualDays: number | null
   clientId: string
   projectId: string
 }

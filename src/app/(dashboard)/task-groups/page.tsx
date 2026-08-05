@@ -1,12 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Icon } from "@/components/ui/icon"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { TaskIdLink } from "@/components/ui/task-id-link"
+import { TaskEffortInput } from "@/components/tasks/task-effort-input"
 import { useToast } from "@/components/providers/toast-provider"
-import { useClients } from "@/hooks/use-clients"
+import { useClients, type ClientDTO } from "@/hooks/use-clients"
 import { useTasks, type TaskDTO } from "@/hooks/use-tasks"
+import { fmtEUR } from "@/lib/format"
+import {
+  computeTaskGroupPricing,
+  priceForActualDays,
+} from "@/domain/task-groups/pricing"
 import {
   useCreateTaskGroup,
   useDeleteTaskGroup,
@@ -38,11 +45,12 @@ function TaskGroupEditor({
   const create = useCreateTaskGroup()
   const update = useUpdateTaskGroup(group?.id ?? "new")
   const [name, setName] = useState(group?.name ?? "")
+  const [search, setSearch] = useState("")
   const [selected, setSelected] = useState(
     () => new Set(group?.tasks.map((task) => task.id) ?? []),
   )
 
-  const available = useMemo(
+  const eligible = useMemo(
     () =>
       tasks.filter(
         (task) =>
@@ -54,6 +62,15 @@ function TaskGroupEditor({
       ),
     [clientId, group?.id, tasks],
   )
+  const available = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("fr")
+    if (!query) return eligible
+    return eligible.filter((task) =>
+      `${task.linearIdentifier} ${task.title}`
+        .toLocaleLowerCase("fr")
+        .includes(query),
+    )
+  }, [eligible, search])
   const isPending = create.isPending || update.isPending
   const valid = name.trim().length > 0 && selected.size > 0 && !isPending
 
@@ -115,14 +132,47 @@ function TaskGroupEditor({
         />
       </div>
 
-      <div className="field-label">Tasks à inclure · {selected.size}</div>
-      {available.length === 0 ? (
+      <div className="task-group-editor-list-header">
+        <div className="field-label">Tasks à inclure · {selected.size}</div>
+        {eligible.length > 0 && (
+          <div className="xs muted">
+            {available.length} affichée{available.length > 1 ? "s" : ""}
+          </div>
+        )}
+      </div>
+      {eligible.length > 0 && (
+        <div className="task-group-editor-search">
+          <Icon name="search" size={14} aria-hidden="true" />
+          <input
+            className="input"
+            type="search"
+            aria-label="Rechercher une task"
+            placeholder="Rechercher par nom ou identifiant, ex. TRI-968"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+      )}
+      {eligible.length === 0 ? (
         <div className="empty" style={{ minHeight: 100 }}>
           <div className="empty-title">Aucune task disponible</div>
           <div>
             Une task doit être facturable, en attente de facture et libre de
             tout autre groupe.
           </div>
+        </div>
+      ) : available.length === 0 ? (
+        <div className="empty task-group-search-empty">
+          <Icon name="search" size={20} className="muted" />
+          <div className="empty-title">Aucune task trouvée</div>
+          <div>Essaie un autre nom ou identifiant.</div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setSearch("")}
+          >
+            Effacer la recherche
+          </button>
         </div>
       ) : (
         <div
@@ -132,7 +182,7 @@ function TaskGroupEditor({
           {available.map((task) => (
             <label
               key={task.id}
-              className="task-pickable"
+              className="task-pickable task-group-task-picker"
               style={{ cursor: "pointer" }}
             >
               <input
@@ -149,8 +199,12 @@ function TaskGroupEditor({
                 }
               />
               <span className="task-id">{task.linearIdentifier}</span>
-              <span className="small strong grow">{task.title}</span>
-              <span className="xs muted">{task.estimate ?? "—"}j</span>
+              <span className="small strong task-group-task-title">
+                {task.title}
+              </span>
+              <span className="xs muted task-group-task-estimate">
+                {task.estimate != null ? `${task.estimate} j estimé` : "—"}
+              </span>
             </label>
           ))}
         </div>
@@ -176,13 +230,177 @@ function TaskGroupEditor({
   )
 }
 
+function formatDays(days: number) {
+  return days.toLocaleString("fr-FR", { maximumFractionDigits: 2 })
+}
+
+function PendingTaskGroupCard({
+  group,
+  client,
+  removePending,
+  onEdit,
+  onDelete,
+}: {
+  group: TaskGroupDTO
+  client: ClientDTO
+  removePending: boolean
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const billing = { billingMode: client.billingMode, rate: client.rate }
+  const pricing = computeTaskGroupPricing(group.tasks, billing)
+  const priceLabel =
+    client.billingMode === "FIXED"
+      ? "Prix à définir sur la facture"
+      : fmtEUR(pricing.totalPrice)
+
+  return (
+    <div className="card card-tight task-group-card">
+      <div className="task-group-card-row">
+        <div className="row gap-10 grow" style={{ minWidth: 0 }}>
+          <Icon name="folder" size={18} className="muted" />
+          <div className="grow" style={{ minWidth: 0 }}>
+            <div className="strong truncate">{group.name}</div>
+            <div className="task-group-summary-line">
+              <span>
+                {group.tasks.length} task{group.tasks.length > 1 ? "s" : ""}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>{formatDays(pricing.totalDays)} j saisis</span>
+              <span aria-hidden="true">·</span>
+              <span className="task-group-summary-price">{priceLabel}</span>
+              {pricing.missingTasks > 0 && (
+                <span className="task-group-missing-effort">
+                  {pricing.missingTasks} temps manquant
+                  {pricing.missingTasks > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div className="xs muted truncate task-group-identifiers">
+              {group.tasks.map((task) => task.linearIdentifier).join(", ")}
+            </div>
+          </div>
+        </div>
+        <div className="task-group-card-actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            aria-label={`Temps et prix de ${group.name}`}
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            <Icon
+              name="chevron-down"
+              size={12}
+              className={expanded ? "task-group-chevron-open" : undefined}
+            />
+            Temps & prix
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={onEdit}
+          >
+            Modifier
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={removePending}
+            onClick={onDelete}
+          >
+            Supprimer
+          </button>
+          <Link
+            className="btn btn-primary btn-sm"
+            href={`/billing/new?clientId=${group.clientId}&groupIds=${group.id}`}
+          >
+            Facturer
+            <Icon name="chevron-right" size={12} />
+          </Link>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="task-group-effort-panel">
+          <div className="task-group-pricing-strip">
+            <div>
+              <div className="xs muted">Temps saisi</div>
+              <div className="strong">{formatDays(pricing.totalDays)} j</div>
+            </div>
+            <div>
+              <div className="xs muted">Valeur du groupe</div>
+              <div className="strong">{priceLabel}</div>
+            </div>
+            <div className="task-group-pricing-progress">
+              <div className="xs muted">Complétion</div>
+              <div className="strong">
+                {pricing.capturedTasks}/{group.tasks.length} tasks
+              </div>
+            </div>
+          </div>
+
+          <div className="task-group-effort-list">
+            {group.tasks.map((task) => {
+              const taskPrice = priceForActualDays(task.actualDays, billing)
+              return (
+                <div key={task.id} className="task-group-effort-row">
+                  <TaskIdLink
+                    identifier={task.linearIdentifier}
+                    url={task.linearUrl}
+                    className="task-id"
+                  />
+                  <div className="small strong task-group-effort-title">
+                    {task.title}
+                  </div>
+                  <div className="task-group-effort-control">
+                    <span className="xs muted">Temps passé</span>
+                    <div className="task-group-effort-input-wrap">
+                      <TaskEffortInput
+                        taskId={task.id}
+                        actualDays={task.actualDays}
+                        className="task-group-effort-input"
+                        ariaLabel={`Temps passé pour ${task.linearIdentifier}, en jours`}
+                      />
+                      <span className="xs muted">j</span>
+                    </div>
+                  </div>
+                  <div className="task-group-task-price">
+                    <div className="xs muted">Montant</div>
+                    <div className="strong small">{fmtEUR(taskPrice)}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="xs muted task-group-pricing-note">
+            {client.billingMode === "HOURLY"
+              ? `Calcul : jours saisis × 8 h × ${fmtEUR(client.rate)}/h.`
+              : client.billingMode === "DAILY"
+                ? `Calcul : jours saisis × ${fmtEUR(client.rate)}/jour.`
+                : "Le temps reste visible, mais un forfait ne peut pas être ventilé automatiquement par task."}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TaskGroupsPage() {
   const { toast } = useToast()
   const { data: clients = [] } = useClients()
   const [clientId, setClientId] = useState("")
   const [editor, setEditor] = useState<"new" | TaskGroupDTO | null>(null)
   const [groupToDelete, setGroupToDelete] = useState<TaskGroupDTO | null>(null)
-  const { data: tasks = [], isPending: tasksPending } = useTasks(
+  const {
+    data: tasks = [],
+    isPending: tasksPending,
+    hasNextPage: hasMoreTasks,
+    isFetchingNextPage: fetchingMoreTasks,
+    fetchNextPage,
+  } = useTasks(
     {
       clientIds: clientId ? [clientId] : [],
       status: "PENDING_INVOICE",
@@ -200,7 +418,13 @@ export default function TaskGroupsPage() {
   const pending = groups.filter((group) => !group.invoiceId)
   const invoiced = groups.filter((group) => group.invoiceId)
   const client = clients.find((entry) => entry.id === clientId)
-  const loading = tasksPending || groupsPending
+  const loading =
+    tasksPending || groupsPending || fetchingMoreTasks || Boolean(hasMoreTasks)
+
+  useEffect(() => {
+    if (!clientId || !hasMoreTasks || fetchingMoreTasks) return
+    void fetchNextPage()
+  }, [clientId, fetchNextPage, fetchingMoreTasks, hasMoreTasks])
 
   function deleteGroup() {
     if (!groupToDelete) return
@@ -254,7 +478,7 @@ export default function TaskGroupsPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!clientId || editor !== null}
+              disabled={!clientId || editor !== null || loading}
               onClick={() => setEditor("new")}
             >
               <Icon name="plus" size={14} />
@@ -311,49 +535,18 @@ export default function TaskGroupsPage() {
               </div>
             ) : (
               <div className="col gap-10">
-                {pending.map((group) => (
-                  <div key={group.id} className="card card-tight">
-                    <div className="task-group-card-row">
-                      <div className="row gap-10 grow" style={{ minWidth: 0 }}>
-                        <Icon name="folder" size={18} className="muted" />
-                        <div className="grow" style={{ minWidth: 0 }}>
-                          <div className="strong truncate">{group.name}</div>
-                          <div className="xs muted truncate">
-                            {group.tasks.length} task
-                            {group.tasks.length > 1 ? "s" : ""} ·{" "}
-                            {group.tasks
-                              .map((task) => task.linearIdentifier)
-                              .join(", ")}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="task-group-card-actions">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setEditor(group)}
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          disabled={remove.isPending}
-                          onClick={() => setGroupToDelete(group)}
-                        >
-                          Supprimer
-                        </button>
-                        <Link
-                          className="btn btn-primary btn-sm"
-                          href={`/billing/new?clientId=${group.clientId}&groupIds=${group.id}`}
-                        >
-                          Facturer
-                          <Icon name="chevron-right" size={12} />
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                {pending.map((group) =>
+                  client ? (
+                    <PendingTaskGroupCard
+                      key={group.id}
+                      group={group}
+                      client={client}
+                      removePending={remove.isPending}
+                      onEdit={() => setEditor(group)}
+                      onDelete={() => setGroupToDelete(group)}
+                    />
+                  ) : null,
+                )}
               </div>
             )}
           </section>

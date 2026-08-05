@@ -183,6 +183,7 @@ export function useUpdateTaskEffort() {
       qc.invalidateQueries({ queryKey: qk.tasks.all() })
       qc.invalidateQueries({ queryKey: qk.analyticsAll() })
       qc.invalidateQueries({ queryKey: qk.dashboard() })
+      qc.invalidateQueries({ queryKey: qk.taskGroups.all() })
     },
     onError: (e) => {
       toast({
