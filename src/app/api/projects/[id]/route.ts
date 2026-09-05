@@ -9,7 +9,7 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
-import { getInvoiceComputed } from "@/lib/payments"
+import { getInvoiceComputed, resolveLateFeePolicy } from "@/lib/payments"
 import { projectUpdateSchema } from "@/lib/schemas/project"
 import { projectsTag } from "@/lib/data/projects"
 import { navTag } from "@/lib/data/nav"
@@ -32,7 +32,7 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    const [project, tasks, invoices] = await Promise.all([
+    const [project, tasks, invoices, settings] = await Promise.all([
       prisma.project.findFirst({
         where: { id, userId: user.id },
         include: {
@@ -67,14 +67,21 @@ export async function GET(_: Request, { params }: Params) {
         orderBy: { issueDate: "desc" },
         include: {
           _count: { select: { lines: true } },
-          payments: { select: { amount: true, paidAt: true } },
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
         },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
       }),
     ])
     if (!project) return apiNotFound()
 
+    const lateFeePolicy = resolveLateFeePolicy(settings)
     const invoiceRows = invoices.map((inv) => {
-      const computed = getInvoiceComputed(inv)
+      const computed = getInvoiceComputed(inv, lateFeePolicy)
       return {
         id: inv.id,
         number: inv.number,
