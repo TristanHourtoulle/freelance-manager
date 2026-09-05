@@ -54,6 +54,7 @@ describe("PATCH /api/invoices/[id]/payments/[paymentId] — penalty invariant", 
 
   beforeEach(() => {
     vi.clearAllMocks()
+    delete process.env.NEXT_PUBLIC_APP_URL
     getAuthUser.mockResolvedValue({ id: "user-1" })
     prismaMock.payment.findUnique.mockResolvedValue({
       id: PAYMENT_ID,
