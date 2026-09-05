@@ -11,18 +11,13 @@ import {
 import { quoteUpdateSchema } from "@/lib/schemas/quote"
 import { sumLines } from "@/lib/billing-math"
 import { serializeQuote, serializeQuoteLine } from "@/domain/quotes/serialize"
-import type { QuoteDetail, QuoteStatus } from "@/domain/quotes/types"
+import type { QuoteDetail } from "@/domain/quotes/types"
+import { resolveQuoteStatusTimestamps } from "@/domain/quotes/status-transition"
 import { navTag } from "@/lib/data/nav"
 
 interface Params {
   params: Promise<{ id: string }>
 }
-
-const DECIDED_STATUSES: readonly QuoteStatus[] = [
-  "ACCEPTED",
-  "REFUSED",
-  "EXPIRED",
-]
 
 export async function GET(_: Request, { params }: Params) {
   const user = await getAuthUser()
@@ -82,11 +77,11 @@ export async function PATCH(req: Request, { params }: Params) {
     const body = await req.json()
     const partial = quoteUpdateSchema.partial().parse(body)
     const nextStatus = partial.status ?? existing.status
-
-    const becomesSent = nextStatus !== "DRAFT" && existing.sentAt == null
-    const becomesDecided =
-      DECIDED_STATUSES.includes(nextStatus) &&
-      !DECIDED_STATUSES.includes(existing.status)
+    const timestampPatch = resolveQuoteStatusTimestamps(
+      existing,
+      nextStatus,
+      new Date(),
+    )
 
     const totals =
       partial.lines != null
@@ -125,8 +120,12 @@ export async function PATCH(req: Request, { params }: Params) {
             ? { externalUrl: partial.externalUrl ?? null }
             : {}),
           ...(totals != null ? { subtotal: totals, total: totals } : {}),
-          ...(becomesSent ? { sentAt: new Date() } : {}),
-          ...(becomesDecided ? { decidedAt: new Date() } : {}),
+          ...(timestampPatch.sentAt !== undefined
+            ? { sentAt: timestampPatch.sentAt }
+            : {}),
+          ...(timestampPatch.decidedAt !== undefined
+            ? { decidedAt: timestampPatch.decidedAt }
+            : {}),
           ...(partial.lines != null
             ? {
                 lines: {

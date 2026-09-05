@@ -7,6 +7,7 @@ const { prismaMock } = vi.hoisted(() => ({
     clientAction: { createMany: vi.fn(), count: vi.fn() },
     meeting: { count: vi.fn() },
     mcpRateLimitWindow: { deleteMany: vi.fn() },
+    quote: { findMany: vi.fn(), updateMany: vi.fn() },
   },
 }))
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
@@ -44,6 +45,7 @@ describe("runDailyJobs — overdue-relances", () => {
     prismaMock.meeting.count.mockResolvedValue(0)
     prismaMock.invoice.count.mockResolvedValue(0)
     prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 0 })
+    prismaMock.quote.findMany.mockResolvedValue([])
     sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
@@ -163,6 +165,7 @@ describe("runDailyJobs — push-digest", () => {
     prismaMock.invoice.findMany.mockResolvedValue([])
     prismaMock.clientAction.createMany.mockResolvedValue({ count: 0 })
     prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 0 })
+    prismaMock.quote.findMany.mockResolvedValue([])
     sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
@@ -215,6 +218,7 @@ describe("runDailyJobs — mcp-rate-limit-sweep", () => {
     prismaMock.clientAction.count.mockResolvedValue(0)
     prismaMock.meeting.count.mockResolvedValue(0)
     prismaMock.invoice.count.mockResolvedValue(0)
+    prismaMock.quote.findMany.mockResolvedValue([])
     sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
   })
 
@@ -245,6 +249,122 @@ describe("runDailyJobs — mcp-rate-limit-sweep", () => {
 
     expect(result.jobs).toContainEqual({
       name: "mcp-rate-limit-sweep",
+      ok: false,
+      count: 0,
+    })
+    expect(result.jobs).toContainEqual({
+      name: "push-digest",
+      ok: true,
+      count: 0,
+    })
+    spy.mockRestore()
+  })
+})
+
+function quote(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "quote-1",
+    validUntil: PAST,
+    ...overrides,
+  }
+}
+
+describe("runDailyJobs — expire-quotes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prismaMock.user.findMany.mockResolvedValue([{ id: "user-1" }])
+    prismaMock.invoice.findMany.mockResolvedValue([])
+    prismaMock.clientAction.createMany.mockResolvedValue({ count: 0 })
+    prismaMock.clientAction.count.mockResolvedValue(0)
+    prismaMock.meeting.count.mockResolvedValue(0)
+    prismaMock.invoice.count.mockResolvedValue(0)
+    prismaMock.mcpRateLimitWindow.deleteMany.mockResolvedValue({ count: 0 })
+    prismaMock.quote.updateMany.mockResolvedValue({ count: 0 })
+    sendPushToUser.mockResolvedValue({ sent: 1, pruned: 0 })
+  })
+
+  it("flips a SENT quote whose validUntil is in the past to EXPIRED", async () => {
+    prismaMock.quote.findMany.mockResolvedValue([quote()])
+    prismaMock.quote.updateMany.mockResolvedValue({ count: 1 })
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(prismaMock.quote.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", status: "SENT" },
+      select: { id: true, validUntil: true },
+    })
+    expect(prismaMock.quote.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["quote-1"] } },
+      data: { status: "EXPIRED" },
+    })
+    expect(result.jobs).toContainEqual({
+      name: "expire-quotes",
+      ok: true,
+      count: 1,
+    })
+  })
+
+  it("leaves a quote whose validUntil is still in the future alone", async () => {
+    prismaMock.quote.findMany.mockResolvedValue([
+      quote({ id: "quote-future", validUntil: FUTURE }),
+    ])
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(prismaMock.quote.updateMany).not.toHaveBeenCalled()
+    expect(result.jobs).toContainEqual({
+      name: "expire-quotes",
+      ok: true,
+      count: 0,
+    })
+  })
+
+  it("never candidates a non-SENT quote: the query itself is scoped to status SENT", async () => {
+    prismaMock.quote.findMany.mockResolvedValue([])
+
+    const { runDailyJobs } = await import("./daily")
+    await runDailyJobs(NOW)
+
+    const [args] = prismaMock.quote.findMany.mock.calls[0] ?? []
+    expect((args as { where: Record<string, unknown> }).where).toMatchObject({
+      status: "SENT",
+    })
+  })
+
+  it("is safe to run twice: the second run finds nothing left to flip", async () => {
+    prismaMock.quote.findMany
+      .mockResolvedValueOnce([quote()])
+      .mockResolvedValueOnce([])
+    prismaMock.quote.updateMany.mockResolvedValueOnce({ count: 1 })
+
+    const { runDailyJobs } = await import("./daily")
+    const first = await runDailyJobs(NOW)
+    const second = await runDailyJobs(NOW)
+
+    expect(first.jobs).toContainEqual({
+      name: "expire-quotes",
+      ok: true,
+      count: 1,
+    })
+    expect(second.jobs).toContainEqual({
+      name: "expire-quotes",
+      ok: true,
+      count: 0,
+    })
+    expect(prismaMock.quote.updateMany).toHaveBeenCalledTimes(1)
+  })
+
+  it("records a failing sweep without aborting the other jobs", async () => {
+    prismaMock.quote.findMany.mockRejectedValue(new Error("db down"))
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const { runDailyJobs } = await import("./daily")
+    const result = await runDailyJobs(NOW)
+
+    expect(result.jobs).toContainEqual({
+      name: "expire-quotes",
       ok: false,
       count: 0,
     })

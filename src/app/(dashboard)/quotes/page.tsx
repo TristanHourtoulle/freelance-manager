@@ -1,8 +1,8 @@
 "use client"
 
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useCallback, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useQuotes, type QuoteStatus } from "@/hooks/use-quotes"
@@ -61,10 +61,20 @@ export default function QuotesPage() {
 
 function DesktopQuotesPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const search = useSearchParams()
   const [openId, setOpenId] = useState<string | null>(search.get("openId"))
   const [filter, setFilter] = useState<QuoteFilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
+
+  const closeDrawer = useCallback(() => {
+    setOpenId(null)
+    if (!search.has("openId")) return
+    const params = new URLSearchParams(search.toString())
+    params.delete("openId")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [search, router, pathname])
 
   const {
     data: quotes = [],
@@ -267,9 +277,7 @@ function DesktopQuotesPage() {
         fetchNextPage={() => fetchNextPage()}
       />
 
-      {openId && (
-        <QuoteDrawer quoteId={openId} onClose={() => setOpenId(null)} />
-      )}
+      {openId && <QuoteDrawer quoteId={openId} onClose={closeDrawer} />}
     </div>
   )
 }

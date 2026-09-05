@@ -6,7 +6,7 @@ import { fmtEUR } from "@/lib/format"
 import type { QuoteStatus } from "@/hooks/use-quotes"
 import type { QuoteForm as QuoteFormApi } from "@/features/quotes/use-quote-form"
 
-const STATUS_OPTIONS: { id: QuoteStatus; label: string }[] = [
+export const QUOTE_STATUS_OPTIONS: { id: QuoteStatus; label: string }[] = [
   { id: "DRAFT", label: "Brouillon" },
   { id: "SENT", label: "Envoyé" },
   { id: "ACCEPTED", label: "Accepté" },
@@ -14,7 +14,13 @@ const STATUS_OPTIONS: { id: QuoteStatus; label: string }[] = [
   { id: "EXPIRED", label: "Expiré" },
 ]
 
-function clientLabel(c: {
+/**
+ * The display label of a quote's client: the company name when set, else the
+ * full name. Shared by the desktop and mobile quote forms.
+ *
+ * @param c - The minimal client fields needed for the label.
+ */
+export function quoteClientLabel(c: {
   firstName: string
   lastName: string
   company: string | null
@@ -44,7 +50,7 @@ export function QuoteForm({ form }: { form: QuoteFormApi }) {
               <input
                 id={`${fieldId}-client`}
                 className="input"
-                value={form.client ? clientLabel(form.client) : "—"}
+                value={form.client ? quoteClientLabel(form.client) : "—"}
                 disabled
               />
             ) : (
@@ -57,7 +63,7 @@ export function QuoteForm({ form }: { form: QuoteFormApi }) {
                 <option value="">Choisir un client…</option>
                 {form.clients.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {clientLabel(c)}
+                    {quoteClientLabel(c)}
                   </option>
                 ))}
               </select>
@@ -133,7 +139,7 @@ export function QuoteForm({ form }: { form: QuoteFormApi }) {
               value={form.status}
               onChange={(e) => form.setStatus(e.target.value as QuoteStatus)}
             >
-              {STATUS_OPTIONS.map((s) => (
+              {QUOTE_STATUS_OPTIONS.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
                 </option>

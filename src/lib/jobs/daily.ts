@@ -106,10 +106,35 @@ async function runMcpRateLimitSweep(now: Date): Promise<number> {
   return sweepStaleRateLimitWindows(now.getTime())
 }
 
+async function expireStaleQuotes(now: Date): Promise<number> {
+  const users = await prisma.user.findMany({ select: { id: true } })
+
+  let expired = 0
+  for (const user of users) {
+    const candidates = await prisma.quote.findMany({
+      where: { userId: user.id, status: "SENT" },
+      select: { id: true, validUntil: true },
+    })
+    const staleIds = candidates
+      .filter((q) => q.validUntil != null && q.validUntil < now)
+      .map((q) => q.id)
+    if (staleIds.length === 0) continue
+
+    const result = await prisma.quote.updateMany({
+      where: { id: { in: staleIds } },
+      data: { status: "EXPIRED" },
+    })
+    expired += result.count
+  }
+
+  return expired
+}
+
 const JOBS: readonly JobDescriptor[] = [
   { name: "overdue-relances", run: runOverdueRelances },
   { name: "push-digest", run: runPushDigest },
   { name: "mcp-rate-limit-sweep", run: runMcpRateLimitSweep },
+  { name: "expire-quotes", run: expireStaleQuotes },
 ]
 
 /**

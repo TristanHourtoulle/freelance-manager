@@ -1,22 +1,36 @@
 "use client"
 
 import { Suspense, useMemo } from "react"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import { QuoteForm } from "@/components/quotes/quote-form"
 import { useQuoteForm } from "@/features/quotes/use-quote-form"
+import { useIsMobile } from "@/hooks/use-is-mobile"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
+import { MobilePageSkeleton } from "@/components/mobile/mobile-page-skeleton"
+
+const MobileQuoteNewPage = dynamic(
+  () => import("./mobile").then((m) => m.MobileQuoteNewPage),
+  {
+    ssr: false,
+    loading: () => (
+      <MobilePageSkeleton title="Nouveau devis" variant="builder" />
+    ),
+  },
+)
 
 export default function NewQuotePage() {
+  const isMobile = useIsMobile()
   return (
     <Suspense
       fallback={<PageSkeleton kpis={0} rows={6} title="Nouveau devis" />}
     >
-      <NewQuoteView />
+      {isMobile ? <MobileQuoteNewPage /> : <DesktopNewQuoteView />}
     </Suspense>
   )
 }
 
-function NewQuoteView() {
+function DesktopNewQuoteView() {
   const router = useRouter()
   const search = useSearchParams()
 

@@ -65,12 +65,26 @@ describe("getNavCounts", () => {
     })
   })
 
-  it("counts only SENT quotes for the quotes badge", async () => {
+  it("counts only non-expired SENT quotes for the quotes badge", async () => {
     await getNavCounts("user-1")
 
     expect(prismaMock.quote.count).toHaveBeenCalledWith({
-      where: { userId: "user-1", status: "SENT" },
+      where: {
+        userId: "user-1",
+        status: "SENT",
+        OR: [{ validUntil: null }, { validUntil: { gte: expect.any(Date) } }],
+      },
     })
+  })
+
+  it("excludes a SENT quote whose validUntil is already in the past, ahead of the daily expiry cron", async () => {
+    await getNavCounts("user-1")
+
+    const [args] = prismaMock.quote.count.mock.calls[0] ?? []
+    const where = (args as { where: { OR: { validUntil?: unknown }[] } })
+      .where
+    const gteClause = where.OR[1]?.validUntil as { gte: Date } | undefined
+    expect(gteClause?.gte).toBeInstanceOf(Date)
   })
 
   it("returns the five counts", async () => {
