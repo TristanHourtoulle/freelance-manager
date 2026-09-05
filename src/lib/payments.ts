@@ -54,10 +54,10 @@ export function resolveLateFeePolicy(
 }
 
 interface InvoiceLateFeeState {
-  lateFeeFixed?: Prisma.Decimal | number
-  lateFeeInterest?: Prisma.Decimal | number
-  lateFeeClaimedAt?: Date | null
-  lateFeeWaived?: boolean
+  lateFeeFixed: Prisma.Decimal | number
+  lateFeeInterest: Prisma.Decimal | number
+  lateFeeClaimedAt: Date | null
+  lateFeeWaived: boolean
 }
 
 interface InvoiceForCompute extends InvoiceLateFeeState {
@@ -68,7 +68,7 @@ interface InvoiceForCompute extends InvoiceLateFeeState {
   payments: {
     amount: Prisma.Decimal | number
     paidAt: Date
-    penaltyAmount?: Prisma.Decimal | number
+    penaltyAmount: Prisma.Decimal | number
   }[]
 }
 

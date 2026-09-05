@@ -16,8 +16,19 @@ function euros(value: string): Prisma.Decimal {
   return new Prisma.Decimal(value)
 }
 
-function payment(amount: string, paidAt = new Date(2026, 4, 20)) {
-  return { amount: euros(amount), paidAt }
+const NO_LATE_FEE = {
+  lateFeeFixed: euros("0"),
+  lateFeeInterest: euros("0"),
+  lateFeeClaimedAt: null,
+  lateFeeWaived: false,
+}
+
+function payment(
+  amount: string,
+  paidAt = new Date(2026, 4, 20),
+  penaltyAmount = "0",
+) {
+  return { amount: euros(amount), paidAt, penaltyAmount: euros(penaltyAmount) }
 }
 
 interface TxFixture {
@@ -66,6 +77,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("1000")],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.balanceDue).toBe(0)
@@ -79,6 +91,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("400"), payment("600")],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.paidAmount).toBe(1000)
@@ -92,6 +105,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("250")],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.balanceDue).toBe(750)
@@ -105,6 +119,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("1200")],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.balanceDue).toBe(-200)
@@ -118,6 +133,7 @@ describe("getInvoiceComputed", () => {
       dueDate: FUTURE_DUE,
       total: euros("1000"),
       payments: [],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.isOverdue).toBe(false)
@@ -130,6 +146,7 @@ describe("getInvoiceComputed", () => {
       dueDate: NOW,
       total: euros("1000"),
       payments: [],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.isOverdue).toBe(false)
@@ -142,6 +159,7 @@ describe("getInvoiceComputed", () => {
       dueDate: new Date(NOW.getTime() - 1),
       total: euros("1000"),
       payments: [],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.isOverdue).toBe(true)
@@ -155,6 +173,7 @@ describe("getInvoiceComputed", () => {
         dueDate: PAST_DUE,
         total: euros("1000"),
         payments: [],
+        ...NO_LATE_FEE,
       })
 
       expect(computed.isOverdue).toBe(false)
@@ -172,6 +191,7 @@ describe("getInvoiceComputed", () => {
         payment("200", new Date(2026, 4, 9)),
         payment("50", new Date(2026, 2, 3)),
       ],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.paidAmount).toBe(350)
@@ -186,6 +206,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.lastPaidAt).toBeNull()
@@ -199,6 +220,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("400")],
+      ...NO_LATE_FEE,
     })
 
     expect(computed.balanceDue).toBe(600)
@@ -213,6 +235,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("400")],
+      ...NO_LATE_FEE,
     })
 
     const claimed = getInvoiceComputed({
@@ -221,6 +244,7 @@ describe("getInvoiceComputed", () => {
       dueDate: PAST_DUE,
       total: euros("1000"),
       payments: [payment("400")],
+      ...NO_LATE_FEE,
       lateFeeFixed: euros("40"),
       lateFeeInterest: euros("4.94"),
       lateFeeClaimedAt: new Date(2026, 4, 10),
@@ -287,6 +311,7 @@ describe("recomputeInvoicePayment", () => {
       lateFeeFixed: euros("40"),
       lateFeeInterest: euros("4.94"),
       lateFeeClaimedAt: new Date(2026, 4, 1),
+      lateFeeWaived: false,
     })
 
     expect(computed.balanceDue).toBe(0)
@@ -314,6 +339,7 @@ describe("recomputeInvoicePayment", () => {
       lateFeeFixed: euros("40"),
       lateFeeInterest: euros("4.94"),
       lateFeeClaimedAt: new Date(2026, 4, 1),
+      lateFeeWaived: false,
     })
 
     expect(computed.balanceDue).toBeCloseTo(-55.06, 8)
@@ -340,6 +366,7 @@ describe("recomputeInvoicePayment", () => {
       lateFeeFixed: euros("40"),
       lateFeeInterest: euros("4.94"),
       lateFeeClaimedAt: new Date(2026, 4, 1),
+      lateFeeWaived: false,
     })
 
     expect(computed.balanceDue).toBe(44.94)

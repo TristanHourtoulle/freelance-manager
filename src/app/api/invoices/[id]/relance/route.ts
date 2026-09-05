@@ -8,7 +8,7 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
-import { getInvoiceComputed } from "@/lib/payments"
+import { getInvoiceComputed, resolveLateFeePolicy } from "@/lib/payments"
 import { relanceTitle } from "@/domain/billing/relance"
 import { ACTION_INCLUDE, serializeAction } from "@/lib/data/actions"
 
@@ -42,20 +42,32 @@ export async function POST(req: Request, { params }: Params) {
     const user = await getAuthUser()
     if (!user) return apiUnauthorized()
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        userId: true,
-        clientId: true,
-        number: true,
-        status: true,
-        paymentStatus: true,
-        total: true,
-        dueDate: true,
-        payments: { select: { amount: true, paidAt: true } },
-      },
-    })
+    const [invoice, settings] = await Promise.all([
+      prisma.invoice.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          userId: true,
+          clientId: true,
+          number: true,
+          status: true,
+          paymentStatus: true,
+          total: true,
+          dueDate: true,
+          lateFeeFixed: true,
+          lateFeeInterest: true,
+          lateFeeClaimedAt: true,
+          lateFeeWaived: true,
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
+        },
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+      }),
+    ])
     if (!invoice || invoice.userId !== user.id) return apiNotFound()
 
     const existing = await prisma.clientAction.findUnique({
@@ -70,7 +82,8 @@ export async function POST(req: Request, { params }: Params) {
       })
     }
 
-    const { balanceDue } = getInvoiceComputed(invoice)
+    const lateFeePolicy = resolveLateFeePolicy(settings)
+    const { balanceDue } = getInvoiceComputed(invoice, lateFeePolicy)
     if (balanceDue <= 0) {
       return NextResponse.json({ action: null, created: false, settled: true })
     }
