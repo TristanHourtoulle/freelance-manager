@@ -4,7 +4,19 @@ import { usePathname } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { useOptionalQuickCapture } from "@/components/capture/quick-capture-provider"
 
-const HIDDEN_ON = ["/billing/new", "/tasks"]
+const HIDDEN_ON_PREFIXES = ["/billing/new", "/tasks", "/quotes/new"]
+const HIDDEN_ON_PATTERNS = [/^\/quotes\/[^/]+\/edit$/]
+
+function isHiddenRoute(pathname: string): boolean {
+  if (
+    HIDDEN_ON_PREFIXES.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`),
+    )
+  ) {
+    return true
+  }
+  return HIDDEN_ON_PATTERNS.some((pattern) => pattern.test(pathname))
+}
 
 /**
  * Floating capture button for mobile.
@@ -19,11 +31,7 @@ export function QuickCaptureFab() {
   const capture = useOptionalQuickCapture()
 
   if (!capture) return null
-  if (
-    HIDDEN_ON.some(
-      (route) => pathname === route || pathname.startsWith(`${route}/`),
-    )
-  ) {
+  if (isHiddenRoute(pathname)) {
     return null
   }
 

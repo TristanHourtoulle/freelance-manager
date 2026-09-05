@@ -37,13 +37,28 @@ describe("QuickCaptureFab", () => {
     ).toBeInTheDocument()
   })
 
-  it.each(["/tasks", "/billing/new", "/billing/new/anything"])(
-    "renders nothing on %s",
+  it.each([
+    "/tasks",
+    "/billing/new",
+    "/billing/new/anything",
+    "/quotes/new",
+    "/quotes/new/anything",
+    "/quotes/q1/edit",
+    "/quotes/clx9f8g7h0000abcd1234/edit",
+  ])("renders nothing on %s", (route) => {
+    pathname.mockReturnValue(route)
+    capture.mockReturnValue(mountedCapture())
+    const { container } = render(<QuickCaptureFab />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it.each(["/quotes", "/quotes/q1", "/quotes/q1/edit/extra"])(
+    "still renders on %s",
     (route) => {
       pathname.mockReturnValue(route)
       capture.mockReturnValue(mountedCapture())
       const { container } = render(<QuickCaptureFab />)
-      expect(container).toBeEmptyDOMElement()
+      expect(container).not.toBeEmptyDOMElement()
     },
   )
 

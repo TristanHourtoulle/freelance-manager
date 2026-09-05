@@ -3198,6 +3198,10 @@ textarea {
 }
 
 /* Sticky CTA bar (above bottom nav) */
+:root {
+  --sticky-cta-pad-top: 12px;
+  --sticky-cta-pad-bottom: 16px;
+}
 .sticky-cta {
   position: fixed;
   bottom: calc(64px + env(safe-area-inset-bottom));
@@ -3206,11 +3210,23 @@ textarea {
   background: oklch(0.18 0.008 240 / 0.95);
   backdrop-filter: blur(18px);
   border-top: 1px solid var(--border);
-  padding: 12px 16px 16px;
+  padding: var(--sticky-cta-pad-top) 16px var(--sticky-cta-pad-bottom);
   display: flex;
   align-items: center;
   gap: 10px;
   z-index: 30;
+}
+
+/* Clears a card's last row from underneath .sticky-cta on pages where
+   .m-content's generic bottom padding isn't enough (eg. the quote form's
+   Total row, flush against the end of its .m-stack). Height is derived
+   from .sticky-cta's own padding tokens plus one button line box, so a
+   future change to that rule's box model doesn't silently reopen the
+   clipping this was added to fix. */
+.sticky-cta-spacer {
+  height: calc(
+    var(--sticky-cta-pad-top) + var(--sticky-cta-pad-bottom) + 12px
+  );
 }
 
 /* FAB (mirror of design-reference/FreelanceManager Mobile.html) */
