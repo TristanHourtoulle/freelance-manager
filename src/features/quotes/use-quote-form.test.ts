@@ -262,3 +262,53 @@ describe("useQuoteForm — edit mode", () => {
     expect(h.push).toHaveBeenCalledWith("/quotes?openId=q1")
   })
 })
+
+describe("useQuoteForm — edit mode resyncs from the loaded quote", () => {
+  it("adopts a status change on the quote prop even though the component was not remounted", () => {
+    const { result, rerender } = renderHook(
+      (quote: QuoteDetail) => useQuoteForm({ mode: "edit", quote }),
+      { initialProps: makeQuote({ status: "DRAFT" }) },
+    )
+
+    expect(result.current.status).toBe("DRAFT")
+
+    rerender(makeQuote({ status: "REFUSED" }))
+
+    expect(result.current.status).toBe("REFUSED")
+  })
+
+  it("does not clobber a locally-edited field when only the quote's status changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (quote: QuoteDetail) => useQuoteForm({ mode: "edit", quote }),
+      { initialProps: makeQuote({ status: "DRAFT" }) },
+    )
+
+    act(() => result.current.setNotes("brouillon perso"))
+    expect(result.current.notes).toBe("brouillon perso")
+
+    rerender(makeQuote({ status: "REFUSED" }))
+
+    expect(result.current.status).toBe("REFUSED")
+    expect(result.current.notes).toBe("brouillon perso")
+  })
+
+  it("fully resyncs every field when a different quote loads into the same mounted form", () => {
+    const { result, rerender } = renderHook(
+      (quote: QuoteDetail) => useQuoteForm({ mode: "edit", quote }),
+      { initialProps: makeQuote({ id: "q1", number: "D-2026-001" }) },
+    )
+
+    rerender(
+      makeQuote({
+        id: "q2",
+        number: "D-2026-002",
+        status: "ACCEPTED",
+        notes: "autre devis",
+      }),
+    )
+
+    expect(result.current.number).toBe("D-2026-002")
+    expect(result.current.status).toBe("ACCEPTED")
+    expect(result.current.notes).toBe("autre devis")
+  })
+})

@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
@@ -20,8 +20,24 @@ import {
 
 export function MobileQuotesPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const search = useSearchParams()
+  const searchOpenId = search.get("openId")
   const [filter, setFilter] = useState<QuoteFilterId>("all")
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(searchOpenId)
+
+  useEffect(() => {
+    setOpenId(searchOpenId)
+  }, [searchOpenId])
+
+  const closeDrawer = useCallback(() => {
+    setOpenId(null)
+    if (!search.has("openId")) return
+    const params = new URLSearchParams(search.toString())
+    params.delete("openId")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [search, router, pathname])
 
   const {
     data: quotes = [],
@@ -183,7 +199,7 @@ export function MobileQuotesPage() {
       </div>
 
       {openId && (
-        <QuoteDrawer quoteId={openId} onClose={() => setOpenId(null)} />
+        <QuoteDrawer quoteId={openId} onClose={closeDrawer} />
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useMemo, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
@@ -63,9 +63,14 @@ function DesktopQuotesPage() {
   const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
-  const [openId, setOpenId] = useState<string | null>(search.get("openId"))
+  const searchOpenId = search.get("openId")
+  const [openId, setOpenId] = useState<string | null>(searchOpenId)
   const [filter, setFilter] = useState<QuoteFilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
+
+  useEffect(() => {
+    setOpenId(searchOpenId)
+  }, [searchOpenId])
 
   const closeDrawer = useCallback(() => {
     setOpenId(null)

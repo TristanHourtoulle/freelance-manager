@@ -4,6 +4,7 @@ import { sweepOverdueRelances } from "@/lib/relance"
 import { buildDigestBody, DIGEST_TITLE } from "@/lib/push/digest"
 import { sendPushToUser } from "@/lib/push/send"
 import { sweepStaleRateLimitWindows } from "@/lib/mcp/rate-limit"
+import { isQuoteExpired } from "@/domain/quotes/expiry"
 
 export interface JobResult {
   name: string
@@ -116,7 +117,7 @@ async function expireStaleQuotes(now: Date): Promise<number> {
       select: { id: true, validUntil: true },
     })
     const staleIds = candidates
-      .filter((q) => q.validUntil != null && q.validUntil < now)
+      .filter((q) => isQuoteExpired(q.validUntil, now))
       .map((q) => q.id)
     if (staleIds.length === 0) continue
 

@@ -2,6 +2,7 @@ import "server-only"
 import { cacheLife, cacheTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import { PIPELINE_TASK_WHERE } from "@/domain/tasks/billability"
+import { quoteBadgeCutoff } from "@/domain/quotes/expiry"
 
 export interface NavCounts {
   clients: number
@@ -20,10 +21,11 @@ export const navTag = (userId: string) => `user-${userId}-nav`
  * can invalidate via `revalidateTag(navTag(userId), 'max')` instead of
  * waiting for `cacheLife('minutes')` to elapse.
  *
- * The quotes badge counts `SENT` quotes still awaiting a decision, so a
- * `validUntil` already in the past is excluded even before the daily
- * `expire-quotes` job flips its stored status to `EXPIRED` — the badge never
- * lies during the (at most 24h) window between two cron runs.
+ * The quotes badge counts `SENT` quotes still awaiting a decision. A quote
+ * stays "still valid" through the whole of its `validUntil` day in French
+ * local time (see `@/domain/quotes/expiry`, the single rule shared with the
+ * `expire-quotes` cron), so the badge never lies during the (at most 24h)
+ * window between two cron runs, in either direction.
  */
 export async function getNavCounts(userId: string): Promise<NavCounts> {
   "use cache"
@@ -31,6 +33,7 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
   cacheTag(navTag(userId))
 
   const now = new Date()
+  const quoteCutoff = quoteBadgeCutoff(now)
 
   const [clients, projects, tasks, invoices, quotes] = await Promise.all([
     prisma.client.count({
@@ -49,7 +52,7 @@ export async function getNavCounts(userId: string): Promise<NavCounts> {
       where: {
         userId,
         status: "SENT",
-        OR: [{ validUntil: null }, { validUntil: { gte: now } }],
+        OR: [{ validUntil: null }, { validUntil: { gte: quoteCutoff } }],
       },
     }),
   ])

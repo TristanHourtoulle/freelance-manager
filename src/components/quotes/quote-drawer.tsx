@@ -245,7 +245,7 @@ export function QuoteDrawer({ quoteId, onClose }: QuoteDrawerProps) {
           <table className="table">
             <thead>
               <tr>
-                <th style={{ paddingLeft: 14 }}>Label</th>
+                <th style={{ paddingLeft: 14 }}>Description</th>
                 <th className="right">Qté</th>
                 <th className="right">PU</th>
                 <th className="right" style={{ paddingRight: 14 }}>

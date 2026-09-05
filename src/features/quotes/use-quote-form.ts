@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   useCreateQuote,
@@ -100,6 +100,39 @@ export function useQuoteForm(args: UseQuoteFormArgs) {
         }))
       : [],
   )
+
+  const syncedQuoteIdRef = useRef<string | undefined>(quote?.id)
+  useEffect(() => {
+    if (!isEdit || !quote) return
+    if (quote.id === syncedQuoteIdRef.current) return
+    syncedQuoteIdRef.current = quote.id
+    setClientId(quote.clientId)
+    setProjectId(quote.projectId)
+    setNumber(quote.number)
+    setStatus(quote.status)
+    setIssueDate(quote.issueDate.slice(0, 10))
+    setValidUntil(quote.validUntil ? quote.validUntil.slice(0, 10) : "")
+    setExternalUrl(quote.externalUrl ?? "")
+    setNotes(quote.notes ?? "")
+    setLines(
+      quote.lines.map((l) => ({
+        key: l.id,
+        taskId: l.taskId,
+        label: l.label,
+        qty: l.qty,
+        rate: l.rate,
+      })),
+    )
+  }, [isEdit, quote])
+
+  const syncedStatusRef = useRef<QuoteStatus | undefined>(quote?.status)
+  useEffect(() => {
+    if (!isEdit || !quote) return
+    if (quote.status === syncedStatusRef.current) return
+    syncedStatusRef.current = quote.status
+    setStatus(quote.status)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, quote?.status])
 
   const client = useMemo<ClientDTO | undefined>(
     () => clients.find((c) => c.id === clientId),

@@ -256,6 +256,8 @@ export function MobileQuoteForm({ form }: { form: QuoteFormApi }) {
           </span>
         </div>
       </div>
+
+      <div style={{ height: 40 }} aria-hidden="true" />
     </div>
   )
 }
