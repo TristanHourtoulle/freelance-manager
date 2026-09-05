@@ -18,7 +18,12 @@ function parisOffsetMinutes(date: Date): number {
     .formatToParts(noonUtc)
     .find((part) => part.type === "timeZoneName")?.value
   const match = zonePart ? /GMT([+-]\d+)/.exec(zonePart) : null
-  return match ? Number(match[1]) * 60 : 60
+  if (!match) {
+    throw new Error(
+      `Cannot resolve the Europe/Paris UTC offset: Intl.DateTimeFormat returned "${zonePart ?? "no timeZoneName part"}" instead of a "GMT±N" offset. This runtime is likely missing full ICU data.`,
+    )
+  }
+  return Number(match[1]) * 60
 }
 
 /**

@@ -129,8 +129,9 @@ export function useQuoteForm(args: UseQuoteFormArgs) {
   useEffect(() => {
     if (!isEdit || !quote) return
     if (quote.status === syncedStatusRef.current) return
+    const localStatusMatchesLastSynced = status === syncedStatusRef.current
     syncedStatusRef.current = quote.status
-    setStatus(quote.status)
+    if (localStatusMatchesLastSynced) setStatus(quote.status)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, quote?.status])
 

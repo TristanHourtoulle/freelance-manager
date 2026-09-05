@@ -257,7 +257,7 @@ export function MobileQuoteForm({ form }: { form: QuoteFormApi }) {
         </div>
       </div>
 
-      <div style={{ height: 40 }} aria-hidden="true" />
+      <div className="sticky-cta-spacer" aria-hidden="true" />
     </div>
   )
 }

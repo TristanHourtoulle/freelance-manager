@@ -292,6 +292,20 @@ describe("useQuoteForm — edit mode resyncs from the loaded quote", () => {
     expect(result.current.notes).toBe("brouillon perso")
   })
 
+  it("keeps a locally-picked status that has not been saved yet, even when the quote's status changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (quote: QuoteDetail) => useQuoteForm({ mode: "edit", quote }),
+      { initialProps: makeQuote({ status: "DRAFT" }) },
+    )
+
+    act(() => result.current.setStatus("SENT"))
+    expect(result.current.status).toBe("SENT")
+
+    rerender(makeQuote({ status: "REFUSED" }))
+
+    expect(result.current.status).toBe("SENT")
+  })
+
   it("fully resyncs every field when a different quote loads into the same mounted form", () => {
     const { result, rerender } = renderHook(
       (quote: QuoteDetail) => useQuoteForm({ mode: "edit", quote }),
