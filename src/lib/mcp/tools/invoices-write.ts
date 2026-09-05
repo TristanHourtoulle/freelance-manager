@@ -6,10 +6,18 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { prisma } from "@/lib/db"
 import { decimalToNumber } from "@/lib/api"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
+import { computeLateFee } from "@/domain/billing/late-fee"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { allocateSplitAmounts } from "@/lib/billing-math"
-import { recomputeInvoicePayment } from "@/lib/payments"
-import { paymentCreateSchema } from "@/lib/schemas/payment"
+import { getInvoiceComputed, recomputeInvoicePayment } from "@/lib/payments"
+import {
+  isPenaltyWithinAmount,
+  paymentCreateSchema,
+} from "@/lib/schemas/payment"
+import {
+  DEFAULT_LATE_FEE_ANNUAL_RATE,
+  DEFAULT_LATE_FEE_FIXED_AMOUNT,
+} from "@/lib/schemas/settings"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
 import { taskGroupsTag } from "@/lib/data/task-groups"
@@ -129,11 +137,56 @@ const recordPaymentOutput = z.object({
   paidAt: z.string(),
   paymentStatus: paymentStatusSchema,
   balanceDue: z.number(),
+  lateFeeDue: z.number(),
+})
+
+const claimLateFeeInput = z.object({
+  invoiceId: z.string().min(1),
+  fixed: z
+    .number()
+    .min(0)
+    .max(10_000)
+    .optional()
+    .describe(
+      "Claim less than the full accrued fixed fee; omit for the full amount",
+    ),
+  interest: z
+    .number()
+    .min(0)
+    .max(1_000_000)
+    .optional()
+    .describe(
+      "Claim less than the full accrued interest; omit for the full amount",
+    ),
+})
+
+const claimLateFeeOutput = z.object({
+  invoiceId: z.string(),
+  lateFeeFixed: z.number(),
+  lateFeeInterest: z.number(),
+  lateFeeDue: z.number(),
+  lateFeeClaimedAt: z.string(),
+  paymentStatus: paymentStatusSchema,
+  balanceDue: z.number(),
+  isOverdue: z.boolean(),
 })
 
 type UpdateInvoiceDraftArgs = z.output<typeof updateInvoiceDraftInput>
 type SplitInvoiceArgs = z.output<typeof splitInvoiceInput>
 type RecordPaymentArgs = z.output<typeof recordPaymentInput>
+type ClaimLateFeeArgs = z.output<typeof claimLateFeeInput>
+
+const LATE_FEE_CAP_EPSILON = 0.005
+
+/**
+ * Round a euro amount to the nearest cent.
+ *
+ * @param value - The raw amount.
+ * @returns The amount rounded to two decimals.
+ */
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
 
 /**
  * Compute an installment's due date for {@link splitInvoice}, shifting the
@@ -502,9 +555,10 @@ export async function splitInvoice(
  * the single holder of the paid/partial/overpaid invariant, so the cached
  * `paymentStatus` can never drift from the sum of payments. There is
  * deliberately no amount cap: the human operator's confirmation prompt in
- * the MCP client is the guard, not this tool. Returns the resulting
- * `balanceDue` so the caller can state what is left to pay without a
- * follow-up `get_invoice` call.
+ * the MCP client is the guard, not this tool. Rejects a `penaltyAmount`
+ * greater than `amount` before writing anything. Returns the resulting
+ * `balanceDue` and `lateFeeDue` so the caller can state what is left to pay
+ * without a follow-up `get_invoice` call.
  *
  * @param userId - The resolved MCP principal.
  * @param args - Validated payment payload, reusing `paymentCreateSchema`.
@@ -524,6 +578,11 @@ export async function recordPayment(
     if (invoice.status === "CANCELLED") {
       throw new McpToolError("Cannot record a payment on a cancelled invoice")
     }
+    if (!isPenaltyWithinAmount(args)) {
+      throw new McpToolError(
+        "penaltyAmount cannot be greater than the payment amount",
+      )
+    }
 
     const paidAt = parseIsoDate(args.paidAt, "paidAt")
 
@@ -536,23 +595,30 @@ export async function recordPayment(
           paidAt,
           method: args.method ?? null,
           note: args.note ?? null,
+          penaltyAmount: args.penaltyAmount,
         },
       })
       const paymentStatus = await recomputeInvoicePayment(args.invoiceId, tx)
-      const [sum, invoiceRow] = await Promise.all([
-        tx.payment.aggregate({
-          where: { invoiceId: args.invoiceId },
-          _sum: { amount: true },
-        }),
-        tx.invoice.findUniqueOrThrow({
-          where: { id: args.invoiceId },
-          select: { total: true },
-        }),
-      ])
-      const balanceDue =
-        (decimalToNumber(invoiceRow.total) ?? 0) -
-        (decimalToNumber(sum._sum.amount) ?? 0)
-      return { payment, paymentStatus, balanceDue }
+      const invoiceRow = await tx.invoice.findUniqueOrThrow({
+        where: { id: args.invoiceId },
+        select: {
+          status: true,
+          dueDate: true,
+          total: true,
+          lateFeeFixed: true,
+          lateFeeInterest: true,
+          lateFeeClaimedAt: true,
+          lateFeeWaived: true,
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
+        },
+      })
+      const { balanceDue, lateFeeDue } = getInvoiceComputed({
+        ...invoiceRow,
+        paymentStatus,
+      })
+      return { payment, paymentStatus, balanceDue, lateFeeDue }
     })
 
     revalidateTag(invoicesTag(userId), "max")
@@ -573,6 +639,148 @@ export async function recordPayment(
       paidAt: result.payment.paidAt.toISOString(),
       paymentStatus: result.paymentStatus,
       balanceDue: result.balanceDue,
+      lateFeeDue: result.lateFeeDue,
+    }
+  })
+}
+
+/**
+ * Handler for the claim_late_fee tool.
+ *
+ * Mirrors `POST /api/invoices/[id]/late-fee`: computes the accrued late-fee
+ * breakdown via {@link computeLateFee} using the operator's real
+ * `UserSettings.lateFeeFixedAmount` / `lateFeeAnnualRate`, then freezes it
+ * onto the invoice (`lateFeeFixed`, `lateFeeInterest`,
+ * `lateFeeClaimedAt = now()`, `lateFeeWaived = false`). Refuses with an
+ * `isError` result on a CANCELLED invoice, when nothing has accrued, or
+ * when `fixed`/`interest` exceed their own accrued component (claiming
+ * MORE than what is owed is never allowed; claiming LESS is the normal
+ * case — e.g. 44.94 claimed on 58.69 accrued). `recomputeInvoicePayment`
+ * runs in the SAME transaction as the write, so a cached `paymentStatus`
+ * of `PAID` is never left stale once the penalty makes the invoice owe
+ * money again.
+ *
+ * @param userId - The resolved MCP principal.
+ * @param args - Validated invoice id plus an optional partial-claim override.
+ * @returns The frozen late-fee state and the invoice's new balance, or an
+ *   error result.
+ */
+export async function claimLateFee(
+  userId: string,
+  args: ClaimLateFeeArgs,
+): Promise<CallToolResult> {
+  return runMcpTool({ userId, tool: "claim_late_fee", args }, async () => {
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: args.invoiceId, userId },
+      select: {
+        id: true,
+        number: true,
+        clientId: true,
+        status: true,
+        dueDate: true,
+        total: true,
+        payments: { select: { amount: true, paidAt: true } },
+      },
+    })
+    if (!invoice) throw mcpNotFound("Invoice")
+    if (invoice.status === "CANCELLED") {
+      throw new McpToolError("Cannot claim a late fee on a cancelled invoice")
+    }
+
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+    })
+    const policy = {
+      fixedAmount:
+        decimalToNumber(settings?.lateFeeFixedAmount) ??
+        DEFAULT_LATE_FEE_FIXED_AMOUNT,
+      annualRate:
+        decimalToNumber(settings?.lateFeeAnnualRate) ??
+        DEFAULT_LATE_FEE_ANNUAL_RATE,
+    }
+
+    const accrued = computeLateFee({
+      total: Number(invoice.total),
+      dueDate: invoice.dueDate,
+      status: invoice.status,
+      payments: invoice.payments.map((p) => ({
+        amount: Number(p.amount),
+        paidAt: p.paidAt,
+      })),
+      fixedAmount: policy.fixedAmount,
+      annualRate: policy.annualRate,
+      asOf: new Date(),
+    })
+    if (accrued.total <= 0) {
+      throw new McpToolError("No late fee has accrued on this invoice")
+    }
+
+    const fixed = args.fixed != null ? round2(args.fixed) : accrued.fixed
+    const interest =
+      args.interest != null ? round2(args.interest) : accrued.interest
+    if (fixed > accrued.fixed + LATE_FEE_CAP_EPSILON) {
+      throw new McpToolError(
+        `fixed (${fixed}) exceeds the accrued fixed fee (${accrued.fixed})`,
+      )
+    }
+    if (interest > accrued.interest + LATE_FEE_CAP_EPSILON) {
+      throw new McpToolError(
+        `interest (${interest}) exceeds the accrued interest (${accrued.interest})`,
+      )
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({
+        where: { id: args.invoiceId },
+        data: {
+          lateFeeFixed: fixed,
+          lateFeeInterest: interest,
+          lateFeeClaimedAt: new Date(),
+          lateFeeWaived: false,
+        },
+      })
+      const paymentStatus = await recomputeInvoicePayment(args.invoiceId, tx)
+      const fresh = await tx.invoice.findUniqueOrThrow({
+        where: { id: args.invoiceId },
+        select: {
+          status: true,
+          dueDate: true,
+          total: true,
+          lateFeeFixed: true,
+          lateFeeInterest: true,
+          lateFeeClaimedAt: true,
+          lateFeeWaived: true,
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
+        },
+      })
+      const computed = getInvoiceComputed({ ...fresh, paymentStatus })
+      return { fresh, paymentStatus, computed }
+    })
+
+    revalidateTag(invoicesTag(userId), "max")
+    revalidateTag(navTag(userId), "max")
+    deferActivityLog({
+      userId,
+      kind: "LATE_FEE_CLAIMED",
+      title: `Pénalité de retard de ${round2(fixed + interest).toFixed(2)} € réclamée sur ${invoice.number}`,
+      clientId: invoice.clientId,
+      invoiceId: invoice.id,
+    })
+
+    return {
+      invoiceId: args.invoiceId,
+      lateFeeFixed: decimalToNumber(result.fresh.lateFeeFixed) ?? 0,
+      lateFeeInterest: decimalToNumber(result.fresh.lateFeeInterest) ?? 0,
+      lateFeeDue: result.computed.lateFeeDue,
+      lateFeeClaimedAt: (
+        result.fresh.lateFeeClaimedAt ?? new Date()
+      ).toISOString(),
+      paymentStatus: result.paymentStatus,
+      balanceDue: result.computed.balanceDue,
+      isOverdue: result.computed.isOverdue,
     }
   })
 }
@@ -580,9 +788,9 @@ export async function recordPayment(
 /**
  * Register the money-touching invoice write tools on the given MCP server
  * for one principal: `update_invoice_draft`, `split_invoice`,
- * `record_payment`. Split out from `registerInvoiceTools` (in `invoices.ts`)
- * purely to keep each file under the project's line-count budget; both are
- * called together from `registerMcpTools`.
+ * `record_payment`, `claim_late_fee`. Split out from `registerInvoiceTools`
+ * (in `invoices.ts`) purely to keep each file under the project's
+ * line-count budget; both are called together from `registerMcpTools`.
  *
  * @param server - The per-request McpServer instance.
  * @param userId - The resolved MCP principal.
@@ -617,11 +825,22 @@ export function registerInvoiceWriteTools(
     "record_payment",
     {
       description:
-        "Record a payment against an invoice (refused on a CANCELLED invoice). Recomputes the invoice's paid/partial/overpaid status atomically and returns the new balanceDue. There is no amount cap — the calling operator's own confirmation is the guard. Not idempotent: repeating the call records another payment.",
+        "Record a payment against an invoice (refused on a CANCELLED invoice). `penaltyAmount` (optional, defaults to 0) marks the slice of `amount` that settles a claimed late fee rather than the invoice principal; it must never exceed `amount`. Recomputes the invoice's paid/partial/overpaid status atomically and returns the new balanceDue and the remaining lateFeeDue. There is no amount cap — the calling operator's own confirmation is the guard. Not idempotent: repeating the call records another payment.",
       inputSchema: recordPaymentInput,
       outputSchema: recordPaymentOutput,
       annotations: writeAnnotations(false),
     },
     (args) => recordPayment(userId, args),
+  )
+  server.registerTool(
+    "claim_late_fee",
+    {
+      description:
+        "Freeze the accrued late-payment penalty on an invoice (refused on a CANCELLED invoice or when nothing has accrued). Pass `fixed`/`interest` to claim LESS than the full accrued amount — each is capped at its own accrued component; claiming MORE is always rejected. Recomputes the invoice's paid/partial/overpaid status atomically, so a cached PAID status is never left stale once the penalty makes the invoice owe money again. Not idempotent: repeating the call re-freezes (and can shrink or grow, within the accrued caps) the claimed amount.",
+      inputSchema: claimLateFeeInput,
+      outputSchema: claimLateFeeOutput,
+      annotations: writeAnnotations(false),
+    },
+    (args) => claimLateFee(userId, args),
   )
 }

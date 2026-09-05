@@ -84,6 +84,10 @@ export interface ClientDetailDTO {
     dueDate: string
     paidAmount: number
     balanceDue: number
+    lateFeeAccrued: number
+    lateFeeDue: number
+    lateFeeClaimedAt: string | null
+    lateFeeWaived: boolean
     total: number
     linesCount: number
   }[]
@@ -104,6 +108,8 @@ export type ActivityKind =
   | "TASKS_SYNCED"
   | "ACTION_DONE"
   | "MEETING_LOGGED"
+  | "LATE_FEE_CLAIMED"
+  | "LATE_FEE_WAIVED"
 
 export interface ActivityItemDTO {
   id: string

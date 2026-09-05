@@ -22,6 +22,7 @@ import type {
   InvoiceDetail,
   InvoiceDocStatus,
   InvoicePaymentDTO,
+  InvoicePaymentStatus,
   InvoiceWireRow,
 } from "@/domain/billing/types"
 
@@ -146,6 +147,67 @@ export function useDeletePayment(invoiceId: string) {
   return useMutation({
     mutationFn: (paymentId: string) =>
       api.delete(`/api/invoices/${invoiceId}/payments/${paymentId}`),
+    onSuccess: () => {
+      invalidateInvoiceGraph(qc, invoiceId)
+      router.refresh()
+    },
+  })
+}
+
+export interface ClaimLateFeeInput {
+  fixed?: number
+  interest?: number
+}
+
+export interface LateFeeActionResult {
+  lateFeeFixed: number
+  lateFeeInterest: number
+  lateFeeDue: number
+  lateFeeClaimedAt: string | null
+  lateFeeWaived: boolean
+  paymentStatus: InvoicePaymentStatus
+  balanceDue: number
+  isOverdue: boolean
+}
+
+/**
+ * Freezes an invoice's currently accrued late-payment penalty via
+ * `POST /api/invoices/:id/late-fee`.
+ *
+ * An omitted input claims the full accrued fixed fee and interest; a caller
+ * may pass a lower `fixed`/`interest` pair to claim less than the accrued
+ * amount, each capped server-side at its own accrued value.
+ *
+ * @param invoiceId - The invoice to claim the penalty on.
+ */
+export function useClaimLateFee(invoiceId: string) {
+  const qc = useQueryClient()
+  const router = useRouter()
+  return useMutation({
+    mutationFn: (input?: ClaimLateFeeInput) =>
+      api.post<LateFeeActionResult>(
+        `/api/invoices/${invoiceId}/late-fee`,
+        input,
+      ),
+    onSuccess: () => {
+      invalidateInvoiceGraph(qc, invoiceId)
+      router.refresh()
+    },
+  })
+}
+
+/**
+ * Waives a previously claimed late-payment penalty via
+ * `DELETE /api/invoices/:id/late-fee`.
+ *
+ * @param invoiceId - The invoice whose claimed penalty should be waived.
+ */
+export function useWaiveLateFee(invoiceId: string) {
+  const qc = useQueryClient()
+  const router = useRouter()
+  return useMutation({
+    mutationFn: () =>
+      api.delete<LateFeeActionResult>(`/api/invoices/${invoiceId}/late-fee`),
     onSuccess: () => {
       invalidateInvoiceGraph(qc, invoiceId)
       router.refresh()

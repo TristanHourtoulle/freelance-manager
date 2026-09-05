@@ -37,6 +37,7 @@ const WRITE_TOOLS = [
   "update_invoice_draft",
   "split_invoice",
   "record_payment",
+  "claim_late_fee",
   "set_task_actual_days",
   "set_task_estimate",
   "set_task_billability",

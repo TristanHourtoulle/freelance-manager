@@ -1,7 +1,7 @@
 import type { BillingMode, Prisma } from "@/generated/prisma/client"
 import { decimalToNumber } from "@/lib/api"
 import { pipelineValueForTask } from "@/lib/billing-math"
-import { getInvoiceComputed } from "@/lib/payments"
+import { getInvoiceComputed, type LateFeePolicy } from "@/lib/payments"
 import {
   buildPipelineAging,
   type PipelineAging,
@@ -22,7 +22,11 @@ export interface OpenInvoiceRow {
   paymentStatus: InvoicePaymentStatus
   total: DecimalLike
   dueDate: Date
-  payments: { amount: DecimalLike; paidAt: Date }[]
+  lateFeeFixed: DecimalLike
+  lateFeeInterest: DecimalLike
+  lateFeeClaimedAt: Date | null
+  lateFeeWaived: boolean
+  payments: { amount: DecimalLike; paidAt: Date; penaltyAmount: DecimalLike }[]
 }
 
 export interface PaymentTotalsRow {
@@ -62,8 +66,12 @@ export interface RecentInvoiceRow {
   issueDate: Date
   dueDate: Date
   total: DecimalLike
+  lateFeeFixed: DecimalLike
+  lateFeeInterest: DecimalLike
+  lateFeeClaimedAt: Date | null
+  lateFeeWaived: boolean
   client: RecentInvoiceClient
-  payments: { amount: DecimalLike; paidAt: Date }[]
+  payments: { amount: DecimalLike; paidAt: Date; penaltyAmount: DecimalLike }[]
 }
 
 export interface DashboardKpiInput {
@@ -73,6 +81,12 @@ export interface DashboardKpiInput {
   paymentBuckets: PaymentBucketRow[]
   pipelineTasks: PipelineTaskRow[]
   recentInvoices: RecentInvoiceRow[]
+  /**
+   * Operator's real late-fee policy (`UserSettings.lateFeeFixedAmount` /
+   * `lateFeeAnnualRate`), used only for the live `lateFeeAccrued` preview.
+   * Omit to fall back to `getInvoiceComputed`'s own default (40 EUR / 10%).
+   */
+  lateFeePolicy?: LateFeePolicy
 }
 
 export interface DashboardKpi {
@@ -85,6 +99,7 @@ export interface DashboardKpi {
   sentCount: number
   overdueAmount: number
   overdueCount: number
+  lateFeeAccrued: number
   pipelineCount: number
   pipelineEur: number
   pipelineClientCount: number
@@ -145,6 +160,7 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     paymentBuckets,
     pipelineTasks,
     recentInvoices,
+    lateFeePolicy,
   } = input
 
   const totals = paymentTotals[0]
@@ -155,17 +171,20 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
   const revenueYear = totals?.revenue_year ?? 0
 
   const overdueList = openInvoices
-    .map((inv) => ({ inv, computed: getInvoiceComputed(inv) }))
+    .map((inv) => ({ inv, computed: getInvoiceComputed(inv, lateFeePolicy) }))
     .filter((x) => x.computed.isOverdue)
 
   const outstanding = openInvoices.reduce(
-    (s, inv) => s + getInvoiceComputed(inv).balanceDue,
+    (s, inv) => s + getInvoiceComputed(inv, lateFeePolicy).balanceDue,
     0,
   )
   const overdueAmount = overdueList.reduce(
     (s, x) => s + x.computed.balanceDue,
     0,
   )
+  const lateFeeAccrued = overdueList
+    .filter((x) => !x.inv.lateFeeWaived)
+    .reduce((s, x) => s + x.computed.lateFeeAccrued, 0)
 
   const pipelineCount = pipelineTasks.length
   const pipelineValues = pipelineTasks.map((task) => ({
@@ -211,7 +230,7 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
   )
 
   const recent: DashboardRecentInvoice[] = recentInvoices.map((inv) => {
-    const c = getInvoiceComputed(inv)
+    const c = getInvoiceComputed(inv, lateFeePolicy)
     return {
       id: inv.id,
       number: inv.number,
@@ -237,6 +256,7 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
       sentCount: openInvoices.length,
       overdueAmount,
       overdueCount: overdueList.length,
+      lateFeeAccrued,
       pipelineCount,
       pipelineEur,
       pipelineClientCount,

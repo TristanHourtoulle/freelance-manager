@@ -11,7 +11,7 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { invoiceCreateSchema } from "@/lib/schemas/invoice"
-import { recomputeInvoicePayment } from "@/lib/payments"
+import { recomputeInvoicePayment, resolveLateFeePolicy } from "@/lib/payments"
 import { serializeInvoice } from "@/domain/billing/serialize"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
 import {
@@ -31,8 +31,15 @@ export async function GET(req: Request) {
   try {
     const { cursor, limit } = parsePagination(req)
     const q = parseSearchQuery(req)
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: user.id },
+      select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+    })
+    const lateFeePolicy = resolveLateFeePolicy(settings)
     if (!cursor && limit === 50 && !q) {
-      return NextResponse.json(await getInvoicesFirstPage(user.id))
+      return NextResponse.json(
+        await getInvoicesFirstPage(user.id, lateFeePolicy),
+      )
     }
     const rows = await prisma.invoice.findMany({
       where: {
@@ -68,7 +75,9 @@ export async function GET(req: Request) {
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: {
         _count: { select: { lines: true } },
-        payments: { select: { amount: true, paidAt: true } },
+        payments: {
+          select: { amount: true, paidAt: true, penaltyAmount: true },
+        },
         client: {
           select: { firstName: true, lastName: true, company: true },
         },
@@ -78,8 +87,11 @@ export async function GET(req: Request) {
     return NextResponse.json({
       data: paged.data.map((inv) =>
         q
-          ? { ...serializeInvoice(inv), clientName: invoiceClientName(inv) }
-          : serializeInvoice(inv),
+          ? {
+              ...serializeInvoice(inv, lateFeePolicy),
+              clientName: invoiceClientName(inv),
+            }
+          : serializeInvoice(inv, lateFeePolicy),
       ),
       nextCursor: paged.nextCursor,
       hasMore: paged.hasMore,

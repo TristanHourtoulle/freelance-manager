@@ -18,6 +18,7 @@ export interface DashboardDTO {
     sentCount: number
     overdueAmount: number
     overdueCount: number
+    lateFeeAccrued: number
     pipelineCount: number
     pipelineEur: number
     pipelineClientCount: number

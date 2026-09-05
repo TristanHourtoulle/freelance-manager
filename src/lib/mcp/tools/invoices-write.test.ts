@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const { prismaMock, txMock } = vi.hoisted(() => ({
   prismaMock: {
@@ -6,6 +6,7 @@ const { prismaMock, txMock } = vi.hoisted(() => ({
     client: { findFirst: vi.fn() },
     project: { findFirst: vi.fn() },
     invoice: { findFirst: vi.fn() },
+    userSettings: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
   txMock: {
@@ -31,12 +32,17 @@ vi.mock("@/lib/invoice-numbering", () => ({
 }))
 
 const recomputeInvoicePayment = vi.fn()
-vi.mock("@/lib/payments", () => ({
-  recomputeInvoicePayment: (...args: unknown[]) =>
-    recomputeInvoicePayment(...args),
-}))
+vi.mock("@/lib/payments", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/payments")>()
+  return {
+    ...actual,
+    recomputeInvoicePayment: (...args: unknown[]) =>
+      recomputeInvoicePayment(...args),
+  }
+})
 
 import {
+  claimLateFee,
   recordPayment,
   splitInvoice,
   updateInvoiceDraft,
@@ -77,6 +83,7 @@ function paymentArgs(overrides: Partial<PaymentArgs> = {}): PaymentArgs {
     invoiceId: "inv-1",
     amount: 100,
     paidAt: "2026-07-28",
+    penaltyAmount: 0,
     ...overrides,
   }
 }
@@ -90,6 +97,7 @@ beforeEach(() => {
   })
   prismaMock.project.findFirst.mockResolvedValue({ id: "proj-1" })
   prismaMock.invoice.findFirst.mockResolvedValue(null)
+  prismaMock.userSettings.findUnique.mockResolvedValue(null)
   prismaMock.$transaction.mockImplementation(
     async (fn: (tx: typeof txMock) => Promise<unknown>) => fn(txMock),
   )
@@ -98,7 +106,18 @@ beforeEach(() => {
     number: "2026-1025",
   })
   txMock.invoice.update.mockResolvedValue({})
-  txMock.invoice.findUniqueOrThrow.mockResolvedValue({ total: 100 })
+  txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+    status: "SENT",
+    dueDate: new Date("2026-08-27"),
+    total: 100,
+    lateFeeFixed: 0,
+    lateFeeInterest: 0,
+    lateFeeClaimedAt: null,
+    lateFeeWaived: false,
+    payments: [
+      { amount: 100, paidAt: new Date("2026-07-28"), penaltyAmount: 0 },
+    ],
+  })
   txMock.invoiceLine.deleteMany.mockResolvedValue({ count: 0 })
   txMock.payment.create.mockResolvedValue({
     id: "pay-1",
@@ -493,12 +512,116 @@ describe("recordPayment", () => {
       number: "2026-0001",
       clientId: "client-1",
     })
-    txMock.invoice.findUniqueOrThrow.mockResolvedValue({ total: 500 })
-    txMock.payment.aggregate.mockResolvedValue({ _sum: { amount: 200 } })
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: new Date("2026-08-27"),
+      total: 500,
+      lateFeeFixed: 0,
+      lateFeeInterest: 0,
+      lateFeeClaimedAt: null,
+      lateFeeWaived: false,
+      payments: [
+        { amount: 200, paidAt: new Date("2026-07-28"), penaltyAmount: 0 },
+      ],
+    })
     const result = await recordPayment(USER_ID, paymentArgs({ amount: 200 }))
     expect(result.isError).toBeUndefined()
     const { balanceDue } = result.structuredContent as { balanceDue: number }
     expect(balanceDue).toBe(300)
+  })
+
+  it("includes a claimed, unwaived late fee in the returned balanceDue", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      status: "SENT",
+      number: "2026-0001",
+      clientId: "client-1",
+    })
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: new Date("2026-08-27"),
+      total: 5460,
+      lateFeeFixed: 40,
+      lateFeeInterest: 4.94,
+      lateFeeClaimedAt: new Date("2026-09-01"),
+      lateFeeWaived: false,
+      payments: [
+        { amount: 5000, paidAt: new Date("2026-09-02"), penaltyAmount: 0 },
+      ],
+    })
+    const result = await recordPayment(USER_ID, paymentArgs({ amount: 5000 }))
+    expect(result.isError).toBeUndefined()
+    const { balanceDue } = result.structuredContent as { balanceDue: number }
+    expect(balanceDue).toBe(504.94)
+  })
+
+  it("persists penaltyAmount on the created payment", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      status: "SENT",
+      number: "2026-0001",
+      clientId: "client-1",
+    })
+    await recordPayment(
+      USER_ID,
+      paymentArgs({ amount: 100, penaltyAmount: 44.94 }),
+    )
+    expect(txMock.payment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ penaltyAmount: 44.94 }),
+      }),
+    )
+  })
+
+  it("rejects a penaltyAmount greater than the payment amount", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      status: "SENT",
+      number: "2026-0001",
+      clientId: "client-1",
+    })
+    const result = await recordPayment(
+      USER_ID,
+      paymentArgs({ amount: 50, penaltyAmount: 51 }),
+    )
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: "penaltyAmount cannot be greater than the payment amount",
+    })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("returns the frozen lateFeeDue and the balance it still leaves owing", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      status: "SENT",
+      number: "2026-0001",
+      clientId: "client-1",
+    })
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: new Date("2026-08-27"),
+      total: 5460,
+      lateFeeFixed: 40,
+      lateFeeInterest: 18.69,
+      lateFeeClaimedAt: new Date("2026-09-01"),
+      lateFeeWaived: false,
+      payments: [
+        { amount: 5460, paidAt: new Date("2026-09-02"), penaltyAmount: 0 },
+        { amount: 44.94, paidAt: new Date("2026-09-05"), penaltyAmount: 44.94 },
+      ],
+    })
+    const result = await recordPayment(
+      USER_ID,
+      paymentArgs({ amount: 44.94, penaltyAmount: 44.94 }),
+    )
+    expect(result.isError).toBeUndefined()
+    const { lateFeeDue, balanceDue } = result.structuredContent as {
+      lateFeeDue: number
+      balanceDue: number
+    }
+    expect(lateFeeDue).toBe(58.69)
+    expect(balanceDue).toBe(13.75)
   })
 
   it("never applies an amount cap", async () => {
@@ -525,5 +648,210 @@ describe("recordPayment", () => {
     const result = await recordPayment(USER_ID, paymentArgs())
     expect(result.isError).toBe(true)
     expect(result.content[0]).toMatchObject({ text: "Invoice not found" })
+  })
+})
+
+describe("claimLateFee", () => {
+  const NOW = new Date(2026, 2, 1, 12, 0, 0)
+  const PAST_DUE = new Date(2026, 0, 1)
+  const FUTURE_DUE = new Date(2026, 5, 1)
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0,
+    })
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      number: "2026-0001",
+      clientId: "client-1",
+      status: "SENT",
+      dueDate: PAST_DUE,
+      total: 1000,
+      payments: [],
+    })
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: PAST_DUE,
+      total: 1000,
+      lateFeeFixed: 40,
+      lateFeeInterest: 0,
+      lateFeeClaimedAt: NOW,
+      lateFeeWaived: false,
+      payments: [],
+    })
+    recomputeInvoicePayment.mockResolvedValue("UNPAID")
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("freezes the full accrued amount when no override is given", async () => {
+    const result = await claimLateFee(USER_ID, { invoiceId: "inv-1" })
+
+    expect(result.isError).toBeUndefined()
+    expect(txMock.invoice.update).toHaveBeenCalledWith({
+      where: { id: "inv-1" },
+      data: {
+        lateFeeFixed: 40,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: expect.any(Date),
+        lateFeeWaived: false,
+      },
+    })
+    expect(result.structuredContent).toEqual({
+      invoiceId: "inv-1",
+      lateFeeFixed: 40,
+      lateFeeInterest: 0,
+      lateFeeDue: 40,
+      lateFeeClaimedAt: NOW.toISOString(),
+      paymentStatus: "UNPAID",
+      balanceDue: 1040,
+      isOverdue: true,
+    })
+  })
+
+  it("claims less than the accrued amount via a partial override", async () => {
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: PAST_DUE,
+      total: 1000,
+      lateFeeFixed: 25,
+      lateFeeInterest: 0,
+      lateFeeClaimedAt: NOW,
+      lateFeeWaived: false,
+      payments: [],
+    })
+
+    const result = await claimLateFee(USER_ID, {
+      invoiceId: "inv-1",
+      fixed: 25,
+    })
+
+    expect(result.isError).toBeUndefined()
+    expect(txMock.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ lateFeeFixed: 25, lateFeeInterest: 0 }),
+      }),
+    )
+    const { lateFeeDue } = result.structuredContent as { lateFeeDue: number }
+    expect(lateFeeDue).toBe(25)
+  })
+
+  it("rejects a fixed override above the accrued fixed fee", async () => {
+    const result = await claimLateFee(USER_ID, {
+      invoiceId: "inv-1",
+      fixed: 41,
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: "fixed (41) exceeds the accrued fixed fee (40)",
+    })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("rejects an interest override above the accrued interest", async () => {
+    const result = await claimLateFee(USER_ID, {
+      invoiceId: "inv-1",
+      interest: 1,
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: "interest (1) exceeds the accrued interest (0)",
+    })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("refuses a CANCELLED invoice as an isError result", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      number: "2026-0001",
+      clientId: "client-1",
+      status: "CANCELLED",
+      dueDate: PAST_DUE,
+      total: 1000,
+      payments: [],
+    })
+
+    const result = await claimLateFee(USER_ID, { invoiceId: "inv-1" })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: "Cannot claim a late fee on a cancelled invoice",
+    })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("refuses when nothing has accrued on the invoice", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      number: "2026-0001",
+      clientId: "client-1",
+      status: "SENT",
+      dueDate: FUTURE_DUE,
+      total: 1000,
+      payments: [],
+    })
+
+    const result = await claimLateFee(USER_ID, { invoiceId: "inv-1" })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({
+      text: "No late fee has accrued on this invoice",
+    })
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
+  it("returns not-found for a foreign invoice id", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue(null)
+
+    const result = await claimLateFee(USER_ID, { invoiceId: "someone-elses" })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0]).toMatchObject({ text: "Invoice not found" })
+  })
+
+  it("flips an invoice already marked PAID back to PARTIALLY_PAID with isOverdue true", async () => {
+    prismaMock.invoice.findFirst.mockResolvedValue({
+      id: "inv-1",
+      number: "2026-0001",
+      clientId: "client-1",
+      status: "SENT",
+      dueDate: PAST_DUE,
+      total: 1000,
+      payments: [{ amount: 1000, paidAt: new Date(2026, 0, 5) }],
+    })
+    recomputeInvoicePayment.mockResolvedValue("PARTIALLY_PAID")
+    txMock.invoice.findUniqueOrThrow.mockResolvedValue({
+      status: "SENT",
+      dueDate: PAST_DUE,
+      total: 1000,
+      lateFeeFixed: 40,
+      lateFeeInterest: 0,
+      lateFeeClaimedAt: NOW,
+      lateFeeWaived: false,
+      payments: [
+        { amount: 1000, paidAt: new Date(2026, 0, 5), penaltyAmount: 0 },
+      ],
+    })
+
+    const result = await claimLateFee(USER_ID, { invoiceId: "inv-1" })
+
+    expect(result.isError).toBeUndefined()
+    expect(recomputeInvoicePayment).toHaveBeenCalledWith("inv-1", txMock)
+    const { paymentStatus, isOverdue, balanceDue } =
+      result.structuredContent as {
+        paymentStatus: string
+        isOverdue: boolean
+        balanceDue: number
+      }
+    expect(paymentStatus).toBe("PARTIALLY_PAID")
+    expect(isOverdue).toBe(true)
+    expect(balanceDue).toBe(40)
   })
 })

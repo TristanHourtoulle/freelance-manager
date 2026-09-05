@@ -12,7 +12,11 @@ export interface RelanceInvoiceRow {
   paymentStatus: InvoicePaymentStatus
   total: DecimalLike
   dueDate: Date
-  payments: { amount: DecimalLike; paidAt: Date }[]
+  lateFeeFixed: DecimalLike
+  lateFeeInterest: DecimalLike
+  lateFeeClaimedAt: Date | null
+  lateFeeWaived: boolean
+  payments: { amount: DecimalLike; paidAt: Date; penaltyAmount: DecimalLike }[]
 }
 
 export interface RelanceActionRow {

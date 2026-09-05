@@ -22,6 +22,7 @@ import {
 } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
 import { useToast } from "@/components/providers/toast-provider"
+import { LateFeePanel } from "@/components/billing/late-fee-panel"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import {
   matchesInvoiceFilter,
@@ -31,6 +32,10 @@ import {
 import { buildInvoiceEntries } from "@/domain/billing/builder"
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
 
 export function MobileBillingPage() {
   const router = useRouter()
@@ -128,6 +133,9 @@ export function MobileBillingPage() {
           <div className="col gap-8">
             {filtered.map((inv) => {
               const c = clients.find((cl) => cl.id === inv.clientId)
+              const lateFeeDisplay = inv.lateFeeClaimedAt
+                ? inv.lateFeeDue
+                : inv.lateFeeAccrued
               return (
                 <button
                   key={inv.id}
@@ -181,6 +189,19 @@ export function MobileBillingPage() {
                       style={{ color: "var(--danger)", marginTop: 8 }}
                     >
                       Échue {fmtRelative(inv.dueDate)}
+                      {!inv.lateFeeWaived && lateFeeDisplay > 0 && (
+                        <span
+                          className="num"
+                          style={{
+                            color: inv.lateFeeClaimedAt
+                              ? "var(--danger)"
+                              : "var(--warn)",
+                          }}
+                        >
+                          {" "}
+                          · +{fmtEUR(lateFeeDisplay)} pénalité
+                        </span>
+                      )}
                     </div>
                   )}
                   {inv.paymentStatus === "PARTIALLY_PAID" && (
@@ -290,12 +311,16 @@ export function MobileInvoiceSheet({
 
   function markPaid() {
     if (!invoice) return
+    const penaltyOutstanding = round2(
+      Math.max(0, invoice.lateFeeDue - invoice.penaltyPaid),
+    )
     createPayment.mutate(
       {
         amount: invoice.balanceDue,
         paidAt: todayISO(),
         method: null,
         note: null,
+        penaltyAmount: Math.min(penaltyOutstanding, invoice.balanceDue),
       },
       {
         onSuccess: () => {
@@ -467,6 +492,15 @@ export function MobileInvoiceSheet({
             </span>
           </div>
         )}
+        <LateFeePanel
+          invoiceId={invoice.id}
+          dueDate={invoice.dueDate}
+          lateFeeAccrued={invoice.lateFeeAccrued}
+          lateFeeDue={invoice.lateFeeDue}
+          lateFeeClaimedAt={invoice.lateFeeClaimedAt}
+          lateFeeWaived={invoice.lateFeeWaived}
+          lateFeeBreakdown={invoice.lateFeeBreakdown}
+        />
         {invoice.balanceDue !== 0 && (
           <div
             className="row"
@@ -539,6 +573,8 @@ export function MobileInvoiceSheet({
         <MobilePartialPaymentSheet
           invoiceId={invoice.id}
           balanceDue={invoice.balanceDue}
+          lateFeeDue={invoice.lateFeeDue}
+          penaltyPaid={invoice.penaltyPaid}
           onClose={() => setPartialOpen(false)}
         />
       )}
@@ -549,10 +585,14 @@ export function MobileInvoiceSheet({
 function MobilePartialPaymentSheet({
   invoiceId,
   balanceDue,
+  lateFeeDue,
+  penaltyPaid,
   onClose,
 }: {
   invoiceId: string
   balanceDue: number
+  lateFeeDue: number
+  penaltyPaid: number
   onClose: () => void
 }) {
   const fieldId = useId()
@@ -560,6 +600,9 @@ function MobilePartialPaymentSheet({
   const { toast } = useToast()
   const [amount, setAmount] = useState<number>(0)
   const [paidAt, setPaidAt] = useState<string>(() => todayISO())
+
+  const penaltyOutstanding = round2(Math.max(0, lateFeeDue - penaltyPaid))
+  const penaltyAmount = round2(Math.min(penaltyOutstanding, amount))
 
   function submit() {
     if (amount <= 0) {
@@ -571,7 +614,7 @@ function MobilePartialPaymentSheet({
       return
     }
     createPayment.mutate(
-      { amount, paidAt, method: null, note: null },
+      { amount, paidAt, method: null, note: null, penaltyAmount },
       {
         onSuccess: () => {
           toast({ variant: "success", title: "Paiement enregistré" })
@@ -632,6 +675,19 @@ function MobilePartialPaymentSheet({
         {amount > balanceDue && (
           <div className="xs" style={{ color: "var(--purple)" }}>
             {fmtEUR(amount - balanceDue)} en trop-perçu.
+          </div>
+        )}
+        {penaltyOutstanding > 0 && (
+          <div className="muted xs">
+            Pénalité réclamée restant due :{" "}
+            <span className="num">{fmtEUR(penaltyOutstanding)}</span>
+            {penaltyAmount > 0 && (
+              <>
+                {" "}
+                · <span className="num">{fmtEUR(penaltyAmount)}</span> sera
+                attribué à la pénalité.
+              </>
+            )}
           </div>
         )}
 

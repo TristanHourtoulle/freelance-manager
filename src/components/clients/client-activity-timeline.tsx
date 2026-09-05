@@ -23,6 +23,8 @@ const DOT_VARIANT: Record<
   TASKS_SYNCED: "info",
   ACTION_DONE: "accent",
   MEETING_LOGGED: "info",
+  LATE_FEE_CLAIMED: "warn",
+  LATE_FEE_WAIVED: "default",
 }
 
 /**

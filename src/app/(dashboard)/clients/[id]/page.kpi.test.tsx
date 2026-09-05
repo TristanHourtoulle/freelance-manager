@@ -117,4 +117,73 @@ describe("client detail hero", () => {
     expect(grid?.children.length).toBe(HERO_KPI_COUNT)
     expect(screen.queryByText("Client introuvable")).not.toBeInTheDocument()
   })
+
+  it("shows the cumulative unclaimed penalty under the overdue tile", () => {
+    useClientDetailMock.mockReturnValue({
+      data: {
+        ...buildClient(),
+        invoices: [
+          {
+            id: "inv-1",
+            number: "F-2026-001",
+            status: "SENT",
+            paymentStatus: "PARTIALLY_PAID",
+            isOverdue: true,
+            kind: "STANDARD",
+            issueDate: "2026-07-01",
+            dueDate: "2026-07-31",
+            paidAmount: 0,
+            balanceDue: 1000,
+            lateFeeAccrued: 58.69,
+            lateFeeDue: 0,
+            lateFeeClaimedAt: null,
+            lateFeeWaived: false,
+            total: 1000,
+            linesCount: 1,
+          },
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(
+      screen.getByText(/dont 58,69 €/, { selector: "span" }),
+    ).toBeInTheDocument()
+  })
+
+  it("excludes a waived penalty from the cumulative overdue sub-label", () => {
+    useClientDetailMock.mockReturnValue({
+      data: {
+        ...buildClient(),
+        invoices: [
+          {
+            id: "inv-1",
+            number: "F-2026-001",
+            status: "SENT",
+            paymentStatus: "PARTIALLY_PAID",
+            isOverdue: true,
+            kind: "STANDARD",
+            issueDate: "2026-07-01",
+            dueDate: "2026-07-31",
+            paidAmount: 0,
+            balanceDue: 1000,
+            lateFeeAccrued: 58.69,
+            lateFeeDue: 0,
+            lateFeeClaimedAt: null,
+            lateFeeWaived: true,
+            total: 1000,
+            linesCount: 1,
+          },
+        ],
+      },
+      isLoading: false,
+    })
+
+    renderPage()
+
+    expect(screen.queryByText(/dont 58,69 €/)).not.toBeInTheDocument()
+    expect(screen.getByText("à relancer")).toBeInTheDocument()
+  })
 })

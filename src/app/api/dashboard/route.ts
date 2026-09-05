@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/db"
-import { apiServerError, apiUnauthorized, getAuthUser } from "@/lib/api"
+import {
+  apiServerError,
+  apiUnauthorized,
+  decimalToNumber,
+  getAuthUser,
+} from "@/lib/api"
 import { computeDashboardKpis } from "@/domain/billing/kpis"
 import { PIPELINE_TASK_WHERE } from "@/domain/tasks/billability"
 import {
@@ -9,6 +14,10 @@ import {
   summarizeWorkload,
 } from "@/domain/capacity/workload"
 import { sweepOverdueRelances } from "@/lib/relance"
+import {
+  DEFAULT_LATE_FEE_ANNUAL_RATE,
+  DEFAULT_LATE_FEE_FIXED_AMOUNT,
+} from "@/lib/schemas/settings"
 
 export async function GET() {
   const user = await getAuthUser()
@@ -53,7 +62,13 @@ export async function GET() {
           paymentStatus: true,
           total: true,
           dueDate: true,
-          payments: { select: { amount: true, paidAt: true } },
+          lateFeeFixed: true,
+          lateFeeInterest: true,
+          lateFeeClaimedAt: true,
+          lateFeeWaived: true,
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
         },
       }),
       prisma.$queryRaw<
@@ -105,7 +120,9 @@ export async function GET() {
               color: true,
             },
           },
-          payments: { select: { amount: true, paidAt: true } },
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
         },
       }),
       prisma.task.findMany({
@@ -142,11 +159,25 @@ export async function GET() {
       }),
       prisma.userSettings.findUnique({
         where: { userId: user.id },
-        select: { linearLastSyncedAt: true, workingDaysPerWeek: true },
+        select: {
+          linearLastSyncedAt: true,
+          workingDaysPerWeek: true,
+          lateFeeFixedAmount: true,
+          lateFeeAnnualRate: true,
+        },
       }),
     ])
 
     const workload = summarizeWorkload(openTasks)
+
+    const lateFeePolicy = {
+      fixedAmount:
+        decimalToNumber(lastSync?.lateFeeFixedAmount) ??
+        DEFAULT_LATE_FEE_FIXED_AMOUNT,
+      annualRate:
+        decimalToNumber(lastSync?.lateFeeAnnualRate) ??
+        DEFAULT_LATE_FEE_ANNUAL_RATE,
+    }
 
     const {
       kpi,
@@ -167,6 +198,7 @@ export async function GET() {
         completedAt: task.completedAt,
       })),
       recentInvoices,
+      lateFeePolicy,
     })
 
     await sweepOverdueRelances({

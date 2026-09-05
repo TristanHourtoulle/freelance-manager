@@ -8,7 +8,10 @@ import {
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
-import { paymentCreateSchema } from "@/lib/schemas/payment"
+import {
+  isPenaltyWithinAmount,
+  paymentCreateSchema,
+} from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { invoicesTag } from "@/lib/data/invoices"
@@ -41,6 +44,12 @@ export async function POST(req: Request, { params }: Params) {
     if (!user) return apiUnauthorized()
     if (!invoice || invoice.userId !== user.id) return apiNotFound()
     const data = paymentCreateSchema.parse(body)
+    if (!isPenaltyWithinAmount(data)) {
+      return NextResponse.json(
+        { error: "La pénalité ne peut pas dépasser le montant du paiement" },
+        { status: 400 },
+      )
+    }
     if (invoice.status === "CANCELLED") {
       return NextResponse.json(
         {
@@ -59,6 +68,7 @@ export async function POST(req: Request, { params }: Params) {
           paidAt: new Date(data.paidAt),
           method: data.method ?? null,
           note: data.note ?? null,
+          penaltyAmount: data.penaltyAmount,
         },
       })
       await recomputeInvoicePayment(id, tx)

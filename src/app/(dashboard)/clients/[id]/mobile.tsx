@@ -93,6 +93,10 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
         (i.paymentStatus === "UNPAID" || i.paymentStatus === "PARTIALLY_PAID"),
     )
     .reduce((s, i) => s + i.balanceDue, 0)
+  const overdueInvoices = invoices.filter((i) => i.isOverdue)
+  const lateFeeAccrued = overdueInvoices
+    .filter((i) => !i.lateFeeWaived)
+    .reduce((s, i) => s + i.lateFeeAccrued, 0)
   const pipelineGate = {
     archivedAt: client.archivedAt,
     category: client.category,
@@ -193,6 +197,17 @@ export function MobileClientDetailPage({ id }: MobileClientDetailPageProps) {
           <div className="kpi-tile info">
             <div className="kpi-label">Encours</div>
             <div className="kpi-value">{fmtEUR(outstanding)}</div>
+          </div>
+          <div className="kpi-tile danger">
+            <div className="kpi-label">En retard</div>
+            <div className="kpi-value" style={{ color: "var(--danger)" }}>
+              {overdueInvoices.length}
+            </div>
+            {lateFeeAccrued > 0 && (
+              <div className="kpi-sub" style={{ color: "var(--warn)" }}>
+                dont {fmtEUR(lateFeeAccrued)} de pénalités
+              </div>
+            )}
           </div>
           <div className="kpi-tile warn">
             <div className="kpi-label">À facturer</div>

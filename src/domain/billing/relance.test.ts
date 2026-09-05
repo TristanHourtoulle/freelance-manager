@@ -21,6 +21,10 @@ function invoice(
     paymentStatus: "UNPAID",
     total: 1000,
     dueDate: PAST_DUE,
+    lateFeeFixed: 0,
+    lateFeeInterest: 0,
+    lateFeeClaimedAt: null,
+    lateFeeWaived: false,
     payments: [],
     ...overrides,
   }
@@ -62,7 +66,9 @@ describe("buildRelanceRows", () => {
       invoices: [
         invoice({
           paymentStatus: "UNPAID",
-          payments: [{ amount: 1000, paidAt: new Date(2026, 1, 20) }],
+          payments: [
+            { amount: 1000, paidAt: new Date(2026, 1, 20), penaltyAmount: 0 },
+          ],
         }),
       ],
     })
@@ -77,13 +83,17 @@ describe("buildRelanceRows", () => {
       invoices: [
         invoice({
           paymentStatus: "UNPAID",
-          payments: [{ amount: 1500, paidAt: new Date(2026, 1, 20) }],
+          payments: [
+            { amount: 1500, paidAt: new Date(2026, 1, 20), penaltyAmount: 0 },
+          ],
         }),
         invoice({
           id: "inv-2",
           number: "F-2026-002",
           paymentStatus: "OVERPAID",
-          payments: [{ amount: 1200, paidAt: new Date(2026, 1, 20) }],
+          payments: [
+            { amount: 1200, paidAt: new Date(2026, 1, 20), penaltyAmount: 0 },
+          ],
         }),
       ],
     })
@@ -145,7 +155,9 @@ describe("buildRelanceRows", () => {
           id: "inv-2",
           number: "F-2026-002",
           clientId: "client-2",
-          payments: [{ amount: 1000, paidAt: new Date(2026, 1, 20) }],
+          payments: [
+            { amount: 1000, paidAt: new Date(2026, 1, 20), penaltyAmount: 0 },
+          ],
         }),
         invoice({ id: "inv-3", number: "F-2026-003", clientId: "client-3" }),
       ],

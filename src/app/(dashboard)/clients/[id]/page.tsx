@@ -110,6 +110,7 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
   let sentCount = 0
   let paidCount = 0
   let overdueCount = 0
+  let lateFeeAccrued = 0
   for (const i of client.invoices) {
     totalRevenue += i.paidAmount
     if (
@@ -122,7 +123,10 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
     if (i.paymentStatus === "PAID" || i.paymentStatus === "OVERPAID") {
       paidCount++
     }
-    if (i.isOverdue) overdueCount++
+    if (i.isOverdue) {
+      overdueCount++
+      if (!i.lateFeeWaived) lateFeeAccrued += i.lateFeeAccrued
+    }
   }
   const { billableTasks, pipelineValue } = deriveClientBilling(client)
   const billingLabel =
@@ -296,7 +300,15 @@ export function DesktopClientDetailPage({ id }: { id: string }) {
                 facture{overdueCount > 1 ? "s" : ""}
               </span>
             </div>
-            <div className="kpi-sub">à relancer</div>
+            <div className="kpi-sub">
+              à relancer
+              {lateFeeAccrued > 0 && (
+                <span style={{ color: "var(--warn)" }}>
+                  {" "}
+                  · dont {fmtEUR(lateFeeAccrued)} de pénalités
+                </span>
+              )}
+            </div>
           </div>
           <div className="kpi k-pipeline">
             <div className="kpi-label">

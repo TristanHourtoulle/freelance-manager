@@ -47,6 +47,7 @@ const EMPTY_KPI: DashboardDTO["kpi"] = {
   sentCount: 0,
   overdueAmount: 0,
   overdueCount: 0,
+  lateFeeAccrued: 0,
   pipelineCount: 0,
   pipelineEur: 0,
   pipelineClientCount: 0,
@@ -108,6 +109,11 @@ function MoneyStrip({
         {kpi.overdueAmount > 0 && (
           <div className="strip-sub" style={{ color: "var(--danger)" }}>
             dont {fmtEUR(kpi.overdueAmount)} en retard
+          </div>
+        )}
+        {kpi.lateFeeAccrued > 0 && (
+          <div className="strip-sub" style={{ color: "var(--warn)" }}>
+            dont {fmtEUR(kpi.lateFeeAccrued)} de pénalités
           </div>
         )}
       </div>

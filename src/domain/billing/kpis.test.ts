@@ -32,6 +32,7 @@ function buildInput(): DashboardKpiInput {
 
   return {
     now: NOW,
+    lateFeePolicy: { fixedAmount: 0, annualRate: 0 },
     openInvoices: [
       {
         id: "inv-a",
@@ -41,6 +42,10 @@ function buildInput(): DashboardKpiInput {
         paymentStatus: "UNPAID",
         total: 1000,
         dueDate: new Date(2026, 1, 1),
+        lateFeeFixed: 0,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
         payments: [],
       },
       {
@@ -51,7 +56,13 @@ function buildInput(): DashboardKpiInput {
         paymentStatus: "PARTIALLY_PAID",
         total: 500,
         dueDate: new Date(2026, 3, 1),
-        payments: [{ amount: 200, paidAt: new Date(2026, 2, 1) }],
+        lateFeeFixed: 0,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
+        payments: [
+          { amount: 200, paidAt: new Date(2026, 2, 1), penaltyAmount: 0 },
+        ],
       },
       {
         id: "inv-c",
@@ -61,6 +72,10 @@ function buildInput(): DashboardKpiInput {
         paymentStatus: "UNPAID",
         total: 800,
         dueDate: new Date(2026, 2, 10),
+        lateFeeFixed: 0,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
         payments: [],
       },
     ],
@@ -114,13 +129,19 @@ function buildInput(): DashboardKpiInput {
         issueDate: new Date(2026, 2, 5),
         dueDate: new Date(2026, 1, 20),
         total: 600,
+        lateFeeFixed: 0,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
         client: {
           firstName: "Ada",
           lastName: "Lovelace",
           company: "Analytical",
           color: "#abc",
         },
-        payments: [{ amount: 100, paidAt: new Date(2026, 2, 5) }],
+        payments: [
+          { amount: 100, paidAt: new Date(2026, 2, 5), penaltyAmount: 0 },
+        ],
       },
     ],
   }
@@ -149,6 +170,7 @@ describe("computeDashboardKpis", () => {
       sentCount: 3,
       overdueAmount: 1800,
       overdueCount: 2,
+      lateFeeAccrued: 0,
       pipelineCount: 4,
       pipelineEur: 3900,
       pipelineClientCount: 2,
@@ -264,6 +286,42 @@ describe("computeDashboardKpis", () => {
     ])
   })
 
+  it("sums the live lateFeeAccrued preview server-side, over overdue invoices only", () => {
+    const base = buildInput()
+    const { kpi } = computeDashboardKpis({
+      ...base,
+      lateFeePolicy: { fixedAmount: 40, annualRate: 0 },
+    })
+
+    expect(kpi.lateFeeAccrued).toBe(80)
+  })
+
+  it("excludes a waived invoice's accrual from the KPI, matching client-detail", () => {
+    const base = buildInput()
+    const openInvoices = base.openInvoices.map((inv) =>
+      inv.id === "inv-a" ? { ...inv, lateFeeWaived: true } : inv,
+    )
+    const { kpi } = computeDashboardKpis({
+      ...base,
+      openInvoices,
+      lateFeePolicy: { fixedAmount: 40, annualRate: 0 },
+    })
+
+    expect(kpi.lateFeeAccrued).toBe(40)
+  })
+
+  it("never lets an unclaimed accrual leak into overdueAmount or outstanding", () => {
+    const base = buildInput()
+    const { kpi } = computeDashboardKpis({
+      ...base,
+      lateFeePolicy: { fixedAmount: 40, annualRate: 0 },
+    })
+
+    expect(kpi.lateFeeAccrued).toBeGreaterThan(0)
+    expect(kpi.overdueAmount).toBe(1800)
+    expect(kpi.outstanding).toBe(2100)
+  })
+
   it("builds the trailing eight-month payment buckets", () => {
     const { months } = computeDashboardKpis(buildInput())
 
@@ -332,6 +390,7 @@ describe("computeDashboardKpis", () => {
       sentCount: 0,
       overdueAmount: 0,
       overdueCount: 0,
+      lateFeeAccrued: 0,
       pipelineCount: 0,
       pipelineEur: 0,
       pipelineClientCount: 0,

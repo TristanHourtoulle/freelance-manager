@@ -10,7 +10,7 @@ import {
   requireSameOrigin,
 } from "@/lib/api"
 import { clientUpdateSchema } from "@/lib/schemas/client"
-import { getInvoiceComputed } from "@/lib/payments"
+import { getInvoiceComputed, resolveLateFeePolicy } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
@@ -37,6 +37,7 @@ export async function GET(_: Request, { params }: Params) {
       meetings,
       openActions,
       lastDoneAction,
+      settings,
     ] = await Promise.all([
       prisma.client.findFirst({
         where: { id, userId: user.id },
@@ -65,7 +66,9 @@ export async function GET(_: Request, { params }: Params) {
         orderBy: { issueDate: "desc" },
         include: {
           _count: { select: { lines: true } },
-          payments: { select: { amount: true, paidAt: true } },
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
         },
       }),
       prisma.$queryRaw<{ month: Date; total: number }[]>`
@@ -113,8 +116,14 @@ export async function GET(_: Request, { params }: Params) {
         orderBy: { doneAt: "desc" },
         select: { doneAt: true },
       }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+      }),
     ])
     if (!c) return apiNotFound()
+
+    const lateFeePolicy = resolveLateFeePolicy(settings)
 
     const contactTimestamps = [
       meetings[0]?.heldAt ?? null,
@@ -214,7 +223,7 @@ export async function GET(_: Request, { params }: Params) {
         billable: t.billable,
       })),
       invoices: invoices.map((inv) => {
-        const computed = getInvoiceComputed(inv)
+        const computed = getInvoiceComputed(inv, lateFeePolicy)
         return {
           id: inv.id,
           number: inv.number,
@@ -226,6 +235,12 @@ export async function GET(_: Request, { params }: Params) {
           dueDate: inv.dueDate.toISOString(),
           paidAmount: computed.paidAmount,
           balanceDue: computed.balanceDue,
+          lateFeeAccrued: computed.lateFeeAccrued,
+          lateFeeDue: computed.lateFeeDue,
+          lateFeeClaimedAt: inv.lateFeeClaimedAt
+            ? inv.lateFeeClaimedAt.toISOString()
+            : null,
+          lateFeeWaived: inv.lateFeeWaived,
           total: decimalToNumber(inv.total) ?? 0,
           linesCount: inv._count.lines,
         }

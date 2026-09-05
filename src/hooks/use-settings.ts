@@ -10,6 +10,8 @@ export interface SettingsDTO {
   defaultPaymentDays: number
   defaultRate: number
   workingDaysPerWeek: number
+  lateFeeFixedAmount: number
+  lateFeeAnnualRate: number
   hasLinearToken: boolean
   linearTokenPreview: string | null
   linearLastSyncedAt: string | null
@@ -19,6 +21,8 @@ export interface SettingsUpdateBody {
   defaultPaymentDays?: number
   defaultRate?: number
   workingDaysPerWeek?: number
+  lateFeeFixedAmount?: number
+  lateFeeAnnualRate?: number
 }
 
 export function useSettings() {

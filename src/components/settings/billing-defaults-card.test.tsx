@@ -11,6 +11,8 @@ vi.mock("@/hooks/use-settings", () => ({
       defaultPaymentDays: 45,
       defaultRate: 620,
       workingDaysPerWeek: 4,
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.1,
       hasLinearToken: false,
       linearTokenPreview: null,
       linearLastSyncedAt: null,
@@ -69,6 +71,8 @@ describe("BillingDefaultsCard", () => {
       defaultPaymentDays: 45,
       defaultRate: 700,
       workingDaysPerWeek: 4,
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.1,
     })
   })
 
@@ -86,6 +90,38 @@ describe("BillingDefaultsCard", () => {
       defaultPaymentDays: 45,
       defaultRate: 620,
       workingDaysPerWeek: 6,
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.1,
+    })
+  })
+
+  it("hydrates the late-fee rate as a percentage, not a raw fraction", async () => {
+    render(<BillingDefaultsCard />)
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Taux de pénalité annuel (%)")).toHaveValue(
+        10,
+      ),
+    )
+    expect(screen.getByLabelText("Indemnité forfaitaire (€)")).toHaveValue(40)
+  })
+
+  it("converts a typed percentage back to a fraction on save", async () => {
+    mutate.mockClear()
+    render(<BillingDefaultsCard />)
+
+    const rateField = screen.getByLabelText("Taux de pénalité annuel (%)")
+    await waitFor(() => expect(rateField).toHaveValue(10))
+
+    fireEvent.change(rateField, { target: { value: "12.5" } })
+    fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }))
+
+    expect(mutate).toHaveBeenCalledWith({
+      defaultPaymentDays: 45,
+      defaultRate: 620,
+      workingDaysPerWeek: 4,
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.125,
     })
   })
 })

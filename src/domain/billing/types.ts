@@ -17,6 +17,22 @@ export type InvoicePaymentStatus =
 
 export type InvoiceKind = "STANDARD" | "DEPOSIT"
 
+export interface InvoiceLateFeeSegment {
+  from: string
+  to: string
+  days: number
+  outstanding: number
+  interest: number
+}
+
+export interface InvoiceLateFeeBreakdown {
+  daysLate: number
+  fixed: number
+  interest: number
+  total: number
+  segments: InvoiceLateFeeSegment[]
+}
+
 export interface InvoicePaymentDTO {
   id: string
   amount: number
@@ -24,6 +40,7 @@ export interface InvoicePaymentDTO {
   method: string | null
   note: string | null
   createdAt: string
+  penaltyAmount: number
 }
 
 export interface InvoiceWireRow {
@@ -40,6 +57,11 @@ export interface InvoiceWireRow {
   paidAmount: number
   balanceDue: number
   lastPaidAt: string | null
+  lateFeeAccrued: number
+  lateFeeDue: number
+  lateFeeClaimedAt: string | null
+  lateFeeWaived: boolean
+  penaltyPaid: number
   subtotal: number
   tax: number
   total: number
@@ -49,6 +71,7 @@ export interface InvoiceWireRow {
 }
 
 export interface InvoiceDetail extends InvoiceWireRow {
+  lateFeeBreakdown: InvoiceLateFeeBreakdown | null
   client: {
     id: string
     firstName: string

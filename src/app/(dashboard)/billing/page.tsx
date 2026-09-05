@@ -8,6 +8,7 @@ import { InvoiceDrawer } from "@/components/billing/invoice-drawer"
 import { fmtDate, fmtEUR, initials, avatarColor } from "@/lib/format"
 import { useInvoices } from "@/hooks/use-invoices"
 import { useClients } from "@/hooks/use-clients"
+import { useDashboard } from "@/hooks/use-dashboard"
 import { useIsMobile } from "@/hooks/use-is-mobile"
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel"
 import {
@@ -51,6 +52,7 @@ function DesktopBillingPage() {
     isFetchingNextPage,
   } = useInvoices()
   const { data: clients = [] } = useClients()
+  const { data: dashboard } = useDashboard()
 
   const clientById = useMemo(
     () => new Map(clients.map((c) => [c.id, c])),
@@ -141,6 +143,12 @@ function DesktopBillingPage() {
             <span>
               {counts.overdue} facture{counts.overdue > 1 ? "s" : ""}
             </span>
+            {dashboard && dashboard.kpi.lateFeeAccrued > 0 && (
+              <span style={{ color: "var(--warn)" }}>
+                {" "}
+                · dont {fmtEUR(dashboard.kpi.lateFeeAccrued)} de pénalités
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -213,6 +221,9 @@ function DesktopBillingPage() {
             )}
             {filtered.map((inv) => {
               const client = clientById.get(inv.clientId)
+              const lateFeeDisplay = inv.lateFeeClaimedAt
+                ? inv.lateFeeDue
+                : inv.lateFeeAccrued
               return (
                 <tr
                   key={inv.id}
@@ -277,6 +288,21 @@ function DesktopBillingPage() {
                         +{fmtEUR(-inv.balanceDue)}
                       </div>
                     )}
+                    {inv.isOverdue &&
+                      !inv.lateFeeWaived &&
+                      lateFeeDisplay > 0 && (
+                        <div
+                          className="xs num"
+                          style={{
+                            marginTop: 2,
+                            color: inv.lateFeeClaimedAt
+                              ? "var(--danger)"
+                              : "var(--warn)",
+                          }}
+                        >
+                          +{fmtEUR(lateFeeDisplay)} pénalité
+                        </div>
+                      )}
                   </td>
                   <td style={{ paddingRight: 20 }}>
                     <Icon name="chevron-right" size={14} className="muted" />

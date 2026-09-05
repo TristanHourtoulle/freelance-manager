@@ -119,6 +119,25 @@ describe("runDailyJobs — overdue-relances", () => {
     })
   })
 
+  it("selects the late-fee columns, so a claimed penalty is never dropped from the sweep", async () => {
+    prismaMock.invoice.findMany.mockResolvedValue([invoice()])
+
+    const { runDailyJobs } = await import("./daily")
+    await runDailyJobs(NOW)
+
+    const [args] = prismaMock.invoice.findMany.mock.calls[0] ?? []
+    const select = (args as { select: Record<string, unknown> }).select
+    expect(select).toMatchObject({
+      lateFeeFixed: true,
+      lateFeeInterest: true,
+      lateFeeClaimedAt: true,
+      lateFeeWaived: true,
+    })
+    expect(
+      (select.payments as { select: Record<string, unknown> }).select,
+    ).toMatchObject({ penaltyAmount: true })
+  })
+
   it("records a failing job without rejecting or aborting the run", async () => {
     prismaMock.invoice.findMany.mockRejectedValue(new Error("db down"))
     const spy = vi.spyOn(console, "error").mockImplementation(() => {})

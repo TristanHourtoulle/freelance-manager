@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db"
 import { decimalToNumber } from "@/lib/api"
 import { serializeInvoice } from "@/domain/billing/serialize"
 import type { InvoiceRowForSerialize } from "@/domain/billing/serialize"
+import { resolveLateFeePolicy, type LateFeePolicy } from "@/lib/payments"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
 import { nextAutoNumber } from "@/lib/invoice-numbering"
 import { invoicesTag } from "@/lib/data/invoices"
@@ -84,6 +85,10 @@ const invoiceRowSchema = z.object({
   dueDate: z.string(),
   paidAmount: z.number(),
   balanceDue: z.number(),
+  lateFeeAccrued: z.number(),
+  lateFeeDue: z.number(),
+  lateFeeClaimedAt: z.string().nullable(),
+  lateFeeWaived: z.boolean(),
   subtotal: z.number(),
   total: z.number(),
   notes: z.string().nullable(),
@@ -148,8 +153,8 @@ type ListInvoicesArgs = z.output<typeof listInvoicesInput>
 type GetInvoiceArgs = z.output<typeof getInvoiceInput>
 type CreateInvoiceDraftArgs = z.output<typeof createInvoiceDraftInput>
 
-function toInvoiceRow(row: InvoiceRowForSerialize) {
-  const inv = serializeInvoice(row)
+function toInvoiceRow(row: InvoiceRowForSerialize, policy: LateFeePolicy) {
+  const inv = serializeInvoice(row, policy)
   return {
     id: inv.id,
     number: inv.number,
@@ -163,6 +168,10 @@ function toInvoiceRow(row: InvoiceRowForSerialize) {
     dueDate: inv.dueDate,
     paidAmount: inv.paidAmount,
     balanceDue: inv.balanceDue,
+    lateFeeAccrued: inv.lateFeeAccrued,
+    lateFeeDue: inv.lateFeeDue,
+    lateFeeClaimedAt: inv.lateFeeClaimedAt,
+    lateFeeWaived: inv.lateFeeWaived,
     subtotal: inv.subtotal,
     total: inv.total,
     notes: truncateNullableText(inv.notes, NOTE_MAX_CHARS),
@@ -172,7 +181,9 @@ function toInvoiceRow(row: InvoiceRowForSerialize) {
 
 const INVOICE_INCLUDE = {
   _count: { select: { lines: true } },
-  payments: { select: { amount: true, paidAt: true } },
+  payments: {
+    select: { amount: true, paidAt: true, penaltyAmount: true },
+  },
 } as const
 
 /**
@@ -193,20 +204,27 @@ export async function listInvoices(
       ...(args.status ? { status: args.status } : {}),
       ...(args.clientId ? { clientId: args.clientId } : {}),
     }
-    const result = await runPaginatedQuery({
-      args,
-      count: () => prisma.invoice.count({ where }),
-      page: ({ cursor, take }) =>
-        prisma.invoice.findMany({
-          where,
-          orderBy: [{ issueDate: "desc" }, { id: "desc" }],
-          take,
-          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-          include: INVOICE_INCLUDE,
-        }),
-    })
+    const [settings, result] = await Promise.all([
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+      }),
+      runPaginatedQuery({
+        args,
+        count: () => prisma.invoice.count({ where }),
+        page: ({ cursor, take }) =>
+          prisma.invoice.findMany({
+            where,
+            orderBy: [{ issueDate: "desc" }, { id: "desc" }],
+            take,
+            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+            include: INVOICE_INCLUDE,
+          }),
+      }),
+    ])
+    const policy = resolveLateFeePolicy(settings)
     return {
-      data: result.data.map(toInvoiceRow),
+      data: result.data.map((row) => toInvoiceRow(row, policy)),
       nextCursor: result.nextCursor,
       hasMore: result.hasMore,
       total: result.total,
@@ -227,25 +245,32 @@ export async function getInvoice(
   args: GetInvoiceArgs,
 ): Promise<CallToolResult> {
   return runMcpTool({ userId, tool: "get_invoice", args }, async () => {
-    const row = await prisma.invoice.findFirst({
-      where: { id: args.invoiceId, userId },
-      include: {
-        ...INVOICE_INCLUDE,
-        lines: {
-          orderBy: { position: "asc" },
-          select: {
-            id: true,
-            taskId: true,
-            label: true,
-            qty: true,
-            rate: true,
+    const [row, settings] = await Promise.all([
+      prisma.invoice.findFirst({
+        where: { id: args.invoiceId, userId },
+        include: {
+          ...INVOICE_INCLUDE,
+          lines: {
+            orderBy: { position: "asc" },
+            select: {
+              id: true,
+              taskId: true,
+              label: true,
+              qty: true,
+              rate: true,
+            },
           },
         },
-      },
-    })
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+      }),
+    ])
     if (!row) throw mcpNotFound("Invoice")
+    const policy = resolveLateFeePolicy(settings)
     return {
-      ...toInvoiceRow(row),
+      ...toInvoiceRow(row, policy),
       lines: row.lines.map((l) => ({
         id: l.id,
         taskId: l.taskId,

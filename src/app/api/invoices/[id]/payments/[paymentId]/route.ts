@@ -5,10 +5,11 @@ import {
   apiNotFound,
   apiServerError,
   apiUnauthorized,
+  decimalToNumber,
   getAuthUser,
   requireSameOrigin,
 } from "@/lib/api"
-import { paymentUpdateSchema } from "@/lib/schemas/payment"
+import { isPenaltyWithinAmount, paymentUpdateSchema } from "@/lib/schemas/payment"
 import { recomputeInvoicePayment, serializePayment } from "@/lib/payments"
 import { deferActivityLog } from "@/lib/activity"
 import { invoicesTag } from "@/lib/data/invoices"
@@ -29,7 +30,12 @@ export async function PATCH(req: Request, { params }: Params) {
       req.json(),
       prisma.payment.findUnique({
         where: { id: paymentId },
-        select: { id: true, invoiceId: true, userId: true },
+        select: {
+          id: true,
+          invoiceId: true,
+          userId: true,
+          penaltyAmount: true,
+        },
       }),
     ])
     if (!user) return apiUnauthorized()
@@ -37,6 +43,18 @@ export async function PATCH(req: Request, { params }: Params) {
       return apiNotFound()
     }
     const data = paymentUpdateSchema.parse(body)
+    if (
+      data.amount != null &&
+      !isPenaltyWithinAmount({
+        amount: data.amount,
+        penaltyAmount: decimalToNumber(payment.penaltyAmount) ?? 0,
+      })
+    ) {
+      return NextResponse.json(
+        { error: "La pénalité ne peut pas dépasser le montant du paiement" },
+        { status: 400 },
+      )
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.payment.update({
