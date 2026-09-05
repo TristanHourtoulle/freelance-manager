@@ -11,6 +11,7 @@ import {
   type InvoicePaymentDTO,
 } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
+import { isPenaltyWithinAmount } from "@/lib/schemas/payment"
 
 interface PaymentsSectionProps {
   invoiceId: string
@@ -19,9 +20,15 @@ interface PaymentsSectionProps {
   paidAmount: number
   payments?: InvoicePaymentDTO[]
   documentStatus: "DRAFT" | "SENT" | "CANCELLED"
+  lateFeeDue?: number
+  penaltyPaid?: number
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
 
 export function PaymentsSection({
   invoiceId,
@@ -30,6 +37,8 @@ export function PaymentsSection({
   paidAmount,
   payments: paymentsProp,
   documentStatus,
+  lateFeeDue = 0,
+  penaltyPaid = 0,
 }: PaymentsSectionProps) {
   const fieldId = useId()
   const payments = paymentsProp ?? []
@@ -46,6 +55,10 @@ export function PaymentsSection({
   const [paidAt, setPaidAt] = useState<string>(() => todayISO())
   const [method, setMethod] = useState<string>("")
   const [note, setNote] = useState<string>("")
+  const [penaltyAmount, setPenaltyAmount] = useState<number>(0)
+  const [editingPenaltyAmount, setEditingPenaltyAmount] = useState<number>(0)
+
+  const penaltyOutstanding = round2(Math.max(0, lateFeeDue - penaltyPaid))
 
   function startAdd() {
     setEditingId(null)
@@ -53,6 +66,7 @@ export function PaymentsSection({
     setPaidAt(todayISO())
     setMethod("")
     setNote("")
+    setPenaltyAmount(0)
     setAdding(true)
   }
 
@@ -63,6 +77,8 @@ export function PaymentsSection({
     setPaidAt(p.paidAt.slice(0, 10))
     setMethod(p.method ?? "")
     setNote(p.note ?? "")
+    setPenaltyAmount(0)
+    setEditingPenaltyAmount(p.penaltyAmount)
   }
 
   function cancel() {
@@ -79,15 +95,41 @@ export function PaymentsSection({
       })
       return
     }
-    const payload = {
-      amount,
-      paidAt,
-      method: method.trim() || null,
-      note: note.trim() || null,
+    if (
+      !editingId &&
+      penaltyAmount > 0 &&
+      !isPenaltyWithinAmount({ amount, penaltyAmount })
+    ) {
+      toast({
+        variant: "error",
+        title: "Montant de pénalité invalide",
+        description: "La pénalité ne peut pas dépasser le montant du paiement.",
+      })
+      return
+    }
+    if (
+      editingId &&
+      !isPenaltyWithinAmount({
+        amount,
+        penaltyAmount: editingPenaltyAmount,
+      })
+    ) {
+      toast({
+        variant: "error",
+        title: "Montant de pénalité invalide",
+        description: "La pénalité ne peut pas dépasser le montant du paiement.",
+      })
+      return
     }
     if (editingId) {
       update.mutate(
-        { paymentId: editingId, ...payload },
+        {
+          paymentId: editingId,
+          amount,
+          paidAt,
+          method: method.trim() || null,
+          note: note.trim() || null,
+        },
         {
           onSuccess: () => {
             toast({ variant: "success", title: "Paiement mis à jour" })
@@ -102,18 +144,27 @@ export function PaymentsSection({
         },
       )
     } else {
-      create.mutate(payload, {
-        onSuccess: () => {
-          toast({ variant: "success", title: "Paiement enregistré" })
-          cancel()
+      create.mutate(
+        {
+          amount,
+          paidAt,
+          method: method.trim() || null,
+          note: note.trim() || null,
+          penaltyAmount,
         },
-        onError: (e) =>
-          toast({
-            variant: "error",
-            title: "Erreur",
-            description: e instanceof Error ? e.message : String(e),
-          }),
-      })
+        {
+          onSuccess: () => {
+            toast({ variant: "success", title: "Paiement enregistré" })
+            cancel()
+          },
+          onError: (e) =>
+            toast({
+              variant: "error",
+              title: "Erreur",
+              description: e instanceof Error ? e.message : String(e),
+            }),
+        },
+      )
     }
   }
 
@@ -175,6 +226,13 @@ export function PaymentsSection({
           <Icon name="alert" size={12} />
           Reste à recevoir{" "}
           <span className="num strong">{fmtEURprecise(balanceDue)}</span>
+          {penaltyOutstanding > 0 && (
+            <span className="xs">
+              (dont{" "}
+              <span className="num">{fmtEURprecise(penaltyOutstanding)}</span>{" "}
+              de pénalité)
+            </span>
+          )}
         </div>
       )}
       {balanceDue < 0 && (
@@ -191,6 +249,12 @@ export function PaymentsSection({
           <Icon name="info" size={12} />
           Trop-perçu de{" "}
           <span className="num strong">{fmtEURprecise(-balanceDue)}</span>
+          {penaltyPaid > 0 && (
+            <span className="xs">
+              (dont <span className="num">{fmtEURprecise(penaltyPaid)}</span>{" "}
+              de pénalité réglée)
+            </span>
+          )}
         </div>
       )}
 
@@ -227,6 +291,11 @@ export function PaymentsSection({
                 {p.note && (
                   <div className="muted xs truncate" style={{ marginTop: 2 }}>
                     {p.note}
+                  </div>
+                )}
+                {p.penaltyAmount > 0 && (
+                  <div className="muted xs" style={{ marginTop: 2 }}>
+                    dont {fmtEUR(p.penaltyAmount)} de pénalité
                   </div>
                 )}
               </div>
@@ -320,6 +389,39 @@ export function PaymentsSection({
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
+          {!editingId && penaltyOutstanding > 0 && (
+            <div className="field">
+              <label
+                className="field-label"
+                htmlFor={`${fieldId}-penalite-optionnel`}
+              >
+                Dont pénalité de retard (optionnel)
+              </label>
+              <input
+                id={`${fieldId}-penalite-optionnel`}
+                className="input num"
+                type="number"
+                step="0.01"
+                min="0"
+                max={Math.min(penaltyOutstanding, amount)}
+                placeholder={fmtEUR(0)}
+                value={penaltyAmount}
+                onChange={(e) => setPenaltyAmount(Number(e.target.value))}
+              />
+              <div className="muted xs" style={{ marginTop: 4 }}>
+                Pénalité réclamée restant due :{" "}
+                <span className="num">{fmtEURprecise(penaltyOutstanding)}</span>
+              </div>
+            </div>
+          )}
+          {editingId != null &&
+            editingPenaltyAmount > 0 &&
+            amount < editingPenaltyAmount && (
+              <div className="xs" style={{ color: "var(--danger)" }}>
+                Ce paiement couvre {fmtEURprecise(editingPenaltyAmount)} de
+                pénalité : le montant ne peut pas descendre en dessous.
+              </div>
+            )}
           {!editingId && balanceDue > 0 && amount === balanceDue && (
             <div className="muted xs">
               Va solder la facture (paiement total).
@@ -354,7 +456,12 @@ export function PaymentsSection({
             <button
               className="btn btn-primary btn-sm"
               onClick={submit}
-              disabled={create.isPending || update.isPending || amount <= 0}
+              disabled={
+                create.isPending ||
+                update.isPending ||
+                amount <= 0 ||
+                (editingId != null && amount < editingPenaltyAmount)
+              }
             >
               <Icon name="check" size={12} />
               {editingId ? "Mettre à jour" : "Enregistrer"}

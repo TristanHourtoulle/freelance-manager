@@ -1,13 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { prismaMock } = vi.hoisted(() => ({
-  prismaMock: {
-    invoice: { findMany: vi.fn() },
-    client: { findFirst: vi.fn() },
-    project: { findFirst: vi.fn() },
-    $transaction: vi.fn(),
-  },
-}))
+const { prismaMock, getInvoicesFirstPage, serializeInvoice } = vi.hoisted(
+  () => ({
+    prismaMock: {
+      invoice: { findMany: vi.fn() },
+      client: { findFirst: vi.fn() },
+      project: { findFirst: vi.fn() },
+      userSettings: { findUnique: vi.fn() },
+      $transaction: vi.fn(),
+    },
+    getInvoicesFirstPage: vi.fn(),
+    serializeInvoice: vi.fn(
+      (...args: [{ id: string; number: string }, unknown]) => ({
+        id: args[0].id,
+        number: args[0].number,
+      }),
+    ),
+  }),
+)
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }))
 
 const getAuthUser = vi.fn()
@@ -17,23 +27,23 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return { ...actual, getAuthUser: () => getAuthUser() }
 })
 
-const getInvoicesFirstPage = vi.fn()
 vi.mock("@/lib/data/invoices", () => ({
   invoicesTag: (id: string) => `user-${id}-invoices`,
-  getInvoicesFirstPage: () => getInvoicesFirstPage(),
+  getInvoicesFirstPage: (...args: unknown[]) => getInvoicesFirstPage(...args),
 }))
 vi.mock("@/domain/billing/serialize", () => ({
-  serializeInvoice: (inv: { id: string; number: string }) => ({
-    id: inv.id,
-    number: inv.number,
-  }),
+  serializeInvoice: (...args: [{ id: string; number: string }, unknown]) =>
+    serializeInvoice(...args),
 }))
 vi.mock("@/lib/data/nav", () => ({ navTag: (id: string) => `user-${id}-nav` }))
 vi.mock("@/lib/data/clients", () => ({
   clientsTag: (id: string) => `user-${id}-clients`,
 }))
 vi.mock("@/lib/activity", () => ({ deferActivityLog: vi.fn() }))
-vi.mock("@/lib/payments", () => ({ recomputeInvoicePayment: vi.fn() }))
+vi.mock("@/lib/payments", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/payments")>()
+  return { ...actual, recomputeInvoicePayment: vi.fn() }
+})
 vi.mock("@/lib/invoice-numbering", () => ({ nextAutoNumber: vi.fn() }))
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }))
 
@@ -64,6 +74,10 @@ describe("GET /api/invoices", () => {
       hasMore: false,
     })
     prismaMock.invoice.findMany.mockResolvedValue(ROWS)
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.1,
+    })
   })
 
   it("serves the cached first page when no search term is given", async () => {
@@ -136,6 +150,45 @@ describe("GET /api/invoices", () => {
 
     expect(res.status).toBe(401)
     expect(prismaMock.invoice.findMany).not.toHaveBeenCalled()
+  })
+
+  it("resolves the real UserSettings rate and threads it into the cached first page, not the hardcoded default", async () => {
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.12,
+    })
+    const { GET } = await import("./route")
+    await GET(request(""))
+
+    expect(getInvoicesFirstPage).toHaveBeenCalledWith("user-1", {
+      fixedAmount: 40,
+      annualRate: 0.12,
+    })
+  })
+
+  it("resolves the real UserSettings rate and threads it into serializeInvoice on the search/cursor path", async () => {
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      lateFeeFixedAmount: 40,
+      lateFeeAnnualRate: 0.12,
+    })
+    const { GET } = await import("./route")
+    await GET(request("?cursor=i0&limit=50"))
+
+    expect(serializeInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "i1" }),
+      { fixedAmount: 40, annualRate: 0.12 },
+    )
+  })
+
+  it("falls back to the shared default policy when the user has no settings row yet", async () => {
+    prismaMock.userSettings.findUnique.mockResolvedValue(null)
+    const { GET } = await import("./route")
+    await GET(request(""))
+
+    expect(getInvoicesFirstPage).toHaveBeenCalledWith("user-1", {
+      fixedAmount: 40,
+      annualRate: 0.1,
+    })
   })
 })
 

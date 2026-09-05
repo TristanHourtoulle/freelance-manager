@@ -20,12 +20,13 @@ import { registerLinearSyncTools } from "@/lib/mcp/tools/linear-sync"
  * list_actions, get_linear_sync_status. Writes: create_client,
  * update_client, link_linear_project, create_invoice_draft /
  * update_invoice_draft (DRAFT only), split_invoice, record_payment,
- * set_task_actual_days, set_task_estimate, set_task_billability,
- * create_task_group, update_task_group, delete_task_group,
- * log_meeting, update_meeting, create_action, complete_action,
- * trigger_linear_sync. Settings and the Linear token itself stay off the
- * surface entirely. `record_payment` and `split_invoice` are the tools that
- * move money or allocate invoice numbers; `set_task_estimate` and
+ * claim_late_fee, set_task_actual_days, set_task_estimate,
+ * set_task_billability, create_task_group, update_task_group,
+ * delete_task_group, log_meeting, update_meeting, create_action,
+ * complete_action, trigger_linear_sync. Settings and the Linear token
+ * itself stay off the surface entirely. `record_payment`, `split_invoice`
+ * and `claim_late_fee` are the tools that move money, allocate invoice
+ * numbers, or change what an invoice owes; `set_task_estimate` and
  * `trigger_linear_sync` are the only tools that reach outside the app —
  * both via the app's own stored credential, never the MCP bearer token.
  * `trigger_linear_sync` is non-destructive (it only pulls from Linear, and

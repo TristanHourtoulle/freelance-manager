@@ -18,9 +18,14 @@ import {
   recomputeInvoicePayment,
   serializePayment,
 } from "@/lib/payments"
+import {
+  DEFAULT_LATE_FEE_ANNUAL_RATE,
+  DEFAULT_LATE_FEE_FIXED_AMOUNT,
+} from "@/lib/schemas/settings"
 import { deferActivityLog } from "@/lib/activity"
 import { invoicesTag } from "@/lib/data/invoices"
 import { navTag } from "@/lib/data/nav"
+import { buildLateFeeBreakdown } from "@/domain/billing/serialize"
 import { collectInvoicedTaskIds } from "@/domain/billing/invoiced-tasks"
 import {
   claimInvoiceTaskGroups,
@@ -37,27 +42,44 @@ export async function GET(_: Request, { params }: Params) {
   if (!user) return apiUnauthorized()
   const { id } = await params
   try {
-    const inv = await prisma.invoice.findFirst({
-      where: { id, userId: user.id },
-      include: {
-        lines: { orderBy: { position: "asc" } },
-        taskGroups: { select: { id: true, name: true } },
-        client: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            company: true,
-            email: true,
-            billingMode: true,
-            color: true,
+    const [inv, settings] = await Promise.all([
+      prisma.invoice.findFirst({
+        where: { id, userId: user.id },
+        include: {
+          lines: { orderBy: { position: "asc" } },
+          taskGroups: { select: { id: true, name: true } },
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              company: true,
+              email: true,
+              billingMode: true,
+              color: true,
+            },
           },
+          payments: { orderBy: { paidAt: "asc" } },
         },
-        payments: { orderBy: { paidAt: "asc" } },
-      },
-    })
+      }),
+      prisma.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { lateFeeFixedAmount: true, lateFeeAnnualRate: true },
+      }),
+    ])
     if (!inv) return apiNotFound()
-    const computed = getInvoiceComputed(inv)
+
+    const lateFeePolicy = {
+      fixedAmount:
+        decimalToNumber(settings?.lateFeeFixedAmount) ??
+        DEFAULT_LATE_FEE_FIXED_AMOUNT,
+      annualRate:
+        decimalToNumber(settings?.lateFeeAnnualRate) ??
+        DEFAULT_LATE_FEE_ANNUAL_RATE,
+    }
+
+    const computed = getInvoiceComputed(inv, lateFeePolicy)
+    const lateFeeBreakdown = buildLateFeeBreakdown(inv, lateFeePolicy)
     return NextResponse.json({
       id: inv.id,
       number: inv.number,
@@ -81,6 +103,14 @@ export async function GET(_: Request, { params }: Params) {
       paidAmount: computed.paidAmount,
       balanceDue: computed.balanceDue,
       lastPaidAt: computed.lastPaidAt,
+      lateFeeAccrued: computed.lateFeeAccrued,
+      lateFeeDue: computed.lateFeeDue,
+      lateFeeClaimedAt: inv.lateFeeClaimedAt
+        ? inv.lateFeeClaimedAt.toISOString()
+        : null,
+      lateFeeWaived: inv.lateFeeWaived,
+      lateFeeBreakdown,
+      penaltyPaid: computed.penaltyPaid,
       subtotal: decimalToNumber(inv.subtotal) ?? 0,
       tax: decimalToNumber(inv.tax) ?? 0,
       total: decimalToNumber(inv.total) ?? 0,

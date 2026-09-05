@@ -41,7 +41,13 @@ async function runOverdueRelances(now: Date): Promise<number> {
         paymentStatus: true,
         total: true,
         dueDate: true,
-        payments: { select: { amount: true, paidAt: true } },
+        lateFeeFixed: true,
+        lateFeeInterest: true,
+        lateFeeClaimedAt: true,
+        lateFeeWaived: true,
+        payments: {
+          select: { amount: true, paidAt: true, penaltyAmount: true },
+        },
       },
     })
 

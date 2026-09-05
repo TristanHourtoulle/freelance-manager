@@ -8,6 +8,24 @@ const MAX_PAYMENT_DAYS = 180
 const MAX_RATE = 100_000
 const MIN_WORKING_DAYS = 1
 const MAX_WORKING_DAYS = 7
+const MAX_LATE_FEE_FIXED = 10_000
+const MAX_LATE_FEE_RATE_PERCENT = 100
+
+/**
+ * Convert a fraction stored on `UserSettings.lateFeeAnnualRate` (`0.1`) into
+ * the percentage shown in the field (`10`).
+ */
+function toPercent(fraction: number): number {
+  return Math.round(fraction * 100 * 100) / 100
+}
+
+/**
+ * Convert the percentage typed in the field (`10`) back into the fraction
+ * persisted on `UserSettings.lateFeeAnnualRate` (`0.1`).
+ */
+function toFraction(percent: number): number {
+  return Math.round((percent / 100) * 10_000) / 10_000
+}
 
 /**
  * Settings card for the billing defaults (`defaultPaymentDays`, `defaultRate`).
@@ -23,6 +41,8 @@ export function BillingDefaultsCard() {
   const [paymentDays, setPaymentDays] = useState(30)
   const [rate, setRate] = useState(0)
   const [workingDays, setWorkingDays] = useState(5)
+  const [lateFeeFixedAmount, setLateFeeFixedAmount] = useState(40)
+  const [lateFeeRatePercent, setLateFeeRatePercent] = useState(10)
 
   useEffect(() => {
     if (hydratedRef.current || !settings) return
@@ -31,6 +51,8 @@ export function BillingDefaultsCard() {
     setPaymentDays(settings.defaultPaymentDays)
     setRate(settings.defaultRate)
     setWorkingDays(settings.workingDaysPerWeek)
+    setLateFeeFixedAmount(settings.lateFeeFixedAmount)
+    setLateFeeRatePercent(toPercent(settings.lateFeeAnnualRate))
   }, [settings])
 
   const isValid =
@@ -41,13 +63,19 @@ export function BillingDefaultsCard() {
     rate <= MAX_RATE &&
     Number.isInteger(workingDays) &&
     workingDays >= MIN_WORKING_DAYS &&
-    workingDays <= MAX_WORKING_DAYS
+    workingDays <= MAX_WORKING_DAYS &&
+    lateFeeFixedAmount >= 0 &&
+    lateFeeFixedAmount <= MAX_LATE_FEE_FIXED &&
+    lateFeeRatePercent >= 0 &&
+    lateFeeRatePercent <= MAX_LATE_FEE_RATE_PERCENT
 
   const isDirty =
     settings != null &&
     (paymentDays !== settings.defaultPaymentDays ||
       rate !== settings.defaultRate ||
-      workingDays !== settings.workingDaysPerWeek)
+      workingDays !== settings.workingDaysPerWeek ||
+      lateFeeFixedAmount !== settings.lateFeeFixedAmount ||
+      lateFeeRatePercent !== toPercent(settings.lateFeeAnnualRate))
 
   function handleSave() {
     if (!isValid || !isDirty) return
@@ -55,6 +83,8 @@ export function BillingDefaultsCard() {
       defaultPaymentDays: paymentDays,
       defaultRate: rate,
       workingDaysPerWeek: workingDays,
+      lateFeeFixedAmount,
+      lateFeeAnnualRate: toFraction(lateFeeRatePercent),
     })
   }
 
@@ -141,6 +171,47 @@ export function BillingDefaultsCard() {
         />
         <div className="field-hint">
           Base de calcul de la charge et des projets en retard.
+        </div>
+      </div>
+
+      <div className="field-grid-2" style={{ marginTop: 12 }}>
+        <div className="field">
+          <label className="field-label" htmlFor={`${fieldId}-late-fee-fixed`}>
+            Indemnité forfaitaire (€)
+          </label>
+          <input
+            id={`${fieldId}-late-fee-fixed`}
+            className="input num"
+            type="number"
+            min={0}
+            max={MAX_LATE_FEE_FIXED}
+            disabled={isPending}
+            value={lateFeeFixedAmount}
+            onChange={(e) => setLateFeeFixedAmount(Number(e.target.value))}
+          />
+          <div className="field-hint">
+            Montant fixe dû dès le premier jour de retard.
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor={`${fieldId}-late-fee-rate`}>
+            Taux de pénalité annuel (%)
+          </label>
+          <input
+            id={`${fieldId}-late-fee-rate`}
+            className="input num"
+            type="number"
+            min={0}
+            max={MAX_LATE_FEE_RATE_PERCENT}
+            step={0.1}
+            disabled={isPending}
+            value={lateFeeRatePercent}
+            onChange={(e) => setLateFeeRatePercent(Number(e.target.value))}
+          />
+          <div className="field-hint">
+            Intérêt annuel appliqué au solde impayé après échéance.
+          </div>
         </div>
       </div>
 

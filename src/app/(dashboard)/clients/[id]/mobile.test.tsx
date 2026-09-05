@@ -121,6 +121,30 @@ function pendingTileValue(): string | null | undefined {
     .parentElement?.querySelector(".kpi-value")?.textContent
 }
 
+type Invoice = ClientDetailDTO["invoices"][number]
+
+function invoice(overrides: Partial<Invoice>): Invoice {
+  return {
+    id: "inv-1",
+    number: "F-2026-001",
+    status: "SENT",
+    paymentStatus: "PARTIALLY_PAID",
+    isOverdue: true,
+    kind: "STANDARD",
+    issueDate: "2026-07-01",
+    dueDate: "2026-07-31",
+    paidAmount: 0,
+    balanceDue: 1000,
+    lateFeeAccrued: 0,
+    lateFeeDue: 0,
+    lateFeeClaimedAt: null,
+    lateFeeWaived: false,
+    total: 1000,
+    linesCount: 1,
+    ...overrides,
+  }
+}
+
 describe("MobileClientDetailPage pipeline gate", () => {
   it("counts only pipeline-eligible tasks in À facturer and the CTA", () => {
     renderWithClient(
@@ -182,5 +206,44 @@ describe("MobileClientDetailPage pipeline gate", () => {
     expect(
       screen.getByText(`Facturer (${billableTasks.length})`),
     ).toBeInTheDocument()
+  })
+})
+
+describe("MobileClientDetailPage overdue tile", () => {
+  it("adds the missing En retard tile, matching the desktop hero", () => {
+    renderWithClient(
+      buildClient({
+        invoices: [invoice({ id: "a" }), invoice({ id: "b", isOverdue: false })],
+      }),
+    )
+
+    const overdueValue = screen
+      .getByText("En retard")
+      .parentElement?.querySelector(".kpi-value")?.textContent
+    expect(overdueValue).toBe("1")
+  })
+
+  it("shows the cumulative unclaimed penalty under the En retard tile", () => {
+    renderWithClient(
+      buildClient({
+        invoices: [invoice({ id: "a", lateFeeAccrued: 58.69 })],
+      }),
+    )
+
+    expect(
+      screen.getByText(/dont 58,69 €/, { selector: "div" }),
+    ).toBeInTheDocument()
+  })
+
+  it("excludes a waived penalty from the En retard sub-label", () => {
+    renderWithClient(
+      buildClient({
+        invoices: [
+          invoice({ id: "a", lateFeeAccrued: 58.69, lateFeeWaived: true }),
+        ],
+      }),
+    )
+
+    expect(screen.queryByText(/dont/)).not.toBeInTheDocument()
   })
 })

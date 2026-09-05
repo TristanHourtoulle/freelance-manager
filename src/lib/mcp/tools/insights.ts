@@ -17,6 +17,10 @@ import {
 import { buildConcentration } from "@/domain/analytics/concentration"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
 import {
+  DEFAULT_LATE_FEE_ANNUAL_RATE,
+  DEFAULT_LATE_FEE_FIXED_AMOUNT,
+} from "@/lib/schemas/settings"
+import {
   NAME_MAX_CHARS,
   READ_ONLY_ANNOTATIONS,
   runMcpTool,
@@ -40,6 +44,7 @@ const getDashboardOutput = z.object({
     sentCount: z.number(),
     overdueAmount: z.number(),
     overdueCount: z.number(),
+    lateFeeAccrued: z.number(),
     pipelineCount: z.number(),
     pipelineEur: z.number(),
     pipelineClientCount: z.number(),
@@ -158,7 +163,13 @@ export async function getDashboard(userId: string): Promise<CallToolResult> {
           paymentStatus: true,
           total: true,
           dueDate: true,
-          payments: { select: { amount: true, paidAt: true } },
+          lateFeeFixed: true,
+          lateFeeInterest: true,
+          lateFeeClaimedAt: true,
+          lateFeeWaived: true,
+          payments: {
+            select: { amount: true, paidAt: true, penaltyAmount: true },
+          },
         },
       }),
       prisma.$queryRaw<PaymentTotalsRow[]>`
@@ -191,7 +202,11 @@ export async function getDashboard(userId: string): Promise<CallToolResult> {
       }),
       prisma.userSettings.findUnique({
         where: { userId },
-        select: { linearLastSyncedAt: true },
+        select: {
+          linearLastSyncedAt: true,
+          lateFeeFixedAmount: true,
+          lateFeeAnnualRate: true,
+        },
       }),
     ])
 
@@ -208,6 +223,14 @@ export async function getDashboard(userId: string): Promise<CallToolResult> {
         completedAt: task.completedAt,
       })),
       recentInvoices: [],
+      lateFeePolicy: {
+        fixedAmount:
+          decimalToNumber(settings?.lateFeeFixedAmount) ??
+          DEFAULT_LATE_FEE_FIXED_AMOUNT,
+        annualRate:
+          decimalToNumber(settings?.lateFeeAnnualRate) ??
+          DEFAULT_LATE_FEE_ANNUAL_RATE,
+      },
     })
 
     return {

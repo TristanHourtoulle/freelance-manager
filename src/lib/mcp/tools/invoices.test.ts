@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const { prismaMock, txMock } = vi.hoisted(() => ({
   prismaMock: {
@@ -10,6 +10,7 @@ const { prismaMock, txMock } = vi.hoisted(() => ({
       findFirst: vi.fn(),
       count: vi.fn(),
     },
+    userSettings: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
   txMock: {
@@ -389,5 +390,76 @@ describe("listInvoices / getInvoice", () => {
         where: { id: "someone-elses", userId: USER_ID },
       }),
     )
+  })
+
+  function lateInvoiceRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "inv-late",
+      number: "2026-1001",
+      clientId: "client-1",
+      projectId: null,
+      status: "SENT",
+      paymentStatus: "UNPAID",
+      kind: "STANDARD",
+      issueDate: new Date("2026-07-01"),
+      dueDate: new Date("2026-08-01"),
+      subtotal: 1000,
+      tax: 0,
+      total: 1000,
+      totalOverride: null,
+      notes: null,
+      lateFeeFixed: 0,
+      lateFeeInterest: 0,
+      lateFeeClaimedAt: null,
+      lateFeeWaived: false,
+      _count: { lines: 1 },
+      payments: [],
+      ...overrides,
+    }
+  }
+
+  describe("late-fee policy threading", () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date("2026-09-04T00:00:00.000Z"))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("list_invoices computes lateFeeAccrued from the real UserSettings rate, not the hardcoded default", async () => {
+      prismaMock.invoice.findMany.mockResolvedValue([lateInvoiceRow()])
+      prismaMock.invoice.count.mockResolvedValue(1)
+      prismaMock.userSettings.findUnique.mockResolvedValue({
+        lateFeeFixedAmount: 40,
+        lateFeeAnnualRate: 0.12,
+      })
+
+      const result = await listInvoices(USER_ID, { limit: 25, fetchAll: false })
+      const { data } = result.structuredContent as {
+        data: { lateFeeAccrued: number }[]
+      }
+
+      expect(data[0]?.lateFeeAccrued).toBe(51.18)
+    })
+
+    it("get_invoice computes lateFeeAccrued from the real UserSettings rate, not the hardcoded default", async () => {
+      prismaMock.invoice.findFirst.mockResolvedValue({
+        ...lateInvoiceRow(),
+        lines: [],
+      })
+      prismaMock.userSettings.findUnique.mockResolvedValue({
+        lateFeeFixedAmount: 40,
+        lateFeeAnnualRate: 0.12,
+      })
+
+      const result = await getInvoice(USER_ID, { invoiceId: "inv-late" })
+      const { lateFeeAccrued } = result.structuredContent as {
+        lateFeeAccrued: number
+      }
+
+      expect(lateFeeAccrued).toBe(51.18)
+    })
   })
 })

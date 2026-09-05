@@ -39,6 +39,8 @@ export async function GET() {
       defaultPaymentDays: settings.defaultPaymentDays,
       defaultRate: decimalToNumber(settings.defaultRate) ?? 0,
       workingDaysPerWeek: settings.workingDaysPerWeek,
+      lateFeeFixedAmount: decimalToNumber(settings.lateFeeFixedAmount) ?? 0,
+      lateFeeAnnualRate: decimalToNumber(settings.lateFeeAnnualRate) ?? 0,
       hasLinearToken: Boolean(settings.linearApiTokenEncrypted),
       linearTokenPreview,
       linearLastSyncedAt: settings.linearLastSyncedAt?.toISOString() ?? null,

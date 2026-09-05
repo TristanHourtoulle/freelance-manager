@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-invoices"
 import { useToast } from "@/components/providers/toast-provider"
 import { PaymentsSection } from "@/components/billing/payments-section"
+import { LateFeePanel } from "@/components/billing/late-fee-panel"
 import { Skeleton, SkeletonRow } from "@/components/ui/skeleton"
 import { buildInvoiceEntries } from "@/domain/billing/builder"
 
@@ -350,6 +351,8 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
             paidAmount={invoice.paidAmount}
             payments={invoice.payments}
             documentStatus={invoice.status}
+            lateFeeDue={invoice.lateFeeDue}
+            penaltyPaid={invoice.penaltyPaid}
           />
         </div>
       </div>
@@ -406,6 +409,15 @@ export function InvoiceDrawer({ invoiceId, onClose }: InvoiceDrawerProps) {
                 </span>
               </div>
             )}
+            <LateFeePanel
+              invoiceId={invoice.id}
+              dueDate={invoice.dueDate}
+              lateFeeAccrued={invoice.lateFeeAccrued}
+              lateFeeDue={invoice.lateFeeDue}
+              lateFeeClaimedAt={invoice.lateFeeClaimedAt}
+              lateFeeWaived={invoice.lateFeeWaived}
+              lateFeeBreakdown={invoice.lateFeeBreakdown}
+            />
             {invoice.balanceDue !== 0 && (
               <div
                 className="row"

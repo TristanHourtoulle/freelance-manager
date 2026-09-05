@@ -1,25 +1,45 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
-import { MobileInvoiceSheet } from "./mobile"
+import { render, screen, fireEvent } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { MobileBillingPage, MobileInvoiceSheet } from "./mobile"
 import type { InvoiceDetail } from "@/domain/billing/types"
 
-const { useInvoiceMock } = vi.hoisted(() => ({
+const {
+  useInvoiceMock,
+  useInvoicesMock,
+  useClientsMock,
+  createPaymentMutateMock,
+} = vi.hoisted(() => ({
   useInvoiceMock: vi.fn(),
+  useInvoicesMock: vi.fn(),
+  useClientsMock: vi.fn(),
+  createPaymentMutateMock: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 vi.mock("@/hooks/use-invoices", () => ({
   useInvoice: (id: string) => useInvoiceMock(id),
+  useInvoices: () => useInvoicesMock(),
   useUpdateInvoiceStatus: () => ({ mutate: vi.fn(), isPending: false }),
-  useCreatePayment: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreatePayment: () => ({ mutate: createPaymentMutateMock, isPending: false }),
+  useClaimLateFee: () => ({ mutate: vi.fn(), isPending: false }),
+  useWaiveLateFee: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
+vi.mock("@/hooks/use-clients", () => ({
+  useClients: () => useClientsMock(),
 }))
 
 vi.mock("@/components/providers/toast-provider", () => ({
   useToast: () => ({ toast: vi.fn() }),
 }))
+
+beforeEach(() => {
+  createPaymentMutateMock.mockReset()
+})
 
 function buildInvoice(overrides: Partial<InvoiceDetail>): InvoiceDetail {
   return {
@@ -36,6 +56,12 @@ function buildInvoice(overrides: Partial<InvoiceDetail>): InvoiceDetail {
     paidAmount: 0,
     balanceDue: 1500,
     lastPaidAt: null,
+    lateFeeAccrued: 0,
+    lateFeeDue: 0,
+    lateFeeClaimedAt: null,
+    lateFeeWaived: false,
+    lateFeeBreakdown: null,
+    penaltyPaid: 0,
     subtotal: 1500,
     tax: 0,
     total: 1500,
@@ -96,5 +122,340 @@ describe("MobileInvoiceSheet", () => {
     ).not.toBeInTheDocument()
     expect(screen.getByText("5 × 900 €")).toBeInTheDocument()
     expect(screen.getByText("4 500 €")).toBeInTheDocument()
+  })
+
+  it("shows the accrued penalty as unclaimed (warn) in the totals block", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        isOverdue: true,
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 500,
+        balanceDue: 1000,
+        lateFeeAccrued: 58.69,
+        lateFeeDue: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+
+    expect(screen.getByText("Pénalité de retard")).toBeInTheDocument()
+    expect(screen.getByText("58,69 €")).toBeInTheDocument()
+    expect(screen.getByText("non réclamée")).toBeInTheDocument()
+    expect(screen.getByText("Réclamer")).toBeInTheDocument()
+    expect(screen.queryByText("Renoncer")).not.toBeInTheDocument()
+  })
+
+  it("shows the frozen penalty as claimed (danger) once lateFeeClaimedAt is set", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        isOverdue: true,
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 500,
+        balanceDue: 1044.94,
+        lateFeeAccrued: 58.69,
+        lateFeeDue: 44.94,
+        lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+        lateFeeWaived: false,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+
+    expect(screen.getByText("44,94 €")).toBeInTheDocument()
+    expect(screen.queryByText("non réclamée")).not.toBeInTheDocument()
+    expect(screen.getByText("Renoncer")).toBeInTheDocument()
+    expect(screen.queryByText("Réclamer")).not.toBeInTheDocument()
+  })
+
+  it("says the penalty was waived rather than hiding it", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        isOverdue: true,
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 500,
+        balanceDue: 1000,
+        lateFeeAccrued: 58.69,
+        lateFeeDue: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: true,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+
+    expect(screen.getByText("Renoncée")).toBeInTheDocument()
+    expect(screen.getByText("Réclamer")).toBeInTheDocument()
+  })
+})
+
+describe("MobileBillingPage", () => {
+  it("suffixes the overdue line with the unclaimed penalty amount", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [
+        buildInvoice({
+          id: "inv-overdue",
+          isOverdue: true,
+          lateFeeAccrued: 58.69,
+          lateFeeWaived: false,
+        }),
+      ],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({
+      data: [
+        {
+          id: "client-1",
+          firstName: "Henri",
+          lastName: "Mistral",
+          company: "Mistral SAS",
+          color: null,
+        },
+      ],
+    })
+
+    render(<MobileBillingPage />)
+
+    const penaltyLine = screen.getByText(/58,69 €\s*pénalité/)
+    expect(penaltyLine).toBeInTheDocument()
+  })
+
+  it("shows the frozen claimed amount, not the live accrued amount, once lateFeeClaimedAt is set", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [
+        buildInvoice({
+          id: "inv-claimed",
+          isOverdue: true,
+          lateFeeAccrued: 58.69,
+          lateFeeDue: 44.94,
+          lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+          lateFeeWaived: false,
+        }),
+      ],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({
+      data: [
+        {
+          id: "client-1",
+          firstName: "Henri",
+          lastName: "Mistral",
+          company: "Mistral SAS",
+          color: null,
+        },
+      ],
+    })
+
+    render(<MobileBillingPage />)
+
+    expect(screen.getByText(/44,94 €\s*pénalité/)).toBeInTheDocument()
+    expect(screen.queryByText(/58,69 €\s*pénalité/)).not.toBeInTheDocument()
+  })
+
+  it("hides the penalty suffix once the penalty was waived", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [
+        buildInvoice({
+          id: "inv-overdue",
+          isOverdue: true,
+          lateFeeAccrued: 58.69,
+          lateFeeWaived: true,
+        }),
+      ],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({
+      data: [
+        {
+          id: "client-1",
+          firstName: "Henri",
+          lastName: "Mistral",
+          company: "Mistral SAS",
+          color: null,
+        },
+      ],
+    })
+
+    render(<MobileBillingPage />)
+
+    expect(screen.queryByText(/pénalité/)).not.toBeInTheDocument()
+  })
+})
+
+describe("MobileInvoiceSheet — markPaid penalty attribution", () => {
+  it("attributes the full outstanding claimed penalty when the payment settles the whole balance", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "SENT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 4000,
+        balanceDue: 1044.94,
+        lateFeeAccrued: 44.94,
+        lateFeeDue: 44.94,
+        lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+        lateFeeWaived: false,
+        penaltyPaid: 0,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText("Marquer payée"))
+
+    expect(createPaymentMutateMock).toHaveBeenCalledTimes(1)
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.amount).toBe(1044.94)
+    expect(input.penaltyAmount).toBe(44.94)
+  })
+
+  it("caps the attributed penalty at the payment amount, respecting the penaltyAmount <= amount invariant", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "SENT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 0,
+        balanceDue: 30,
+        lateFeeDue: 44.94,
+        lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+        lateFeeWaived: false,
+        penaltyPaid: 0,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText("Marquer payée"))
+
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.amount).toBe(30)
+    expect(input.penaltyAmount).toBe(30)
+    expect(input.penaltyAmount).toBeLessThanOrEqual(input.amount)
+  })
+
+  it("only attributes what remains unpaid of the claimed penalty", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "SENT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 20,
+        balanceDue: 1024.94,
+        lateFeeDue: 44.94,
+        lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+        lateFeeWaived: false,
+        penaltyPaid: 20,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText("Marquer payée"))
+
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.penaltyAmount).toBe(24.94)
+  })
+
+  it("attributes no penalty when nothing has been claimed", () => {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "SENT",
+        paymentStatus: "UNPAID",
+        balanceDue: 1500,
+        lateFeeDue: 0,
+        lateFeeClaimedAt: null,
+        penaltyPaid: 0,
+      }),
+    })
+
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText("Marquer payée"))
+
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.penaltyAmount).toBe(0)
+  })
+})
+
+describe("MobilePartialPaymentSheet penalty attribution", () => {
+  function openPartialSheet(overrides: Partial<InvoiceDetail>) {
+    useInvoiceMock.mockReturnValue({
+      data: buildInvoice({
+        status: "SENT",
+        paymentStatus: "PARTIALLY_PAID",
+        paidAmount: 500,
+        balanceDue: 1044.94,
+        ...overrides,
+      }),
+    })
+    render(<MobileInvoiceSheet invoiceId="inv-1" onClose={vi.fn()} />)
+    fireEvent.click(screen.getByText("Paiement partiel"))
+  }
+
+  it("defaults penaltyAmount to the outstanding claimed penalty when the payment covers it", () => {
+    openPartialSheet({
+      lateFeeDue: 44.94,
+      lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+      penaltyPaid: 0,
+    })
+
+    fireEvent.change(screen.getByLabelText("Montant"), {
+      target: { value: "100" },
+    })
+    fireEvent.click(screen.getByText("Enregistrer"))
+
+    expect(createPaymentMutateMock).toHaveBeenCalledTimes(1)
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.amount).toBe(100)
+    expect(input.penaltyAmount).toBe(44.94)
+  })
+
+  it("clamps penaltyAmount to the payment amount when it does not fully cover the outstanding penalty", () => {
+    openPartialSheet({
+      lateFeeDue: 44.94,
+      lateFeeClaimedAt: "2026-08-15T10:00:00.000Z",
+      penaltyPaid: 0,
+    })
+
+    fireEvent.change(screen.getByLabelText("Montant"), {
+      target: { value: "20" },
+    })
+    fireEvent.click(screen.getByText("Enregistrer"))
+
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.amount).toBe(20)
+    expect(input.penaltyAmount).toBe(20)
+    expect(input.penaltyAmount).toBeLessThanOrEqual(input.amount)
+  })
+
+  it("defaults penaltyAmount to 0 when there is no outstanding claimed penalty", () => {
+    openPartialSheet({
+      lateFeeDue: 0,
+      lateFeeClaimedAt: null,
+      penaltyPaid: 0,
+    })
+
+    fireEvent.change(screen.getByLabelText("Montant"), {
+      target: { value: "100" },
+    })
+    fireEvent.click(screen.getByText("Enregistrer"))
+
+    const [input] = createPaymentMutateMock.mock.calls[0] as [
+      { amount: number; penaltyAmount: number },
+    ]
+    expect(input.penaltyAmount).toBe(0)
   })
 })

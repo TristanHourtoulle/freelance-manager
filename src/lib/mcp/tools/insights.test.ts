@@ -63,6 +63,50 @@ describe("getDashboard", () => {
     expect(entry.data.kind).toBe("MCP_TOOL_CALL")
     expect(entry.data.title).toBe("Appel MCP get_dashboard (succès)")
   })
+
+  it("selects the late-fee columns, so a claimed penalty is never dropped", async () => {
+    await getDashboard(USER_ID)
+    const [args] = prismaMock.invoice.findMany.mock.calls[0] ?? []
+    const select = (args as { select: Record<string, unknown> }).select
+    expect(select).toMatchObject({
+      lateFeeFixed: true,
+      lateFeeInterest: true,
+      lateFeeClaimedAt: true,
+      lateFeeWaived: true,
+    })
+    expect(
+      (select.payments as { select: Record<string, unknown> }).select,
+    ).toMatchObject({ penaltyAmount: true })
+  })
+
+  it("passes the operator's real late-fee policy into the accrual preview", async () => {
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      linearLastSyncedAt: null,
+      lateFeeFixedAmount: 25,
+      lateFeeAnnualRate: 0,
+    })
+    prismaMock.invoice.findMany.mockResolvedValue([
+      {
+        id: "inv-1",
+        number: "F-1",
+        clientId: "client-1",
+        status: "SENT",
+        paymentStatus: "UNPAID",
+        total: 1000,
+        dueDate: new Date("2026-01-01T00:00:00Z"),
+        lateFeeFixed: 0,
+        lateFeeInterest: 0,
+        lateFeeClaimedAt: null,
+        lateFeeWaived: false,
+        payments: [],
+      },
+    ])
+    const result = await getDashboard(USER_ID)
+    const { kpi } = result.structuredContent as {
+      kpi: { lateFeeAccrued: number }
+    }
+    expect(kpi.lateFeeAccrued).toBe(25)
+  })
 })
 
 describe("getAnalytics", () => {
