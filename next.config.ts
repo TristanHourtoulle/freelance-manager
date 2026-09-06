@@ -50,6 +50,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  ...(process.env.INTEGRATION_TEST_SERVER
+    ? { distDir: ".next-integration" }
+    : {}),
   serverExternalPackages: [
     "@react-pdf/renderer",
     "@prisma/client",

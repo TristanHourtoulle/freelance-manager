@@ -7,8 +7,9 @@
     "build": "prisma generate && next build",
     "start": "prisma migrate deploy && next start",
     "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --project=node --project=jsdom",
+    "test:watch": "vitest --project=node --project=jsdom",
+    "test:integration": "vitest run --project=integration",
     "prepare": "husky"
   },
   "dependencies": {
@@ -36,10 +37,12 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testcontainers/postgresql": "12.1.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
@@ -50,6 +53,7 @@
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "lint-staged": "^16.3.2",
+    "pg": "8.20.0",
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",

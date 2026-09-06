@@ -14,9 +14,11 @@
 
 # testing
 /coverage
+/.integration-next-server.pid
 
 # next.js
 /.next/
+/.next-integration/
 /out/
 
 # production

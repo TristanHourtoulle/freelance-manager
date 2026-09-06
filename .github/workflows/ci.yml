@@ -46,6 +46,29 @@ jobs:
       - run: pnpm exec prisma generate
       - run: pnpm test
 
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Real length required by src/lib/env.ts (the integration suite boots
+      # a real `next dev` server, which is the only CI job that actually
+      # runs src/instrumentation.ts's env validation at all). The value
+      # itself is never used for real decryption in this suite.
+      ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+      - run: pnpm run test:integration
+
   build:
     name: Build
     runs-on: ubuntu-latest

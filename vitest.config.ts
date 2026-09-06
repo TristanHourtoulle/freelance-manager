@@ -11,6 +11,8 @@ const jsdomOnlyTsFiles = [
 
 const nodeOnlyTsxFiles = ["src/components/suivi/suivi-view.test.tsx"]
 
+const integrationTestGlob = "src/**/*.integration.test.ts"
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -27,7 +29,7 @@ export default defineConfig({
           name: { label: "node", color: "cyan" },
           environment: "node",
           include: ["src/**/*.test.ts", ...nodeOnlyTsxFiles],
-          exclude: jsdomOnlyTsFiles,
+          exclude: [...jsdomOnlyTsFiles, integrationTestGlob],
           sequence: { groupOrder: 0 },
         },
       },
@@ -41,6 +43,19 @@ export default defineConfig({
           exclude: nodeOnlyTsxFiles,
           testTimeout: 15000,
           sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: { label: "integration", color: "yellow" },
+          environment: "node",
+          include: [integrationTestGlob],
+          setupFiles: ["./vitest.integration.setup.ts"],
+          globalSetup: ["./vitest.integration.global-setup.ts"],
+          testTimeout: 30000,
+          hookTimeout: 60000,
+          sequence: { groupOrder: 2 },
         },
       },
     ],
