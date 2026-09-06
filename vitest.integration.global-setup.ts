@@ -7,7 +7,10 @@ import {
   type StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql"
 import { getFreePort } from "@/test/integration/get-free-port"
-import { migrateDatabase } from "@/test/integration/db"
+import {
+  ISOLATION_TEMPLATE_DATABASE,
+  migrateDatabase,
+} from "@/test/integration/db"
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -91,9 +94,18 @@ process.once("SIGTERM", () => {
  * is enough for the app's own, unmodified Prisma singleton to find the
  * right tables in that database's default `public` schema. This costs one
  * extra `CREATE DATABASE` at the start of the whole run — negligible next
- * to the per-test-file schemas every other integration file provisions via
- * {@link import("./src/test/integration/db").createIsolatedSchema}, which
- * this does not touch or contend with.
+ * to the per-test-file databases every other integration file provisions
+ * via {@link import("./src/test/integration/db").createIsolatedSchema},
+ * which this does not touch or contend with.
+ *
+ * This is also where {@link ISOLATION_TEMPLATE_DATABASE} gets its one and
+ * only `prisma migrate deploy`. Every per-test-file database is then a
+ * `CREATE DATABASE ... TEMPLATE ...` clone of it (see `db.ts`), so the
+ * migration engine's global, non-configurable 10s advisory-lock wait — the
+ * root cause of the flaky `P1002` timeouts this setup used to produce once
+ * every test file ran its own `migrate deploy` in parallel — is now taken
+ * at most twice total for the whole run (here, and for the server database
+ * above), never once per file.
  *
  * The server runs against its own `.next-integration` build directory
  * (`INTEGRATION_TEST_SERVER=1`, read by `next.config.ts`) so it never
@@ -126,6 +138,7 @@ export async function setup(project: TestProject): Promise<void> {
 
     const baseUrl = container.getConnectionUri()
     const databaseUrl = await migrateDatabase(baseUrl, INVOICES_SERVER_DB)
+    await migrateDatabase(baseUrl, ISOLATION_TEMPLATE_DATABASE)
     const port = await getFreePort()
     const serverUrl = `http://127.0.0.1:${port}`
 
