@@ -1,6 +1,16 @@
 import path from "path"
 import { defineConfig } from "vitest/config"
 
+const jsdomOnlyTsFiles = [
+  "src/components/cmdk/use-key-sequence.test.ts",
+  "src/components/cmdk/use-command-palette.test.ts",
+  "src/components/cmdk/use-command-search.test.ts",
+  "src/components/tasks/use-tasks-selection.test.ts",
+  "src/features/quotes/use-quote-form.test.ts",
+]
+
+const nodeOnlyTsxFiles = ["src/components/suivi/suivi-view.test.tsx"]
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -9,9 +19,30 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.{ts,tsx}"],
     globals: true,
-    environment: "jsdom",
-    setupFiles: ["./vitest.setup.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: { label: "node", color: "cyan" },
+          environment: "node",
+          include: ["src/**/*.test.ts", ...nodeOnlyTsxFiles],
+          exclude: jsdomOnlyTsFiles,
+          sequence: { groupOrder: 0 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: { label: "jsdom", color: "magenta" },
+          environment: "jsdom",
+          setupFiles: ["./vitest.setup.ts"],
+          include: ["src/**/*.test.tsx", ...jsdomOnlyTsFiles],
+          exclude: nodeOnlyTsxFiles,
+          testTimeout: 15000,
+          sequence: { groupOrder: 1 },
+        },
+      },
+    ],
   },
 })
