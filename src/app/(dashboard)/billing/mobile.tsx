@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
@@ -40,7 +40,7 @@ function round2(value: number): number {
 export function MobileBillingPage() {
   const router = useRouter()
   const search = useSearchParams()
-  const initialId = search.get("invoiceId")
+  const searchInvoiceId = search.get("invoiceId")
   const initialFilter = (search.get("filter") as InvoiceFilterId) ?? "all"
 
   const {
@@ -51,7 +51,11 @@ export function MobileBillingPage() {
   } = useInvoices()
   const { data: clients = [] } = useClients()
   const [filter, setFilter] = useState<InvoiceFilterId>(initialFilter)
-  const [openId, setOpenId] = useState<string | null>(initialId)
+  const [openId, setOpenId] = useState<string | null>(searchInvoiceId)
+
+  useEffect(() => {
+    setOpenId(searchInvoiceId)
+  }, [searchInvoiceId])
 
   const filtered = useMemo(
     () =>

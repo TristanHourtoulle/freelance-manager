@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
@@ -40,10 +40,14 @@ export default function BillingPage() {
 function DesktopBillingPage() {
   const router = useRouter()
   const search = useSearchParams()
-  const initialId = search.get("invoiceId")
-  const [openId, setOpenId] = useState<string | null>(initialId)
+  const searchInvoiceId = search.get("invoiceId")
+  const [openId, setOpenId] = useState<string | null>(searchInvoiceId)
   const [filter, setFilter] = useState<InvoiceFilterId>("all")
   const [searchTerm, setSearchTerm] = useState("")
+
+  useEffect(() => {
+    setOpenId(searchInvoiceId)
+  }, [searchInvoiceId])
 
   const {
     data: invoices = [],

@@ -41,6 +41,8 @@ describe("QuickCaptureFab", () => {
     "/tasks",
     "/billing/new",
     "/billing/new/anything",
+    "/billing/inv1/edit",
+    "/billing/clx9f8g7h0000abcd1234/edit",
     "/quotes/new",
     "/quotes/new/anything",
     "/quotes/q1/edit",
@@ -52,15 +54,19 @@ describe("QuickCaptureFab", () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it.each(["/quotes", "/quotes/q1", "/quotes/q1/edit/extra"])(
-    "still renders on %s",
-    (route) => {
-      pathname.mockReturnValue(route)
-      capture.mockReturnValue(mountedCapture())
-      const { container } = render(<QuickCaptureFab />)
-      expect(container).not.toBeEmptyDOMElement()
-    },
-  )
+  it.each([
+    "/quotes",
+    "/quotes/q1",
+    "/quotes/q1/edit/extra",
+    "/billing",
+    "/billing/inv1",
+    "/billing/inv1/edit/extra",
+  ])("still renders on %s", (route) => {
+    pathname.mockReturnValue(route)
+    capture.mockReturnValue(mountedCapture())
+    const { container } = render(<QuickCaptureFab />)
+    expect(container).not.toBeEmptyDOMElement()
+  })
 
   it("renders nothing without a quick-capture provider", () => {
     pathname.mockReturnValue("/dashboard")

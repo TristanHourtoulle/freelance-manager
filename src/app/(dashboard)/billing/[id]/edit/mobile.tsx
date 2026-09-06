@@ -384,6 +384,8 @@ export function MobileEditInvoicePage({
               </div>
             </div>
           )}
+
+          <div className="sticky-cta-spacer" aria-hidden="true" />
         </div>
       </div>
 
