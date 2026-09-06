@@ -15,6 +15,8 @@ import {
   makeClient,
   makeInvoice,
   makeInvoiceWithClaimedLateFee,
+  makeProject,
+  makeTask,
   makeUserSettings,
 } from "@/test/integration/factories"
 
@@ -197,5 +199,83 @@ describe("POST /api/invoices (integration)", () => {
     })
 
     expect(res.status).toBe(400)
+  })
+})
+
+/**
+ * These two describe blocks deliberately share the invoices spec's own
+ * spawned `next dev` server and database rather than getting their own test
+ * files: `getClientsFirstPage` and `getProjectsFirstPage` are cached
+ * (`"use cache"`) exactly like the invoices list, and only a genuine cache
+ * round trip through the real Next.js runtime can prove a `Decimal` survives
+ * it — a bare `vitest` process never applies the compiler transform the
+ * cache wrapper needs, so calling the data-layer function in-process would
+ * prove nothing about this specific risk. Reusing this file's single
+ * server/database avoids racing this spec's own `beforeEach` truncation
+ * against a second file's, which a second consumer of the same shared
+ * resource could otherwise hit.
+ */
+describe("GET /api/clients (integration, real 'use cache' boundary)", () => {
+  it("returns a usable numeric rate/fixedPrice through the real 'use cache' data layer", async () => {
+    const user = await makeAuthenticatedUser(prisma)
+    const client = await makeClient(prisma, {
+      userId: user.id,
+      billingMode: "FIXED",
+      rate: 120.5,
+    })
+    await prisma.client.update({
+      where: { id: client.id },
+      data: { fixedPrice: 3000 },
+    })
+
+    const cookie = await signInCookie(user.email, user.password)
+    const res = await fetch(`${serverUrl}/api/clients`, {
+      headers: { Cookie: cookie },
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      data: Array<{ rate: number; fixedPrice: number | null }>
+    }
+    expect(body.data).toHaveLength(1)
+    const [clientRow] = body.data
+    expect(typeof clientRow?.rate).toBe("number")
+    expect(clientRow?.rate).toBeCloseTo(120.5)
+    expect(typeof clientRow?.fixedPrice).toBe("number")
+    expect(
+      (clientRow?.fixedPrice ?? 0) + (clientRow?.rate ?? 0),
+    ).toBeCloseTo(3120.5)
+  })
+})
+
+describe("GET /api/projects (integration, real 'use cache' boundary)", () => {
+  it("returns a usable numeric remainingDays through the real 'use cache' data layer", async () => {
+    const user = await makeAuthenticatedUser(prisma)
+    const client = await makeClient(prisma, { userId: user.id })
+    const project = await makeProject(prisma, {
+      userId: user.id,
+      clientId: client.id,
+    })
+    await makeTask(prisma, {
+      userId: user.id,
+      clientId: client.id,
+      projectId: project.id,
+      status: "BACKLOG",
+      estimate: 3,
+    })
+
+    const cookie = await signInCookie(user.email, user.password)
+    const res = await fetch(`${serverUrl}/api/projects`, {
+      headers: { Cookie: cookie },
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      data: Array<{ remainingDays: number }>
+    }
+    expect(body.data).toHaveLength(1)
+    const [project0] = body.data
+    expect(typeof project0?.remainingDays).toBe("number")
+    expect((project0?.remainingDays ?? 0) * 2).toBeCloseTo(6)
   })
 })

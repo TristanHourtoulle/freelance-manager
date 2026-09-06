@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { hashPassword } from "better-auth/crypto"
-import type { PrismaClient } from "@/generated/prisma/client"
+import type {
+  ActivityKind,
+  NonBillableReason,
+  PrismaClient,
+  TaskStatus,
+} from "@/generated/prisma/client"
 
 export interface MakeUserOptions {
   name?: string
@@ -77,6 +82,8 @@ export interface MakeClientOptions {
   company?: string | null
   billingMode?: "HOURLY" | "DAILY" | "FIXED"
   rate?: number
+  category?: "FREELANCE" | "STUDY" | "PERSONAL" | "SIDE_PROJECT"
+  archivedAt?: Date | null
 }
 
 export interface CreatedClient {
@@ -103,6 +110,8 @@ export async function makeClient(
       company: options.company ?? null,
       billingMode: options.billingMode ?? "DAILY",
       rate: options.rate ?? 500,
+      category: options.category ?? "FREELANCE",
+      archivedAt: options.archivedAt ?? null,
     },
     select: { id: true, userId: true },
   })
@@ -449,4 +458,172 @@ export async function makeAnchorCaseInvoice(
   }
 
   return { invoice }
+}
+
+export interface MakeTaskOptions {
+  userId: string
+  clientId: string
+  projectId: string
+  linearIssueId?: string
+  linearIdentifier?: string
+  title?: string
+  status?: TaskStatus
+  estimate?: number | null
+  actualDays?: number | null
+  billable?: boolean
+  nonBillableReason?: NonBillableReason | null
+  nonBillableNote?: string | null
+  completedAt?: Date | null
+  invoiceId?: string | null
+  taskGroupId?: string | null
+}
+
+export interface CreatedTask {
+  id: string
+  userId: string
+  clientId: string
+  projectId: string
+}
+
+/**
+ * Insert a minimal `Task` row (a Linear-issue mirror).
+ *
+ * Defaults to a billable, estimated, `PENDING_INVOICE` task — the
+ * "ready to bill" shape most pipeline/aggregate tests need — so a caller
+ * only overrides the fields the scenario actually cares about.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user/client/project plus optional overrides.
+ */
+export async function makeTask(
+  prisma: PrismaClient,
+  options: MakeTaskOptions,
+): Promise<CreatedTask> {
+  const suffix = randomUUID().slice(0, 8)
+  const task = await prisma.task.create({
+    data: {
+      userId: options.userId,
+      clientId: options.clientId,
+      projectId: options.projectId,
+      linearIssueId: options.linearIssueId ?? `linear-issue-${suffix}`,
+      linearIdentifier:
+        options.linearIdentifier ?? `TSK-${suffix.slice(0, 4).toUpperCase()}`,
+      title: options.title ?? `Test task ${suffix}`,
+      status: options.status ?? "PENDING_INVOICE",
+      estimate: options.estimate === undefined ? 1 : options.estimate,
+      actualDays: options.actualDays ?? null,
+      billable: options.billable ?? true,
+      nonBillableReason: options.nonBillableReason ?? null,
+      nonBillableNote: options.nonBillableNote ?? null,
+      completedAt: options.completedAt ?? null,
+      invoiceId: options.invoiceId ?? null,
+      taskGroupId: options.taskGroupId ?? null,
+    },
+    select: { id: true, userId: true, clientId: true, projectId: true },
+  })
+  return task
+}
+
+export interface MakeLinearMappingOptions {
+  clientId: string
+  linearTeamId?: string | null
+  linearProjectId?: string | null
+}
+
+export interface CreatedLinearMapping {
+  id: string
+  clientId: string
+  linearTeamId: string | null
+  linearProjectId: string | null
+}
+
+/**
+ * Insert a `LinearMapping` row linking a client to a Linear team/project.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning client plus optional Linear id overrides.
+ */
+export async function makeLinearMapping(
+  prisma: PrismaClient,
+  options: MakeLinearMappingOptions,
+): Promise<CreatedLinearMapping> {
+  const suffix = randomUUID().slice(0, 8)
+  return prisma.linearMapping.create({
+    data: {
+      clientId: options.clientId,
+      linearTeamId: options.linearTeamId ?? null,
+      linearProjectId:
+        options.linearProjectId === undefined
+          ? `linear-project-${suffix}`
+          : options.linearProjectId,
+    },
+    select: {
+      id: true,
+      clientId: true,
+      linearTeamId: true,
+      linearProjectId: true,
+    },
+  })
+}
+
+export interface MakeActivityLogOptions {
+  userId: string
+  clientId?: string | null
+  kind?: ActivityKind
+  title?: string
+  createdAt?: Date
+}
+
+/**
+ * Insert an `ActivityLog` row.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user plus optional field overrides.
+ */
+export async function makeActivityLog(
+  prisma: PrismaClient,
+  options: MakeActivityLogOptions,
+): Promise<{ id: string; userId: string; clientId: string | null }> {
+  return prisma.activityLog.create({
+    data: {
+      userId: options.userId,
+      clientId: options.clientId ?? null,
+      kind: options.kind ?? "CLIENT_CREATED",
+      title: options.title ?? "Test activity",
+      createdAt: options.createdAt ?? new Date(),
+    },
+    select: { id: true, userId: true, clientId: true },
+  })
+}
+
+export interface MakeMeetingOptions {
+  userId: string
+  clientId: string
+  title?: string
+  heldAt?: Date
+  durationMinutes?: number
+  participants?: string[]
+}
+
+/**
+ * Insert a `Meeting` row.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user/client plus optional field overrides.
+ */
+export async function makeMeeting(
+  prisma: PrismaClient,
+  options: MakeMeetingOptions,
+): Promise<{ id: string; userId: string; clientId: string }> {
+  return prisma.meeting.create({
+    data: {
+      userId: options.userId,
+      clientId: options.clientId,
+      title: options.title ?? "Test meeting",
+      heldAt: options.heldAt ?? new Date(),
+      durationMinutes: options.durationMinutes ?? 30,
+      participants: options.participants ?? [],
+    },
+    select: { id: true, userId: true, clientId: true },
+  })
 }
