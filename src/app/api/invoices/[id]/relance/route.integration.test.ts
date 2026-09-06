@@ -1,4 +1,13 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } from "vitest"
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  inject,
+  it,
+  vi,
+} from "vitest"
 import {
   createIsolatedSchema,
   dropIsolatedSchema,
@@ -20,10 +29,14 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>()
   return { ...actual, getAuthUser: async () => currentUser }
 })
+vi.mock("@/lib/db", () => ({
+  get prisma() {
+    return ctx.prisma
+  },
+}))
 
 beforeAll(() => {
   ctx = createIsolatedSchema(inject("integrationPostgresUrl"), "relance")
-  process.env.DATABASE_URL = ctx.url
   delete process.env.NEXT_PUBLIC_APP_URL
 })
 

@@ -1,20 +1,30 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from "vitest"
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  inject,
+  it,
+} from "vitest"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "@/generated/prisma/client"
 import { truncateAll } from "@/test/integration/db"
-import { makeAuthenticatedUser, makeClient, makeInvoice } from "@/test/integration/factories"
+import {
+  makeAuthenticatedUser,
+  makeClient,
+  makeInvoice,
+} from "@/test/integration/factories"
 
 let prisma: PrismaClient
 let serverUrl: string
-let schemaName: string
 
 beforeAll(() => {
-  const schemaUrl = inject("invoicesSchemaUrl")
-  schemaName = inject("invoicesSchemaName")
+  const databaseUrl = inject("invoicesDatabaseUrl")
   serverUrl = inject("invoicesServerUrl")
-  process.env.DATABASE_URL = schemaUrl
+  process.env.DATABASE_URL = databaseUrl
   prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: schemaUrl }, { schema: schemaName }),
+    adapter: new PrismaPg({ connectionString: databaseUrl }),
   })
 })
 
@@ -23,7 +33,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-  await truncateAll(prisma, schemaName)
+  await truncateAll(prisma, "public")
 })
 
 /**

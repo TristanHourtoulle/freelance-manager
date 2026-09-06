@@ -49,6 +49,7 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       # Real length required by src/lib/env.ts (the integration suite boots
       # a real `next dev` server, which is the only CI job that actually

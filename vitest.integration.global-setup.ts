@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process"
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import type { TestProject } from "vitest/node"
 import {
@@ -7,20 +7,21 @@ import {
   type StartedPostgreSqlContainer,
 } from "@testcontainers/postgresql"
 import { getFreePort } from "@/test/integration/get-free-port"
-import { migrateSchema, withSchema } from "@/test/integration/db"
+import { migrateDatabase } from "@/test/integration/db"
 
 declare module "vitest" {
   export interface ProvidedContext {
     integrationPostgresUrl: string
     invoicesServerUrl: string
-    invoicesSchemaUrl: string
-    invoicesSchemaName: string
+    invoicesDatabaseUrl: string
   }
 }
 
-const INVOICES_SERVER_SCHEMA = "e2e_invoices_server"
+const INVOICES_SERVER_DB = "e2e_invoices_server"
 
 const TSCONFIG_PATH = path.resolve(process.cwd(), "tsconfig.json")
+
+const PID_FILE = path.resolve(process.cwd(), ".integration-next-server.pid")
 
 let container: StartedPostgreSqlContainer | undefined
 let nextServer: ChildProcess | undefined
@@ -39,19 +40,60 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
   throw new Error(`Next.js dev server did not become ready at ${url}`)
 }
 
+function killProcessGroupSync(pid: number): void {
+  try {
+    process.kill(-pid, "SIGKILL")
+  } catch {
+    try {
+      process.kill(pid, "SIGKILL")
+    } catch {}
+  }
+}
+
+function reapOrphanedServer(): void {
+  if (!existsSync(PID_FILE)) return
+  const pid = Number(readFileSync(PID_FILE, "utf8").trim())
+  if (Number.isInteger(pid) && pid > 0) killProcessGroupSync(pid)
+  unlinkSync(PID_FILE)
+}
+
+function killServerAndCleanupSync(): void {
+  const pid = nextServer?.pid
+  if (pid) killProcessGroupSync(pid)
+  if (existsSync(PID_FILE)) unlinkSync(PID_FILE)
+}
+
+process.once("exit", killServerAndCleanupSync)
+process.once("SIGINT", () => {
+  killServerAndCleanupSync()
+  process.exit(130)
+})
+process.once("SIGTERM", () => {
+  killServerAndCleanupSync()
+  process.exit(143)
+})
+
 /**
  * Global setup for the `integration` Vitest project.
  *
  * Starts one throwaway PostgreSQL container (via testcontainers) for the
  * entire integration run and a real `next dev` server bound to its own
- * private schema, so `GET /api/invoices` can be tested end-to-end through
- * a genuine `"use cache"` boundary — something a bare `vitest` process can
- * never exercise, since the cache wrapper Decimal values must survive is
- * injected by Next's own compiler, not present in the hand-written source.
+ * private, purpose-created database, so `GET /api/invoices` can be tested
+ * end-to-end through a genuine `"use cache"` boundary — something a bare
+ * `vitest` process can never exercise, since the cache wrapper Decimal
+ * values must survive is injected by Next's own compiler, not present in
+ * the hand-written source.
  *
- * Other integration test files never need the server: they get their own
- * private schema straight off `integrationPostgresUrl` via
- * {@link import("./src/test/integration/db").createIsolatedSchema}.
+ * A dedicated database (rather than a schema on the shared one) means the
+ * spawned server needs no test-only connection-string parsing in
+ * `src/lib/db.ts`: both `pg` and Prisma's migration engine already resolve
+ * the database name straight off the URL, so pointing `DATABASE_URL` at it
+ * is enough for the app's own, unmodified Prisma singleton to find the
+ * right tables in that database's default `public` schema. This costs one
+ * extra `CREATE DATABASE` at the start of the whole run — negligible next
+ * to the per-test-file schemas every other integration file provisions via
+ * {@link import("./src/test/integration/db").createIsolatedSchema}, which
+ * this does not touch or contend with.
  *
  * The server runs against its own `.next-integration` build directory
  * (`INTEGRATION_TEST_SERVER=1`, read by `next.config.ts`) so it never
@@ -60,11 +102,22 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
  * separate build directory), so this snapshots the file first and restores
  * it verbatim in {@link teardown}.
  *
+ * The spawned server's pid is written to {@link PID_FILE} and reaped by a
+ * following run's `reapOrphanedServer` call below, and killed synchronously
+ * on `exit`/`SIGINT`/`SIGTERM` by the handlers registered at module load —
+ * together these keep a `next dev` process from surviving this run under
+ * any exit path short of an uncatchable `SIGKILL` or OOM, which the next
+ * run's pid-file reap then cleans up instead. Ryuk already reclaims the
+ * Postgres container in that scenario; nothing but this reclaims the plain
+ * Node child process.
+ *
  * @param project - The Vitest project, used to `provide()` connection
  *   details to every integration test file via `inject()`.
  */
 export async function setup(project: TestProject): Promise<void> {
   try {
+    reapOrphanedServer()
+
     container = await new PostgreSqlContainer("postgres:16-alpine")
       .withDatabase("integration")
       .withUsername("integration")
@@ -72,7 +125,7 @@ export async function setup(project: TestProject): Promise<void> {
       .start()
 
     const baseUrl = container.getConnectionUri()
-    const schemaUrl = migrateSchema(baseUrl, INVOICES_SERVER_SCHEMA)
+    const databaseUrl = await migrateDatabase(baseUrl, INVOICES_SERVER_DB)
     const port = await getFreePort()
     const serverUrl = `http://127.0.0.1:${port}`
 
@@ -85,7 +138,7 @@ export async function setup(project: TestProject): Promise<void> {
       {
         env: {
           ...process.env,
-          DATABASE_URL: schemaUrl,
+          DATABASE_URL: databaseUrl,
           NEXT_PUBLIC_APP_URL: serverUrl,
           PORT: String(port),
           INTEGRATION_TEST_SERVER: "1",
@@ -94,6 +147,7 @@ export async function setup(project: TestProject): Promise<void> {
         detached: true,
       },
     )
+    if (nextServer.pid) writeFileSync(PID_FILE, String(nextServer.pid))
     let serverLog = ""
     nextServer.stdout?.on("data", (chunk: Buffer) => {
       serverLog += chunk.toString()
@@ -111,11 +165,7 @@ export async function setup(project: TestProject): Promise<void> {
 
     project.provide("integrationPostgresUrl", baseUrl)
     project.provide("invoicesServerUrl", serverUrl)
-    project.provide(
-      "invoicesSchemaUrl",
-      withSchema(baseUrl, INVOICES_SERVER_SCHEMA),
-    )
-    project.provide("invoicesSchemaName", INVOICES_SERVER_SCHEMA)
+    project.provide("invoicesDatabaseUrl", databaseUrl)
   } catch (error) {
     await teardown()
     throw error
@@ -136,6 +186,7 @@ export async function teardown(): Promise<void> {
       setTimeout(resolve, 5000)
     })
   }
+  if (existsSync(PID_FILE)) unlinkSync(PID_FILE)
   if (tsconfigSnapshot !== undefined) {
     writeFileSync(TSCONFIG_PATH, tsconfigSnapshot)
   }

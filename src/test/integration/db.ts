@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { execFileSync } from "node:child_process"
+import { Client as PgClient } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { Prisma, PrismaClient } from "@/generated/prisma/client"
 
@@ -26,6 +27,74 @@ export function withSchema(baseUrl: string, schema: string): string {
   url.searchParams.set("schema", schema)
   url.searchParams.set("options", `-c search_path=${schema}`)
   return url.toString()
+}
+
+/**
+ * Point a base Postgres connection string at a different database on the
+ * same server, by replacing the URL's path segment. Unlike
+ * {@link withSchema}, this needs no query-param parsing on the application
+ * side: both `pg` and Prisma's migration engine already read the database
+ * name straight off the connection string, which is what lets the spawned
+ * `next dev` integration server run against a private database with zero
+ * test-only code in `src/lib/db.ts`.
+ *
+ * @param baseUrl - The container's root connection string.
+ * @param database - The database name to target.
+ * @returns A connection string pointed at that database.
+ */
+export function withDatabase(baseUrl: string, database: string): string {
+  const url = new URL(baseUrl)
+  url.pathname = `/${database}`
+  return url.toString()
+}
+
+/**
+ * Create a new, empty database on the same Postgres server as `baseUrl`.
+ * Unlike a schema, `prisma migrate deploy` cannot create a database on its
+ * own, so this issues the `CREATE DATABASE` itself over a plain `pg`
+ * connection before migrations run.
+ *
+ * @param baseUrl - A connection string to any existing database on the
+ *   target server, used only to open the administrative connection.
+ * @param database - The name of the database to create.
+ */
+export async function createDatabase(
+  baseUrl: string,
+  database: string,
+): Promise<void> {
+  const client = new PgClient({ connectionString: baseUrl })
+  await client.connect()
+  try {
+    await client.query(`CREATE DATABASE "${database}"`)
+  } finally {
+    await client.end()
+  }
+}
+
+/**
+ * Provision a throwaway database and replay every migration into it — the
+ * database-level equivalent of {@link migrateSchema}. Used once per
+ * integration run for the single spawned `next dev` server, which cannot be
+ * mocked and so needs its own private database (never spawned per test
+ * file, so the extra `CREATE DATABASE` never contends with per-file schema
+ * provisioning).
+ *
+ * @param baseUrl - The container's root connection string.
+ * @param database - The database to create and migrate.
+ * @returns The database-scoped connection string, ready to hand to the
+ *   spawned server as its `DATABASE_URL`.
+ */
+export async function migrateDatabase(
+  baseUrl: string,
+  database: string,
+): Promise<string> {
+  await createDatabase(baseUrl, database)
+  const url = withDatabase(baseUrl, database)
+  execFileSync("pnpm", ["exec", "prisma", "migrate", "deploy"], {
+    env: { ...process.env, DATABASE_URL: url },
+    stdio: "pipe",
+  })
+  return url
 }
 
 /**
