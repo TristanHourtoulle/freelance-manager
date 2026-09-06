@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto"
 import { hashPassword } from "better-auth/crypto"
 import type {
   ActivityKind,
+  ClientActionStatus,
+  ClientActionType,
   NonBillableReason,
   PrismaClient,
   TaskStatus,
@@ -625,5 +627,82 @@ export async function makeMeeting(
       participants: options.participants ?? [],
     },
     select: { id: true, userId: true, clientId: true },
+  })
+}
+
+export interface MakeActionOptions {
+  userId: string
+  clientId?: string | null
+  type?: ClientActionType
+  title?: string
+  status?: ClientActionStatus
+  meetingId?: string | null
+  invoiceId?: string | null
+  dueDate?: Date | null
+}
+
+export interface CreatedAction {
+  id: string
+  userId: string
+  clientId: string | null
+  meetingId: string | null
+}
+
+/**
+ * Insert a `ClientAction` (follow-up action) row.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user plus optional field overrides.
+ */
+export async function makeAction(
+  prisma: PrismaClient,
+  options: MakeActionOptions,
+): Promise<CreatedAction> {
+  const suffix = randomUUID().slice(0, 8)
+  return prisma.clientAction.create({
+    data: {
+      userId: options.userId,
+      clientId: options.clientId ?? null,
+      type: options.type ?? "OTHER",
+      title: options.title ?? `Test action ${suffix}`,
+      status: options.status ?? "TODO",
+      meetingId: options.meetingId ?? null,
+      invoiceId: options.invoiceId ?? null,
+      dueDate: options.dueDate ?? null,
+    },
+    select: { id: true, userId: true, clientId: true, meetingId: true },
+  })
+}
+
+export interface MakePushSubscriptionOptions {
+  userId: string
+  endpoint?: string
+  p256dh?: string
+  auth?: string
+  lastDeliveredAt?: Date | null
+  failureCount?: number
+}
+
+/**
+ * Insert a `PushSubscription` row.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user plus optional field overrides.
+ */
+export async function makePushSubscription(
+  prisma: PrismaClient,
+  options: MakePushSubscriptionOptions,
+): Promise<{ id: string; userId: string; endpoint: string }> {
+  const suffix = randomUUID().slice(0, 8)
+  return prisma.pushSubscription.create({
+    data: {
+      userId: options.userId,
+      endpoint: options.endpoint ?? `https://push.example.test/${suffix}`,
+      p256dh: options.p256dh ?? `p256dh-${suffix}`,
+      auth: options.auth ?? `auth-${suffix}`,
+      lastDeliveredAt: options.lastDeliveredAt ?? null,
+      failureCount: options.failureCount ?? 0,
+    },
+    select: { id: true, userId: true, endpoint: true },
   })
 }
