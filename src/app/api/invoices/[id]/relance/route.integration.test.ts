@@ -16,7 +16,9 @@ import {
 } from "@/test/integration/db"
 import {
   makeClient,
+  makeInvoice,
   makeInvoiceWithClaimedLateFee,
+  makePayment,
   makeUser,
 } from "@/test/integration/factories"
 import type { ApiUser } from "@/lib/api"
@@ -86,5 +88,58 @@ describe("POST /api/invoices/[id]/relance (integration)", () => {
     expect(actions).toHaveLength(1)
     expect(actions[0]?.type).toBe("RELANCE")
     expect(actions[0]?.relanceInvoiceId).toBe(invoice.id)
+  })
+
+  it("reports settled:true and creates no action for a fully paid, non-overdue invoice", async () => {
+    const client = await makeClient(ctx.prisma, { userId: currentUser.id })
+    const futureDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const invoice = await makeInvoice(ctx.prisma, {
+      userId: currentUser.id,
+      clientId: client.id,
+      total: 500,
+      dueDate: futureDueDate,
+    })
+    await makePayment(ctx.prisma, {
+      userId: currentUser.id,
+      invoiceId: invoice.id,
+      amount: 500,
+    })
+
+    const { POST } = await import("./route")
+    const res = await POST(postRequest(invoice.id), {
+      params: Promise.resolve({ id: invoice.id }),
+    })
+    const body = (await res.json()) as RelanceResponseBody
+
+    expect(res.status).toBe(200)
+    expect(body.settled).toBe(true)
+    expect(body.created).toBe(false)
+    expect(body.action).toBeNull()
+
+    const actions = await ctx.prisma.clientAction.findMany({
+      where: { invoiceId: invoice.id },
+    })
+    expect(actions).toHaveLength(0)
+  })
+
+  it("returns 404 (never 200) when relancing another user's invoice", async () => {
+    const owner = await makeUser(ctx.prisma)
+    const ownerClient = await makeClient(ctx.prisma, { userId: owner.id })
+    const { invoice } = await makeInvoiceWithClaimedLateFee(ctx.prisma, {
+      userId: owner.id,
+      clientId: ownerClient.id,
+    })
+
+    const { POST } = await import("./route")
+    const res = await POST(postRequest(invoice.id), {
+      params: Promise.resolve({ id: invoice.id }),
+    })
+
+    expect(res.status).toBe(404)
+
+    const actions = await ctx.prisma.clientAction.findMany({
+      where: { invoiceId: invoice.id },
+    })
+    expect(actions).toHaveLength(0)
   })
 })

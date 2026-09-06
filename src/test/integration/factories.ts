@@ -112,6 +112,7 @@ export async function makeClient(
 export interface MakeInvoiceOptions {
   userId: string
   clientId: string
+  projectId?: string | null
   number?: string
   status?: "DRAFT" | "SENT" | "CANCELLED"
   paymentStatus?: "UNPAID" | "PARTIALLY_PAID" | "PAID" | "OVERPAID"
@@ -156,6 +157,7 @@ export async function makeInvoice(
     data: {
       userId: options.userId,
       clientId: options.clientId,
+      projectId: options.projectId ?? null,
       number: options.number ?? `FAC-TEST-${suffix}`,
       status: options.status ?? "SENT",
       paymentStatus: options.paymentStatus ?? "UNPAID",
@@ -170,7 +172,13 @@ export async function makeInvoice(
       lateFeeClaimedAt: options.lateFeeClaimedAt ?? null,
       lateFeeWaived: options.lateFeeWaived ?? false,
     },
-    select: { id: true, userId: true, clientId: true, number: true, total: true },
+    select: {
+      id: true,
+      userId: true,
+      clientId: true,
+      number: true,
+      total: true,
+    },
   })
   return { ...invoice, total: Number(invoice.total) }
 }
@@ -209,6 +217,7 @@ export async function makePayment(
 export interface MakeInvoiceWithClaimedLateFeeOptions {
   userId: string
   clientId: string
+  projectId?: string | null
   total?: number
   lateFeeFixed?: number
   lateFeeInterest?: number
@@ -243,6 +252,7 @@ export async function makeInvoiceWithClaimedLateFee(
   const invoice = await makeInvoice(prisma, {
     userId: options.userId,
     clientId: options.clientId,
+    projectId: options.projectId ?? null,
     status: "SENT",
     paymentStatus: "PARTIALLY_PAID",
     total,
@@ -295,4 +305,148 @@ export async function makeQuote(
     },
     select: { id: true },
   })
+}
+
+export interface MakeProjectOptions {
+  userId: string
+  clientId: string
+  name?: string
+  key?: string
+  linearProjectId?: string
+  status?: "ACTIVE" | "PAUSED" | "COMPLETED"
+}
+
+export interface CreatedProject {
+  id: string
+  userId: string
+  clientId: string
+}
+
+/**
+ * Insert a minimal `Project` row (a Linear-project mirror).
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user/client plus optional field overrides.
+ */
+export async function makeProject(
+  prisma: PrismaClient,
+  options: MakeProjectOptions,
+): Promise<CreatedProject> {
+  const suffix = randomUUID().slice(0, 8)
+  const project = await prisma.project.create({
+    data: {
+      userId: options.userId,
+      clientId: options.clientId,
+      linearProjectId: options.linearProjectId ?? `linear-project-${suffix}`,
+      name: options.name ?? `Test Project ${suffix}`,
+      key: options.key ?? `TP${suffix.slice(0, 4).toUpperCase()}`,
+      status: options.status ?? "ACTIVE",
+    },
+    select: { id: true, userId: true, clientId: true },
+  })
+  return project
+}
+
+export interface MakeUserSettingsOptions {
+  userId: string
+  lateFeeFixedAmount?: number
+  lateFeeAnnualRate?: number
+  defaultPaymentDays?: number
+  workingDaysPerWeek?: number
+}
+
+/**
+ * Upsert a `UserSettings` row with an explicit late-fee policy, so a test
+ * can prove a route honours a NON-default `lateFeeAnnualRate` /
+ * `lateFeeFixedAmount` instead of silently falling back to the Prisma
+ * column defaults (40 EUR / 10%).
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user plus the policy fields to set.
+ */
+export async function makeUserSettings(
+  prisma: PrismaClient,
+  options: MakeUserSettingsOptions,
+): Promise<{ id: string }> {
+  const data = {
+    lateFeeFixedAmount: options.lateFeeFixedAmount,
+    lateFeeAnnualRate: options.lateFeeAnnualRate,
+    defaultPaymentDays: options.defaultPaymentDays,
+    workingDaysPerWeek: options.workingDaysPerWeek,
+  }
+  return prisma.userSettings.upsert({
+    where: { userId: options.userId },
+    update: data,
+    create: { userId: options.userId, ...data },
+    select: { id: true },
+  })
+}
+
+export interface MakeAnchorCaseInvoiceOptions {
+  userId: string
+  clientId: string
+  projectId?: string | null
+}
+
+export interface AnchorCaseInvoice {
+  invoice: CreatedInvoice
+}
+
+/**
+ * Build the canonical late-fee anchor case the whole feature was built for:
+ * a 5460€ invoice due 2026-08-14, settled by five payments
+ * (1000/1000/2550/629/325.94, paid between 2026-07-31 and 2026-09-04) that
+ * sum to exactly 5504.94€, with a 44.94€ penalty (40 fixed + 4.94 interest)
+ * claimed on the last payment date — deliberately less than the 58.69€ that
+ * had actually accrued by then (see `computeLateFee`'s own anchor test in
+ * `src/domain/billing/late-fee.test.ts`).
+ *
+ * Because the last payment brings the outstanding balance to exactly zero
+ * on 2026-09-04, `computeLateFee`'s accrual permanently stops on that date
+ * regardless of when a test actually runs: the live `lateFeeAccrued`
+ * preview stays 58.69€ forever after, with no need to freeze the clock.
+ *
+ * With the claim applied, the invoice is expected to read: `balanceDue` 0,
+ * `lateFeeDue` 44.94, `lateFeeAccrued` 58.69, `paymentStatus` `"PAID"`,
+ * `isOverdue` false.
+ *
+ * @param prisma - A client connected to the test schema.
+ * @param options - The owning user/client plus an optional project link.
+ */
+export async function makeAnchorCaseInvoice(
+  prisma: PrismaClient,
+  options: MakeAnchorCaseInvoiceOptions,
+): Promise<AnchorCaseInvoice> {
+  const invoice = await makeInvoice(prisma, {
+    userId: options.userId,
+    clientId: options.clientId,
+    projectId: options.projectId ?? null,
+    status: "SENT",
+    paymentStatus: "PAID",
+    total: 5460,
+    issueDate: new Date("2026-07-14T00:00:00.000Z"),
+    dueDate: new Date("2026-08-14T00:00:00.000Z"),
+    lateFeeFixed: 40,
+    lateFeeInterest: 4.94,
+    lateFeeClaimedAt: new Date("2026-09-04T00:00:00.000Z"),
+    lateFeeWaived: false,
+  })
+
+  const payments: [number, string][] = [
+    [1000, "2026-07-31"],
+    [1000, "2026-08-21"],
+    [2550, "2026-08-31"],
+    [629, "2026-09-02"],
+    [325.94, "2026-09-04"],
+  ]
+  for (const [amount, isoDate] of payments) {
+    await makePayment(prisma, {
+      userId: options.userId,
+      invoiceId: invoice.id,
+      amount,
+      paidAt: new Date(`${isoDate}T00:00:00.000Z`),
+    })
+  }
+
+  return { invoice }
 }
