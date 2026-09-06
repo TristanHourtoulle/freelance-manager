@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useId, useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useId, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { MobileTopbar } from "@/components/mobile/mobile-topbar"
 import { MobileSheet } from "@/components/mobile/mobile-sheet"
@@ -39,6 +39,7 @@ function round2(value: number): number {
 
 export function MobileBillingPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const search = useSearchParams()
   const searchInvoiceId = search.get("invoiceId")
   const initialFilter = (search.get("filter") as InvoiceFilterId) ?? "all"
@@ -56,6 +57,15 @@ export function MobileBillingPage() {
   useEffect(() => {
     setOpenId(searchInvoiceId)
   }, [searchInvoiceId])
+
+  const closeSheet = useCallback(() => {
+    setOpenId(null)
+    if (!search.has("invoiceId")) return
+    const params = new URLSearchParams(search.toString())
+    params.delete("invoiceId")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [search, router, pathname])
 
   const filtered = useMemo(
     () =>
@@ -232,12 +242,7 @@ export function MobileBillingPage() {
         </div>
       </div>
 
-      {openId && (
-        <MobileInvoiceSheet
-          invoiceId={openId}
-          onClose={() => setOpenId(null)}
-        />
-      )}
+      {openId && <MobileInvoiceSheet invoiceId={openId} onClose={closeSheet} />}
     </div>
   )
 }

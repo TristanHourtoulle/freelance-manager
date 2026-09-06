@@ -12,7 +12,7 @@ import {
   type BuilderLine,
   type BuilderTaskGroup,
 } from "@/domain/billing/builder"
-import type { InvoiceKind } from "@/domain/billing/types"
+import type { InvoiceDetail, InvoiceKind } from "@/domain/billing/types"
 import type { InvoiceCreateInput } from "@/lib/schemas/invoice"
 import { useClients } from "@/hooks/use-clients"
 import { useTasks, type TaskDTO } from "@/hooks/use-tasks"
@@ -57,6 +57,50 @@ function plusDaysIso(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+type EditSyncField =
+  | "projectId"
+  | "issueDate"
+  | "dueDate"
+  | "kind"
+  | "customNumber"
+  | "status"
+  | "depositLabel"
+  | "depositAmount"
+  | "lines"
+  | "totalOverride"
+
+interface DepositDraft {
+  label: string
+  amount: number
+}
+
+function depositFromInvoice(invoice: InvoiceDetail | null): DepositDraft {
+  const line = invoice?.kind === "DEPOSIT" ? invoice.lines[0] : undefined
+  if (!line) return { label: "Acompte 30%", amount: 0 }
+  return { label: line.label, amount: Number(line.rate) * Number(line.qty) }
+}
+
+function linesFromInvoice(invoice: InvoiceDetail | null): BuilderLine[] {
+  if (!invoice || invoice.kind === "DEPOSIT") return []
+  return invoice.lines.map((l) => ({
+    id: l.id,
+    taskId: l.taskId,
+    taskGroupId: l.taskGroupId ?? null,
+    label: l.label,
+    qty: l.qty,
+    rate: l.rate,
+  }))
+}
+
+function groupsFromInvoice(invoice: InvoiceDetail | null): BuilderTaskGroup[] {
+  return (
+    invoice?.taskGroups?.map((group) => ({
+      id: group.id,
+      name: group.name,
+    })) ?? []
+  )
+}
+
 export function useInvoiceBuilder(args: CreateBuilderArgs): CreateInvoiceBuilder
 export function useInvoiceBuilder(args: EditBuilderArgs): EditInvoiceBuilder
 export function useInvoiceBuilder(
@@ -83,11 +127,11 @@ export function useInvoiceBuilder(
   const [pickedClientId, setPickedClientId] = useState(
     args.mode === "create" ? args.initialClientId : "",
   )
-  const [projectId, setProjectId] = useState<string>(
+  const [projectId, setProjectIdState] = useState<string>(
     editInvoice?.projectId ?? "all",
   )
   const [taskSearch, setTaskSearch] = useState("")
-  const [issueDate, setIssueDate] = useState(() =>
+  const [issueDate, setIssueDateState] = useState(() =>
     editInvoice ? editInvoice.issueDate.slice(0, 10) : todayIso(),
   )
   const [dueDate, setDueDate] = useState(() =>
@@ -95,47 +139,30 @@ export function useInvoiceBuilder(
       ? editInvoice.dueDate.slice(0, 10)
       : plusDaysIso(FALLBACK_PAYMENT_DAYS),
   )
-  const [kind, setKind] = useState<InvoiceKind>(editInvoice?.kind ?? "STANDARD")
-  const [customNumber, setCustomNumber] = useState(editInvoice?.number ?? "")
+  const [kind, setKindState] = useState<InvoiceKind>(
+    editInvoice?.kind ?? "STANDARD",
+  )
+  const [customNumber, setCustomNumberState] = useState(
+    editInvoice?.number ?? "",
+  )
 
-  const initialDeposit =
-    editInvoice && editInvoice.kind === "DEPOSIT" && editInvoice.lines[0]
-      ? {
-          label: editInvoice.lines[0].label,
-          amount:
-            Number(editInvoice.lines[0].rate) *
-            Number(editInvoice.lines[0].qty),
-        }
-      : { label: "Acompte 30%", amount: 0 }
-  const [depositLabel, setDepositLabel] = useState(initialDeposit.label)
-  const [depositAmount, setDepositAmount] = useState<number>(
+  const initialDeposit = depositFromInvoice(editInvoice)
+  const [depositLabel, setDepositLabelState] = useState(initialDeposit.label)
+  const [depositAmount, setDepositAmountState] = useState<number>(
     initialDeposit.amount,
   )
 
   const [lines, setLines] = useState<BuilderLine[]>(() =>
-    editInvoice && editInvoice.kind !== "DEPOSIT"
-      ? editInvoice.lines.map((l) => ({
-          id: l.id,
-          taskId: l.taskId,
-          taskGroupId: l.taskGroupId ?? null,
-          label: l.label,
-          qty: l.qty,
-          rate: l.rate,
-        }))
-      : [],
+    linesFromInvoice(editInvoice),
   )
-  const [groups, setGroups] = useState<BuilderTaskGroup[]>(
-    () =>
-      editInvoice?.taskGroups?.map((group) => ({
-        id: group.id,
-        name: group.name,
-      })) ?? [],
+  const [groups, setGroups] = useState<BuilderTaskGroup[]>(() =>
+    groupsFromInvoice(editInvoice),
   )
   const [dragOver, setDragOver] = useState(false)
-  const [useTotalOverride, setUseTotalOverride] = useState(
+  const [useTotalOverride, setUseTotalOverrideState] = useState(
     editInvoice ? editInvoice.totalOverride != null : false,
   )
-  const [totalOverride, setTotalOverride] = useState<number>(
+  const [totalOverride, setTotalOverrideState] = useState<number>(
     editInvoice?.totalOverride ?? 0,
   )
 
@@ -143,15 +170,51 @@ export function useInvoiceBuilder(
   const [markPaid, setMarkPaid] = useState(false)
   const [paidAt, setPaidAt] = useState(() => todayIso())
   const [showSplit, setShowSplit] = useState(false)
-  const [status, setStatus] = useState<EditStatus>(
+  const [status, setStatusState] = useState<EditStatus>(
     editInvoice?.status ?? "DRAFT",
   )
 
   const dueDateEditedRef = useRef(false)
   const defaultDueDateAppliedRef = useRef(false)
+  const dirtyFieldsRef = useRef<Set<EditSyncField>>(new Set())
+  const syncedInvoiceIdRef = useRef<string | undefined>(editInvoice?.id)
+
+  function markFieldDirty(field: EditSyncField): void {
+    dirtyFieldsRef.current.add(field)
+  }
+
+  function setProjectId(value: string): void {
+    markFieldDirty("projectId")
+    setProjectIdState(value)
+  }
+  function setIssueDate(value: string): void {
+    markFieldDirty("issueDate")
+    setIssueDateState(value)
+  }
+  function setKind(value: InvoiceKind): void {
+    markFieldDirty("kind")
+    setKindState(value)
+  }
+  function setCustomNumber(value: string): void {
+    markFieldDirty("customNumber")
+    setCustomNumberState(value)
+  }
+  function setStatus(value: EditStatus): void {
+    markFieldDirty("status")
+    setStatusState(value)
+  }
+  function setDepositLabel(value: string): void {
+    markFieldDirty("depositLabel")
+    setDepositLabelState(value)
+  }
+  function setDepositAmount(value: number): void {
+    markFieldDirty("depositAmount")
+    setDepositAmountState(value)
+  }
 
   const setDueDateValue = useCallback((value: string) => {
     dueDateEditedRef.current = true
+    markFieldDirty("dueDate")
     setDueDate(value)
   }, [])
 
@@ -164,6 +227,38 @@ export function useInvoiceBuilder(
     if (defaultPaymentDays === FALLBACK_PAYMENT_DAYS) return
     setDueDate(plusDaysIso(defaultPaymentDays))
   }, [isEdit, defaultPaymentDays])
+
+  useEffect(() => {
+    if (!isEdit || !editInvoice) return
+    const dirty = dirtyFieldsRef.current
+    if (editInvoice.id !== syncedInvoiceIdRef.current) {
+      dirty.clear()
+      syncedInvoiceIdRef.current = editInvoice.id
+    }
+
+    if (!dirty.has("projectId"))
+      setProjectIdState(editInvoice.projectId ?? "all")
+    if (!dirty.has("issueDate"))
+      setIssueDateState(editInvoice.issueDate.slice(0, 10))
+    if (!dirty.has("dueDate")) setDueDate(editInvoice.dueDate.slice(0, 10))
+    if (!dirty.has("kind")) setKindState(editInvoice.kind)
+    if (!dirty.has("customNumber")) setCustomNumberState(editInvoice.number)
+    if (!dirty.has("status")) setStatusState(editInvoice.status)
+
+    const deposit = depositFromInvoice(editInvoice)
+    if (!dirty.has("depositLabel")) setDepositLabelState(deposit.label)
+    if (!dirty.has("depositAmount")) setDepositAmountState(deposit.amount)
+
+    if (!dirty.has("lines")) {
+      setLines(linesFromInvoice(editInvoice))
+      setGroups(groupsFromInvoice(editInvoice))
+    }
+
+    if (!dirty.has("totalOverride")) {
+      setUseTotalOverrideState(editInvoice.totalOverride != null)
+      setTotalOverrideState(editInvoice.totalOverride ?? 0)
+    }
+  }, [isEdit, editInvoice])
 
   const clientById = useMemo(
     () => new Map(clients.map((c) => [c.id, c])),
@@ -266,6 +361,7 @@ export function useInvoiceBuilder(
 
   function addTask(task: TaskDTO) {
     if (!client) return
+    markFieldDirty("lines")
     setLines((cur) => [...cur, buildTaskLine(newLineId(), client, task)])
   }
   function addTaskGroup(group: TaskGroupDTO) {
@@ -281,10 +377,12 @@ export function useInvoiceBuilder(
       .map((task) => buildTaskLine(newLineId(), client, task, group.id))
     if (groupLines.length !== group.tasks.length || groupLines.length === 0)
       return
+    markFieldDirty("lines")
     setGroups((current) => [...current, { id: group.id, name: group.name }])
     setLines((current) => [...current, ...groupLines])
   }
   function removeTaskGroup(groupId: string) {
+    markFieldDirty("lines")
     setGroups((current) => current.filter((group) => group.id !== groupId))
     setLines((current) =>
       current.filter((line) => line.taskGroupId !== groupId),
@@ -295,6 +393,7 @@ export function useInvoiceBuilder(
     if (t) addTask(t)
   }
   function addBlank() {
+    markFieldDirty("lines")
     setLines((cur) => [
       ...cur,
       {
@@ -308,6 +407,7 @@ export function useInvoiceBuilder(
     ])
   }
   function updateLine(id: string, patch: Partial<BuilderLine>) {
+    markFieldDirty("lines")
     setLines((cur) => cur.map((l) => (l.id === id ? { ...l, ...patch } : l)))
   }
   function removeLine(id: string) {
@@ -316,15 +416,18 @@ export function useInvoiceBuilder(
       removeTaskGroup(line.taskGroupId)
       return
     }
+    markFieldDirty("lines")
     setLines((cur) => cur.filter((l) => l.id !== id))
   }
   function setTotalOverrideValue(amount: number) {
-    setUseTotalOverride(true)
-    setTotalOverride(amount)
+    markFieldDirty("totalOverride")
+    setUseTotalOverrideState(true)
+    setTotalOverrideState(amount)
   }
   function clearTotalOverride() {
-    setUseTotalOverride(false)
-    setTotalOverride(0)
+    markFieldDirty("totalOverride")
+    setUseTotalOverrideState(false)
+    setTotalOverrideState(0)
   }
 
   const base: BuilderBase = {

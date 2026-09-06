@@ -9,6 +9,7 @@ const {
   useClientsMock,
   createPaymentMutateMock,
   useSearchParamsMock,
+  replaceMock,
 } = vi.hoisted(() => ({
   useInvoiceMock: vi.fn(),
   useInvoicesMock: vi.fn(),
@@ -17,10 +18,12 @@ const {
   useSearchParamsMock: vi.fn<() => URLSearchParams>(
     () => new URLSearchParams(),
   ),
+  replaceMock: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: replaceMock }),
+  usePathname: () => "/billing",
   useSearchParams: () => useSearchParamsMock(),
 }))
 
@@ -28,7 +31,10 @@ vi.mock("@/hooks/use-invoices", () => ({
   useInvoice: (id: string) => useInvoiceMock(id),
   useInvoices: () => useInvoicesMock(),
   useUpdateInvoiceStatus: () => ({ mutate: vi.fn(), isPending: false }),
-  useCreatePayment: () => ({ mutate: createPaymentMutateMock, isPending: false }),
+  useCreatePayment: () => ({
+    mutate: createPaymentMutateMock,
+    isPending: false,
+  }),
   useClaimLateFee: () => ({ mutate: vi.fn(), isPending: false }),
   useWaiveLateFee: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -44,6 +50,7 @@ vi.mock("@/components/providers/toast-provider", () => ({
 beforeEach(() => {
   createPaymentMutateMock.mockReset()
   useSearchParamsMock.mockReturnValue(new URLSearchParams())
+  replaceMock.mockReset()
 })
 
 function buildInvoice(overrides: Partial<InvoiceDetail>): InvoiceDetail {
@@ -297,10 +304,7 @@ describe("MobileBillingPage", () => {
 describe("MobileBillingPage openId search param", () => {
   it("opens the sheet for a changed ?invoiceId= without remounting the page", () => {
     useInvoicesMock.mockReturnValue({
-      data: [
-        buildInvoice({ id: "inv-1" }),
-        buildInvoice({ id: "inv-2" }),
-      ],
+      data: [buildInvoice({ id: "inv-1" }), buildInvoice({ id: "inv-2" })],
       fetchNextPage: vi.fn(),
       hasNextPage: false,
       isFetchingNextPage: false,
@@ -334,6 +338,26 @@ describe("MobileBillingPage openId search param", () => {
     rerender(<MobileBillingPage />)
 
     expect(screen.getByRole("dialog")).toBeInTheDocument()
+  })
+
+  it("strips ?invoiceId= from the URL when the sheet is closed", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [buildInvoice({ id: "inv-1" })],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({ data: [] })
+    useInvoiceMock.mockReturnValue({ data: buildInvoice({ id: "inv-1" }) })
+    useSearchParamsMock.mockReturnValue(new URLSearchParams("invoiceId=inv-1"))
+
+    render(<MobileBillingPage />)
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Fermer"))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledWith("/billing", { scroll: false })
   })
 })
 
