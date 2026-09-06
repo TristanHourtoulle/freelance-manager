@@ -14,6 +14,8 @@ import {
   makeAuthenticatedUser,
   makeClient,
   makeInvoice,
+  makeInvoiceWithClaimedLateFee,
+  makeUserSettings,
 } from "@/test/integration/factories"
 
 let prisma: PrismaClient
@@ -88,5 +90,112 @@ describe("GET /api/invoices (integration)", () => {
     expect(invoice?.total).toBeCloseTo(1234.56)
     expect(typeof invoice?.subtotal).toBe("number")
     expect(typeof invoice?.balanceDue).toBe("number")
+  })
+
+  it("reflects a claimed, unpaid penalty as a non-zero balanceDue/lateFeeDue through the cached read", async () => {
+    const user = await makeAuthenticatedUser(prisma)
+    const client = await makeClient(prisma, { userId: user.id })
+    await makeInvoiceWithClaimedLateFee(prisma, {
+      userId: user.id,
+      clientId: client.id,
+    })
+
+    const cookie = await signInCookie(user.email, user.password)
+    const res = await fetch(`${serverUrl}/api/invoices`, {
+      headers: { Cookie: cookie },
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as InvoiceListResponse
+    expect(body.data).toHaveLength(1)
+    const [invoice] = body.data
+    expect(invoice?.lateFeeDue).toBe(45)
+    expect(invoice?.balanceDue).toBe(45)
+    expect(invoice?.isOverdue).toBe(true)
+  })
+
+  it("honours a configured non-default late-fee annual rate rather than the 10% default", async () => {
+    const defaultUser = await makeAuthenticatedUser(prisma)
+    const defaultClient = await makeClient(prisma, { userId: defaultUser.id })
+    const customUser = await makeAuthenticatedUser(prisma)
+    const customClient = await makeClient(prisma, { userId: customUser.id })
+    await makeUserSettings(prisma, {
+      userId: customUser.id,
+      lateFeeAnnualRate: 0.12,
+      lateFeeFixedAmount: 40,
+    })
+
+    const overdueDueDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000)
+    await makeInvoice(prisma, {
+      userId: defaultUser.id,
+      clientId: defaultClient.id,
+      status: "SENT",
+      total: 10_000,
+      issueDate: new Date(overdueDueDate.getTime() - 10 * 24 * 60 * 60 * 1000),
+      dueDate: overdueDueDate,
+    })
+    await makeInvoice(prisma, {
+      userId: customUser.id,
+      clientId: customClient.id,
+      status: "SENT",
+      total: 10_000,
+      issueDate: new Date(overdueDueDate.getTime() - 10 * 24 * 60 * 60 * 1000),
+      dueDate: overdueDueDate,
+    })
+
+    const [defaultCookie, customCookie] = await Promise.all([
+      signInCookie(defaultUser.email, defaultUser.password),
+      signInCookie(customUser.email, customUser.password),
+    ])
+    const [defaultRes, customRes] = await Promise.all([
+      fetch(`${serverUrl}/api/invoices`, {
+        headers: { Cookie: defaultCookie },
+      }),
+      fetch(`${serverUrl}/api/invoices`, { headers: { Cookie: customCookie } }),
+    ])
+
+    const defaultBody = (await defaultRes.json()) as InvoiceListResponse
+    const customBody = (await customRes.json()) as InvoiceListResponse
+    const defaultAccrued = defaultBody.data[0]?.lateFeeAccrued as number
+    const customAccrued = customBody.data[0]?.lateFeeAccrued as number
+
+    expect(defaultAccrued).toBeGreaterThan(0)
+    expect(customAccrued).toBeGreaterThan(defaultAccrued)
+  })
+
+  it("never returns another user's invoices", async () => {
+    const owner = await makeAuthenticatedUser(prisma)
+    const ownerClient = await makeClient(prisma, { userId: owner.id })
+    await makeInvoice(prisma, { userId: owner.id, clientId: ownerClient.id })
+
+    const outsider = await makeAuthenticatedUser(prisma)
+    const cookie = await signInCookie(outsider.email, outsider.password)
+
+    const res = await fetch(`${serverUrl}/api/invoices`, {
+      headers: { Cookie: cookie },
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as InvoiceListResponse
+    expect(body.data).toHaveLength(0)
+  })
+})
+
+describe("POST /api/invoices (integration)", () => {
+  it("rejects an invalid payload with 400 instead of a 500", async () => {
+    const user = await makeAuthenticatedUser(prisma)
+    const cookie = await signInCookie(user.email, user.password)
+
+    const res = await fetch(`${serverUrl}/api/invoices`, {
+      method: "POST",
+      headers: {
+        Cookie: cookie,
+        Origin: serverUrl,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ clientId: "", lines: [] }),
+    })
+
+    expect(res.status).toBe(400)
   })
 })
