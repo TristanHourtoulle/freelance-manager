@@ -149,6 +149,8 @@ export function MobileInvoiceNewPage() {
                 </button>
               ))}
             </div>
+
+            <div className="sticky-cta-spacer" aria-hidden="true" />
           </div>
         )}
 
@@ -375,6 +377,8 @@ export function MobileInvoiceNewPage() {
                 </button>
               </>
             )}
+
+            <div className="sticky-cta-spacer" aria-hidden="true" />
           </div>
         )}
 

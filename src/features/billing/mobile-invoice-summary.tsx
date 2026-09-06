@@ -268,6 +268,8 @@ export function MobileInvoiceSummary({
           </button>
         </div>
       )}
+
+      <div className="sticky-cta-spacer" aria-hidden="true" />
     </div>
   )
 }

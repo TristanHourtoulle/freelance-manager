@@ -1,16 +1,21 @@
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import BillingPage from "./page"
 import type { InvoiceWireRow } from "@/domain/billing/types"
 
-const { useInvoicesMock, useClientsMock } = vi.hoisted(() => ({
-  useInvoicesMock: vi.fn(),
-  useClientsMock: vi.fn(),
-}))
+const { useInvoicesMock, useClientsMock, useSearchParamsMock } = vi.hoisted(
+  () => ({
+    useInvoicesMock: vi.fn(),
+    useClientsMock: vi.fn(),
+    useSearchParamsMock: vi.fn<() => URLSearchParams>(
+      () => new URLSearchParams(),
+    ),
+  }),
+)
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => useSearchParamsMock(),
 }))
 
 vi.mock("@/hooks/use-is-mobile", () => ({
@@ -28,6 +33,16 @@ vi.mock("@/hooks/use-clients", () => ({
 vi.mock("@/hooks/use-dashboard", () => ({
   useDashboard: () => ({ data: undefined }),
 }))
+
+vi.mock("@/components/billing/invoice-drawer", () => ({
+  InvoiceDrawer: ({ invoiceId }: { invoiceId: string }) => (
+    <div data-testid="invoice-drawer">{invoiceId}</div>
+  ),
+}))
+
+beforeEach(() => {
+  useSearchParamsMock.mockReturnValue(new URLSearchParams())
+})
 
 function buildInvoice(overrides: Partial<InvoiceWireRow> = {}): InvoiceWireRow {
   return {
@@ -138,5 +153,40 @@ describe("DesktopBillingPage penalty column", () => {
     render(<BillingPage />)
 
     expect(screen.queryByText(/pénalité/)).not.toBeInTheDocument()
+  })
+})
+
+describe("DesktopBillingPage openId search param", () => {
+  it("opens the drawer for a changed ?invoiceId= without remounting the page", () => {
+    useInvoicesMock.mockReturnValue(
+      invoicesQueryResult([
+        buildInvoice({ id: "inv-1" }),
+        buildInvoice({ id: "inv-2" }),
+      ]),
+    )
+    useClientsMock.mockReturnValue({ data: [buildClient()] })
+
+    const { rerender } = render(<BillingPage />)
+    expect(screen.queryByTestId("invoice-drawer")).not.toBeInTheDocument()
+
+    useSearchParamsMock.mockReturnValue(new URLSearchParams("invoiceId=inv-2"))
+    rerender(<BillingPage />)
+
+    expect(screen.getByTestId("invoice-drawer")).toHaveTextContent("inv-2")
+  })
+
+  it("does not clobber a row-click open with a stale unchanged search param", () => {
+    useInvoicesMock.mockReturnValue(
+      invoicesQueryResult([buildInvoice({ id: "inv-1" })]),
+    )
+    useClientsMock.mockReturnValue({ data: [buildClient()] })
+
+    const { rerender } = render(<BillingPage />)
+    fireEvent.click(screen.getByText("F-2026-001").closest("tr")!)
+    expect(screen.getByTestId("invoice-drawer")).toHaveTextContent("inv-1")
+
+    rerender(<BillingPage />)
+
+    expect(screen.getByTestId("invoice-drawer")).toHaveTextContent("inv-1")
   })
 })

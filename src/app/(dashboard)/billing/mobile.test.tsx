@@ -8,16 +8,20 @@ const {
   useInvoicesMock,
   useClientsMock,
   createPaymentMutateMock,
+  useSearchParamsMock,
 } = vi.hoisted(() => ({
   useInvoiceMock: vi.fn(),
   useInvoicesMock: vi.fn(),
   useClientsMock: vi.fn(),
   createPaymentMutateMock: vi.fn(),
+  useSearchParamsMock: vi.fn<() => URLSearchParams>(
+    () => new URLSearchParams(),
+  ),
 }))
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => useSearchParamsMock(),
 }))
 
 vi.mock("@/hooks/use-invoices", () => ({
@@ -39,6 +43,7 @@ vi.mock("@/components/providers/toast-provider", () => ({
 
 beforeEach(() => {
   createPaymentMutateMock.mockReset()
+  useSearchParamsMock.mockReturnValue(new URLSearchParams())
 })
 
 function buildInvoice(overrides: Partial<InvoiceDetail>): InvoiceDetail {
@@ -286,6 +291,49 @@ describe("MobileBillingPage", () => {
     render(<MobileBillingPage />)
 
     expect(screen.queryByText(/pénalité/)).not.toBeInTheDocument()
+  })
+})
+
+describe("MobileBillingPage openId search param", () => {
+  it("opens the sheet for a changed ?invoiceId= without remounting the page", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [
+        buildInvoice({ id: "inv-1" }),
+        buildInvoice({ id: "inv-2" }),
+      ],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({ data: [] })
+    useInvoiceMock.mockReturnValue({ data: undefined })
+
+    const { rerender } = render(<MobileBillingPage />)
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+
+    useSearchParamsMock.mockReturnValue(new URLSearchParams("invoiceId=inv-2"))
+    rerender(<MobileBillingPage />)
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+  })
+
+  it("does not clobber a row-tap open with a stale unchanged search param", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [buildInvoice({ id: "inv-1" })],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({ data: [] })
+    useInvoiceMock.mockReturnValue({ data: buildInvoice({ id: "inv-1" }) })
+
+    const { rerender } = render(<MobileBillingPage />)
+    fireEvent.click(screen.getByText(/F-2026-001/).closest("button")!)
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    rerender(<MobileBillingPage />)
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
   })
 })
 

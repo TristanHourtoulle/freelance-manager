@@ -5,7 +5,10 @@ import { Icon } from "@/components/ui/icon"
 import { useOptionalQuickCapture } from "@/components/capture/quick-capture-provider"
 
 const HIDDEN_ON_PREFIXES = ["/billing/new", "/tasks", "/quotes/new"]
-const HIDDEN_ON_PATTERNS = [/^\/quotes\/[^/]+\/edit$/]
+const HIDDEN_ON_PATTERNS = [
+  /^\/quotes\/[^/]+\/edit$/,
+  /^\/billing\/[^/]+\/edit$/,
+]
 
 function isHiddenRoute(pathname: string): boolean {
   if (
