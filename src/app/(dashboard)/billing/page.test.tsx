@@ -3,18 +3,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import BillingPage from "./page"
 import type { InvoiceWireRow } from "@/domain/billing/types"
 
-const { useInvoicesMock, useClientsMock, useSearchParamsMock } = vi.hoisted(
-  () => ({
+const { useInvoicesMock, useClientsMock, useSearchParamsMock, replaceMock } =
+  vi.hoisted(() => ({
     useInvoicesMock: vi.fn(),
     useClientsMock: vi.fn(),
     useSearchParamsMock: vi.fn<() => URLSearchParams>(
       () => new URLSearchParams(),
     ),
-  }),
-)
+    replaceMock: vi.fn(),
+  }))
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: replaceMock }),
+  usePathname: () => "/billing",
   useSearchParams: () => useSearchParamsMock(),
 }))
 
@@ -35,13 +36,23 @@ vi.mock("@/hooks/use-dashboard", () => ({
 }))
 
 vi.mock("@/components/billing/invoice-drawer", () => ({
-  InvoiceDrawer: ({ invoiceId }: { invoiceId: string }) => (
-    <div data-testid="invoice-drawer">{invoiceId}</div>
+  InvoiceDrawer: ({
+    invoiceId,
+    onClose,
+  }: {
+    invoiceId: string
+    onClose: () => void
+  }) => (
+    <div data-testid="invoice-drawer">
+      {invoiceId}
+      <button onClick={onClose}>Fermer</button>
+    </div>
   ),
 }))
 
 beforeEach(() => {
   useSearchParamsMock.mockReturnValue(new URLSearchParams())
+  replaceMock.mockReset()
 })
 
 function buildInvoice(overrides: Partial<InvoiceWireRow> = {}): InvoiceWireRow {
@@ -188,5 +199,21 @@ describe("DesktopBillingPage openId search param", () => {
     rerender(<BillingPage />)
 
     expect(screen.getByTestId("invoice-drawer")).toHaveTextContent("inv-1")
+  })
+
+  it("strips ?invoiceId= from the URL when the drawer is closed", () => {
+    useInvoicesMock.mockReturnValue(
+      invoicesQueryResult([buildInvoice({ id: "inv-1" })]),
+    )
+    useClientsMock.mockReturnValue({ data: [buildClient()] })
+    useSearchParamsMock.mockReturnValue(new URLSearchParams("invoiceId=inv-1"))
+
+    render(<BillingPage />)
+    expect(screen.getByTestId("invoice-drawer")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Fermer"))
+
+    expect(screen.queryByTestId("invoice-drawer")).not.toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledWith("/billing", { scroll: false })
   })
 })

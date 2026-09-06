@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { TaskDTO } from "@/hooks/use-tasks"
+import type { InvoiceDetail } from "@/hooks/use-invoices"
 
 const h = vi.hoisted(() => {
   const client = {
@@ -415,5 +416,207 @@ describe("useInvoiceBuilder (create mode)", () => {
       "t1",
       "t2",
     ])
+  })
+})
+
+function makeInvoice(overrides: Partial<InvoiceDetail> = {}): InvoiceDetail {
+  return {
+    id: "inv1",
+    number: "F-2026-001",
+    clientId: "c1",
+    projectId: null,
+    status: "DRAFT",
+    paymentStatus: "UNPAID",
+    isOverdue: false,
+    kind: "STANDARD",
+    issueDate: "2026-07-01T00:00:00.000Z",
+    dueDate: "2026-07-31T00:00:00.000Z",
+    paidAmount: 0,
+    balanceDue: 500,
+    lastPaidAt: null,
+    lateFeeAccrued: 0,
+    lateFeeDue: 0,
+    lateFeeClaimedAt: null,
+    lateFeeWaived: false,
+    lateFeeBreakdown: null,
+    penaltyPaid: 0,
+    subtotal: 500,
+    tax: 0,
+    total: 500,
+    totalOverride: null,
+    notes: null,
+    linesCount: 1,
+    client: {
+      id: "c1",
+      firstName: "Ada",
+      lastName: "Lovelace",
+      company: "Analytical",
+      email: null,
+      billingMode: "DAILY",
+      color: null,
+    },
+    lines: [
+      { id: "l1", taskId: null, label: "Ligne existante", qty: 1, rate: 500 },
+    ],
+    payments: [],
+    ...overrides,
+  }
+}
+
+describe("useInvoiceBuilder (edit mode) resyncs from the loaded invoice", () => {
+  beforeEach(() => {
+    h.createMutate.mockReset()
+    h.updateMutate.mockReset()
+    h.splitMutate.mockReset()
+  })
+
+  it("adopts a customNumber change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ number: "F-2026-001" }) },
+    )
+
+    expect(result.current.customNumber).toBe("F-2026-001")
+
+    rerender(makeInvoice({ number: "F-2026-002" }))
+
+    expect(result.current.customNumber).toBe("F-2026-002")
+  })
+
+  it("keeps a locally-edited customNumber that has not been saved yet, even when the invoice prop changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ number: "F-2026-001" }) },
+    )
+
+    act(() => {
+      result.current.setCustomNumber("F-CUSTOM")
+    })
+    expect(result.current.customNumber).toBe("F-CUSTOM")
+
+    rerender(makeInvoice({ number: "F-2026-002" }))
+
+    expect(result.current.customNumber).toBe("F-CUSTOM")
+  })
+
+  it("adopts a status change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ status: "DRAFT" }) },
+    )
+
+    expect(result.current.status).toBe("DRAFT")
+
+    rerender(makeInvoice({ status: "SENT" }))
+
+    expect(result.current.status).toBe("SENT")
+  })
+
+  it("keeps a locally-picked status that has not been saved yet, even when the invoice's status changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ status: "DRAFT" }) },
+    )
+
+    act(() => {
+      result.current.setStatus("SENT")
+    })
+    expect(result.current.status).toBe("SENT")
+
+    rerender(makeInvoice({ status: "CANCELLED" }))
+
+    expect(result.current.status).toBe("SENT")
+  })
+
+  it("adopts a lines change from the invoice prop when the user has not touched the lines", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+          ],
+        }),
+      },
+    )
+
+    expect(result.current.lines).toEqual([
+      {
+        id: "l1",
+        taskId: null,
+        taskGroupId: null,
+        label: "Ligne A",
+        qty: 1,
+        rate: 500,
+      },
+    ])
+
+    rerender(
+      makeInvoice({
+        lines: [
+          { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+          { id: "l2", taskId: null, label: "Ligne B", qty: 2, rate: 300 },
+        ],
+      }),
+    )
+
+    expect(result.current.lines.map((l) => l.id)).toEqual(["l1", "l2"])
+  })
+
+  it("keeps a locally-added line that has not been saved yet, even when the invoice's lines change underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+          ],
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.addTask(tasks[0]!)
+    })
+    expect(result.current.lines.map((l) => l.taskId)).toEqual([null, "t1"])
+    expect(result.current.lines).toHaveLength(2)
+
+    rerender(
+      makeInvoice({
+        lines: [
+          {
+            id: "l1",
+            taskId: null,
+            label: "Ligne A modifiee ailleurs",
+            qty: 9,
+            rate: 999,
+          },
+        ],
+      }),
+    )
+
+    expect(result.current.lines).toHaveLength(2)
+    expect(result.current.lines[0]).toMatchObject({
+      id: "l1",
+      label: "Ligne A",
+      qty: 1,
+      rate: 500,
+    })
+    expect(result.current.lines[1]).toMatchObject({ taskId: "t1" })
+  })
+
+  it("does not loop forever and keeps resyncing an untouched field across many rapid refetches", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ number: "F-0" }) },
+    )
+
+    expect(() => {
+      for (let i = 1; i <= 25; i++) {
+        rerender(makeInvoice({ number: `F-${i}` }))
+      }
+    }).not.toThrow()
+
+    expect(result.current.customNumber).toBe("F-25")
   })
 })

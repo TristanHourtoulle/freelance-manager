@@ -1,7 +1,7 @@
 "use client"
 
-import { Suspense, useEffect, useMemo, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Icon } from "@/components/ui/icon"
 import { StatusPill, invoicePillStatus } from "@/components/ui/pill"
 import { InvoiceDrawer } from "@/components/billing/invoice-drawer"
@@ -39,6 +39,7 @@ export default function BillingPage() {
 
 function DesktopBillingPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const search = useSearchParams()
   const searchInvoiceId = search.get("invoiceId")
   const [openId, setOpenId] = useState<string | null>(searchInvoiceId)
@@ -48,6 +49,15 @@ function DesktopBillingPage() {
   useEffect(() => {
     setOpenId(searchInvoiceId)
   }, [searchInvoiceId])
+
+  const closeDrawer = useCallback(() => {
+    setOpenId(null)
+    if (!search.has("invoiceId")) return
+    const params = new URLSearchParams(search.toString())
+    params.delete("invoiceId")
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [search, router, pathname])
 
   const {
     data: invoices = [],
@@ -324,9 +334,7 @@ function DesktopBillingPage() {
         fetchNextPage={() => fetchNextPage()}
       />
 
-      {openId && (
-        <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} />
-      )}
+      {openId && <InvoiceDrawer invoiceId={openId} onClose={closeDrawer} />}
     </div>
   )
 }
