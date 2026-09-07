@@ -619,4 +619,443 @@ describe("useInvoiceBuilder (edit mode) resyncs from the loaded invoice", () => 
 
     expect(result.current.customNumber).toBe("F-25")
   })
+
+  it("adopts a kind change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ kind: "STANDARD" }) },
+    )
+
+    expect(result.current.kind).toBe("STANDARD")
+
+    rerender(makeInvoice({ kind: "DEPOSIT" }))
+
+    expect(result.current.kind).toBe("DEPOSIT")
+  })
+
+  it("keeps a locally-picked kind that has not been saved yet, even when the invoice's kind changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ kind: "STANDARD" }) },
+    )
+
+    act(() => {
+      result.current.setKind("DEPOSIT")
+    })
+    expect(result.current.kind).toBe("DEPOSIT")
+
+    rerender(makeInvoice({ kind: "STANDARD" }))
+
+    expect(result.current.kind).toBe("DEPOSIT")
+  })
+
+  it("adopts a projectId change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ projectId: null }) },
+    )
+
+    expect(result.current.projectId).toBe("all")
+
+    rerender(makeInvoice({ projectId: "p1" }))
+
+    expect(result.current.projectId).toBe("p1")
+  })
+
+  it("keeps a locally-picked projectId that has not been saved yet, even when the invoice's projectId changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ projectId: null }) },
+    )
+
+    act(() => {
+      result.current.setProjectId("p2")
+    })
+    expect(result.current.projectId).toBe("p2")
+
+    rerender(makeInvoice({ projectId: "p3" }))
+
+    expect(result.current.projectId).toBe("p2")
+  })
+
+  it("adopts an issueDate change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          issueDate: "2026-07-01T00:00:00.000Z",
+        }),
+      },
+    )
+
+    expect(result.current.issueDate).toBe("2026-07-01")
+
+    rerender(makeInvoice({ issueDate: "2026-08-15T00:00:00.000Z" }))
+
+    expect(result.current.issueDate).toBe("2026-08-15")
+  })
+
+  it("keeps a locally-edited issueDate that has not been saved yet, even when the invoice's issueDate changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          issueDate: "2026-07-01T00:00:00.000Z",
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.setIssueDate("2026-07-10")
+    })
+    expect(result.current.issueDate).toBe("2026-07-10")
+
+    rerender(makeInvoice({ issueDate: "2026-08-15T00:00:00.000Z" }))
+
+    expect(result.current.issueDate).toBe("2026-07-10")
+  })
+
+  it("adopts a dueDate change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          dueDate: "2026-07-31T00:00:00.000Z",
+        }),
+      },
+    )
+
+    expect(result.current.dueDate).toBe("2026-07-31")
+
+    rerender(makeInvoice({ dueDate: "2026-09-01T00:00:00.000Z" }))
+
+    expect(result.current.dueDate).toBe("2026-09-01")
+  })
+
+  it("keeps a locally-edited dueDate that has not been saved yet, even when the invoice's dueDate changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          dueDate: "2026-07-31T00:00:00.000Z",
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.setDueDate("2026-08-05")
+    })
+    expect(result.current.dueDate).toBe("2026-08-05")
+
+    rerender(makeInvoice({ dueDate: "2026-09-01T00:00:00.000Z" }))
+
+    expect(result.current.dueDate).toBe("2026-08-05")
+  })
+
+  it("adopts a depositLabel change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          kind: "DEPOSIT",
+          lines: [
+            {
+              id: "dl1",
+              taskId: null,
+              label: "Acompte 30%",
+              qty: 1,
+              rate: 1000,
+            },
+          ],
+        }),
+      },
+    )
+
+    expect(result.current.depositLabel).toBe("Acompte 30%")
+
+    rerender(
+      makeInvoice({
+        kind: "DEPOSIT",
+        lines: [
+          { id: "dl1", taskId: null, label: "Acompte 50%", qty: 1, rate: 1000 },
+        ],
+      }),
+    )
+
+    expect(result.current.depositLabel).toBe("Acompte 50%")
+  })
+
+  it("keeps a locally-edited depositLabel that has not been saved yet, even when the invoice's deposit line changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          kind: "DEPOSIT",
+          lines: [
+            {
+              id: "dl1",
+              taskId: null,
+              label: "Acompte 30%",
+              qty: 1,
+              rate: 1000,
+            },
+          ],
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.setDepositLabel("Mon acompte")
+    })
+    expect(result.current.depositLabel).toBe("Mon acompte")
+
+    rerender(
+      makeInvoice({
+        kind: "DEPOSIT",
+        lines: [
+          { id: "dl1", taskId: null, label: "Acompte 50%", qty: 1, rate: 1000 },
+        ],
+      }),
+    )
+
+    expect(result.current.depositLabel).toBe("Mon acompte")
+  })
+
+  it("adopts a depositAmount change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          kind: "DEPOSIT",
+          lines: [
+            {
+              id: "dl1",
+              taskId: null,
+              label: "Acompte 30%",
+              qty: 1,
+              rate: 1000,
+            },
+          ],
+        }),
+      },
+    )
+
+    expect(result.current.depositAmount).toBe(1000)
+
+    rerender(
+      makeInvoice({
+        kind: "DEPOSIT",
+        lines: [
+          { id: "dl1", taskId: null, label: "Acompte 30%", qty: 1, rate: 2500 },
+        ],
+      }),
+    )
+
+    expect(result.current.depositAmount).toBe(2500)
+  })
+
+  it("keeps a locally-edited depositAmount that has not been saved yet, even when the invoice's deposit line changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          kind: "DEPOSIT",
+          lines: [
+            {
+              id: "dl1",
+              taskId: null,
+              label: "Acompte 30%",
+              qty: 1,
+              rate: 1000,
+            },
+          ],
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.setDepositAmount(1500)
+    })
+    expect(result.current.depositAmount).toBe(1500)
+
+    rerender(
+      makeInvoice({
+        kind: "DEPOSIT",
+        lines: [
+          { id: "dl1", taskId: null, label: "Acompte 30%", qty: 1, rate: 2500 },
+        ],
+      }),
+    )
+
+    expect(result.current.depositAmount).toBe(1500)
+  })
+
+  it("adopts a totalOverride change from the invoice prop when the user has not touched it", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ totalOverride: null }) },
+    )
+
+    expect(result.current.useTotalOverride).toBe(false)
+    expect(result.current.totalOverride).toBe(0)
+
+    rerender(makeInvoice({ totalOverride: 1500 }))
+
+    expect(result.current.useTotalOverride).toBe(true)
+    expect(result.current.totalOverride).toBe(1500)
+  })
+
+  it("keeps a locally-set totalOverride that has not been saved yet, even when the invoice's totalOverride changes underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      { initialProps: makeInvoice({ totalOverride: null }) },
+    )
+
+    act(() => {
+      result.current.setTotalOverrideValue(999)
+    })
+    expect(result.current.useTotalOverride).toBe(true)
+    expect(result.current.totalOverride).toBe(999)
+
+    rerender(makeInvoice({ totalOverride: 5000 }))
+
+    expect(result.current.useTotalOverride).toBe(true)
+    expect(result.current.totalOverride).toBe(999)
+  })
+
+  it("adopts a groups change from the invoice prop when the user has not touched the lines", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            {
+              id: "l1",
+              taskId: "t1",
+              taskGroupId: "g1",
+              label: "[TRI-1] One",
+              qty: 2,
+              rate: 500,
+            },
+          ],
+          taskGroups: [{ id: "g1", name: "Bucket & CDN" }],
+        }),
+      },
+    )
+
+    expect(result.current.groups).toEqual([{ id: "g1", name: "Bucket & CDN" }])
+
+    rerender(
+      makeInvoice({
+        lines: [
+          {
+            id: "l1",
+            taskId: "t1",
+            taskGroupId: "g1",
+            label: "[TRI-1] One",
+            qty: 2,
+            rate: 500,
+          },
+        ],
+        taskGroups: [{ id: "g2", name: "Renamed group" }],
+      }),
+    )
+
+    expect(result.current.groups).toEqual([{ id: "g2", name: "Renamed group" }])
+  })
+
+  it("keeps locally-added groups that have not been saved yet, even when the invoice's groups change underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+          ],
+          taskGroups: [],
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.addTaskGroup(h.taskGroup)
+    })
+    expect(result.current.groups).toEqual([{ id: "g1", name: "Bucket & CDN" }])
+
+    rerender(
+      makeInvoice({
+        lines: [
+          { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+        ],
+        taskGroups: [{ id: "g9", name: "Server-side group" }],
+      }),
+    )
+
+    expect(result.current.groups).toEqual([{ id: "g1", name: "Bucket & CDN" }])
+  })
+
+  it("keeps a line changed via updateLine that has not been saved yet, even when the invoice's lines change underneath", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+          ],
+        }),
+      },
+    )
+
+    act(() => {
+      result.current.updateLine("l1", { qty: 3, rate: 750 })
+    })
+    expect(result.current.lines[0]).toMatchObject({ qty: 3, rate: 750 })
+
+    rerender(
+      makeInvoice({
+        lines: [
+          {
+            id: "l1",
+            taskId: null,
+            label: "Ligne A modifiee ailleurs",
+            qty: 9,
+            rate: 999,
+          },
+        ],
+      }),
+    )
+
+    expect(result.current.lines[0]).toMatchObject({
+      id: "l1",
+      label: "Ligne A",
+      qty: 3,
+      rate: 750,
+    })
+  })
+
+  it("adopts a line removed server-side when the user has not touched the lines", () => {
+    const { result, rerender } = renderHook(
+      (invoice: InvoiceDetail) => useInvoiceBuilder({ mode: "edit", invoice }),
+      {
+        initialProps: makeInvoice({
+          lines: [
+            { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+            { id: "l2", taskId: null, label: "Ligne B", qty: 2, rate: 300 },
+          ],
+        }),
+      },
+    )
+
+    expect(result.current.lines.map((l) => l.id)).toEqual(["l1", "l2"])
+
+    rerender(
+      makeInvoice({
+        lines: [
+          { id: "l1", taskId: null, label: "Ligne A", qty: 1, rate: 500 },
+        ],
+      }),
+    )
+
+    expect(result.current.lines.map((l) => l.id)).toEqual(["l1"])
+  })
 })

@@ -216,4 +216,24 @@ describe("DesktopBillingPage openId search param", () => {
     expect(screen.queryByTestId("invoice-drawer")).not.toBeInTheDocument()
     expect(replaceMock).toHaveBeenCalledWith("/billing", { scroll: false })
   })
+
+  it("keeps other search params when stripping ?invoiceId= from a multi-param URL", () => {
+    useInvoicesMock.mockReturnValue(
+      invoicesQueryResult([buildInvoice({ id: "inv-1" })]),
+    )
+    useClientsMock.mockReturnValue({ data: [buildClient()] })
+    useSearchParamsMock.mockReturnValue(
+      new URLSearchParams("invoiceId=inv-1&filter=overdue"),
+    )
+
+    render(<BillingPage />)
+    expect(screen.getByTestId("invoice-drawer")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Fermer"))
+
+    expect(screen.queryByTestId("invoice-drawer")).not.toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledWith("/billing?filter=overdue", {
+      scroll: false,
+    })
+  })
 })

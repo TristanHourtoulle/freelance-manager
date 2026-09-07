@@ -359,6 +359,30 @@ describe("MobileBillingPage openId search param", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     expect(replaceMock).toHaveBeenCalledWith("/billing", { scroll: false })
   })
+
+  it("keeps other search params when stripping ?invoiceId= from a multi-param URL", () => {
+    useInvoicesMock.mockReturnValue({
+      data: [buildInvoice({ id: "inv-1" })],
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    useClientsMock.mockReturnValue({ data: [] })
+    useInvoiceMock.mockReturnValue({ data: buildInvoice({ id: "inv-1" }) })
+    useSearchParamsMock.mockReturnValue(
+      new URLSearchParams("invoiceId=inv-1&filter=overdue"),
+    )
+
+    render(<MobileBillingPage />)
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText("Fermer"))
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(replaceMock).toHaveBeenCalledWith("/billing?filter=overdue", {
+      scroll: false,
+    })
+  })
 })
 
 describe("MobileInvoiceSheet — markPaid penalty attribution", () => {
