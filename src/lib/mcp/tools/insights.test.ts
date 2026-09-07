@@ -159,4 +159,47 @@ describe("getAnalytics", () => {
     expect(byClient[0]!.revenue).toBe(1000)
     expect(byClient[0]!.name).toHaveLength(121)
   })
+
+  /**
+   * Regression guard for TRI-1237: `getAnalytics` used to rebuild its own
+   * month buckets with `new Date(y, m, 1)` (process-local time) read back
+   * via `toISOString()` — a near-literal copy of the pre-TRI-1218 analytics
+   * route logic, which shifts every key back a month under a positive UTC
+   * offset. It now delegates to `buildMonthlyBuckets`, so the paid/issued
+   * rows must key onto their own UTC month regardless of the server
+   * process's timezone. `paidByMonth`/`issuedByMonth` are seeded here as
+   * UTC month starts, matching what Postgres `date_trunc('month', ...)`
+   * returns in production.
+   */
+  it("keys each month bucket by its own UTC month, independent of iteration order", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(Date.UTC(2026, 8, 6, 12, 0, 0)))
+    try {
+      prismaMock.$queryRaw
+        .mockResolvedValueOnce([
+          { month: new Date(Date.UTC(2026, 6, 1)), total: 1000 },
+          { month: new Date(Date.UTC(2026, 7, 1)), total: 3550 },
+          { month: new Date(Date.UTC(2026, 8, 1)), total: 954.94 },
+        ])
+        .mockResolvedValueOnce([])
+
+      const result = await getAnalytics(USER_ID, { range: "3m" })
+      const { months } = result.structuredContent as {
+        months: {
+          label: string
+          paid: number
+          issued: number
+          isCurrent: boolean
+        }[]
+      }
+
+      expect(months).toEqual([
+        { label: "juil.", paid: 1000, issued: 0, isCurrent: false },
+        { label: "août", paid: 3550, issued: 0, isCurrent: false },
+        { label: "sept.", paid: 954.94, issued: 0, isCurrent: true },
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

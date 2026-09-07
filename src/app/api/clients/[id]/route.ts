@@ -15,6 +15,9 @@ import { deferActivityLog } from "@/lib/activity"
 import { clientsTag } from "@/lib/data/clients"
 import { navTag } from "@/lib/data/nav"
 import { summarizeWorkload } from "@/domain/capacity/workload"
+import { buildMonthlyBuckets } from "@/domain/analytics/month-buckets"
+
+const CLIENT_MONTHLY_REVENUE_WINDOW = 12
 
 interface Params {
   params: Promise<{ id: string }>
@@ -27,7 +30,11 @@ export async function GET(_: Request, { params }: Params) {
 
   try {
     const today = new Date()
-    const monthlyStart = new Date(today.getFullYear(), today.getMonth() - 11, 1)
+    const monthlyStart = new Date(
+      today.getFullYear(),
+      today.getMonth() - (CLIENT_MONTHLY_REVENUE_WINDOW - 1),
+      1,
+    )
 
     const [
       c,
@@ -136,18 +143,13 @@ export async function GET(_: Request, { params }: Params) {
           ).toISOString()
         : null
 
-    const monthlyMap = new Map(
-      monthlyTotals.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
-    )
-    const monthlyRevenue: { month: string; total: number }[] = []
-    for (let i = 11; i >= 0; i--) {
-      const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const key = start.toISOString().slice(0, 7)
-      monthlyRevenue.push({
-        month: start.toLocaleDateString("fr-FR", { month: "short" }),
-        total: monthlyMap.get(key) ?? 0,
-      })
-    }
+    const monthlyRevenue: { month: string; total: number }[] =
+      buildMonthlyBuckets(
+        today,
+        CLIENT_MONTHLY_REVENUE_WINDOW,
+        monthlyTotals,
+        [],
+      ).map((bucket) => ({ month: bucket.label, total: bucket.paid }))
 
     const workload = summarizeWorkload(
       tasks.filter((t) => t.status === "BACKLOG" || t.status === "IN_PROGRESS"),
