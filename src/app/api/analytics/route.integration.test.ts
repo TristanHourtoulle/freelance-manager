@@ -60,21 +60,16 @@ interface AnalyticsResponse {
 
 describe("GET /api/analytics (integration)", () => {
   /**
-   * `kpi.totalRevenue` is deliberately not asserted here: it is derived from
-   * `monthBuckets`, whose lookup keys are built by converting a
-   * locally-constructed `Date` to a UTC ISO string
-   * (`route.ts`'s `monthBuckets.push({ ... paid: paidByMonthMap.get(key) })`
-   * with `key = start.toISOString().slice(0, 7)`). In any server timezone
-   * with a positive UTC offset (this sandbox runs at UTC+2), that shifts
-   * every bucket's key back by one calendar month, and the current month's
-   * true bucket key is never produced by the loop — so payments dated in
-   * the current month (here, the anchor case's final two, 2026-09-02 and
-   * 2026-09-04) never reach `totalRevenue`. This is a real, pre-existing
-   * bug independent of the late-fee feature this ticket covers; flagged in
-   * the PR description rather than fixed here (out of scope, and
-   * production code is otherwise left untouched by this ticket).
-   * `byClient[].revenue` is unaffected — it sums `payments` with no
-   * date-bucketing — so it is what this test asserts instead.
+   * TRI-1218 regression: `monthBuckets` used to be built from a
+   * locally-constructed `Date` (`new Date(y, m, 1)`) read back through a UTC
+   * ISO string, which shifted every bucket's key back a month under a
+   * positive server UTC offset (this sandbox runs at UTC+2) — the current
+   * month's payments (here, the anchor case's final two, 2026-09-02 and
+   * 2026-09-04) never landed in `totalRevenue`. `buildMonthlyBuckets`
+   * (`@/domain/analytics/month-buckets`) now derives every boundary from the
+   * UTC calendar, so `kpi.totalRevenue` is asserted here alongside
+   * `byClient[].revenue` (which sums `payments` with no date-bucketing and
+   * was never affected).
    */
   it("counts the anchor case's five settling payments as per-client revenue for a fully paid invoice", async () => {
     const client = await makeClient(ctx.prisma, { userId: currentUser.id })
@@ -90,6 +85,7 @@ describe("GET /api/analytics (integration)", () => {
     expect(res.status).toBe(200)
     expect(body.kpi.paidCount).toBe(1)
     expect(body.byClient[0]?.revenue).toBeCloseTo(5504.94, 2)
+    expect(body.kpi.totalRevenue).toBeCloseTo(5504.94, 2)
   })
 
   it("never mixes another user's invoices into the current user's analytics", async () => {
