@@ -6,6 +6,7 @@ import {
   buildPipelineAging,
   type PipelineAging,
 } from "@/domain/billing/pipeline-aging"
+import { buildMonthlyBuckets } from "@/domain/analytics/month-buckets"
 import type {
   InvoiceDocStatus,
   InvoiceKind,
@@ -13,6 +14,8 @@ import type {
 } from "./types"
 
 type DecimalLike = Prisma.Decimal | number
+
+const DASHBOARD_MONTH_WINDOW = 8
 
 export interface OpenInvoiceRow {
   id: string
@@ -146,10 +149,12 @@ export interface DashboardKpis {
  *
  * Extracted verbatim from the former inline `/api/dashboard` logic: overdue
  * filtering, outstanding + overdue sums, the distinct pipeline-client count
- * derived from the pipeline tasks, the trailing 8-month payment buckets, and
- * the recent-invoice projection. `pipelineTasks` must already be gated by the
- * canonical `PIPELINE_TASK_WHERE` filter; unestimated tasks contribute 0 € and
- * are totalled in `unestimatedCount`. No DB access, no framework imports —
+ * derived from the pipeline tasks, the trailing 8-month payment buckets
+ * (built via `buildMonthlyBuckets`, so bucket keys stay UTC-anchored
+ * regardless of the server process's local timezone), and the recent-invoice
+ * projection. `pipelineTasks` must already be gated by the canonical
+ * `PIPELINE_TASK_WHERE` filter; unestimated tasks contribute 0 € and are
+ * totalled in `unestimatedCount`. No DB access, no framework imports —
  * deterministic given its inputs.
  */
 export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
@@ -203,21 +208,16 @@ export function computeDashboardKpis(input: DashboardKpiInput): DashboardKpis {
     0,
   )
 
-  const bucketByMonth = new Map(
-    paymentBuckets.map(
-      (b) => [b.month.toISOString().slice(0, 7), b.total] as const,
-    ),
-  )
-  const months: DashboardMonthBucket[] = []
-  for (let i = 7; i >= 0; i--) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = start.toISOString().slice(0, 7)
-    months.push({
-      month: start.toLocaleDateString("fr-FR", { month: "short" }),
-      total: bucketByMonth.get(key) ?? 0,
-      isCurrent: i === 0,
-    })
-  }
+  const months: DashboardMonthBucket[] = buildMonthlyBuckets(
+    now,
+    DASHBOARD_MONTH_WINDOW,
+    paymentBuckets,
+    [],
+  ).map((bucket) => ({
+    month: bucket.label,
+    total: bucket.paid,
+    isCurrent: bucket.isCurrent,
+  }))
 
   const overdue: DashboardOverdueRow[] = overdueList.map(
     ({ inv, computed }) => ({

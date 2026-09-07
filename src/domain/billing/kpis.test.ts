@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/api", () => ({
@@ -9,6 +12,8 @@ import {
   type DashboardKpiInput,
   type PaymentBucketRow,
 } from "./kpis"
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const NOW = new Date(2026, 2, 15, 12, 0, 0)
 const DAY_MS = 86_400_000
@@ -23,8 +28,8 @@ function daysBefore(days: number): Date {
  * trailing 8-month buckets, and the recent-invoice projection.
  */
 function buildInput(): DashboardKpiInput {
-  const currentMonthBucket = new Date(2026, 2, 1)
-  const januaryBucket = new Date(2026, 0, 1)
+  const currentMonthBucket = new Date(Date.UTC(2026, 2, 1))
+  const januaryBucket = new Date(Date.UTC(2026, 0, 1))
   const paymentBuckets: PaymentBucketRow[] = [
     { month: currentMonthBucket, total: 1200 },
     { month: januaryBucket, total: 500 },
@@ -325,25 +330,55 @@ describe("computeDashboardKpis", () => {
   it("builds the trailing eight-month payment buckets", () => {
     const { months } = computeDashboardKpis(buildInput())
 
-    const bucketByMonth = new Map<string, number>([
-      [new Date(2026, 2, 1).toISOString().slice(0, 7), 1200],
-      [new Date(2026, 0, 1).toISOString().slice(0, 7), 500],
+    expect(months).toEqual([
+      { month: "août", total: 0, isCurrent: false },
+      { month: "sept.", total: 0, isCurrent: false },
+      { month: "oct.", total: 0, isCurrent: false },
+      { month: "nov.", total: 0, isCurrent: false },
+      { month: "déc.", total: 0, isCurrent: false },
+      { month: "janv.", total: 500, isCurrent: false },
+      { month: "févr.", total: 0, isCurrent: false },
+      { month: "mars", total: 1200, isCurrent: true },
     ])
-    const expected: { month: string; total: number; isCurrent: boolean }[] = []
-    for (let i = 7; i >= 0; i--) {
-      const start = new Date(NOW.getFullYear(), NOW.getMonth() - i, 1)
-      const key = start.toISOString().slice(0, 7)
-      expected.push({
-        month: start.toLocaleDateString("fr-FR", { month: "short" }),
-        total: bucketByMonth.get(key) ?? 0,
-        isCurrent: i === 0,
-      })
-    }
-
-    expect(months).toHaveLength(8)
-    expect(months).toEqual(expected)
     expect(months[7]?.isCurrent).toBe(true)
     expect(months[7]?.total).toBe(1200)
+  })
+
+  /**
+   * Regression guard for TRI-1237: `computeDashboardKpis` used to build its
+   * bucket start with `new Date(y, m, 1)` (process-local time) and read it
+   * back with `toISOString()`, which shifts every key back a month under a
+   * positive UTC offset. It now delegates to `buildMonthlyBuckets`, whose own
+   * UTC arithmetic makes the result independent of the server process's
+   * timezone. `vi.setSystemTime` cannot exercise this (it only fakes
+   * `Date.now()`), and mutating `process.env.TZ` inside a running test
+   * process is unreliable, so a fresh child process with `TZ` set in its
+   * environment is used instead, mirroring the guard already in
+   * `month-buckets.test.ts`.
+   */
+  it("produces the correct January/March keys under a UTC+2 process timezone", () => {
+    const scriptPath = path.join(__dirname, "kpis.tz-fixture.ts")
+    const tsxBin = path.resolve(process.cwd(), "node_modules/.bin/tsx")
+
+    const stdout = execFileSync(tsxBin, [scriptPath], {
+      env: {
+        ...process.env,
+        TZ: "Europe/Paris",
+        NODE_OPTIONS: "--conditions=react-server",
+      },
+      encoding: "utf8",
+    })
+
+    expect(JSON.parse(stdout)).toEqual([
+      { month: "août", total: 0, isCurrent: false },
+      { month: "sept.", total: 0, isCurrent: false },
+      { month: "oct.", total: 0, isCurrent: false },
+      { month: "nov.", total: 0, isCurrent: false },
+      { month: "déc.", total: 0, isCurrent: false },
+      { month: "janv.", total: 500, isCurrent: false },
+      { month: "févr.", total: 0, isCurrent: false },
+      { month: "mars", total: 1200, isCurrent: true },
+    ])
   })
 
   it("projects recent invoices with computed billing state", () => {

@@ -16,7 +16,9 @@ import {
 } from "@/test/integration/db"
 import {
   makeClient,
+  makeInvoice,
   makeInvoiceWithClaimedLateFee,
+  makePayment,
   makeUser,
   makeUserSettings,
 } from "@/test/integration/factories"
@@ -136,6 +138,74 @@ describe("GET /api/clients/[id] (integration)", () => {
     })
 
     expect(res.status).toBe(404)
+  })
+
+  /**
+   * Regression guard for TRI-1237: the monthly-revenue loop used to build
+   * its bucket start with `new Date(y, m, 1)` (process-local time) and read
+   * it back with `toISOString()`, shifting every key back a month under a
+   * positive UTC offset. It now delegates to `buildMonthlyBuckets`, so a
+   * payment's real-DB `date_trunc('month', "paidAt")` bucket (itself
+   * UTC-anchored, since `paidAt` is a naive `timestamp` round-tripped in UTC
+   * by `@prisma/adapter-pg`) must land in the matching UTC-keyed bucket
+   * regardless of the server process's own timezone.
+   */
+  it("keys monthly revenue by UTC calendar month, independent of process timezone", async () => {
+    const client = await makeClient(ctx.prisma, { userId: currentUser.id })
+    const recentInvoice = await makeInvoice(ctx.prisma, {
+      userId: currentUser.id,
+      clientId: client.id,
+    })
+    const oldestInvoice = await makeInvoice(ctx.prisma, {
+      userId: currentUser.id,
+      clientId: client.id,
+    })
+
+    const now = new Date()
+    const currentMonthPaidAt = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 15, 12, 0, 0),
+    )
+    const oldestBucketPaidAt = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 15, 12, 0, 0),
+    )
+
+    await makePayment(ctx.prisma, {
+      userId: currentUser.id,
+      invoiceId: recentInvoice.id,
+      amount: 1200,
+      paidAt: currentMonthPaidAt,
+    })
+    await makePayment(ctx.prisma, {
+      userId: currentUser.id,
+      invoiceId: oldestInvoice.id,
+      amount: 500,
+      paidAt: oldestBucketPaidAt,
+    })
+
+    const { GET } = await import("./route")
+    const res = await GET(getRequest(client.id), {
+      params: Promise.resolve({ id: client.id }),
+    })
+    const body = (await res.json()) as {
+      monthlyRevenue: { month: string; total: number }[]
+    }
+
+    expect(res.status).toBe(200)
+    expect(body.monthlyRevenue).toHaveLength(12)
+    expect(body.monthlyRevenue[0]?.total).toBe(500)
+    expect(body.monthlyRevenue[0]?.month).toBe(
+      oldestBucketPaidAt.toLocaleDateString("fr-FR", {
+        month: "short",
+        timeZone: "UTC",
+      }),
+    )
+    expect(body.monthlyRevenue[11]?.total).toBe(1200)
+    expect(body.monthlyRevenue[11]?.month).toBe(
+      currentMonthPaidAt.toLocaleDateString("fr-FR", {
+        month: "short",
+        timeZone: "UTC",
+      }),
+    )
   })
 })
 

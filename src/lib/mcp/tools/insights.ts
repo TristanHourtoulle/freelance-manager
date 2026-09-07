@@ -9,6 +9,7 @@ import {
   type PaymentBucketRow,
   type PaymentTotalsRow,
 } from "@/domain/billing/kpis"
+import { buildMonthlyBuckets } from "@/domain/analytics/month-buckets"
 import { PIPELINE_TASK_WHERE } from "@/domain/tasks/billability"
 import {
   aggregateDaysByClient,
@@ -251,9 +252,10 @@ interface MonthBucketRow {
  * Handler for the get_analytics tool: period revenue analytics.
  *
  * Reuses the canonical domain folds (`aggregateDaysByClient`,
- * `computeEffectiveRate`, `buildConcentration`, `computeQuoteKpis`) over the
- * requested period. `byClient` is truncated to the top 5 clients by revenue,
- * but shares and totals are computed over the whole book of business.
+ * `computeEffectiveRate`, `buildConcentration`, `computeQuoteKpis`,
+ * `buildMonthlyBuckets`) over the requested period. `byClient` is truncated
+ * to the top 5 clients by revenue, but shares and totals are computed over
+ * the whole book of business.
  *
  * @param userId - The resolved MCP principal.
  * @param args - Validated range argument (3m, 6m or 12m).
@@ -331,23 +333,12 @@ export async function getAnalytics(
         `,
     ])
 
-    const paidByMonthMap = new Map(
-      paidByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
+    const monthBuckets = buildMonthlyBuckets(
+      today,
+      months,
+      paidByMonth,
+      issuedByMonth,
     )
-    const issuedByMonthMap = new Map(
-      issuedByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
-    )
-    const monthBuckets = []
-    for (let i = months - 1; i >= 0; i--) {
-      const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const key = start.toISOString().slice(0, 7)
-      monthBuckets.push({
-        label: start.toLocaleDateString("fr-FR", { month: "short" }),
-        paid: paidByMonthMap.get(key) ?? 0,
-        issued: issuedByMonthMap.get(key) ?? 0,
-        isCurrent: i === 0,
-      })
-    }
 
     const totalRevenue = monthBuckets.reduce((s, m) => s + m.paid, 0)
     const avgRevenue = months > 0 ? Math.round(totalRevenue / months) : 0
