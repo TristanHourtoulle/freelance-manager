@@ -142,7 +142,7 @@ describe("POST /api/clients/[id]/linear-mappings (integration)", () => {
     expect(res.status).toBe(400)
   })
 
-  it("does not create a mapping under another user's client (never 200)", async () => {
+  it("returns 404 (never 200) for a client under another user, and creates no mapping", async () => {
     const owner = await makeUser(ctx.prisma)
     const ownerClient = await makeClient(ctx.prisma, { userId: owner.id })
 
@@ -152,8 +152,7 @@ describe("POST /api/clients/[id]/linear-mappings (integration)", () => {
       { params: Promise.resolve({ id: ownerClient.id }) },
     )
 
-    expect(res.status).not.toBe(200)
-    expect(res.status).not.toBe(403)
+    expect(res.status).toBe(404)
     const rows = await ctx.prisma.linearMapping.findMany({
       where: { clientId: ownerClient.id },
     })

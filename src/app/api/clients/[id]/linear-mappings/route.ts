@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
+  apiNotFound,
   apiServerError,
   apiUnauthorized,
   getAuthUser,
@@ -47,7 +48,7 @@ export async function POST(req: Request, { params }: Params) {
       where: { id, userId: user.id },
       select: { id: true },
     })
-    if (!owned) return apiUnauthorized()
+    if (!owned) return apiNotFound()
 
     if (data.linearProjectId) {
       const existing = await prisma.linearMapping.findFirst({

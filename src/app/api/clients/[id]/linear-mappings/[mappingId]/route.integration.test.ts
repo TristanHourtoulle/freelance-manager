@@ -82,7 +82,7 @@ describe("DELETE /api/clients/[id]/linear-mappings/[mappingId] (integration)", (
     expect(remaining).toBeNull()
   })
 
-  it("leaves another user's mapping untouched (never a real effect)", async () => {
+  it("returns 404 (never 200) for another user's mapping, and leaves it untouched", async () => {
     const owner = await makeUser(ctx.prisma)
     const ownerClient = await makeClient(ctx.prisma, { userId: owner.id })
     const mapping = await makeLinearMapping(ctx.prisma, {
@@ -94,7 +94,7 @@ describe("DELETE /api/clients/[id]/linear-mappings/[mappingId] (integration)", (
       params: Promise.resolve({ id: ownerClient.id, mappingId: mapping.id }),
     })
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     const untouched = await ctx.prisma.linearMapping.findUnique({
       where: { id: mapping.id },
     })

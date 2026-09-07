@@ -320,6 +320,12 @@ export async function DELETE(req: Request, { params }: Params) {
   if (!user) return apiUnauthorized()
   const { id } = await params
   try {
+    const owned = await prisma.invoice.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true },
+    })
+    if (!owned) return apiNotFound()
+
     await prisma.$transaction([
       prisma.task.updateMany({
         where: { invoiceId: id, userId: user.id },

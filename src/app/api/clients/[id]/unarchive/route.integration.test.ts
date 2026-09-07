@@ -78,7 +78,7 @@ describe("POST /api/clients/[id]/unarchive (integration)", () => {
     expect(updated.archivedAt).toBeNull()
   })
 
-  it("leaves another user's archived client untouched (never 200 with a real effect)", async () => {
+  it("returns 404 (never 200) for another user's archived client, and leaves it untouched", async () => {
     const owner = await makeUser(ctx.prisma)
     const ownerClient = await makeClient(ctx.prisma, {
       userId: owner.id,
@@ -90,7 +90,7 @@ describe("POST /api/clients/[id]/unarchive (integration)", () => {
       params: Promise.resolve({ id: ownerClient.id }),
     })
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     const untouched = await ctx.prisma.client.findUniqueOrThrow({
       where: { id: ownerClient.id },
     })
