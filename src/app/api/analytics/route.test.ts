@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { computeQuoteKpis } from "@/domain/quotes/kpis"
+import { buildMonthlyBuckets } from "@/domain/analytics/month-buckets"
 
 type InvoiceRow = {
   id: string
@@ -85,9 +86,15 @@ vi.mock("@/lib/api", async () => {
 })
 
 /**
- * Faithful copy of the pre-refactor aggregation algorithm, kept in the test as
- * the parity oracle. The route must still return these fields unchanged; the
- * steering-signal fields added on top are asserted separately.
+ * Parity oracle for the route's aggregation — but only partially. `byClient`,
+ * `byType`, `weeks`, `heatmap`, `avgDelay`, `collectionRate`, and `quoteKpis`
+ * are independently reimplemented here, so a divergence in the route is
+ * genuinely caught. Month-bucket construction instead calls the real
+ * `buildMonthlyBuckets` on both sides, so `totalRevenue`, `avgRevenue`,
+ * `trend`, `avgInvoice`, `runRate`, and `months` are compared against
+ * themselves and prove nothing about bucketing correctness. That coverage
+ * lives in `month-buckets.test.ts`, including the non-UTC timezone
+ * regression.
  */
 function referenceAnalytics(
   data: Dataset,
@@ -98,28 +105,12 @@ function referenceAnalytics(
   const { invoices, payments, clients, tasks, paidByMonth, issuedByMonth } =
     data
 
-  const paidByMonthMap = new Map(
-    paidByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
+  const monthBuckets = buildMonthlyBuckets(
+    today,
+    months,
+    paidByMonth,
+    issuedByMonth,
   )
-  const issuedByMonthMap = new Map(
-    issuedByMonth.map((b) => [b.month.toISOString().slice(0, 7), b.total]),
-  )
-  const monthBuckets: {
-    label: string
-    paid: number
-    issued: number
-    isCurrent: boolean
-  }[] = []
-  for (let i = months - 1; i >= 0; i--) {
-    const start = new Date(today.getFullYear(), today.getMonth() - i, 1)
-    const key = start.toISOString().slice(0, 7)
-    monthBuckets.push({
-      label: start.toLocaleDateString("fr-FR", { month: "short" }),
-      paid: paidByMonthMap.get(key) ?? 0,
-      issued: issuedByMonthMap.get(key) ?? 0,
-      isCurrent: i === 0,
-    })
-  }
 
   const totalRevenue = monthBuckets.reduce((s, m) => s + m.paid, 0)
   const avgRevenue = months > 0 ? Math.round(totalRevenue / months) : 0
