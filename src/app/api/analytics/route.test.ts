@@ -86,9 +86,15 @@ vi.mock("@/lib/api", async () => {
 })
 
 /**
- * Faithful copy of the pre-refactor aggregation algorithm, kept in the test as
- * the parity oracle. The route must still return these fields unchanged; the
- * steering-signal fields added on top are asserted separately.
+ * Parity oracle for the route's aggregation — but only partially. `byClient`,
+ * `byType`, `weeks`, `heatmap`, `avgDelay`, `collectionRate`, and `quoteKpis`
+ * are independently reimplemented here, so a divergence in the route is
+ * genuinely caught. Month-bucket construction instead calls the real
+ * `buildMonthlyBuckets` on both sides, so `totalRevenue`, `avgRevenue`,
+ * `trend`, `avgInvoice`, `runRate`, and `months` are compared against
+ * themselves and prove nothing about bucketing correctness. That coverage
+ * lives in `month-buckets.test.ts`, including the non-UTC timezone
+ * regression.
  */
 function referenceAnalytics(
   data: Dataset,
