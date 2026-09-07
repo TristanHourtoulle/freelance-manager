@@ -143,7 +143,7 @@ describe("POST /api/task-groups", () => {
       post({ clientId: "foreign", name: "Bucket", taskIds: ["task-1"] }),
     )
 
-    expect(response.status).toBe(401)
+    expect(response.status).toBe(404)
     expect(prismaMock.$transaction).not.toHaveBeenCalled()
   })
 })

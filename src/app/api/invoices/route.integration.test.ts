@@ -206,14 +206,19 @@ describe("POST /api/invoices (integration)", () => {
  * These two describe blocks deliberately share the invoices spec's own
  * spawned `next dev` server and database rather than getting their own test
  * files: `getClientsFirstPage` and `getProjectsFirstPage` are cached
- * (`"use cache"`) exactly like the invoices list, and only a genuine cache
- * round trip through the real Next.js runtime can prove a `Decimal` survives
- * it — a bare `vitest` process never applies the compiler transform the
- * cache wrapper needs, so calling the data-layer function in-process would
- * prove nothing about this specific risk. Reusing this file's single
- * server/database avoids racing this spec's own `beforeEach` truncation
- * against a second file's, which a second consumer of the same shared
- * resource could otherwise hit.
+ * (`"use cache"`) exactly like the invoices list. Neither function hands a
+ * `Decimal` to the cache boundary — `serializeClient` converts `rate` and
+ * `fixedPrice` to plain numbers before the `return`, and `remainingDays` on
+ * the projects side is a computed `number`, never a `Decimal`, to begin
+ * with — so a bare `vitest` process calling either data-layer function
+ * in-process would already prove the value is a correct plain number. What
+ * only a real `next dev`/`next build` run can prove is that Next's own
+ * `"use cache"` compiler transform — never applied in a bare `vitest`
+ * process — round-trips that plain number back out unchanged through the
+ * real cache serialization. Reusing this file's single server/database
+ * avoids racing this spec's own `beforeEach` truncation against a second
+ * file's, which a second consumer of the same shared resource could
+ * otherwise hit.
  */
 describe("GET /api/clients (integration, real 'use cache' boundary)", () => {
   it("returns a usable numeric rate/fixedPrice through the real 'use cache' data layer", async () => {

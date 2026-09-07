@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
+  apiNotFound,
   apiServerError,
   apiUnauthorized,
   getAuthUser,
@@ -21,9 +22,10 @@ export async function DELETE(req: Request, { params }: Params) {
   if (!user) return apiUnauthorized()
   const { id, mappingId } = await params
   try {
-    await prisma.linearMapping.deleteMany({
+    const result = await prisma.linearMapping.deleteMany({
       where: { id: mappingId, clientId: id, client: { userId: user.id } },
     })
+    if (result.count === 0) return apiNotFound()
     revalidateTag(projectsTag(user.id), "max")
     revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })

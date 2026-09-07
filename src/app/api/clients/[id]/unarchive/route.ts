@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
+  apiNotFound,
   apiServerError,
   apiUnauthorized,
   getAuthUser,
@@ -21,10 +22,11 @@ export async function POST(req: Request, { params }: Params) {
   if (!user) return apiUnauthorized()
   const { id } = await params
   try {
-    await prisma.client.updateMany({
+    const result = await prisma.client.updateMany({
       where: { id, userId: user.id },
       data: { archivedAt: null },
     })
+    if (result.count === 0) return apiNotFound()
     revalidateTag(clientsTag(user.id), "max")
     revalidateTag(navTag(user.id), "max")
     return NextResponse.json({ ok: true })

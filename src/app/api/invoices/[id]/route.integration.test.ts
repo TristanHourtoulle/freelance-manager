@@ -241,21 +241,7 @@ describe("DELETE /api/invoices/[id] (integration)", () => {
     expect(remaining).toBeNull()
   })
 
-  /**
-   * Documents an actual, current gap rather than the ticket's expected
-   * `404` contract: `DELETE` scopes its write with
-   * `prisma.invoice.deleteMany({ where: { id, userId } })` instead of a
-   * `findFirst` existence check first (unlike this same route's `GET` and
-   * `PATCH`, and unlike `DELETE /api/clients/[id]` and
-   * `DELETE /api/quotes/[id]`). A `deleteMany` matching zero rows is not an
-   * error, so calling `DELETE` on another user's invoice responds `200 {
-   * ok: true }` — identical to deleting an id that never existed at all —
-   * rather than `404`. No data is leaked or mutated (the assertion below
-   * pins that), but the response code diverges from every sibling
-   * ownership-scoped route. Filed as a finding rather than silently
-   * patched, per this ticket's constraint against changing production code.
-   */
-  it("responds 200 without deleting when the invoice belongs to another user (known scoping gap, see JSDoc)", async () => {
+  it("returns 404 (never 200) for another user's invoice, and deletes nothing", async () => {
     const owner = await makeUser(ctx.prisma)
     const ownerClient = await makeClient(ctx.prisma, { userId: owner.id })
     const invoice = await makeInvoice(ctx.prisma, {
@@ -268,7 +254,7 @@ describe("DELETE /api/invoices/[id] (integration)", () => {
       params: Promise.resolve({ id: invoice.id }),
     })
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     const untouched = await ctx.prisma.invoice.findUnique({
       where: { id: invoice.id },
     })

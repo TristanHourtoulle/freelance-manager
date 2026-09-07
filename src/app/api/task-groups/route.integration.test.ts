@@ -147,7 +147,7 @@ describe("POST /api/task-groups (integration)", () => {
     expect(res.status).toBe(409)
   })
 
-  it("rejects creating a group under another user's client (never 200)", async () => {
+  it("returns 404 (never 200) for a group under another user's client", async () => {
     const owner = await makeUser(ctx.prisma)
     const ownerClient = await makeClient(ctx.prisma, { userId: owner.id })
     const ownerProject = await makeProject(ctx.prisma, {
@@ -169,7 +169,7 @@ describe("POST /api/task-groups (integration)", () => {
       }),
     )
 
-    expect(res.status).not.toBe(200)
+    expect(res.status).toBe(404)
     const groups = await ctx.prisma.taskGroup.count({
       where: { clientId: ownerClient.id },
     })

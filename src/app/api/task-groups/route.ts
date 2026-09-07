@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
 import {
+  apiNotFound,
   apiServerError,
   apiUnauthorized,
   getAuthUser,
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
       where: { id: data.clientId, userId: user.id },
       select: { id: true },
     })
-    if (!client) return apiUnauthorized()
+    if (!client) return apiNotFound()
 
     const created = await prisma.$transaction(async (tx) => {
       const tasks = await tx.task.findMany({
